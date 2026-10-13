@@ -2,6 +2,7 @@
 // 2026-10-03, the prompt became a broken WT+ query (LastNameAtBirth=did).
 
 import { formatPreviewDate } from "./chat_preview_format";
+import { yearOf } from "./chat_text_utils";
 
 const SUBJECT = String.raw`(he|she|they|this\s+person|the\s+profile\s+person|I|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3})`;
 const OWNER = String.raw`(her|his|their|my|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))`;
@@ -32,8 +33,6 @@ export function parseTwinsPrompt(prompt) {
 }
 
 const fullDate = (value) => (/^\d{4}-(?!00)\d{2}-(?!00)\d{2}$/.test(String(value || "")) ? value : "");
-const yearOf = (value) => (/^(?!0000)\d{4}/.test(String(value || "")) ? String(value).slice(0, 4) : "");
-
 /** children: API person objects. labelOf(person) → "Name (ID)". */
 export function buildTwinsAnswer(subjectLabel, children, labelOf) {
   if (!children.length) return `WikiTree has no children recorded for ${subjectLabel}.`;

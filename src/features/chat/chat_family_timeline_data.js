@@ -4,14 +4,12 @@
 // The d3 drawing lives in chat_family_timeline.js.
 
 import { yearOf } from "./chat_chart_common";
-import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { CHART_OWNER as OWNER, CHART_OWNER_AFTER as OWNER_AFTER, canonicalChartOwner } from "./chat_chart_owner";
 import { shownGender } from "./chat_gender_display";
 import { shownSpouses } from "./chat_marriage_display";
 import { textWithMoreLink } from "./chat_more_text";
-import { fullName, joinWithAnd } from "./chat_text_utils";
+import { fullName, joinWithAnd, cleanDate } from "./chat_text_utils";
 
-const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
-const OWNER_AFTER = String.raw`(me|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+)`;
 const LEAD = String.raw`(?:(?:show|draw|make|create|give|display|open|build|generate)(?:\s+me)?\s+|(?:can|could|would)\s+you\s+(?:show|draw|make)(?:\s+me)?\s+)?`;
 const CHART = String.raw`(?:family\s+timeline|family\s+lifespans?(?:\s+chart)?|lifespans?\s+timeline)`;
 
@@ -34,15 +32,10 @@ const PATTERNS = [
   new RegExp(String.raw`^(?:show(?:\s+me)?\s+)?(?:the\s+)?(?:immediate\s+|close\s+|nuclear\s+)?family\s+of\s+${OWNER_AFTER}$`, "i"),
 ];
 
-function canonicalOwner(word) {
-  const raw = String(word || "")
-    .trim()
-    .replace(/['’]s$/i, "");
-  if (!raw) return "";
-  if (/^(?:my|our|me)$/i.test(raw)) return "me";
-  if (/^this\s+(?:profile|person)$/i.test(raw)) return "";
-  if (/^(?:her|his|him|their|them)$/i.test(raw)) return "";
-  return raw;
+/** The owner as this chart and the life line take it: "me" for you, "" for the page's profile (any pronoun), else an ID or name. */
+export function timelineOwner(word) {
+  const owner = canonicalChartOwner(word);
+  return owner === "my" ? "me" : /^(?:her|his|their)$/.test(owner) ? "" : owner;
 }
 
 /** {owner} or null. owner: "" (the page profile), "me", or a WikiTree ID. */
@@ -54,17 +47,12 @@ export function parseFamilyTimelinePrompt(prompt) {
     .replace(/^please\s+/i, "");
   for (const re of PATTERNS) {
     const match = text.match(re);
-    if (match) return { owner: canonicalOwner(match[1]) };
+    if (match) return { owner: timelineOwner(match[1]) };
   }
   return null;
 }
 
 const ROLE_ORDER = ["parent", "self", "spouse", "sibling", "child", "grandchild"];
-
-function cleanDate(value) {
-  const text = String(value || "");
-  return text && !/^0000/.test(text) ? text : "";
-}
 
 function personRow(person, role, extra = {}) {
   return {

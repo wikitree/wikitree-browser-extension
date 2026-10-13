@@ -1,15 +1,5 @@
-function stripSurroundingQuotes(value) {
-  if (value == null) return "";
-  return String(value)
-    .trim()
-    .replace(/^["“”'‘’\s\[]+|["“”'‘’\s\]]+$/g, "")
-    .trim();
-}
-
-function normalizeYearValue(value) {
-  const match = String(value || "").match(/\b(1[0-9]{3}|20[0-9]{2})\b/);
-  return match?.[1] || "";
-}
+import { normalizeYearValue, parseScopeTerms } from "./chat_filter_scope";
+import { stripSurroundingQuotes } from "./chat_text_utils";
 
 function parseThreshold(boundsText, kind) {
   const pattern =
@@ -19,49 +9,6 @@ function parseThreshold(boundsText, kind) {
   const match = String(boundsText || "").match(pattern);
   const value = Number.parseInt(match?.[1] || "", 10);
   return Number.isFinite(value) ? value : null;
-}
-
-export function parseScopeTerms(scopeText) {
-  const text = stripSurroundingQuotes(scopeText)
-    .replace(/\s{2,}/g, " ")
-    .trim();
-  if (!text) {
-    return { locationText: "", startYear: null, endYear: null };
-  }
-
-  const yearRangePatterns = [
-    /^(.*?)\s+born\s+(\d{4})\s*[-–]\s*(\d{4})$/i,
-    /^(.*?)\s+born\s+between\s+(\d{4})\s+(?:and|to)\s+(\d{4})$/i,
-    /^(.*?)\s+between\s+(\d{4})\s+(?:and|to)\s+(\d{4})$/i,
-    /^(.*?)\s+(\d{4})\s*[-–]\s*(\d{4})$/i,
-  ];
-
-  for (const pattern of yearRangePatterns) {
-    const match = text.match(pattern);
-    if (!match) {
-      continue;
-    }
-
-    const yearA = Number.parseInt(match[2], 10);
-    const yearB = Number.parseInt(match[3], 10);
-    if (!Number.isFinite(yearA) || !Number.isFinite(yearB)) {
-      continue;
-    }
-
-    return {
-      locationText: stripSurroundingQuotes(match[1])
-        .replace(/^\b(?:in|from)\b\s+/i, "")
-        .trim(),
-      startYear: Math.min(yearA, yearB),
-      endYear: Math.max(yearA, yearB),
-    };
-  }
-
-  return {
-    locationText: text.replace(/^\b(?:in|from)\b\s+/i, "").trim(),
-    startYear: null,
-    endYear: null,
-  };
 }
 
 export function formatParentAgeAtBirthBounds(underAge, overAge) {

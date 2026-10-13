@@ -8,12 +8,12 @@ import { select } from "d3-selection";
 import "d3-transition";
 import { arc as d3arc } from "d3-shape";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
-import { scaleSequential } from "d3-scale";
-import { interpolateSpectral, interpolateYlGn, schemeTableau10 } from "d3-scale-chromatic";
+import { interpolateYlGn } from "d3-scale-chromatic";
 import { interpolate } from "d3-interpolate";
 import { easeCubicOut, easeBackOut } from "d3-ease";
 import { hsl } from "d3-color";
-import { generationOfSlot, fanBirthParentChoices, fanChartStats, fanChartCountries, fanChartRepeats, fanChartSurnames, isBirthParentSlot, yearOf } from "./chat_fan_chart_data";
+import { birthYearColouring, topValueColouring } from "./chat_chart_colours";
+import { generationOfSlot, fanBirthParentChoices, fanChartStats, fanChartCountries, fanChartRepeats, fanChartSurnames, isBirthParentSlot } from "./chat_fan_chart_data";
 import { buildOriginsSeries } from "./chat_origins_data";
 import { showOriginsPopup } from "./chat_origins_chart";
 import { buildMigration } from "./chat_migration_data";
@@ -21,7 +21,7 @@ import { showMigrationMapPopup } from "./chat_migration_map";
 import { PARENT_STATUSES, autosomalShare, dnaLineAncestors, dnaLineCarrierNote, dnaLineOf, lineTestSummary, parentLinkStatus, parentStatusCounts, percentText, xDnaShares } from "./chat_dna_data";
 import { researchStatusLabel } from "./chat_profile_quality_data";
 import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, personNameText, lifeYears as years, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, textColourFor, truncate } from "./chat_chart_common";
-import { joinWithAnd } from "./chat_text_utils";
+import { joinWithAnd, yearOf } from "./chat_text_utils";
 import { joinWithAndMore, moreTextToHtml } from "./chat_more_text";
 
 const ROOT_RADIUS = 58;
@@ -32,7 +32,6 @@ export const FAN_GENERATIONS_MAX = 12;
 // zooming in brings out the outer generations' names.
 const MIN_SCREEN_FONT = 6;
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-const UNKNOWN_FILL = "#d9d9d9";
 const MISSING_STROKE = "#b0b0b0";
 const MODES = [
   { key: "lineage", label: "Lineage" },
@@ -179,52 +178,33 @@ export function buildColouring(slots, mode, maxGeneration, extra = {}) {
     };
   }
   if (mode === "country") {
-    const countries = fanChartCountries(slots);
-    const top = countries.slice(0, 9).map(([country]) => country);
-    const colourOf = new Map(top.map((country, index) => [country, schemeTableau10[index]]));
-    const otherCount = countries.slice(9).reduce((sum, [, count]) => sum + count, 0);
+    const byCountry = topValueColouring(fanChartCountries(slots), { unknownLabel: "No birthplace" });
     return {
-      fill: (person) => (person.birthCountry ? colourOf.get(person.birthCountry) || "#9c9c9c" : UNKNOWN_FILL),
-      key: (person) => (person.birthCountry ? (colourOf.has(person.birthCountry) ? person.birthCountry : "Other") : "Unknown"),
-      legend: [
-        ...countries.slice(0, 9).map(([country, count]) => ({ key: country, label: `${country} (${count})`, colour: colourOf.get(country) })),
-        ...(otherCount ? [{ key: "Other", label: `Other (${otherCount})`, colour: "#9c9c9c" }] : []),
-        { key: "Unknown", label: "No birthplace", colour: UNKNOWN_FILL },
-      ],
+      fill: (person) => byCountry.colourOf(person.birthCountry),
+      key: (person) => byCountry.keyOf(person.birthCountry),
+      legend: byCountry.legend,
     };
   }
   if (mode === "surname") {
     // The ten commonest surnames get colours; following one shows how it came down its line.
-    const surnames = fanChartSurnames(slots);
-    const top = surnames.slice(0, 10).map(([surname]) => surname);
-    const colourOf = new Map(top.map((surname, index) => [surname, schemeTableau10[index]]));
-    const otherCount = surnames.slice(10).reduce((sum, [, count]) => sum + count, 0);
-    const OTHER = "#c4c8ce";
+    const bySurname = topValueColouring(fanChartSurnames(slots), {
+      top: 10,
+      unknownLabel: "No surname",
+      other: "#c4c8ce",
+      otherLabel: (kinds, people) => `${kinds} other surnames (${people})`,
+    });
     return {
-      fill: (person) => (person.lnab ? colourOf.get(person.lnab) || OTHER : UNKNOWN_FILL),
-      key: (person) => (person.lnab ? (colourOf.has(person.lnab) ? person.lnab : "Other") : "Unknown"),
-      legend: [
-        ...surnames.slice(0, 10).map(([surname, count]) => ({ key: surname, label: `${surname} (${count})`, colour: colourOf.get(surname) })),
-        ...(otherCount ? [{ key: "Other", label: `${surnames.length - top.length} other surnames (${otherCount})`, colour: OTHER }] : []),
-        { key: "Unknown", label: "No surname", colour: UNKNOWN_FILL },
-      ],
+      fill: (person) => bySurname.colourOf(person.lnab),
+      key: (person) => bySurname.keyOf(person.lnab),
+      legend: bySurname.legend,
     };
   }
   if (mode === "century") {
-    const yearsFound = slots.map((person, slot) => (slot > 1 && person ? yearOf(person.birth) : null)).filter(Boolean);
-    const min = yearsFound.length ? Math.min(...yearsFound) : 1700;
-    const max = yearsFound.length ? Math.max(...yearsFound) : 1900;
-    const scale = scaleSequential(interpolateSpectral).domain([min, Math.max(max, min + 1)]);
-    const bucket = (year) => `${Math.floor(year / 50) * 50}s`;
-    const buckets = [];
-    for (let start = Math.floor(min / 50) * 50; start <= max; start += 50) buckets.push(start);
+    const byYear = birthYearColouring(slots.map((person, slot) => (slot > 1 && person ? yearOf(person.birth) : null)));
     return {
-      fill: (person) => (yearOf(person.birth) ? scale(yearOf(person.birth)) : UNKNOWN_FILL),
-      key: (person) => (yearOf(person.birth) ? bucket(yearOf(person.birth)) : "Unknown"),
-      legend: [
-        ...buckets.map((start) => ({ key: `${start}s`, label: `${start}–${start + 49}`, colour: scale(Math.min(Math.max(start + 25, min), max)) })),
-        { key: "Unknown", label: "No birth year", colour: UNKNOWN_FILL },
-      ],
+      fill: (person) => byYear.colourOf(yearOf(person.birth)),
+      key: (person) => byYear.keyOf(yearOf(person.birth)),
+      legend: byYear.legend,
     };
   }
   if (mode === "brickwalls") {

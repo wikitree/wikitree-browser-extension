@@ -4,10 +4,10 @@
 import $ from "jquery";
 import { color as d3color } from "d3-color";
 import { mainDomain } from "../../core/pageType";
-import { fullName, personNameText, yearOf } from "./chat_text_utils";
+import { escapeText, fullName, personNameText, yearOf } from "./chat_text_utils";
 import { CHART_MENU_GROUPS, CHART_SHORTCUTS } from "./chat_chart_shortcuts";
 
-export { fullName, personNameText, yearOf };
+export { escapeText, fullName, personNameText, yearOf };
 
 export function textColourFor(fill) {
   const c = d3color(fill);
@@ -223,10 +223,6 @@ export function truncate(text, maxChars) {
   const value = String(text || "");
   if (maxChars < 2) return "";
   return value.length > maxChars ? `${value.slice(0, Math.max(1, maxChars - 1))}…` : value;
-}
-
-export function escapeText(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 }
 
 /**
@@ -525,10 +521,15 @@ export function injectChartStyles() {
   watchForWikiTreeButtons();
   installFullScreenKey();
   installHeaderDoubleClick();
-  if (document.getElementById("wbe-chart-style")) return;
+  addStyleOnce("wbe-chart-style", CHART_CSS);
+}
+
+/** Adds a <style id="`id`"> with `css` to the page, once. */
+export function addStyleOnce(id, css) {
+  if (document.getElementById(id)) return;
   const style = document.createElement("style");
-  style.id = "wbe-chart-style";
-  style.textContent = CHART_CSS;
+  style.id = id;
+  style.textContent = css;
   document.head.appendChild(style);
 }
 

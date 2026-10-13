@@ -5,11 +5,10 @@
 
 import { FAN_CHART_MAX_GENERATIONS, generationOfSlot } from "./chat_fan_chart_data";
 import { ancestorWord, generationLabel } from "./chat_kin_labels";
-import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { CHART_OWNER as OWNER, canonicalChartOwner as canonicalOwner } from "./chat_chart_owner";
 import { linesWithMore } from "./chat_more_text";
 import { fullName } from "./chat_text_utils";
 
-const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const X = String.raw`(?:x[\s-]*dna|x[\s-]*chromosomes?|x[\s-]*chromosome\s+dna)`;
 const PATTERNS = [
   // "X-DNA fan chart", "my X-DNA chart", "show her X chromosome inheritance", "X-DNA inheritance chart"
@@ -51,19 +50,6 @@ const LINE_PATTERNS = [
   new RegExp(String.raw`^(?:who|which\s+ancestors?)\s+did\s+(I|we|she|he|they|[A-Z][A-Za-z'_ -]*?-\d+)\s+(?:get|inherit)\s+(?:my|her|his|their)\s+${YMT}\s+from$`, "i"),
   new RegExp(String.raw`^where\s+did\s+${OWNER}\s+${YMT}\s+come\s+from$`, "i"),
 ];
-
-const SUBJECT_OWNER = { i: "my", we: "my", me: "my", us: "my", she: "her", her: "her", he: "his", him: "his", they: "their", them: "their" };
-
-function canonicalOwner(word) {
-  const raw = String(word || "")
-    .trim()
-    .replace(/['’]s$/i, "");
-  if (!raw) return "";
-  if (SUBJECT_OWNER[raw.toLowerCase()]) return SUBJECT_OWNER[raw.toLowerCase()];
-  if (/^(?:my|our)$/i.test(raw)) return "my";
-  if (/^this\s+(?:profile|person)$/i.test(raw)) return "";
-  return raw;
-}
 
 /** Fan chart params ({owner, generations, ancestorPrompt, mode: "xdna", dna: true}) or null. */
 export function parseDnaChartPrompt(prompt) {
@@ -456,7 +442,6 @@ export function buildDnaCarrierSummary(tree, ownerText, generations, testers = [
 
 const TEST_WORD = String.raw`(?:(?:y[\s-]*dna|mt[\s-]*dna|dna)\s+test)`;
 const FOR_WHOM = String.raw`(me|us|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+)`;
-const OBJECT_OWNER = { me: "my", us: "my", her: "her", him: "his", them: "their" };
 // "who could take a DNA test for him", "who could do a Y-DNA test for Beacall-13",
 // "who carries his Y-DNA", "who has her mtDNA", "Beacall-13's DNA carriers", "DNA test candidates for her"
 const CARRIER_PATTERNS = [
@@ -476,7 +461,7 @@ export function parseDnaCarrierPrompt(prompt) {
     const match = text.match(re);
     if (!match) continue;
     const word = String(match.slice(1).find(Boolean) || "").trim();
-    const owner = OBJECT_OWNER[word.toLowerCase()] || canonicalOwner(word);
+    const owner = canonicalOwner(word);
     const descendantPrompt = !owner ? "this profile's descendants" : /^(?:my|her|his|their)$/.test(owner) ? `${owner} descendants` : `${owner}'s descendants`;
     return { owner, generations: 8, descendantPrompt, mode: "dnacarriers", dna: true };
   }

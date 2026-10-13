@@ -6,6 +6,7 @@
 
 import { PersonName } from "../auto_bio/person_name";
 import { loadStoredWatchlist, saveStoredWatchlist } from "./chat_watchlist_store";
+import { yearOf } from "./chat_text_utils";
 
 /** Watchlist fields this needs. */
 export const MANAGED_WATCHLIST_FIELDS =
@@ -44,10 +45,6 @@ export function isManagedBy(person, userNumId, userWtId = "") {
   return Boolean(num) && String(person?.Manager ?? "") === num;
 }
 
-const yearOf = (date) => {
-  const year = Number.parseInt(String(date || "").slice(0, 4), 10);
-  return Number.isFinite(year) && year > 0 ? year : null;
-};
 const lower = (value) => String(value || "").toLowerCase();
 const placeOf = (person, event) =>
   event === "birth"

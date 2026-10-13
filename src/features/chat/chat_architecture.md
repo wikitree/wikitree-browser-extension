@@ -208,14 +208,15 @@ AI-assisted planning and disambiguation now also lives in `chat_planner.js`. Thi
 Shared DRY helpers:
 
 - `chat_filter_scope.js` owns the identical location/year scope parser used by married-no-children and sibling-birth-gap filters. Pattern order is preserved; filters with different scope rules remain separate.
-- `chat_chart_prompt.js` owns shared chart owner normalization, with separate possessive and object-pronoun conventions. Family timeline retains its distinct page-profile/`me` convention.
+- `chat_chart_owner.js` owns the chart parsers' owner groups (`CHART_OWNER`, `CHART_OWNER_AFTER`, `RELATIVE_OWNER`) and `canonicalChartOwner`, which reads any form of a pronoun. Family timeline and the life line keep their page-profile/`me` convention in `timelineOwner`.
 - `chat_chart_common.js` supplies standard fullscreen, SVG, PNG, and close controls through `chartPopupControls()`. Charts retain their own extra controls and action handlers.
 
 - `chat_dates.js` owns partial-date parsing and whole-year age calculations. Marriage duration keeps its `{years, approx}` interface as a wrapper.
 - `chat_kin_labels.js` owns ancestor/descendant labels and generation labels. Existing module exports remain available for callers.
 - `handleChartPopupButton()` in `chat_chart_common.js` handles standard chart actions for charts without special export or fullscreen work. Charts that finish animations before exporting retain their specialized handlers.
 
-- `chat_ahnentafel.js` owns the guarded API Ahnentafel-to-generation calculation shared by people queries and profile search.
+- `chat_ahnentafel.js` owns the guarded API Ahnentafel-to-generation calculation and the ancestor walk (`ahnenNumbers`) shared by people queries and profile search.
+- `chat_chart_colours.js` owns the Birth year (`birthYearColouring`) and Surname/Birth country (`topValueColouring`) colourings of the fan chart, descendant chart, spiral and fractal tree. The fractal tree's surnames and countries keep their own colours for as long as its popup is open, so only its birth years use it.
 - `chat_place_text.js` supplies location-field labels for people and relation answers.
 - `partialDateSortKey()` in `chat_dates.js` supplies partial birth/death date keys for relative selection and age comparisons. It retains unknown months/days as `00`.
 - Profile search reuses the exported tokenizer in `wt_plus_query_grammar.js`; quoted fields and phrases have one tokenization rule.

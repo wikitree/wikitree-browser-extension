@@ -1,14 +1,19 @@
-// Shared location and year scope parsing for family search filters.
-// Preserve pattern order: callers depend on the existing scope interpretation.
+// Shared location and year scope parsing for family search filters (married with no children, sibling birth
+// gaps, parent's age at a birth, spouse age gaps, deaths in childbirth). Three copies had drifted apart
+// (2026-10-13): one read "Devon born 1850-1860" as the place "Devon born", another knew no "1850s".
 
-export function stripSurroundingQuotes(value) {
-  if (value == null) return "";
-  return String(value)
-    .trim()
-    .replace(/^["“”'‘’\s\[]+|["“”'‘’\s\]]+$/g, "")
-    .trim();
+import { stripSurroundingQuotes } from "./chat_text_utils";
+
+/** The year in a date or text ("1850-03-00" → "1850"), or "". */
+export function normalizeYearValue(value) {
+  const match = String(value || "").match(/\b(1[0-9]{3}|20[0-9]{2})\b/);
+  return match?.[1] || "";
 }
 
+/**
+ * The place and years in a filter's scope: "Devon 1850-1860", "in Devon born between 1850 and 1860", "Devon 1850s"
+ * → {locationText, startYear, endYear, yearLabel}; just the place (no "in" or "from") when there are no years.
+ */
 export function parseScopeTerms(scopeText) {
   const text = stripSurroundingQuotes(scopeText)
     .replace(/\s{2,}/g, " ")
@@ -17,11 +22,12 @@ export function parseScopeTerms(scopeText) {
     return { locationText: "", startYear: null, endYear: null, yearLabel: "" };
   }
 
+  // ("born …" first: the bare range would keep "born" in the place)
   const yearRangePatterns = [
-    /^(.*?)\s+(\d{4})\s*[-–]\s*(\d{4})$/i,
-    /^(.*?)\s+between\s+(\d{4})\s+(?:and|to)\s+(\d{4})$/i,
     /^(.*?)\s+born\s+(\d{4})\s*[-–]\s*(\d{4})$/i,
     /^(.*?)\s+born\s+between\s+(\d{4})\s+(?:and|to)\s+(\d{4})$/i,
+    /^(.*?)\s+between\s+(\d{4})\s+(?:and|to)\s+(\d{4})$/i,
+    /^(.*?)\s+(\d{4})\s*[-–]\s*(\d{4})$/i,
   ];
 
   for (const pattern of yearRangePatterns) {

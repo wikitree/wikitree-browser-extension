@@ -37,10 +37,11 @@ import {
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { buildColouring } from "./chat_fan_chart";
 import { ancestorWord } from "./chat_kin_labels";
-import { familyFactsHtml, familyFetcher, showMoreInCard } from "./chat_family_card";
+import { bindCardPhoto, cardHeadHtml, familyFactsHtml, familyFetcher, showMoreInCard } from "./chat_family_card";
 import { GALAXY_HUES, branchLabel } from "./chat_family_galaxy_data";
 import { NEARBY, nearbyPlaquesLayout } from "./chat_family_plaques_data";
-import { downloadBlob, escapeText, fullName, lifeYears, photoUrl, profileUrl, siteUrl } from "./chat_chart_common";
+import { easeCubicInOut as ease } from "d3-ease";
+import { addStyleOnce, downloadBlob, escapeText, fullName, lifeYears, photoUrl, siteUrl } from "./chat_chart_common";
 import { reducedMotion } from "./chat_fractal_common";
 
 const STYLE_ID = "wbe-3d-style";
@@ -139,22 +140,9 @@ const CSS = `
   .wbe-3d .wbe-3d-card button.wbe-3d-close:not(#none) { position: absolute; top: 6px; right: 6px; margin: 0; padding: 0 7px; border: 0; border-radius: 999px; font-size: 17px; line-height: 1.3; color: #8a8273 !important; background: none; }
 `;
 
-function injectStyles() {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement("style");
-  style.id = STYLE_ID;
-  style.textContent = CSS;
-  document.head.appendChild(style);
-}
-
-const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 const mix = (a, b, t) => a.map((value, i) => value + (b[i] - value) * t);
 const css = ([r, g, b]) => `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
-const initials = (person) => {
-  const words = fullName(person).split(/\s+/).filter(Boolean);
-  return ((words[0]?.[0] || "") + (words.length > 1 ? words[words.length - 1][0] : "")).toUpperCase() || "?";
-};
 const remembered = (key, fallback) => {
   try {
     return localStorage.getItem(key) || fallback;
@@ -204,7 +192,7 @@ function relationOf(slot, person) {
  * onCentre(person), shape}. Returns {centre(id), up(), home(), resize(), destroy(), currentId(), canvas}.
  */
 export function mountFamily3d(host, options) {
-  injectStyles();
+  addStyleOnce(STYLE_ID, CSS);
   const world = options.world;
   const people = world.people;
   const root = document.createElement("div");
@@ -517,30 +505,17 @@ export function mountFamily3d(host, options) {
       cardEl.hidden = true;
       return;
     }
-    const url = photoUrl(person, 150);
     const relation = relationFor(selected, person);
     const facts = familyFactsHtml(people, person.id, { prefix: "wbe-3d", pickOf: (other) => slotOfId.get(other.id) || "", pickTitle: "Show them on the model", loading: family.loading(person.id) });
     cardEl.innerHTML = `
       <button type="button" class="wbe-3d-close" data-act3d="close" title="Close" aria-label="Close">×</button>
-      <div class="wbe-3d-head">
-        <span class="wbe-3d-photo">${url ? `<img src="${escapeText(url)}" alt="">` : escapeText(initials(person))}</span>
-        <span>
-          ${relation ? `<span class="wbe-3d-rel">${escapeText(relation)}</span>` : ""}
-          ${person.wtid ? `<a class="wbe-3d-name" href="${escapeText(profileUrl(person.wtid))}" target="_blank" rel="noopener" title="Open the WikiTree profile">${escapeText(fullName(person))}</a>` : `<span class="wbe-3d-name">${escapeText(fullName(person))}</span>`}
-          ${lifeYears(person) ? `<div class="wbe-3d-life">${escapeText(lifeYears(person))}</div>` : ""}
-          ${person.wtid ? `<div class="wbe-3d-id">${escapeText(person.wtid)}</div>` : ""}
-          ${selected === 1 || person.hidden ? "" : `<button type="button" data-start="${person.id}">${shape === "nearby" ? "Start from them" : "Show their ancestors"}</button>`}
-        </span>
-      </div>
+      ${cardHeadHtml(person, {
+        prefix: "wbe-3d",
+        relation,
+        action: selected === 1 || person.hidden ? "" : `<button type="button" data-start="${person.id}">${shape === "nearby" ? "Start from them" : "Show their ancestors"}</button>`,
+      })}
       ${facts}`;
-    const image = cardEl.querySelector("img");
-    if (image) {
-      image.addEventListener("error", () => {
-        const fallback = person.photoData?.url ? siteUrl(person.photoData.url) : "";
-        if (fallback && image.src !== fallback) image.src = fallback;
-        else image.parentElement.textContent = initials(person);
-      });
-    }
+    bindCardPhoto(cardEl, person);
     cardEl.hidden = false;
   }
 

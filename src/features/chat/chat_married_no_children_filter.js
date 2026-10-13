@@ -1,4 +1,5 @@
-import { stripSurroundingQuotes, parseScopeTerms } from "./chat_filter_scope";
+import { parseScopeTerms } from "./chat_filter_scope";
+import { stripSurroundingQuotes } from "./chat_text_utils";
 
 export function parseMarriedNoChildrenPrompt(queryText) {
   const text = String(queryText || "")

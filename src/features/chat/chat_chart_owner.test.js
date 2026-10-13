@@ -1,4 +1,5 @@
-import { parseRelativeOwner, relativesNamed } from "./chat_chart_owner";
+import { canonicalChartOwner, parseRelativeOwner, relativesNamed } from "./chat_chart_owner";
+import { timelineOwner } from "./chat_family_timeline_data";
 import { parseLifespansPrompt } from "./chat_lifespans_data";
 import { ChatIntent, routeChatPrompt } from "./chat_router";
 
@@ -33,4 +34,17 @@ test("a name narrows the relatives; any case, first or last name", () => {
   expect(relativesNamed(people, ["moak"])).toHaveLength(2);
   expect(relativesNamed(people, ["Susan"])).toHaveLength(0);
   expect(relativesNamed(people, [])).toHaveLength(2);
+});
+
+// One reading for every chart parser (it was copied into six of them, each knowing different pronouns).
+test("canonicalChartOwner: any form of a pronoun, the page's profile, else the words", () => {
+  const read = (words) => words.map((word) => canonicalChartOwner(word));
+  expect(read(["my", "Our", "I", "me", "us", "we"])).toEqual(Array(6).fill("my"));
+  expect(read(["her", "She"])).toEqual(["her", "her"]);
+  expect(read(["his", "him", "He"])).toEqual(["his", "his", "his"]);
+  expect(read(["their", "them", "they"])).toEqual(["their", "their", "their"]);
+  expect(read(["this profile's", "this person", "", null])).toEqual(["", "", "", ""]);
+  expect(read(["Smith-123's", "his daughter Carol’s", "Philip"])).toEqual(["Smith-123", "his daughter Carol", "Philip"]);
+  // the family timeline and the life line: "me" for you, "" for the page's profile
+  expect(["my", "me", "her", "him", "this profile", "Smith-123's"].map((word) => timelineOwner(word))).toEqual(["me", "me", "", "", "", "Smith-123"]);
 });

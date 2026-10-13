@@ -8,10 +8,8 @@ import { dateParts, ageBetween } from "./chat_dates";
 export { dateParts, ageBetween } from "./chat_dates";
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { descendantWord, ancestorWord } from "./chat_kin_labels";
-import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { CHART_OWNER as OWNER, canonicalChartOwner as canonicalOwner } from "./chat_chart_owner";
 import { fullName } from "./chat_text_utils";
-
-const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 
 const PATTERNS = [
   // "lives and ages", "my ancestors' ages chart", "age at death chart", "Beacall-11's lifespan statistics"
@@ -33,19 +31,6 @@ const PATTERNS = [
   { mode: "problems", re: new RegExp(String.raw`^(?:who|which\s+ancestors?)\s+(?:in\s+${OWNER}\s+(?:tree|family|ancestry)\s+)?(?:has|have)\s+(?:impossible|unlikely|wrong|odd|suspicious)\s+ages$`, "i") },
   { mode: "problems", re: new RegExp(String.raw`^(?:are\s+there\s+)?(?:any\s+)?(?:impossible|unlikely|suspicious)\s+ages\s+in\s+${OWNER}\s+(?:tree|family|ancestry)$`, "i") },
 ];
-
-const SUBJECT_OWNER = { i: "my", we: "my", she: "her", he: "his", they: "their" };
-
-function canonicalOwner(word) {
-  const raw = String(word || "")
-    .trim()
-    .replace(/['’]s$/i, "");
-  if (!raw) return "";
-  if (SUBJECT_OWNER[raw.toLowerCase()]) return SUBJECT_OWNER[raw.toLowerCase()];
-  if (/^(?:my|our)$/i.test(raw)) return "my";
-  if (/^this\s+(?:profile|person)$/i.test(raw)) return "";
-  return raw;
-}
 
 /** {owner, ancestorPrompt, mode: "death" | "parent" | "problems", generations} or null. */
 export function parseAgesPrompt(prompt) {

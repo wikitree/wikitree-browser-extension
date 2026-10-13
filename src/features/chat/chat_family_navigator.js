@@ -10,7 +10,8 @@ import { easeCubicInOut } from "d3-ease";
 import { familyAround, familyLoaded, navigatorLayout, layoutBounds, NAV_SIZES, stepWord } from "./chat_family_navigator_data";
 
 export { stepWord };
-import { escapeText, fullName, lifeYears, photoUrl, profileUrl, siteUrl, yearOf } from "./chat_chart_common";
+import { addStyleOnce, escapeText, fullName, lifeYears, photoUrl, profileUrl, siteUrl, yearOf } from "./chat_chart_common";
+import { initials } from "./chat_family_card";
 import { reducedMotion } from "./chat_fractal_common";
 
 const GLIDE_MS = 850;
@@ -85,21 +86,8 @@ const NAV_CSS = `
   body.darkMode .wbe-nav-trail button:not(#none) { background: rgba(255,255,255,.88) !important; color: #3c4a52 !important; }
 `;
 
-function injectNavStyles() {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement("style");
-  style.id = STYLE_ID;
-  style.textContent = NAV_CSS;
-  document.head.appendChild(style);
-}
-
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
-
-function initials(person) {
-  const words = fullName(person).split(/\s+/).filter(Boolean);
-  return ((words[0]?.[0] || "") + (words.length > 1 ? words[words.length - 1][0] : "")).toUpperCase() || "?";
-}
 
 /** "Born 1898 in Vernon, Texas · died aged 99" for the person in the middle. */
 function storyLine(person) {
@@ -118,7 +106,7 @@ function storyLine(person) {
  * onCentre(person)}. Returns {centre(id), up(), home(), resize(), destroy(), currentId()}.
  */
 export function mountFamilyNavigator(host, options) {
-  injectNavStyles();
+  addStyleOnce(STYLE_ID, NAV_CSS);
   const world = options.world;
   const people = world.people;
   const root = document.createElement("div");

@@ -7,13 +7,12 @@ import { fullWikiTreeName } from "./chat_fan_chart_data";
 import { getCountryFromLocation } from "./chat_place_country";
 import { shownGender } from "./chat_gender_display";
 import { raisedNotBornToIds } from "./chat_birth_family";
-import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { CHART_OWNER as OWNER, CHART_OWNER_AFTER as OWNER_AFTER, canonicalChartOwner as canonicalOwner } from "./chat_chart_owner";
+import { cleanDate } from "./chat_text_utils";
 
 export const DESCENDANT_CHART_DEFAULT_GENERATIONS = 5;
 export const DESCENDANT_CHART_MAX_GENERATIONS = 10;
 
-const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
-const OWNER_AFTER = String.raw`(me|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+)`;
 const CHART = String.raw`(?:(?:descendants?|descendancy|family)\s+(?:chart|sunburst|wheel|diagram)|sunburst)`;
 const GENS = String.raw`(?:\s+(?:with|of|for|showing)?\s*(\d{1,2})\s+generations?)?`;
 const LEAD = String.raw`(?:(?:show|draw|make|create|give|display|open|build|generate)(?:\s+me)?\s+|(?:can|could|would)\s+you\s+(?:show|draw|make)(?:\s+me)?\s+)?`;
@@ -27,19 +26,6 @@ const PATTERNS = [
   new RegExp(String.raw`^(?:show|draw|display)(?:\s+me)?\s+${OWNER}\s+descendants\s+(?:as|in)\s+an?\s+(?:chart|sunburst|wheel|diagram|fan\s+chart)${GENS}$`, "i"),
   new RegExp(String.raw`^(?:visuali[sz]e|chart|graph)\s+${OWNER}\s+descendants${GENS}$`, "i"),
 ];
-
-function canonicalOwner(word) {
-  const raw = String(word || "")
-    .trim()
-    .replace(/['’]s$/i, "");
-  if (!raw) return "";
-  if (/^(?:my|our|me)$/i.test(raw)) return "my";
-  if (/^her$/i.test(raw)) return "her";
-  if (/^(?:his|him)$/i.test(raw)) return "his";
-  if (/^(?:their|them)$/i.test(raw)) return "their";
-  if (/^this\s+(?:profile|person)$/i.test(raw)) return "";
-  return raw;
-}
 
 /** {owner, generations, descendantPrompt} or null; owner as in parseFanChartPrompt. */
 export function parseDescendantChartPrompt(prompt) {
@@ -64,11 +50,6 @@ export function parseDescendantChartPrompt(prompt) {
     return { owner, generations, descendantPrompt };
   }
   return null;
-}
-
-function cleanDate(value) {
-  const text = String(value || "");
-  return text && !/^0000/.test(text) ? text : "";
 }
 
 function summarize(person) {

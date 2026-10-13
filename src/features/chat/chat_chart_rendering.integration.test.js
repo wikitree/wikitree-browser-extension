@@ -89,3 +89,26 @@ test("a one-child descendant chart uses singular labels and larger names", () =>
   const name = [...popup.querySelectorAll("svg text")].find((node) => node.textContent === "John");
   expect(Number(name.getAttribute("font-size"))).toBeGreaterThanOrEqual(24);
 });
+
+// The shared birth-year and commonest-value colourings (chat_chart_colours.js, 2026-10-13) with the real d3 colours.
+test.each([
+  ["century", "1850–1899"],
+  ["surname", "No surname"],
+  ["country", "No birthplace"],
+])("fan and descendant charts colour by %s", (mode, legendText) => {
+  const fan = showFanChartPopup(slots(true), { mode });
+  expect(fan.textContent).toContain(legendText);
+  expect([...fan.querySelectorAll("svg path")].some((path) => /^(#|rgb)/.test(path.getAttribute("fill") || ""))).toBe(true);
+  const sunburst = showDescendantChartPopup(
+    {
+      person: { id: 1, wtid: "Root-1", name: "Mary", birth: "1820-01-01" },
+      depth: 0,
+      children: [
+        { person: { id: 2, wtid: "Child-1", name: "John", birth: "1850-01-02", lnab: "Smith", birthCountry: "England" }, depth: 1, children: [] },
+        { person: { id: 3, wtid: "Child-2", name: "Ann", birth: "1855-03-04", lnab: "Smith" }, depth: 1, children: [] },
+      ],
+    },
+    { mode }
+  );
+  expect(sunburst.textContent).toContain(legendText);
+});

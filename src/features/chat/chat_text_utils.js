@@ -47,6 +47,26 @@ export function yearOf(value) {
   return match && match[1] !== "0000" ? Number(match[1]) : null;
 }
 
+/** A WikiTree date as sent, or "" for none ("0000-00-00"). */
+export function cleanDate(value) {
+  const text = String(value || "");
+  return text && !/^0000/.test(text) ? text : "";
+}
+
+/** Text made safe to put in HTML, in an element or an attribute. */
+export function escapeText(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+}
+
+/** A typed value without the quotes or brackets round it: '"Devon"' → "Devon", "[1850s]" → "1850s". */
+export function stripSurroundingQuotes(value) {
+  if (value == null) return "";
+  return String(value)
+    .trim()
+    .replace(/^["“”'‘’\s\[]+|["“”'‘’\s\]]+$/g, "")
+    .trim();
+}
+
 /**
  * The name as PersonName writes it ("Mary (Jones) Smith", the user: "Use PersonName"), from a chart summary's
  * fullName (fullWikiTreeName), else fullName below. For chart titles and the like.

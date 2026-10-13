@@ -4,6 +4,8 @@
 // (with the grandchildren listed under each child). Clicking anyone moves everything round them.
 // This file works out who goes where; chat_family_navigator.js draws it and moves it.
 
+import { yearOf } from "./chat_text_utils";
+
 /**
  * Card sizes at scale 1 (photo beside the words, so five generations fit on a screen at a size
  * that reads): the person (xl), husbands, wives and parents (l), brothers, sisters and children
@@ -27,10 +29,6 @@ const WRAP_ROWS = [-44, 44]; // the two rows' middles (clear of the parents' and
 const WRAP_COL_GAP = 30; // between columns then (room for the line down to the second row)
 const PARENT_SPREAD = 214; // each parent from the middle (room for both pairs of grandparents)
 
-const yearOf = (date) => {
-  const match = String(date || "").match(/^(\d{4})/);
-  return match && match[1] !== "0000" ? Number(match[1]) : 0;
-};
 const byBirth = (a, b) => (a.birth || "9999").localeCompare(b.birth || "9999") || a.id - b.id;
 
 function roleWord(kind, person) {

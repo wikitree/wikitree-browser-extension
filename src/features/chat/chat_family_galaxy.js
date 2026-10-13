@@ -5,8 +5,9 @@
 
 import { galaxyLayout, galaxyRelation, branchLabel, isStar, GALAXY_HUES } from "./chat_family_galaxy_data";
 import { familyLoaded } from "./chat_family_navigator_data";
-import { familyFactsHtml, familyFetcher, showMoreInCard } from "./chat_family_card";
-import { escapeText, fullName, lifeYears, photoUrl, profileUrl, siteUrl } from "./chat_chart_common";
+import { bindCardPhoto, cardHeadHtml, familyFactsHtml, familyFetcher, showMoreInCard } from "./chat_family_card";
+import { easeCubicInOut as ease } from "d3-ease";
+import { addStyleOnce, escapeText, fullName, lifeYears, photoUrl, siteUrl } from "./chat_chart_common";
 import { reducedMotion } from "./chat_fractal_common";
 
 const STYLE_ID = "wbe-galaxy-style";
@@ -53,19 +54,6 @@ const GALAXY_CSS = `
   .wbe-galaxy-status[hidden] { display: none; }
 `;
 
-function injectStyles() {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement("style");
-  style.id = STYLE_ID;
-  style.textContent = GALAXY_CSS;
-  document.head.appendChild(style);
-}
-
-const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const initials = (person) => {
-  const words = fullName(person).split(/\s+/).filter(Boolean);
-  return ((words[0]?.[0] || "") + (words.length > 1 ? words[words.length - 1][0] : "")).toUpperCase() || "?";
-};
 
 /** A soft round glow in `colour`, drawn once and stamped for each star. */
 function glowSprite(colour) {
@@ -175,7 +163,7 @@ function planetSprite(colour, variant = 0) {
  * Returns {centre(id), up(), home(), resize(), destroy(), currentId(), canvas}.
  */
 export function mountFamilyGalaxy(host, options) {
-  injectStyles();
+  addStyleOnce(STYLE_ID, GALAXY_CSS);
   const world = options.world;
   const people = world.people;
   const root = document.createElement("div");
@@ -310,30 +298,13 @@ export function mountFamilyGalaxy(host, options) {
       return;
     }
     const person = node.person;
-    const url = photoUrl(person, 150);
     const relation = id === current ? "In the middle" : galaxyRelation(layout, people, id);
     const facts = familyFactsHtml(people, id, { prefix: "wbe-galaxy", pickOf: (other) => (byId.has(other.id) ? String(other.id) : ""), pickTitle: "Show their star", loading: family.loading(id) });
     cardEl.innerHTML = `
       <button type="button" class="wbe-galaxy-close" data-close title="Close" aria-label="Close">×</button>
-      <div class="wbe-galaxy-head">
-        <span class="wbe-galaxy-photo">${url ? `<img src="${escapeText(url)}" alt="">` : escapeText(initials(person))}</span>
-        <span>
-          <span class="wbe-galaxy-rel">${escapeText(relation)}</span>
-          ${person.wtid ? `<a class="wbe-galaxy-name" href="${escapeText(profileUrl(person.wtid))}" target="_blank" rel="noopener" title="Open the WikiTree profile">${escapeText(fullName(person))}</a>` : `<span class="wbe-galaxy-name">${escapeText(fullName(person))}</span>`}
-          ${lifeYears(person) ? `<div class="wbe-galaxy-life">${escapeText(lifeYears(person))}</div>` : ""}
-          ${person.wtid ? `<div class="wbe-galaxy-id">${escapeText(person.wtid)}</div>` : ""}
-          ${id === current ? "" : `<button type="button" data-centre="${id}">Centre here</button>`}
-        </span>
-      </div>
+      ${cardHeadHtml(person, { prefix: "wbe-galaxy", relation, action: id === current ? "" : `<button type="button" data-centre="${id}">Centre here</button>` })}
       ${facts}`;
-    const image = cardEl.querySelector("img");
-    if (image) {
-      image.addEventListener("error", () => {
-        const fallback = person.photoData?.url ? siteUrl(person.photoData.url) : "";
-        if (fallback && image.src !== fallback) image.src = fallback;
-        else image.parentElement.textContent = initials(person);
-      });
-    }
+    bindCardPhoto(cardEl, person);
     cardEl.hidden = false;
   }
 

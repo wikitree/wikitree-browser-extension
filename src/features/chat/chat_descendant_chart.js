@@ -9,11 +9,11 @@ import "d3-transition";
 import { arc as d3arc } from "d3-shape";
 import { hierarchy, partition } from "d3-hierarchy";
 import { interpolate } from "d3-interpolate";
-import { scaleSequential } from "d3-scale";
-import { interpolateSpectral, interpolateRainbow, schemeTableau10 } from "d3-scale-chromatic";
+import { interpolateRainbow } from "d3-scale-chromatic";
 import { easeCubicInOut, easeBackOut } from "d3-ease";
 import { hsl } from "d3-color";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
+import { birthYearColouring, countValues, topValueColouring } from "./chat_chart_colours";
 import { descendantTreeStats } from "./chat_descendant_chart_data";
 import { dnaCarrierKind } from "./chat_dna_data";
 import {
@@ -33,7 +33,6 @@ import {
   yearOf,
 } from "./chat_chart_common";
 
-const UNKNOWN_FILL = "#d9d9d9";
 const MODES = [
   { key: "branch", label: "Family branch" },
   { key: "century", label: "Birth year" },
@@ -89,40 +88,22 @@ function buildColouring(root, mode, focus = root) {
     };
   }
   if (mode === "century") {
-    const years = nodes.map((node) => yearOf(node.data.person.birth)).filter(Boolean);
-    const min = years.length ? Math.min(...years) : 1800;
-    const max = years.length ? Math.max(...years) : 1950;
-    const scale = scaleSequential(interpolateSpectral).domain([min, Math.max(max, min + 1)]);
-    const buckets = [];
-    for (let start = Math.floor(min / 50) * 50; start <= max; start += 50) buckets.push(start);
+    const yearOfNode = (node) => yearOf(node.data.person.birth);
+    const byYear = birthYearColouring(nodes.map(yearOfNode));
     return {
-      fill: (node) => (yearOf(node.data.person.birth) ? scale(yearOf(node.data.person.birth)) : UNKNOWN_FILL),
-      key: (node) => (yearOf(node.data.person.birth) ? `${Math.floor(yearOf(node.data.person.birth) / 50) * 50}` : "Unknown"),
-      legend: [
-        ...buckets.map((start) => ({ key: `${start}`, label: `${start}–${start + 49}`, colour: scale(Math.min(Math.max(start + 25, min), max)) })),
-        { key: "Unknown", label: "No birth year", colour: UNKNOWN_FILL },
-      ],
+      fill: (node) => byYear.colourOf(yearOfNode(node)),
+      key: (node) => byYear.keyOf(yearOfNode(node)),
+      legend: byYear.legend,
     };
   }
   if (mode === "surname" || mode === "country") {
     const field = mode === "surname" ? "lnab" : "birthCountry";
-    const counts = new Map();
-    nodes.forEach((node) => {
-      const value = node.data.person[field];
-      if (value) counts.set(value, (counts.get(value) || 0) + 1);
-    });
-    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-    const colourOf = new Map(sorted.slice(0, 9).map(([value], index) => [value, schemeTableau10[index]]));
-    const others = sorted.slice(9).reduce((sum, [, count]) => sum + count, 0);
     const valueOf = (node) => node.data.person[field];
+    const byValue = topValueColouring(countValues(nodes.map(valueOf)), { unknownLabel: mode === "surname" ? "No surname" : "No birthplace" });
     return {
-      fill: (node) => (valueOf(node) ? colourOf.get(valueOf(node)) || "#9c9c9c" : UNKNOWN_FILL),
-      key: (node) => (valueOf(node) ? (colourOf.has(valueOf(node)) ? valueOf(node) : "Other") : "Unknown"),
-      legend: [
-        ...sorted.slice(0, 9).map(([value, count]) => ({ key: value, label: `${value} (${count})`, colour: colourOf.get(value) })),
-        ...(others ? [{ key: "Other", label: `Other (${others})`, colour: "#9c9c9c" }] : []),
-        { key: "Unknown", label: mode === "surname" ? "No surname" : "No birthplace", colour: UNKNOWN_FILL },
-      ],
+      fill: (node) => byValue.colourOf(valueOf(node)),
+      key: (node) => byValue.keyOf(valueOf(node)),
+      legend: byValue.legend,
     };
   }
   // Branch: each child of the focus gets a hue; descendants lighten outwards.

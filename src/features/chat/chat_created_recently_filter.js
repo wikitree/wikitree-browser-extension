@@ -1,10 +1,4 @@
-function stripSurroundingQuotes(value) {
-  if (value == null) return "";
-  return String(value)
-    .trim()
-    .replace(/^["“”'‘’\s\[]+|["“”'‘’\s\]]+$/g, "")
-    .trim();
-}
+import { stripSurroundingQuotes } from "./chat_text_utils";
 
 function toUtcStartOfDay(dateValue) {
   const date = dateValue instanceof Date ? dateValue : new Date(dateValue);

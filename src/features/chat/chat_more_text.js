@@ -1,4 +1,4 @@
-import { joinWithAnd } from "./chat_text_utils";
+import { joinWithAnd, escapeText } from "./chat_text_utils";
 
 // "…and N more" that the reader can always open (the user, 2026-10-12). The text carries both forms between
 // private-use characters, so it survives chat history: moreTextToHtml() shows the short form with "N more" as a
@@ -55,14 +55,11 @@ export function hasMoreText(text) {
   return String(text ?? "").includes(START);
 }
 
-const escapeHtml = (value) =>
-  String(value).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
-
 /**
  * HTML for text that may hold "N more" parts. formatPlain turns plain text into HTML (escaping it, and in chat
  * also linking WikiTree IDs). The full form sits hidden beside the short one; installMoreLinks() swaps them.
  */
-export function moreTextToHtml(text, formatPlain = escapeHtml) {
+export function moreTextToHtml(text, formatPlain = escapeText) {
   const source = String(text ?? "");
   if (!source.includes(START)) return formatPlain(source);
   let html = "";
@@ -72,7 +69,7 @@ export function moreTextToHtml(text, formatPlain = escapeHtml) {
     const [, short, full] = match;
     const shortHtml = short
       .split(LINK_TEXT)
-      .map((part, index) => (index % 2 ? `<a href="#" class="chat-results-link wbe-more-open">${escapeHtml(part)}</a>` : part && formatPlain(part)))
+      .map((part, index) => (index % 2 ? `<a href="#" class="chat-results-link wbe-more-open">${escapeText(part)}</a>` : part && formatPlain(part)))
       .join("");
     html += `<span class="wbe-more"><span class="wbe-more-short">${shortHtml}</span><span class="wbe-more-full" hidden>${formatPlain(full)}</span></span>`;
     last = match.index + match[0].length;

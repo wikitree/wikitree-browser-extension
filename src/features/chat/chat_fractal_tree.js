@@ -18,6 +18,7 @@ import "d3-transition";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import { interpolateRgb } from "d3-interpolate";
 import { easeCubicInOut } from "d3-ease";
+import { birthYearColouring } from "./chat_chart_colours";
 import { buildFractalLayout, graftBranch, hasFrontier, NESTED_GEOMETRY } from "./chat_fractal_tree_data";
 import { createChartPopup, mountChartPopup, closeChartPopup, chartLinkButtons, chartLinkClick, escapeText, fullName, lifeYears as years, photoUrl, profileUrl, siteUrl, toggleChartFullScreen, yearOf } from "./chat_chart_common";
 import { showSpiralTreePopup } from "./chat_fractal_spiral";
@@ -97,19 +98,11 @@ const MODES = [
 function buildColouring(nodes, mode, palette = {}) {
   const people = nodes.map((node) => node.person);
   if (mode === "century") {
-    const found = people.map((person) => yearOf(person.birth)).filter(Boolean);
-    const min = found.length ? Math.min(...found) : 1800;
-    const max = found.length ? Math.max(...found) : 1950;
-    const scale = (year) => yearColour((year - min) / Math.max(1, max - min));
-    const buckets = [];
-    for (let start = Math.floor(min / 25) * 25; start <= max; start += 25) buckets.push(start);
+    const byYear = birthYearColouring(people.map((person) => yearOf(person.birth)), { span: 25, colourAt: yearColour, unknown: UNKNOWN });
     return {
-      fill: (person) => (yearOf(person.birth) ? scale(yearOf(person.birth)) : UNKNOWN),
-      key: (person) => (yearOf(person.birth) ? String(Math.floor(yearOf(person.birth) / 25) * 25) : "?"),
-      legend: [
-        ...buckets.map((start) => ({ key: String(start), label: `${start}–${start + 24}`, colour: scale(Math.min(Math.max(start + 12, min), max)) })),
-        { key: "?", label: "No birth year", colour: UNKNOWN },
-      ],
+      fill: (person) => byYear.colourOf(yearOf(person.birth)),
+      key: (person) => byYear.keyOf(yearOf(person.birth)),
+      legend: byYear.legend,
     };
   }
   if (mode === "country" || mode === "surname") {

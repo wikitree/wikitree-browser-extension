@@ -2,7 +2,7 @@ import { buildFamilyMatrix, loadFamilyMatrixPeople } from "./chat_family_matrix_
 import { showFamilyMatrixPopup } from "./chat_family_matrix";
 import { descendantWord } from "./chat_kin_labels";
 import { parseRelativeOwner, relativesNamed } from "./chat_chart_owner";
-import { getGenerationFromAhnen } from "./chat_ahnentafel";
+import { ahnenNumbers, getGenerationFromAhnen } from "./chat_ahnentafel";
 import { getLocationFieldLabel } from "./chat_place_text";
 import { buildTreeAppRecommendations } from "./chat_tree_apps";
 import { getCountryFromLocation, isEmigrantRow, summarizeCountries } from "./chat_place_country";
@@ -806,42 +806,7 @@ export function createChatPeopleHandlers({
 
   function buildAncestorRowsFromPeopleMap(rootProfile, peopleMap = {}, generation = 1, includeUpTo = false) {
     const peopleById = { ...(peopleMap || {}) };
-    const ahnenById = new Map();
-    const queue = [];
-
-    const fatherId = String(rootProfile?.Father ?? "").trim();
-    const motherId = String(rootProfile?.Mother ?? "").trim();
-    if (fatherId) {
-      queue.push({ id: fatherId, ahnen: 2 });
-    }
-    if (motherId) {
-      queue.push({ id: motherId, ahnen: 3 });
-    }
-
-    while (queue.length) {
-      const current = queue.shift();
-      const currentId = String(current?.id || "").trim();
-      const currentAhnen = Number(current?.ahnen);
-      if (!currentId || !Number.isFinite(currentAhnen) || ahnenById.has(currentId)) {
-        continue;
-      }
-
-      ahnenById.set(currentId, currentAhnen);
-
-      const profile = peopleById[currentId];
-      if (!profile) {
-        continue;
-      }
-
-      const nextFatherId = String(profile?.Father ?? "").trim();
-      const nextMotherId = String(profile?.Mother ?? "").trim();
-      if (nextFatherId) {
-        queue.push({ id: nextFatherId, ahnen: currentAhnen * 2 });
-      }
-      if (nextMotherId) {
-        queue.push({ id: nextMotherId, ahnen: currentAhnen * 2 + 1 });
-      }
-    }
+    const ahnenById = ahnenNumbers(rootProfile, peopleById);
 
     return Object.values(peopleById)
       .filter((profile) => {
@@ -886,7 +851,18 @@ export function createChatPeopleHandlers({
       });
   }
 
-  function extractNamedSubjectForAncestorPrompt(prompt) {
+  // The relation words of an ancestor or descendant list, for extractNamedSubject.
+  const ANCESTOR_RELATION =
+    "(?:\\d+(?:st|nd|rd|th)?\\s+(?:g(?:reat)?\\s*)?g(?:rand)?\\s*-?\\s*parents?|\\d+\\s*x\\s*(?:g(?:reat)?\\s*)?g(?:rand)?\\s*-?\\s*parents?|\\d+\\s*x\\s*great\\s*-?\\s*grand\\s*-?\\s*parents?|\\d+\\s+generations?\\s+(?:of\\s+)?ancestors?|great\\s*-?\\s*grand\\s*-?\\s*parents?|grand\\s*-?\\s*parents?|ancestors?)";
+  const DESCENDANT_RELATION =
+    "(?:\\d+\\s+generations?\\s+(?:of\\s+)?descendants?|\\d+(?:st|nd|rd|th)?\\s+great\\s*-?\\s*grand\\s*-?\\s*children?|\\d+\\s*x\\s*great\\s*-?\\s*grand\\s*-?\\s*children?|great\\s*-?\\s*grand\\s*-?\\s*children?|grand\\s*-?\\s*children?|children?|descendants?)";
+
+  /**
+   * The person named in a list request: "James Cook's ancestors", "ancestors for Cook-8721", "descendants of James
+   * Cook". "" when none is named or it's the profile person. `relation` is ANCESTOR_RELATION or DESCENDANT_RELATION;
+   * `listWords` the words that can come before "of" ("ancestors", "grandchildren").
+   */
+  function extractNamedSubject(prompt, relation, listWords) {
     // P8 (live, 2026-10-03): "who were James Cook's grandchildren?" kept "who were"
     // in the name and fell back to the profile person's grandchildren.
     const normalized = String(prompt || "")
@@ -895,81 +871,25 @@ export function createChatPeopleHandlers({
     if (!normalized) {
       return "";
     }
+    // ("the profile person's ancestors": these were regex literals with doubled backslashes, so they never matched)
+    const withoutProfilePerson = (text) =>
+      String(text || "")
+        .trim()
+        .replace(/^(?:the\s+)?(?:profile\s+person|current\s+profile|this\s+profile)\s*/i, "");
 
-    const relationPattern =
-      "(?:\\d+(?:st|nd|rd|th)?\\s+(?:g(?:reat)?\\s*)?g(?:rand)?\\s*-?\\s*parents?|\\d+\\s*x\\s*(?:g(?:reat)?\\s*)?g(?:rand)?\\s*-?\\s*parents?|\\d+\\s*x\\s*great\\s*-?\\s*grand\\s*-?\\s*parents?|\\d+\\s+generations?\\s+(?:of\\s+)?ancestors?|great\\s*-?\\s*grand\\s*-?\\s*parents?|grand\\s*-?\\s*parents?|ancestors?)";
-
-    const forMatch = normalized.match(new RegExp(`\\bfor\\s+(.+?)\\s+${relationPattern}\\??$`, "i"));
+    const forMatch = normalized.match(new RegExp(`\\bfor\\s+(.+?)\\s+${relation}\\??$`, "i"));
     if (forMatch?.[1]) {
-      return String(forMatch[1] || "")
-        .trim()
-        .replace(/^(?:the\\s+)?(?:profile\\s+person|current\\s+profile|this\\s+profile)\\s*/i, "")
-        .replace(/'s$/i, "")
-        .trim();
+      return withoutProfilePerson(forMatch[1]).replace(/'s$/i, "").trim();
     }
 
-    const possessiveMatch = normalized.match(new RegExp(`^\\s*(.+?)'s\\s+${relationPattern}\\??$`, "i"));
+    const possessiveMatch = normalized.match(new RegExp(`^\\s*(.+?)'s\\s+${relation}\\??$`, "i"));
     if (possessiveMatch?.[1]) {
-      return String(possessiveMatch[1] || "")
-        .trim()
-        .replace(/^\d+\s+generations?\s+of\s+/i, "")
-        .replace(/^(?:the\\s+)?(?:profile\\s+person|current\\s+profile|this\\s+profile)\\s*/i, "")
-        .trim();
+      return withoutProfilePerson(possessiveMatch[1].trim().replace(/^\d+\s+generations?\s+of\s+/i, "")).trim();
     }
 
-    const genericOfMatch = normalized.match(
-      /^(?:show|list|display|give\s+me)?\s*(?:all\s+|the\s+)?ancestors?\s+(?:of|for)\s+(.+?)\??$/i
-    );
-    if (genericOfMatch?.[1]) {
-      return String(genericOfMatch[1] || "")
-        .trim()
-        .replace(/^(?:the\s+)?(?:profile\s+person|current\s+profile|this\s+profile)\s*/i, "")
-        .replace(/'s$/i, "")
-        .trim();
-    }
-
-    return "";
-  }
-
-  function extractNamedSubjectForDescendantPrompt(prompt) {
-    // P8 (live, 2026-10-03): "who were James Cook's grandchildren?" kept "who were"
-    // in the name and fell back to the profile person's grandchildren.
-    const normalized = String(prompt || "")
-      .trim()
-      .replace(/^(?:(?:who|what)\s+(?:are|were|is|was)\s+(?:the\s+)?|show(?:\s+me)?\s+|list\s+|display\s+|give\s+me\s+)(?=\S.*['’]s\s)/i, "");
-    if (!normalized) {
-      return "";
-    }
-
-    const relationPattern =
-      "(?:\\d+\\s+generations?\\s+(?:of\\s+)?descendants?|\\d+(?:st|nd|rd|th)?\\s+great\\s*-?\\s*grand\\s*-?\\s*children?|\\d+\\s*x\\s*great\\s*-?\\s*grand\\s*-?\\s*children?|great\\s*-?\\s*grand\\s*-?\\s*children?|grand\\s*-?\\s*children?|children?|descendants?)";
-
-    const forMatch = normalized.match(new RegExp(`\\bfor\\s+(.+?)\\s+${relationPattern}\\??$`, "i"));
-    if (forMatch?.[1]) {
-      return String(forMatch[1] || "")
-        .trim()
-        .replace(/^(?:the\\s+)?(?:profile\\s+person|current\\s+profile|this\\s+profile)\\s*/i, "")
-        .replace(/'s$/i, "")
-        .trim();
-    }
-
-    const possessiveMatch = normalized.match(new RegExp(`^\\s*(.+?)'s\\s+${relationPattern}\\??$`, "i"));
-    if (possessiveMatch?.[1]) {
-      return String(possessiveMatch[1] || "")
-        .trim()
-        .replace(/^(?:the\\s+)?(?:profile\\s+person|current\\s+profile|this\\s+profile)\\s*/i, "")
-        .trim();
-    }
-
-    const genericOfMatch = normalized.match(
-      /^(?:show|list|display|give\s+me)?\s*(?:all\s+|the\s+)?(?:descendants?|children?|grand\s*-?\s*children?|great\s*-?\s*grand\s*-?\s*children?)\s+(?:of|for)\s+(.+?)\??$/i
-    );
-    if (genericOfMatch?.[1]) {
-      return String(genericOfMatch[1] || "")
-        .trim()
-        .replace(/^(?:the\s+)?(?:profile\s+person|current\s+profile|this\s+profile)\s*/i, "")
-        .replace(/'s$/i, "")
-        .trim();
+    const ofMatch = normalized.match(new RegExp(`^(?:show|list|display|give\\s+me)?\\s*(?:all\\s+|the\\s+)?${listWords}\\s+(?:of|for)\\s+(.+?)\\??$`, "i"));
+    if (ofMatch?.[1]) {
+      return withoutProfilePerson(ofMatch[1]).replace(/'s$/i, "").trim();
     }
 
     return "";
@@ -1032,7 +952,7 @@ export function createChatPeopleHandlers({
       }
     }
 
-    const namedSubject = extractNamedSubjectForAncestorPrompt(normalizedPrompt);
+    const namedSubject = extractNamedSubject(normalizedPrompt, ANCESTOR_RELATION, "ancestors?");
     if (namedSubject) {
       if (/^(?:his|her|their)$/i.test(namedSubject)) {
         const profileRoot = getProfileSubjectRoot();
@@ -1087,7 +1007,7 @@ export function createChatPeopleHandlers({
       }
     }
 
-    const namedSubject = extractNamedSubjectForDescendantPrompt(normalizedPrompt);
+    const namedSubject = extractNamedSubject(normalizedPrompt, DESCENDANT_RELATION, "(?:descendants?|children?|grand\\s*-?\\s*children?|great\\s*-?\\s*grand\\s*-?\\s*children?)");
     if (namedSubject) {
       if (/^(?:his|her|their)$/i.test(namedSubject)) {
         const profileRoot = getProfileSubjectRoot();

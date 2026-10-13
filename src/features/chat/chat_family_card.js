@@ -5,7 +5,7 @@
 // `${prefix}-facts`, `${prefix}-kids`, `${prefix}-who` and `${prefix}-loading` itself.
 
 import { cardFacts } from "./chat_family_card_data";
-import { escapeText, fullName, lifeYears, profileUrl } from "./chat_chart_common";
+import { escapeText, fullName, lifeYears, photoUrl, profileUrl, siteUrl } from "./chat_chart_common";
 
 /**
  * "A, B and C", the first `most` of them, then "and N more": with a `prefix`, a button (data-more) that shows the
@@ -100,4 +100,42 @@ export function familyFetcher(world, load, onDone) {
     },
     loading: (id) => busy.has(id),
   };
+}
+
+/** "JC" for James Cook, for when there's no photo. */
+export function initials(person) {
+  const words = fullName(person).split(/\s+/).filter(Boolean);
+  return ((words[0]?.[0] || "") + (words.length > 1 ? words[words.length - 1][0] : "")).toUpperCase() || "?";
+}
+
+/**
+ * The top of someone's card: their photo (or initials), `relation` ("Grandfather"), name linked to their profile,
+ * years and WikiTree ID, then `action` (a button's HTML). Each view styles the `${prefix}-…` classes itself; after
+ * it's in the page, bindCardPhoto handles a photo that fails.
+ */
+export function cardHeadHtml(person, { prefix, relation = "", action = "" }) {
+  const url = photoUrl(person, 150);
+  const name = escapeText(fullName(person));
+  return `
+      <div class="${prefix}-head">
+        <span class="${prefix}-photo">${url ? `<img src="${escapeText(url)}" alt="">` : escapeText(initials(person))}</span>
+        <span>
+          ${relation ? `<span class="${prefix}-rel">${escapeText(relation)}</span>` : ""}
+          ${person.wtid ? `<a class="${prefix}-name" href="${escapeText(profileUrl(person.wtid))}" target="_blank" rel="noopener" title="Open the WikiTree profile">${name}</a>` : `<span class="${prefix}-name">${name}</span>`}
+          ${lifeYears(person) ? `<div class="${prefix}-life">${escapeText(lifeYears(person))}</div>` : ""}
+          ${person.wtid ? `<div class="${prefix}-id">${escapeText(person.wtid)}</div>` : ""}
+          ${action}
+        </span>
+      </div>`;
+}
+
+/** A card photo that won't load tries the full-size one, then gives way to initials. */
+export function bindCardPhoto(card, person) {
+  const image = card.querySelector("img");
+  if (!image) return;
+  image.addEventListener("error", () => {
+    const fallback = person.photoData?.url ? siteUrl(person.photoData.url) : "";
+    if (fallback && image.src !== fallback) image.src = fallback;
+    else image.parentElement.textContent = initials(person);
+  });
 }

@@ -1,4 +1,3 @@
-import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 // Tree overview (2026-10-03, the "Wow!" visuals): "tell me about my tree" answers
 // with a dashboard of the ancestors: how complete, where from, which surnames, how
 // long they lived, when they were born, how long a generation was. Each panel opens
@@ -10,11 +9,10 @@ import { ancestorWord } from "./chat_kin_labels";
 import { buildLifespanRows, lifespanStats } from "./chat_lifespans_data";
 import { buildCalendarEvents, MONTHS } from "./chat_family_calendar_data";
 import { yearOf } from "./chat_chart_common";
-import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { CHART_OWNER as OWNER, canonicalChartOwner as canonicalOwner } from "./chat_chart_owner";
 
 export const TREE_OVERVIEW_GENERATIONS = 8;
 
-const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const TREE = String.raw`(?:family\s+tree|tree|ancestry|ancestors|pedigree|family\s+history)`;
 const PATTERNS = [
   // "tell me about my tree", "tell me about her ancestors", "summarise my ancestry", "analyse Cook-8721's family tree"

@@ -4,7 +4,7 @@
 // Live, 2026-10-03: Cheshire births 298 matches, 161 once both dates had to be
 // exact (Mod 100 > 0); year-only dates matched on the year alone.
 
-import { parseScopeTerms } from "./chat_parent_age_filter";
+import { parseScopeTerms } from "./chat_filter_scope";
 
 const BIRTH = "[Default].[Birth Date].AsNumber";
 const MOTHER_DEATH = "[Default].[Mother Death Date].AsNumber";

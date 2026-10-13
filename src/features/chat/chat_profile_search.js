@@ -1,4 +1,4 @@
-import { getGenerationFromAhnen } from "./chat_ahnentafel";
+import { ahnenNumbers, getGenerationFromAhnen } from "./chat_ahnentafel";
 import { joinWithAnd } from "./chat_text_utils";
 import { isHiddenMarriage, shownSpouses } from "./chat_marriage_display";
 import { trimUkCountrySuffix } from "./chat_place_text";
@@ -7558,42 +7558,7 @@ ${note}` };
 
   function buildAncestorRowsFromPeopleMap(rootProfile, peopleMap = {}, includedIds = null) {
     const peopleById = { ...(peopleMap || {}) };
-    const ahnenById = new Map();
-    const queue = [];
-
-    const fatherId = String(rootProfile?.Father ?? "").trim();
-    const motherId = String(rootProfile?.Mother ?? "").trim();
-    if (fatherId) {
-      queue.push({ id: fatherId, ahnen: 2 });
-    }
-    if (motherId) {
-      queue.push({ id: motherId, ahnen: 3 });
-    }
-
-    while (queue.length) {
-      const current = queue.shift();
-      const currentId = String(current?.id || "").trim();
-      const currentAhnen = Number(current?.ahnen);
-      if (!currentId || !Number.isFinite(currentAhnen) || ahnenById.has(currentId)) {
-        continue;
-      }
-
-      ahnenById.set(currentId, currentAhnen);
-
-      const profile = peopleById[currentId];
-      if (!profile) {
-        continue;
-      }
-
-      const nextFatherId = String(profile?.Father ?? "").trim();
-      const nextMotherId = String(profile?.Mother ?? "").trim();
-      if (nextFatherId) {
-        queue.push({ id: nextFatherId, ahnen: currentAhnen * 2 });
-      }
-      if (nextMotherId) {
-        queue.push({ id: nextMotherId, ahnen: currentAhnen * 2 + 1 });
-      }
-    }
+    const ahnenById = ahnenNumbers(rootProfile, peopleById);
 
     return Object.values(peopleById)
       .filter((profile) => {

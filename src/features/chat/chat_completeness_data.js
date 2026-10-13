@@ -1,14 +1,12 @@
-import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 // Tree completeness (2026-10-03, the "Wow!" visuals): "how complete is my tree?"
 // answers generation by generation and opens the fan chart in its Brick walls
 // mode, so the gaps show. The data is the fan chart's Ahnentafel slots.
 
 import { FAN_CHART_MAX_GENERATIONS, fanChartStats, generationOfSlot } from "./chat_fan_chart_data";
 import { ancestorWord, generationLabel } from "./chat_kin_labels";
-import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { CHART_OWNER as OWNER, canonicalChartOwner as canonicalOwner } from "./chat_chart_owner";
 import { textWithMoreLink } from "./chat_more_text";
 
-const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const TREE = String.raw`(?:family\s+tree|tree|pedigree|ancestry|family\s+history)`;
 // "How complete" means the Gold Standard checklist (the user, 2026-10-04), so these open
 // the fan chart's Completeness mode; the counting and brick-wall ones open Brick walls.

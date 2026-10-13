@@ -3,6 +3,8 @@
 // "his"/"her" means. The list: this profile, you, the profile's family and the other people on the
 // page, people named in this chat, and your watchlist (as you type, or browsed from "Your watchlist").
 
+import { escapeText, yearOf } from "./chat_text_utils";
+
 const MAX_MATCHES = 8;
 let pickerCount = 0;
 
@@ -11,11 +13,6 @@ function fold(text) {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
-}
-
-function yearOf(date) {
-  const match = String(date || "").match(/^(\d{4})/);
-  return match && match[1] !== "0000" ? match[1] : "";
 }
 
 /** "1850–1912", "b. 1850", "d. 1912" or "". */
@@ -79,10 +76,6 @@ export function typedWikiTreeId(text) {
 export function pickerFirstName(person) {
   const first = String(person?.name || "").trim().split(/\s+/)[0] || "";
   return /^\p{Lu}[\p{L}'’-]*$/u.test(first) ? first : "";
-}
-
-function escapeHtml(text) {
-  return String(text ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
 }
 
 /**
@@ -168,7 +161,7 @@ export function createWhoPicker($, options) {
       items
         .map((item, index) => {
           const selected = index === active ? ' aria-selected="true"' : "";
-          if (item.kind === "search") return `<div class="chat-who-item chat-who-search" role="option" data-index="${index}"${selected}>Find “${escapeHtml(item.text)}” on WikiTree</div>`;
+          if (item.kind === "search") return `<div class="chat-who-item chat-who-search" role="option" data-index="${index}"${selected}>Find “${escapeText(item.text)}” on WikiTree</div>`;
           if (item.kind === "watchlist") {
             const count = watchlist?.people.length ? ` <span class="chat-who-note">${watchlist.people.length.toLocaleString("en-US")} people</span>` : "";
             return `<div class="chat-who-item chat-who-more" role="option" data-index="${index}"${selected}>Your watchlist ▸${count}</div>`;
@@ -176,10 +169,10 @@ export function createWhoPicker($, options) {
           if (item.kind === "back") return `<div class="chat-who-item chat-who-more" role="option" data-index="${index}"${selected}>◂ Back</div>`;
           const { person } = item;
           const extra = [person.years, person.note].filter(Boolean).join(" · ");
-          const id = person.name === person.wtId ? "" : ` <span class="chat-who-id">${escapeHtml(person.wtId)}</span>`;
-          return `<div class="chat-who-item" role="option" data-index="${index}"${selected}><span class="chat-who-item-name">${escapeHtml(person.name)}</span>${id}${extra ? ` <span class="chat-who-note">${escapeHtml(extra)}</span>` : ""}</div>`;
+          const id = person.name === person.wtId ? "" : ` <span class="chat-who-id">${escapeText(person.wtId)}</span>`;
+          return `<div class="chat-who-item" role="option" data-index="${index}"${selected}><span class="chat-who-item-name">${escapeText(person.name)}</span>${id}${extra ? ` <span class="chat-who-note">${escapeText(extra)}</span>` : ""}</div>`;
         })
-        .join("") + (status ? `<div class="chat-who-status">${escapeHtml(status)}</div>` : "")
+        .join("") + (status ? `<div class="chat-who-status">${escapeText(status)}</div>` : "")
     );
   }
 

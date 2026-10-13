@@ -4,19 +4,16 @@
 // The d3 drawing lives in chat_fan_chart.js.
 
 import { ancestorGenerationLabel as generationWord } from "./chat_kin_labels";
-import { canonicalChartObjectOwner as canonicalOwner } from "./chat_chart_prompt";
 import { getCountryFromLocation } from "./chat_place_country";
 import { shownGender } from "./chat_gender_display";
 import { profileQuality } from "./chat_profile_quality_data";
 import { PersonName } from "../auto_bio/person_name";
-import { RELATIVE_OWNER } from "./chat_chart_owner";
-import { personNameText } from "./chat_text_utils";
+import { CHART_OWNER as OWNER, CHART_OWNER_AFTER as OWNER_AFTER, canonicalChartOwner as canonicalOwner } from "./chat_chart_owner";
+import { personNameText, cleanDate, yearOf } from "./chat_text_utils";
 
 export const FAN_CHART_DEFAULT_GENERATIONS = 7;
 export const FAN_CHART_MAX_GENERATIONS = 10;
 
-const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
-const OWNER_AFTER = String.raw`(me|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+)`;
 // (a plain "sunburst" is the descendant chart)
 const CHART = String.raw`(?:(?:(?:ancestor|ancestry|ancestral|family|pedigree)\s+)?(?:fan\s+chart|fan|wheel)|(?:ancestor|ancestry|ancestral|pedigree)\s+sunburst)`;
 const GENS = String.raw`(?:\s+(?:with|of|for|showing)?\s*(\d{1,2})\s+generations?)?`;
@@ -85,16 +82,6 @@ export function parseFanChartPrompt(prompt) {
     return { owner, generations, ancestorPrompt };
   }
   return null;
-}
-
-function cleanDate(value) {
-  const text = String(value || "");
-  return text && !/^0000/.test(text) ? text : "";
-}
-
-export function yearOf(value) {
-  const match = cleanDate(value).match(/^(\d{4})/);
-  return match ? Number(match[1]) : null;
 }
 
 // (WikiTree sends only the Id for a profile you may not see, e.g. when not signed in to the API: "Private")

@@ -1,4 +1,4 @@
-import { canonicalChartOwner } from "./chat_chart_prompt";
+import { canonicalChartOwner } from "./chat_chart_owner";
 import { fullWikiTreeName } from "./chat_fan_chart_data";
 import { shownGender } from "./chat_gender_display";
 import { ordinal } from "./chat_text_utils";

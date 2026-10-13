@@ -23,7 +23,7 @@ import { buildFractalLayout } from "./chat_fractal_tree_data";
 import { isHiddenMarriage, shownSpouses } from "./chat_marriage_display";
 import { getCountryFromLocation } from "./chat_place_country";
 import { shownGender } from "./chat_gender_display";
-import { fullName, personNameText } from "./chat_text_utils";
+import { fullName, personNameText, cleanDate } from "./chat_text_utils";
 import { fullWikiTreeName } from "./chat_fan_chart_data";
 
 // getPeople nuclear depths: the first fetch around the person (CC3: ~3s, where CC4 took ~20s for an old colonial family), and each
@@ -85,11 +85,6 @@ export function parseFamilyWorldPrompt(prompt) {
 }
 
 const MAX_ROWS = 40;
-
-function cleanDate(value) {
-  const text = String(value || "");
-  return text && !/^0000/.test(text) ? text : "";
-}
 
 /** The chart's person summary (the same shape as the fan and descendant charts'). */
 export function summarizeWorldPerson(person) {

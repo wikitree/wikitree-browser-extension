@@ -1,6 +1,6 @@
 // Shared UI for the nested and spiral canvas trees. Layout geometry and
 // colouring remain with each renderer.
-import { injectChartStyles } from "./chat_chart_common";
+import { addStyleOnce, injectChartStyles } from "./chat_chart_common";
 
 const FRACTAL_CSS = `
   /* (the size comes from .wbe-chart-popup, so the size button works here too) */
@@ -34,11 +34,7 @@ const FRACTAL_CSS = `
 
 export function injectFractalStyles() {
   injectChartStyles();
-  if (document.getElementById("wbe-fractal-style")) return;
-  const style = document.createElement("style");
-  style.id = "wbe-fractal-style";
-  style.textContent = FRACTAL_CSS;
-  document.head.appendChild(style);
+  addStyleOnce("wbe-fractal-style", FRACTAL_CSS);
 }
 
 export function reducedMotion() {

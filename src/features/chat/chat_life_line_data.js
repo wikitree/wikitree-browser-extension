@@ -5,7 +5,7 @@
 // d3 drawing lives in chat_life_line.js.
 
 import { fullName, yearOf } from "./chat_chart_common";
-import { rowSpan } from "./chat_family_timeline_data";
+import { rowSpan, timelineOwner } from "./chat_family_timeline_data";
 import { livedThrough, placeRegions } from "./chat_world_events_data";
 import { joinWithAndMore } from "./chat_more_text";
 
@@ -23,16 +23,6 @@ const PATTERNS = [
   { re: new RegExp(String.raw`^${LEAD}${OWNER}\s+life\s+(?:on|in)\s+(?:a|one)\s+(?:single\s+)?line$`, "i"), after: false },
 ];
 
-function canonicalOwner(word) {
-  const raw = String(word || "")
-    .trim()
-    .replace(/['’]s$/i, "");
-  if (!raw) return "";
-  if (/^(?:my|our|me)$/i.test(raw)) return "me";
-  if (/^(?:her|his|him|their|them|this\s+(?:profile|person))$/i.test(raw)) return "";
-  return raw;
-}
-
 /** {owner, lifeLine: true} or null. owner: "me", "" (the page's profile), an ID or a name. */
 export function parseLifeLinePrompt(prompt) {
   const text = String(prompt || "")
@@ -42,7 +32,7 @@ export function parseLifeLinePrompt(prompt) {
     .replace(/^please\s+/i, "");
   for (const { re } of PATTERNS) {
     const match = text.match(re);
-    if (match) return { owner: canonicalOwner(match[1]), lifeLine: true };
+    if (match) return { owner: timelineOwner(match[1]), lifeLine: true };
   }
   return null;
 }

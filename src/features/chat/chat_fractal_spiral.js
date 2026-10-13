@@ -15,8 +15,7 @@ import {
 import { select } from "d3-selection";
 import "d3-transition";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
-import { scaleSequential } from "d3-scale";
-import { interpolateSpectral, schemeTableau10 } from "d3-scale-chromatic";
+import { birthYearColouring, countValues, topValueColouring } from "./chat_chart_colours";
 import { easeCubicInOut } from "d3-ease";
 import { buildSpiralLayout } from "./chat_fractal_spiral_data";
 import { hasFrontier } from "./chat_fractal_tree_data";
@@ -45,44 +44,20 @@ function surnameOf(person) {
 function buildColouring(nodes, mode) {
   const people = nodes.filter((node) => node.person).map((node) => node.person);
   if (mode === "century") {
-    const found = people.map((person) => yearOf(person.birth)).filter(Boolean);
-    const min = found.length ? Math.min(...found) : 1800;
-    const max = found.length ? Math.max(...found) : 1950;
-    const scale = scaleSequential(interpolateSpectral).domain([min, Math.max(max, min + 1)]);
-    const buckets = [];
-    for (let start = Math.floor(min / 25) * 25; start <= max; start += 25) buckets.push(start);
+    const byYear = birthYearColouring(people.map((person) => yearOf(person.birth)), { span: 25, unknown: UNKNOWN });
     return {
-      fill: (person) => (yearOf(person.birth) ? scale(yearOf(person.birth)) : UNKNOWN),
-      key: (person) => (yearOf(person.birth) ? String(Math.floor(yearOf(person.birth) / 25) * 25) : "?"),
-      legend: [
-        ...buckets.map((start) => ({ key: String(start), label: `${start}–${start + 24}`, colour: scale(Math.min(Math.max(start + 12, min), max)) })),
-        { key: "?", label: "No birth year", colour: UNKNOWN },
-      ],
+      fill: (person) => byYear.colourOf(yearOf(person.birth)),
+      key: (person) => byYear.keyOf(yearOf(person.birth)),
+      legend: byYear.legend,
     };
   }
   if (mode === "country" || mode === "surname") {
     const valueOf = mode === "country" ? (person) => person.birthCountry || "" : surnameOf;
-    const counts = new Map();
-    people.forEach((person) => {
-      const value = valueOf(person);
-      if (value) counts.set(value, (counts.get(value) || 0) + 1);
-    });
-    const top = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 9);
-    const colourOf = new Map(top.map(([value], index) => [value, schemeTableau10[index]]));
+    const byValue = topValueColouring(countValues(people.map(valueOf)), { unknownLabel: mode === "country" ? "No birthplace" : "No surname", unknown: UNKNOWN });
     return {
-      fill: (person) => {
-        const value = valueOf(person);
-        return value ? colourOf.get(value) || "#a0a0a0" : UNKNOWN;
-      },
-      key: (person) => {
-        const value = valueOf(person);
-        return value ? (colourOf.has(value) ? value : "Other") : "?";
-      },
-      legend: [
-        ...top.map(([value, count]) => ({ key: value, label: `${value} (${count})`, colour: colourOf.get(value) })),
-        { key: "Other", label: "Other", colour: "#a0a0a0" },
-        { key: "?", label: mode === "country" ? "No birthplace" : "No surname", colour: UNKNOWN },
-      ],
+      fill: (person) => byValue.colourOf(valueOf(person)),
+      key: (person) => byValue.keyOf(valueOf(person)),
+      legend: byValue.legend,
     };
   }
   return {

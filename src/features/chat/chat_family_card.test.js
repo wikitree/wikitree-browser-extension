@@ -1,4 +1,4 @@
-import { cardList, familyFactsHtml, familyFetcher, showMoreInCard } from "./chat_family_card";
+import { bindCardPhoto, cardHeadHtml, cardList, familyFactsHtml, familyFetcher, initials, showMoreInCard } from "./chat_family_card";
 
 const person = (id, extra = {}) => ({ id, wtid: `P-${id}`, name: `Person ${id}`, hidden: false, gender: "", birth: "", death: "", birthLocation: "", deathLocation: "", fatherId: 0, motherId: 0, spouses: [], ...extra });
 const world = (...list) => new Map(list.map((entry) => [entry.id, entry]));
@@ -84,5 +84,42 @@ describe("familyFetcher", () => {
     fetcher.ensure(person(1));
     await flush();
     expect(load).toHaveBeenCalledTimes(2);
+  });
+});
+
+// The card's head, shared by the 3D view and the Galaxy (2026-10-13).
+describe("cardHeadHtml", () => {
+  test("photo or initials, relation, linked name, years, ID and the view's button", () => {
+    const card = document.createElement("div");
+    card.innerHTML = cardHeadHtml(person(1, { name: "James", lnab: "Cook", wtid: "Cook-1", birth: "1728-11-07", death: "1779-02-14" }), {
+      prefix: "wbe-3d",
+      relation: "Grandfather",
+      action: '<button type="button" data-start="1">Show their ancestors</button>',
+    });
+    expect(card.querySelector(".wbe-3d-photo").textContent).toBe("JC");
+    expect(card.querySelector(".wbe-3d-rel").textContent).toBe("Grandfather");
+    expect(card.querySelector("a.wbe-3d-name").textContent).toBe("James Cook");
+    expect(card.querySelector("a.wbe-3d-name").getAttribute("href")).toMatch(/\/wiki\/Cook-1$/);
+    expect(card.querySelector(".wbe-3d-id").textContent).toBe("Cook-1");
+    expect(card.querySelector("[data-start]").textContent).toBe("Show their ancestors");
+
+    card.innerHTML = cardHeadHtml(person(2, { name: "", wtid: "" }), { prefix: "wbe-galaxy" });
+    expect(card.querySelector(".wbe-galaxy-rel")).toBeNull();
+    expect(card.querySelector("span.wbe-galaxy-name")).not.toBeNull();
+    expect(card.querySelector(".wbe-galaxy-photo").textContent).toBe("?");
+  });
+
+  test("a photo that won't load tries the full-size one, then initials", () => {
+    const sitter = person(3, { name: "Ann Smith", photo: "Ann.jpg", photoData: { dir: "/photo.php/a/b", url: "/photo.php/a/b/Ann.jpg" } });
+    const card = document.createElement("div");
+    card.innerHTML = cardHeadHtml(sitter, { prefix: "wbe-galaxy" });
+    bindCardPhoto(card, sitter);
+    const image = card.querySelector("img");
+    expect(image.getAttribute("src")).toMatch(/150px-Ann\.jpg$/);
+    image.dispatchEvent(new Event("error"));
+    expect(image.getAttribute("src")).toMatch(/\/photo\.php\/a\/b\/Ann\.jpg$/);
+    image.dispatchEvent(new Event("error"));
+    expect(card.querySelector(".wbe-galaxy-photo").textContent).toBe("AS");
+    expect(initials(person(4, { name: "Mary", lnab: "" }))).toBe("M");
   });
 });

@@ -1,4 +1,3 @@
-import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 // Family size (2026-10-04, the "Wow!" visuals): how many children each ancestral couple
 // had, generation by generation, and how many died young. The couples are the fan
 // chart's Ahnentafel pairs (slots 2k and 2k+1 are the parents of slot k); their
@@ -9,12 +8,11 @@ import { yearOf } from "./chat_chart_common";
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { shownGender } from "./chat_gender_display";
 import { generationLabel } from "./chat_kin_labels";
-import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { CHART_OWNER as OWNER, canonicalChartOwner as canonicalOwner } from "./chat_chart_owner";
 
 export const FAMILY_SIZE_GENERATIONS = 7; // (couples in rows 1–6: up to 63 families)
 export const DIED_YOUNG_AGE = 5;
 
-const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const LEAD = String.raw`(?:(?:show|draw|make|create|give|display|open|chart)(?:\s+me)?\s+)?`;
 const PATTERNS = [
   // "family size", "my family sizes", "show Cook-8721's ancestral family sizes", "family size chart"

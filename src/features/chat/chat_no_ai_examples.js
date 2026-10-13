@@ -3,6 +3,8 @@
 // is checked by chat_no_ai_examples.test.js, so only wordings that work are listed.
 // [brackets] in a pattern are the parts to replace.
 
+import { escapeText } from "./chat_text_utils";
+
 export const NO_AI_EXAMPLE_SECTIONS = [
   {
     id: "search",
@@ -237,9 +239,6 @@ export function isHelpPrompt(text) {
   return /^\s*(?:help|\?|what\s+can\s+i\s+(?:type|ask|say)(?:\s+here)?|what\s+can\s+(?:you|genie)\s+do)\s*[?.!]*\s*$/i.test(String(text || ""));
 }
 
-const escapeHtml = (text) =>
-  String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
 /** The "What can I type?" panel inside Genie: a collapsible section per topic; examples are buttons. */
 export function noAiExamplesHtml() {
   const sections = NO_AI_EXAMPLE_SECTIONS.map((section) => {
@@ -249,19 +248,19 @@ export function noAiExamplesHtml() {
         const examples = item.examples
           .map(
             (example) =>
-              `<button type="button" class="chat-message-action chat-example" data-prompt="${escapeHtml(example)}"${
+              `<button type="button" class="chat-message-action chat-example" data-prompt="${escapeText(example)}"${
                 needsResult ? ' data-needs-result="1"' : ""
-              }>${escapeHtml(example)}</button>`
+              }>${escapeText(example)}</button>`
           )
           .join("");
-        return `<li><span class="chat-example-pattern">${escapeHtml(item.pattern)}</span>${
-          item.note ? ` <span class="chat-ai-help-note">${escapeHtml(item.note)}</span>` : ""
+        return `<li><span class="chat-example-pattern">${escapeText(item.pattern)}</span>${
+          item.note ? ` <span class="chat-ai-help-note">${escapeText(item.note)}</span>` : ""
         }<div class="chat-example-buttons">${examples}</div></li>`;
       })
       .join("");
     return `<details>
-      <summary>${escapeHtml(section.title)}</summary>
-      ${section.intro ? `<p>${escapeHtml(section.intro)}</p>` : ""}
+      <summary>${escapeText(section.title)}</summary>
+      ${section.intro ? `<p>${escapeText(section.intro)}</p>` : ""}
       <ul class="chat-example-list">${rows}</ul>
     </details>`;
   }).join("");

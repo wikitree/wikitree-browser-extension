@@ -1,4 +1,3 @@
-import { canonicalChartOwner as canonicalOwner } from "./chat_chart_prompt";
 // Ancestor migration map data (2026-10-03, the "Wow!" visuals). From the fan
 // chart's Ahnentafel slots: each ancestor's birthplace becomes a place (a
 // country, or a state/province/nation for the US, Canada, Australia and the
@@ -9,7 +8,7 @@ import { getCountryFromLocation } from "./chat_place_country";
 import { yearOf } from "./chat_chart_common";
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { cachedPoint } from "./chat_geocode";
-import { RELATIVE_OWNER } from "./chat_chart_owner";
+import { CHART_OWNER as OWNER, canonicalChartOwner as canonicalOwner } from "./chat_chart_owner";
 
 /** [longitude, latitude] for the sub-national places the map shows separately. */
 export const REGION_POINTS = {
@@ -395,7 +394,6 @@ export function buildMigrationSummary(migration, ownerText) {
   }`;
 }
 
-const OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
 const LEAD = String.raw`(?:(?:show|draw|make|create|give|display|open|build|generate)(?:\s+me)?\s+|(?:can|could|would)\s+you\s+(?:show|draw|make)(?:\s+me)?\s+)?`;
 const MAP_PATTERNS = [
   // "show me my migration map", "Cook-8721's ancestor map", "a migration map"

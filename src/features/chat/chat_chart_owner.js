@@ -12,6 +12,27 @@ const NAME_WORDS = String.raw`(?:\s+[A-Za-z][A-Za-z'.-]*){0,3}?`;
 /** "his daughter Carol Moak's", "my mother's father's", "her first husband's" (for an OWNER group). */
 export const RELATIVE_OWNER = String.raw`(?:my|our|her|his|their)\s+${RELATION_CHAIN}${NAME_WORDS}['’]s`;
 
+/** A chart parser's owner group before the chart word: "my", "her", "this profile's", "Smith-123's", "his daughter Carol's". */
+export const CHART_OWNER = String.raw`(${RELATIVE_OWNER}|my|our|her|his|their|this\s+(?:profile|person)['’]s|[A-Z][A-Za-z'_ -]*?-\d+['’]s)`;
+/** The owner group after "of" or "for": "me", "her", "this profile", "Smith-123". */
+export const CHART_OWNER_AFTER = String.raw`(me|her|him|them|this\s+(?:profile|person)|[A-Z][A-Za-z'_ -]*?-\d+)`;
+
+// Every form of a pronoun, as the owner word the charts use.
+const PRONOUN_OWNER = { i: "my", we: "my", me: "my", us: "my", my: "my", our: "my", she: "her", her: "her", he: "his", him: "his", his: "his", they: "their", them: "their", their: "their" };
+
+/**
+ * Whose chart, from what an owner group caught: "my", "her", "his" or "their" for any form of the pronoun ("I",
+ * "us", "him", "them"), "" for "this profile" or "this person" (the page's profile), else the words without
+ * "'s" ("Smith-123", "his daughter Carol").
+ */
+export function canonicalChartOwner(word) {
+  const raw = String(word || "")
+    .trim()
+    .replace(/['’]s$/i, "");
+  if (!raw || /^this\s+(?:profile|person)$/i.test(raw)) return "";
+  return PRONOUN_OWNER[raw.toLowerCase()] || raw;
+}
+
 const RELATIVE_OWNER_PARTS = new RegExp(
   String.raw`^((?:my|our|her|his|their)\s+${RELATION_CHAIN})((?:\s+[A-Za-z][A-Za-z'.-]*){0,3}?)['’]s\b`,
   "i"

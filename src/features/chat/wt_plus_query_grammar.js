@@ -1,4 +1,5 @@
 import suggestionsData from "../wikitree_plus_helper/suggestions.json";
+import { stripSurroundingQuotes } from "./chat_text_utils";
 
 const WT_PLUS_ALLOWED_FIELDS = [
   "ProfileStatus",
@@ -175,14 +176,6 @@ const WT_PLUS_RAW_TOKEN_CANONICAL = new Map([
   ["relation=addsiblings", "relation=addsiblings"],
   ["relation=addnuclear", "relation=addnuclear"],
 ]);
-
-function stripSurroundingQuotes(value) {
-  if (value == null) return "";
-  return String(value)
-    .trim()
-    .replace(/^["“”'‘’\s\[]+|["“”'‘’\s\]]+$/g, "")
-    .trim();
-}
 
 function tokenizeWtPlusQuery(queryText) {
   const text = String(queryText || "").trim();

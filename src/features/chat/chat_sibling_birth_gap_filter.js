@@ -1,4 +1,5 @@
-import { stripSurroundingQuotes, parseScopeTerms } from "./chat_filter_scope";
+import { parseScopeTerms } from "./chat_filter_scope";
+import { stripSurroundingQuotes } from "./chat_text_utils";
 
 function parseMonthGapThreshold(boundsText) {
   const text = String(boundsText || "").trim();
