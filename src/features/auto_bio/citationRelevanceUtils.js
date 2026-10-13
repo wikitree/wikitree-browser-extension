@@ -48,6 +48,22 @@ export function citationMatchesEventYear(text = "", eventYear, tolerance = 1) {
 }
 
 /**
+ * The year a citation names that is near an event (the closest, if there are several), or null. A citation
+ * such as `"Texas Births and Christenings, 1840-1981", database, FamilySearch (url : 13 February 2020), Roderick
+ * Wilson Rigdon, 1885.` has no year field to read, but its own wording says 1885.
+ */
+export function yearNearEvent(text = "", eventYear, tolerance = 10) {
+  const year = parseInt(eventYear, 10);
+  if (!year) {
+    return null;
+  }
+  const near = yearsInCitation(text)
+    .filter((citationYear) => Math.abs(citationYear - year) <= tolerance)
+    .sort((a, b) => Math.abs(a - year) - Math.abs(b - year));
+  return near.length ? near[0] : null;
+}
+
+/**
  * GRO index citations carry the searched-for sex as a parameter, which is a plain statement
  * that the record is for a man or a woman.
  */

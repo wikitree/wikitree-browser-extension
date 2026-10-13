@@ -138,6 +138,25 @@ describe("applyInlineCitationAnchors", () => {
     expect(refs[3]["Record Type"]).toEqual(["Burial", "Death"]);
   });
 
+  test("a death source listed under Sources (cited nowhere inline) also makes Find a Grave a burial source", () => {
+    const refs = [
+      { Text: "New Mexico Deaths, 1889-1945, Benjamin Aragon, 23 Feb 1928", RefName: "", "Record Type": ["Death"] },
+      { Text: FIND_A_GRAVE, RefName: "", "Record Type": ["Death"] },
+    ];
+    applyInlineCitationAnchors(refs, [], life);
+    expect(refs[0]["Record Type"]).toEqual(["Death"]);
+    expect(refs[1]["Record Type"]).toEqual(["Burial"]);
+  });
+
+  test("Find a Grave is the death source when the only other death source is about a relative", () => {
+    const refs = [
+      { Text: "Death of his father", RefName: "", Relation: "father", "Record Type": ["Death"] },
+      { Text: FIND_A_GRAVE, RefName: "", "Record Type": ["Death"] },
+    ];
+    applyInlineCitationAnchors(refs, [], life);
+    expect(refs[1]["Record Type"]).toEqual(["Death"]);
+  });
+
   test("a sentence Auto Bio cannot write is kept with its citations, dated by them", () => {
     const refs = references();
     const result = applyInlineCitationAnchors(refs, anchors, life);

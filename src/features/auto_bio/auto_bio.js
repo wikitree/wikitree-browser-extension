@@ -38,7 +38,7 @@ import {
   isFindAGraveWithoutImage,
   looksLikeCitationText,
 } from "./citationTextUtils.js";
-import { citationCouldBeAboutEvent, couldHaveServedIn, yearFromDate } from "./citationRelevanceUtils.js";
+import { citationCouldBeAboutEvent, couldHaveServedIn, yearFromDate, yearNearEvent } from "./citationRelevanceUtils.js";
 import {
   censusNarrativeFromBioSentence,
   findCensusSentenceInBio,
@@ -106,7 +106,8 @@ import {
 } from "./familyMatchUtils.js";
 import { normalizeTemplatesInSectionArray, splitBioIntoSections } from "./bioSectionUtils.js";
 import { spell } from "./spellingUtils.js";
-import { configureWikiLinks, getWikiLink, linkTerm } from "./narrativePlaceUtils.js";
+import { configureWikiLinks, getWikiLink, limitRepeatedLinks, linkTerm } from "./narrativePlaceUtils.js";
+import { linkCemetery } from "./cemeteryLinkUtils.js";
 import { resolvePlaceLinks, resolveTopicLinks } from "./wikiLinkResolver.js";
 import { expandTemplateCitation } from "./templateCitationUtils.js";
 import { applyInlineCitationAnchors, findInlineCitationAnchors } from "./inlineCitationUtils.js";
@@ -652,6 +653,19 @@ export function assignCemeteryFromSources() {
   });
 }
 
+/* The cemetery as it is put in a burial sentence: the country left out and, with the WikiTree links option, the
+cemetery's name linked to its space page or category. */
+function cemeteryText(cemetery) {
+  const text = removeCountryName(cemetery.replace(/_/g, " "));
+  if (window.autoBioOptions?.wikiTreeLinks !== true) {
+    return text;
+  }
+  return linkCemetery(text, {
+    oldBio: window.autoBioOldBio || "",
+    categories: window.sectionsObject?.StuffBeforeTheBio?.text || [],
+  });
+}
+
 export function buildDeath(person) {
   if (!isOK(person?.DeathDate) && !isOK(person.DeathDecade) && !isOK(person.DeathLocation)) {
     return "";
@@ -723,14 +737,14 @@ export function buildDeath(person) {
             " " +
             capitalizeFirstLetter(person.Pronouns.subject) +
             " is commemorated at " +
-            removeCountryName(window.profilePerson.Cemetery.replace(/_/g, " ")) +
+            cemeteryText(window.profilePerson.Cemetery) +
             ".";
         } else {
           text +=
             " " +
             capitalizeFirstLetter(person.Pronouns.subject) +
             " was buried in " +
-            removeCountryName(window.profilePerson.Cemetery.replace(/_/g, " ")) +
+            cemeteryText(window.profilePerson.Cemetery) +
             ".";
         }
         burialAdded = true;
@@ -749,7 +763,11 @@ export function buildDeath(person) {
         window.profilePerson.Cemetery = cemeteryCategory;
         if (cemeteryCategory.match(/Memorial/i) && burialAdded === false) {
           text +=
-            " " + capitalizeFirstLetter(person.Pronouns.subject) + " is commemorated at " + cemeteryCategory + ".";
+            " " +
+            capitalizeFirstLetter(person.Pronouns.subject) +
+            " is commemorated at " +
+            cemeteryText(cemeteryCategory) +
+            ".";
         } else {
           window.profilePerson["Burial Place"] = cemeteryCategory;
         }
@@ -776,7 +794,7 @@ export function buildDeath(person) {
       " " +
       capitalizeFirstLetter(person.Pronouns.subject) +
       " was buried in " +
-      removeCountryName(window.profilePerson["Burial Place"].replace(/_/g, " ")) +
+      cemeteryText(window.profilePerson["Burial Place"]) +
       ".";
     if (!burialRefsAdded) {
       text += addReferences("Burial");
@@ -3703,6 +3721,21 @@ export function sourcesArray(bio) {
       }
     }
   });
+  /* A birth or baptism citation is only used when its year is near the birth year. One whose year was not read
+  from a birth or baptism date ("... Roderick Wilson Rigdon, 1885.") has been given the first year in its wording,
+  which can be the end of the database's range ("1840-1981"). The year of the event is the one near the birth. */
+  const birthYear = Number(yearFromDate(window.profilePerson?.BirthDate)) || 0;
+  refArr.forEach(function (aRef) {
+    const isBirthOrBaptism = aRef["Record Type"].includes("Birth") || aRef["Record Type"].includes("Baptism");
+    const yearRead = aRef["Birth Date"] || aRef["Baptism Date"] || aRef["Christening Date"];
+    if (!isBirthOrBaptism || aRef.Relation || yearRead || (aRef.Year && isWithinX(aRef.Year, birthYear, 10))) {
+      return;
+    }
+    const year = yearNearEvent(aRef.Text, birthYear);
+    if (year) {
+      aRef.Year = String(year);
+    }
+  });
   /* With the option on, a citation the old bio had inline goes with the event it followed (see inlineCitationUtils),
   and sentences Auto Bio cannot write are kept with their citations. */
   const anchored = window.autoBioOptions?.keepInlineCitations
@@ -5680,6 +5713,7 @@ export async function generateBio() {
     }
     /* The notes from above the Biography heading are in Research Notes now,
     so leave their citations out of the Sources section. */
+    window.autoBioOldBio = currentBio;
     sourcesArray(removeNotesBeforeBio(currentBio));
     expandTemplateCitations();
     await prepareWikiLinks();
@@ -6410,6 +6444,9 @@ export async function generateBio() {
         acknowledgementsText +
         advanceDirectiveText;
     }
+
+    // A place, cemetery, war or occupation is linked the first time it is mentioned only.
+    outputText = limitRepeatedLinks(outputText);
 
     // NEW LOGIC: Store clean draft and notes separately
     window.autoBio_cleanDraft = outputText.replace(/(\s\.)(?=\s|$)/g, "");

@@ -4,6 +4,7 @@ import {
   configureWikiLinks,
   formatWikiLink,
   joinPlaceParts,
+  limitRepeatedLinks,
   linkablePartCount,
   placeLinkKey,
   placePartCandidates,
@@ -154,5 +155,38 @@ describe("places in the narrative", () => {
     window.autoBioOptions = { wikipediaLinks: true, fullLocations: true };
     expect(fullNarrativePlace(CALEDONIA)).toContain("[[:Category:Caledonia, Missouri|Caledonia]], ");
     expect(minimalPlace(CALEDONIA)).toContain("[[:Category:Caledonia, Missouri|Caledonia]], ");
+  });
+});
+
+describe("limitRepeatedLinks", () => {
+  beforeEach(() => {
+    clearWikiLinks();
+    configureWikiLinks({ language: "en" });
+  });
+
+  test("links a place only the first time", () => {
+    const raton = { kind: "category", title: "Raton, New Mexico" };
+    const text = `Born in ${formatWikiLink(raton, "Raton")}. Died in ${formatWikiLink(raton, "Raton")}.`;
+    expect(limitRepeatedLinks(text)).toBe("Born in [[:Category:Raton, New Mexico|Raton]]. Died in Raton.");
+  });
+
+  test("different pages are each linked, and the same One Place Study page is linked once", () => {
+    const study = { kind: "space", title: "Raton, New Mexico One Place Study" };
+    const county = { kind: "category", title: "Colfax County, New Mexico" };
+    const text = [study, county, study, county].map((target) => formatWikiLink(target, "x")).join(" ");
+    expect(limitRepeatedLinks(text)).toBe(
+      "[[Space:Raton, New Mexico One Place Study|x]] [[:Category:Colfax County, New Mexico|x]] x x"
+    );
+  });
+
+  test("leaves person links, links it did not make, and everything from Sources on alone", () => {
+    const raton = { kind: "category", title: "Raton, New Mexico" };
+    const text =
+      `[[Aragon-513|Jose]] and [[Aragon-513|Jose]] in ${formatWikiLink(
+        raton,
+        "Raton"
+      )} and [[Space:Fairmont_Cemetery|Fairmont]] ` +
+      `and [[Space:Fairmont_Cemetery|Fairmont]]\n== Sources ==\n${formatWikiLink(raton, "Raton")}`;
+    expect(limitRepeatedLinks(text)).toBe(text);
   });
 });

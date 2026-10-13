@@ -257,6 +257,11 @@ export async function resolvePlaceLinks(places, deps = {}) {
       const found = await withTimeout(categoryFor(placePartLookup(parts, index, usPlace)), "Location category lookup");
       const category = found && categoryMatchesPart(found, parts[index]) ? found : null;
       if (category && wikiTree) {
+        // A place with a One Place Study is linked to the study's page.
+        const study = `${category} One Place Study`;
+        if (await withTimeout(exists("Space", study), "WikiTree One Place Study lookup")) {
+          return { kind: "space", title: study };
+        }
         return { kind: "category", title: category };
       }
       const names = placePartCandidates(parts, index, usPlace);
