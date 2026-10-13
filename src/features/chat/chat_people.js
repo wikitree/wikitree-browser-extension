@@ -1439,7 +1439,7 @@ export function createChatPeopleHandlers({
 
     let relatives = [];
     let readBy = "read from its census tables and text";
-    const { provider, key: aiKey, model } = await getChatAiConfig();
+    const { provider, key: aiKey, model, paused: aiSwitchedOff } = await getChatAiConfig();
     if (aiKey) {
       notify("Reading the biography for relatives…");
       try {
@@ -1467,7 +1467,7 @@ export function createChatPeopleHandlers({
       const duplicates = await duplicatesPromise;
       return [
         `No ${roles.length ? "such relatives" : "relatives"} found in ${subjectLabel}'s biography. Genie looks for "son of …", "daughter of …", "married …" and census household tables${
-          aiKey ? "" : "; with an AI key Genie can read biographies written in other ways"
+          aiKey ? "" : aiSwitchedOff ? "; with AI switched on, Genie can read biographies written in other ways" : "; with an AI key Genie can read biographies written in other ways"
         }.`,
         ...duplicateLines(duplicates, subjectLabel),
       ].join("\n");

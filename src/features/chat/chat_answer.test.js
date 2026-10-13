@@ -46,6 +46,12 @@ describe("needsAiKeyMessage", () => {
       { label: "How to get and add an AI API key", actionType: "external-link", url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#How_to_Set_an_AI_API_Key" },
     ]);
   });
+  test("with a key and AI switched off: switch it on, no how-to link", () => {
+    const { text, actions } = needsAiKeyMessage({ switchedOff: true });
+    expect(text.split("\n")[0]).toBe("We need AI to respond to this, and it's switched off. Switch it on with the AI switch at the top.");
+    expect(text).not.toMatch(/API key/);
+    expect(actions).toEqual([]);
+  });
 });
 
 test("a SUGGEST line run on after the answer is still read out", () => {

@@ -2775,9 +2775,10 @@ async function handleChatResult(result) {
   let trailingText = result.trailingText || "";
   if (aiAvailable === false && result.table && !noKeyTipShown) {
     noKeyTipShown = true;
-    trailingText = [trailingText, "Tip: add an AI key in the extension's Options for smarter searches and to ask questions."].filter(Boolean).join("\n");
-    // (the same how-to link as the "needs AI" message)
-    needsAiKeyMessage().actions.forEach((action) =>
+    const tip = aiSwitchedOff ? "Tip: switch AI on at the top for smarter searches and to ask questions." : "Tip: add an AI key in the extension's Options for smarter searches and to ask questions.";
+    trailingText = [trailingText, tip].filter(Boolean).join("\n");
+    // (the same how-to link as the "needs AI" message, none when there's a key)
+    needsAiKeyMessage({ switchedOff: aiSwitchedOff }).actions.forEach((action) =>
       explicitActions.push({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })
     );
   }
@@ -2864,9 +2865,8 @@ async function handleChatResult(result) {
 function showNeedsAiKey(prompt) {
   // (a question gets just the message and the link; something more like a search gets the form too)
   const withForm = !looksLikeQuestion(prompt);
-  const needsKey = needsAiKeyMessage({ withForm });
-  const text = isAiPaused() ? `${needsKey.text}\n(AI is switched off with the AI switch at the top.)` : needsKey.text;
-  appendMessage("assistant", text, {
+  const needsKey = needsAiKeyMessage({ withForm, switchedOff: aiSwitchedOff });
+  appendMessage("assistant", needsKey.text, {
     actions: [
       { label: WHAT_CAN_I_TYPE, onClick: () => showNoAiExamples() },
       ...needsKey.actions.map((action) => ({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })),
@@ -4732,6 +4732,8 @@ const WELCOME_CHIPS_SHOWN = 6;
 let aiAvailable = null;
 // The no-key tip on search results shows once per page.
 let noKeyTipShown = false;
+// A key is saved but the AI switch at the top is off (set with the switch, see refreshAiToggle).
+let aiSwitchedOff = false;
 
 // ai: false when there's no AI key ("How am I related to…?" needs the AI
 // planner; "My connection to…" is handled by Genie's own code).
@@ -5033,6 +5035,7 @@ async function refreshAiToggle($popup) {
   const hasRealKey = Boolean((await getChatAiConfig({ ignorePause: true }))?.key);
   const paused = isAiPaused();
   const on = hasRealKey && !paused;
+  aiSwitchedOff = hasRealKey && paused;
   $toggle
     .prop("hidden", false)
     .toggleClass("chat-ai-on", on)

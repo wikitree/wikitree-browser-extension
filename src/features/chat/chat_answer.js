@@ -141,15 +141,21 @@ export function unansweredMessage(list) {
 // the key goes in the options, then "See below" leads into "How to Get".
 export const AI_KEY_HELP_URL = "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#How_to_Set_an_AI_API_Key";
 
-/** What Genie says to a question that needs AI when there's no key: plain words and how to get one. */
-export function needsAiKeyMessage({ withForm = false } = {}) {
+/**
+ * What Genie says to a question that needs AI when there's no key: plain words and how to get one. With a key
+ * and AI switched off (`switchedOff`), it says to switch it on instead, with no how-to link (user, 2026-10-13:
+ * "It shouldn't tell me how to add one when I have one").
+ */
+export function needsAiKeyMessage({ withForm = false, switchedOff = false } = {}) {
   return {
     text: [
-      "We need AI to respond to this. Add an AI API key in Genie's options. The link below shows how to get one and where to put it.",
+      switchedOff
+        ? "We need AI to respond to this, and it's switched off. Switch it on with the AI switch at the top."
+        : "We need AI to respond to this. Add an AI API key in Genie's options. The link below shows how to get one and where to put it.",
       withForm
         ? 'Without one, Genie reads short searches like "Devon 1820s" or "Garver profiles". Fill in the boxes below, pick a chart at the top, or press "What can I type?" to see what it understands.'
         : 'Without one, Genie still understands short searches like "Devon 1820s", "Garver profiles" or "my 3rd cousins", and shows the charts at the top. Press "What can I type?" to see the patterns.',
     ].join("\n"),
-    actions: [{ label: "How to get and add an AI API key", actionType: "external-link", url: AI_KEY_HELP_URL }],
+    actions: switchedOff ? [] : [{ label: "How to get and add an AI API key", actionType: "external-link", url: AI_KEY_HELP_URL }],
   };
 }
