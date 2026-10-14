@@ -1,4 +1,4 @@
-import { cachedPoint, distanceKm, geocodeLocations, geocodeQueries, isGeocodable, locationKey, namesMatch, pendingLookups, pickPhotonCounty, pickPhotonTown, pickTown, setCachedPoint } from "./chat_geocode";
+import { cachedPoint, distanceKm, geocodeLocations, geocodeQueries, isGeocodable, locationKey, namesMatch, parentCountyName, pendingLookups, pickParentCounty, pickPhotonCounty, pickPhotonTown, pickTown, setCachedPoint } from "./chat_geocode";
 import { buildMigration, placeOf } from "./chat_migration_data";
 
 describe("town lookups for the migration map", () => {
@@ -94,4 +94,50 @@ test("Photon's Sainte-Anne-des-Monts is taken for St Anne des Mont", () => {
     { name: "Mont-Bellevue", point: [-66.52, 49.1], settlement: true },
   ];
   expect(pickPhotonTown(hits, "St Anne des Mont, Gaspésie, Québec, Canada")?.name).toBe("Sainte-Anne-des-Monts");
+});
+
+// User, 2026-10-14, on the migration map: "Not perfect though" (Roughton Head, Cumberland and Honitone Clyst, Devon on an "England" dot).
+describe("a town that can't be found goes to its county", () => {
+  test("only the county of that name: not York County for New York", () => {
+    const hits = [
+      { name: "York County", country: "Canada", point: [-66.9, 46.1] },
+      { name: "Suffolk County", country: "United States", point: [-72.9, 40.9] },
+    ];
+    expect(parentCountyName("Smithtown, New York, USA")).toBe("new york");
+    expect(pickParentCounty(hits, "Smithtown, New York, USA")).toBeNull();
+    expect(pickParentCounty(hits, "Smithtown, Suffolk, New York, USA")).toEqual({ name: "Suffolk County", area: "county", country: "United States", point: [-72.9, 40.9] });
+    expect(pickParentCounty([{ name: "County Durham", point: [-1.8, 54.7] }], "Esh, Durham, England")?.name).toBe("County Durham");
+    // (a county on its own is looked up as itself)
+    expect(parentCountyName("Cumberland, England")).toBe("");
+  });
+
+  test("shown at the county while Nominatim looks, and kept there when it finds nothing", async () => {
+    jest.useFakeTimers();
+    const location = "Roughton Head, Cumberland, England";
+    const urls = [];
+    global.fetch = jest.fn(async (url) => {
+      urls.push(String(url));
+      const countyLayer = /photon.*layer=county(?!&layer=state)/.test(url);
+      const json = countyLayer
+        ? { features: [{ properties: { name: "York County" }, geometry: { coordinates: [-66.9, 46.1] } }, { properties: { name: "Cumberland", country: "United Kingdom" }, geometry: { coordinates: [-3.3, 54.68] } }] }
+        : /photon/.test(url)
+          ? { features: [] }
+          : [];
+      return { ok: true, status: 200, json: async () => json };
+    });
+    try {
+      const { fast, done } = geocodeLocations([location]);
+      await fast;
+      expect(cachedPoint(location)).toMatchObject({ name: "Cumberland", point: [-3.3, 54.68] });
+      expect(pendingLookups([location])).toBe(1);
+      expect(urls.filter((url) => /photon/.test(url)).map((url) => decodeURIComponent(url.split("q=")[1]))).toEqual([location.toLowerCase(), location.toLowerCase(), "cumberland, england"]);
+      await jest.advanceTimersByTimeAsync(10000);
+      await done;
+      expect(pendingLookups([location])).toBe(0);
+      expect(cachedPoint(location)).toEqual({ name: "Cumberland", area: "county", country: "United Kingdom", point: [-3.3, 54.68] });
+      expect(urls.filter((url) => /nominatim/.test(url))).toHaveLength(3);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

@@ -1,5 +1,5 @@
 /** @jest-environment jsdom */
-import { mountFamilyNavigator, stepWord } from "./chat_family_navigator";
+import { mountFamilyNavigator, stepWord, storyLines } from "./chat_family_navigator";
 
 // (every d3 package maps to one stub file in jest, so one mock serves all three: just enough pan-zoom for the view to mount)
 jest.mock("d3-zoom", () => {
@@ -91,4 +91,49 @@ describe("Family view trail", () => {
     expect(stepWord(people.get(10), people.get(6), people)).toBe("grandson");
     expect(stepWord(people.get(6), people.get(3), people)).toBe("");
   });
+});
+
+// User, 2026-10-14: "an indication of more": a tag above the top cards when their parents are recorded.
+describe("Family view parents tag", () => {
+  test("drawn above a parent whose parents aren't loaded; clicking it moves to them", () => {
+    const data = world();
+    data.people.get(10).fatherId = 50;
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const view = mountFamilyNavigator(host, { world: data, load: jest.fn().mockResolvedValue(), startId: 1 });
+    const tag = host.querySelector(".wbe-nav-up");
+    expect(tag.textContent).toBe("Father");
+    expect(tag.title).toBe("John W's father is on WikiTree: move to John W to see them");
+    expect(host.querySelector("path.wbe-nav-up-line")).not.toBeNull();
+    tag.click();
+    expect(view.currentId()).toBe(10);
+    view.destroy();
+    document.body.innerHTML = "";
+  });
+});
+
+// User, 2026-10-14: "For the main card here, I think we can show more of the locations".
+test("the middle card's story: whole birth and death places, the age they died at", () => {
+  const mary = { birth: "1757-03-02", death: "1758-01-09", birthLocation: "Lilleshall, Shropshire, England", deathLocation: "Lilleshall, Shropshire, England" };
+  expect(storyLines(mary)).toEqual(["Born 1757 in Lilleshall, Shropshire, England", "Died there in 1758, aged 0"]);
+  expect(storyLines({ ...mary, deathLocation: "Wellington, Shropshire, England", death: "1830-00-00", deathStatus: "guess" })).toEqual([
+    "Born 1757 in Lilleshall, Shropshire, England",
+    "Died about 1830 in Wellington, Shropshire, England, aged about 73",
+  ]);
+  expect(storyLines({ ...mary, deathStatus: "before" })).toEqual(["Born 1757 in Lilleshall, Shropshire, England", "Died there before 1758, aged about 0"]);
+  expect(storyLines({ birth: "1800-00-00", death: "1870-00-00", birthLocation: "", deathLocation: "" })).toEqual(["Died 1870, aged about 70"]);
+  expect(storyLines({ birth: "", death: "", birthLocation: "Devon", deathLocation: "" })).toEqual(["Born in Devon"]);
+});
+
+test("the middle card's Born and Died stand out from the rest", () => {
+  const data = world();
+  Object.assign(data.people.get(1), { death: "1960-01-01", birthLocation: "Leeds, Yorkshire, England", deathLocation: "York, Yorkshire, England" });
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const view = mountFamilyNavigator(host, { world: data, load: jest.fn().mockResolvedValue(), startId: 1 });
+  const stories = [...host.querySelectorAll(".wbe-nav-story")];
+  expect(stories.map((story) => story.querySelector(".wbe-nav-story-word").textContent)).toEqual(["Born", "Died"]);
+  expect(stories.map((story) => story.textContent)).toEqual(["Born 1898 in Leeds, Yorkshire, England", "Died 1960 in York, Yorkshire, England, aged 61"]);
+  view.destroy();
+  document.body.innerHTML = "";
 });

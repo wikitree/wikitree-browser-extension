@@ -3,6 +3,7 @@ import { isProfileNarrativePrompt } from "./chat_profile_narrative";
 import { describeRelationChain, pickSpouseByOrdinal, relativesBiosTitle, splitOrdinalFromRelation, rewriteInLawTerms } from "./chat_relation_chain_text";
 import { profileLinkHtml } from "./chat_profile_link";
 import { shownSpouses } from "./chat_marriage_display";
+import { profileLabel } from "./chat_text_utils";
 import { unloadedProfileMessage } from "./chat_profile_availability";
 
 export function createChatBioHandlers({
@@ -569,7 +570,7 @@ export function createChatBioHandlers({
           console.error("wbe: DOM fallback error", error);
         }
 
-        return `No spouse information found for ${resolved.RealName || resolved.Name} (${resolved.Name}).`;
+        return `No spouse information found for ${profileLabel(resolved)}.`;
       }
       if (spouses.length === 1) {
         const spouseId = spouses[0].Name;
@@ -594,7 +595,7 @@ export function createChatBioHandlers({
           inlineMore: { text: wikiBio },
         };
       }
-      const preview = spouses.map((spouse) => `- ${spouse.RealName || spouse.Name} (${spouse.Name})`).join("\n");
+      const preview = spouses.map((spouse) => `- ${profileLabel(spouse)}`).join("\n");
       return {
         message: `Multiple spouses found for ${resolved.RealName || resolved.Name}:\n${preview}`,
         action: { label: "Spouses", onClick: () => listSpousesForId(personKey) },

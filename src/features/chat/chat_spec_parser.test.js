@@ -379,3 +379,53 @@ describe("more ways of saying it (2026-10-10)", () => {
     expect(spec("born in Kent, added last year")?.created).toEqual({ from: year - 1, to: year - 1 });
   });
 });
+
+// Group 2 of the no-AI work (2026-10-14): searches and counts asked as questions.
+describe("questions that are searches", () => {
+  test("who else died in [place] in [year]", () => {
+    expect(spec("who else died in Motueka in 1898?")).toEqual({
+      places: [{ text: "Motueka", event: "death" }],
+      dates: [{ event: "death", from: 1898, to: 1898 }],
+    });
+  });
+
+  test("how many: the count's words go, the search stays", () => {
+    expect(spec("how many profiles have the surname Alley?")).toEqual({ names: { anyLastName: "Alley" } });
+    expect(spec("How many people are there with the surname Alley?")).toEqual({ names: { anyLastName: "Alley" } });
+    expect(spec("how many people were born in Kent in 1820?")).toEqual({
+      places: [{ text: "Kent", event: "birth" }],
+      dates: [{ event: "birth", from: 1820, to: 1820 }],
+    });
+    expect(spec("how many profiles are on WikiTree?")).toBeUndefined();
+  });
+
+  test("with the surname X / surnamed X", () => {
+    expect(spec("people with the surname Alley born in Nelson")).toEqual({
+      names: { anyLastName: "Alley" },
+      places: [{ text: "Nelson", event: "birth" }],
+    });
+    expect(spec("people surnamed Alley born in Nelson")?.names).toEqual({ anyLastName: "Alley" });
+    expect(spec("profiles with the last name alley")).toEqual({ names: { anyLastName: "Alley" } });
+    // (not a surname, or a name beside it)
+    expect(spec("how many profiles have the surname born")).toBeUndefined();
+    expect(spec("John with the surname Smith")).toBeUndefined();
+  });
+
+  test("profiles I created / created by an ID", () => {
+    expect(spec("how many profiles have I created?")).toEqual({ creator: "me" });
+    expect(spec("how many profiles did I create?")).toEqual({ creator: "me" });
+    expect(spec("profiles I created in 2023")).toEqual({ created: { from: 2023, to: 2023 }, creator: "me" });
+    expect(spec("profiles created by me in 2023")).toEqual({ created: { from: 2023, to: 2023 }, creator: "me" });
+    expect(spec("my created profiles with no sources")).toEqual({ flags: ["Unsourced"], creator: "me" });
+    expect(spec("profiles created by Beacall-6")).toEqual({ creator: "Beacall-6" });
+    expect(parseSearchSpecPrompt("how many profiles have I created?").understood).toBe("created by you");
+    // (a creation date alone is too wide, as before)
+    expect(spec("profiles created in 2023")).toBeUndefined();
+  });
+});
+
+// live, 2026-10-14: "Owner of WikiTree" ran as AllLastNames=Owner Location=WikiTree
+test("WikiTree (or WT) is never a name or a place", () => {
+  expect(parseSearchSpecPrompt("Owner of WikiTree")).toBeNull();
+  expect(parseSearchSpecPrompt("founder of WT")).toBeNull();
+});

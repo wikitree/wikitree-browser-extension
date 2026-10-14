@@ -1,3 +1,4 @@
+import { fullWikiTreeName } from "./chat_fan_chart_data";
 import { findTopWikiTreeIdOnWikidata, findWikiTreeIdOnWikidata } from "./chat_wikidata";
 import { sharedParentIds, topSiblingSteps } from "./chat_connection_common";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
@@ -1696,7 +1697,7 @@ export function createChatConnectionHandlers({
     return WikiTreeAPI.getConnections(
       "Chat",
       [sourceWtId, targetWtId],
-      "Id,Name,Gender,DataStatus,Photo,PhotoData,RealName,FirstName,LastNameAtBirth,LastNameCurrent,Suffix,BirthDate,BirthLocation,DeathDate,Father,Mother,BioFather,BioMother",
+      "Id,Name,Gender,DataStatus,Photo,PhotoData,RealName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,Suffix,BirthDate,BirthLocation,DeathDate,Father,Mother,BioFather,BioMother",
       { relation: 2 }
     );
   }
@@ -1709,8 +1710,12 @@ export function createChatConnectionHandlers({
         console.debug("wbe: relationship chart: no line of descent", { data });
         return;
       }
+      // Full names (the user, 2026-10-14): "Ian Beacall and Mary (Dicken) Nevett", not "Ian and Mary".
+      const path = data?.path || [];
+      const source = fullWikiTreeName(path[0]) || lines.line1[lines.line1.length - 1]?.name || sourceWtId;
+      const target = fullWikiTreeName(path[path.length - 1]) || lines.line2[lines.line2.length - 1]?.name || targetName || targetWtId;
       showRelationshipPopup(lines, {
-        title: `Relationship: ${lines.line1[lines.line1.length - 1]?.first || sourceWtId} and ${targetName || targetWtId}`,
+        title: `Relationship: ${source} and ${target}`,
         relationship: /^No relationship found$/i.test(relationshipText) ? "" : relationshipText,
         route: relationship.routes[0],
         xDna: xDnaPath(lines),
@@ -2077,15 +2082,18 @@ export function createChatConnectionHandlers({
       const ledMessage = lead
         ? [lead, relationshipDetails, `The shortest connection on WikiTree is ${distance} step${distance === 1 ? "" : "s"} (Connections shows it).`].filter(Boolean).join("\n")
         : "";
+      // "Murray Maloney (Maloney-2332)" for the buttons (the user, 2026-10-14)
+      const targetLabel = `${fullWikiTreeName(matchedPerson) || fullWikiTreeName(data?.path?.[data.path.length - 1]) || displayName} (${targetWtId})`;
       return {
         message: ledMessage || (relationshipDetails ? `${messageText}\n${relationshipDetails}` : messageText),
         // The diagram leads; then the other person's family, to look around in.
         actions: [
-          { label: "Connections", onClick: () => toggleConnectionsPopup() },
+          { label: `Connection to ${targetLabel}`, actionType: "Connections", onClick: () => toggleConnectionsPopup() },
           ...(relationship?.kind === "common"
             ? [
                 {
-                  label: "Relationship chart",
+                  // (not the Relationship Chart of relatives by group, chat_family_matrix.js: the user, 2026-10-14)
+                  label: `Relationship to ${targetLabel}`,
                   onClick: () => openRelationshipChart(sourceRoot.wtId, targetWtId, relationship, relationshipText, displayName, bloodPath),
                 },
               ]

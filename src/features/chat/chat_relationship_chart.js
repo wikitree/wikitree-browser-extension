@@ -11,8 +11,9 @@ import { select } from "d3-selection";
 import "d3-transition";
 import { area, curveMonotoneY } from "d3-shape";
 import { easeCubicOut } from "d3-ease";
+import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import { LINK_STATUS } from "./chat_relationship_data";
-import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, photoUrl, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, truncate } from "./chat_chart_common";
+import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, chartZoomControls, escapeText, injectChartStyles, photoUrl, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, truncate } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const WIDTH = 960;
@@ -67,7 +68,7 @@ export function showRelationshipPopup(lines, options = {}) {
     </div>
     <div class="chat-popup-body">
       <div class="wbe-chart-toolbar"><span class="wbe-rel-note" style="opacity:.7"></span></div>
-      <div class="wbe-chart-stage" style="overflow-y:auto"><div class="wbe-chart-tip"></div></div>
+      <div class="wbe-chart-stage"><div class="wbe-chart-tip"></div>${chartZoomControls()}</div>
       <div class="wbe-chart-footer"><div class="wbe-chart-legend"></div></div>
     </div>`;
   popup.insertAdjacentHTML(
@@ -82,7 +83,7 @@ export function showRelationshipPopup(lines, options = {}) {
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Relationship";
   const others = Number(options.otherRoutes) || 0;
   popup.querySelector(".wbe-rel-note").textContent =
-    "The ribbon is the share of the common ancestors' DNA each person carries on average · hover a card for details · click to open the profile" +
+    "The ribbon is the share of the common ancestors' DNA each person carries on average · hover a card for details · click to open the profile · scroll or double-click to zoom, drag to move" +
     (others ? ` · related ${others === 1 ? "one other way" : `${others} other ways`} too (see the chat)` : "");
   if (options.xDna?.kind === "x") {
     // Highlighted (Murray, 2026-10-07): X-DNA matches are hard to find.
@@ -101,12 +102,14 @@ export function showRelationshipPopup(lines, options = {}) {
   // The share of the common ancestors' DNA at generation k below them (a child of the couple: all of it).
   const share = (k) => (couple ? 0.5 ** (k - 1) : 0.5 ** k);
   let svg = null;
+  let viewport = null;
+  let zoomer = null;
 
   function showTip(event, html) {
     const rect = stage.getBoundingClientRect();
     tip.innerHTML = html;
     tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 300)}px`;
-    tip.style.top = `${Math.min(event.clientY - rect.top + stage.scrollTop + 14, stage.scrollTop + rect.height - 140)}px`;
+    tip.style.top = `${Math.min(event.clientY - rect.top + 14, rect.height - 140)}px`;
     tip.style.opacity = "1";
   }
   const hideTip = () => (tip.style.opacity = "0");
@@ -138,22 +141,24 @@ export function showRelationshipPopup(lines, options = {}) {
     const besideBracket = shortSide >= 0 && panelTop + panelH <= bracketY - 8;
     const height = bracketY + 150 + (besideBracket ? 0 : panelH + 24);
 
-    svg = select(stage)
-      .append("svg")
-      .attr("viewBox", `0 0 ${WIDTH} ${height}`)
-      .attr("width", "100%")
-      .attr("font-family", FONT)
-      .style("display", "block")
-      .style("max-width", `${WIDTH * 1.25}px`)
-      .style("margin", "0 auto");
+    svg = select(stage).append("svg").attr("viewBox", `0 0 ${WIDTH} ${height}`).attr("font-family", FONT);
     const defs = svg.append("defs");
+    // Wheel/pinch zoom and drag (user, 2026-10-14: "I can't seem to zoom into this one. The scroll
+    // wheel scrolls the page under the popup"; "double-clicking the chart should also zoom us in").
+    // The whole chart fits the stage; the outer group takes the zoom, and saving leaves it out.
+    viewport = svg.append("g");
+    zoomer = d3zoom()
+      .scaleExtent([0.6, 10])
+      .clickDistance(4)
+      .on("zoom", (event) => viewport.attr("transform", event.transform));
+    svg.call(zoomer);
     const gradient = defs.append("linearGradient").attr("id", "wbe-rel-ribbon").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 1);
     gradient.append("stop").attr("offset", "0%").attr("stop-color", GOLD).attr("stop-opacity", 0.55);
     gradient.append("stop").attr("offset", "100%").attr("stop-color", DNA).attr("stop-opacity", 0.45);
     const clip = defs.append("clipPath").attr("id", "wbe-rel-clip").append("rect").attr("x", 0).attr("y", 0).attr("width", WIDTH).attr("height", 0).attr("data-h", height);
 
     // Generation bands with the decade each row was born in.
-    const bands = svg.append("g");
+    const bands = viewport.append("g");
     for (let k = 0; k <= depth; k += 1) {
       const people = k === 0 ? lines.ancestors : [lines.line1[k - 1], lines.line2[k - 1]].filter(Boolean);
       const born = people.map((p) => p.birthYear).filter(Boolean).sort((a, b) => a - b);
@@ -172,7 +177,7 @@ export function showRelationshipPopup(lines, options = {}) {
     }
 
     // The DNA ribbons: from under the couple down each line, halving every generation.
-    const ribbons = svg.append("g").attr("clip-path", "url(#wbe-rel-clip)");
+    const ribbons = viewport.append("g").attr("clip-path", "url(#wbe-rel-clip)");
     const ribbonArea = area()
       .y((d) => d.y)
       .x0((d) => d.x - d.w / 2)
@@ -185,7 +190,7 @@ export function showRelationshipPopup(lines, options = {}) {
     });
 
     // Parent links, drawn by their status.
-    const links = svg.append("g").attr("fill", "none").attr("stroke-linecap", "round");
+    const links = viewport.append("g").attr("fill", "none").attr("stroke-linecap", "round");
     const linkAt = (k, path, status) => {
       const style = linkStyle(status);
       links
@@ -197,7 +202,7 @@ export function showRelationshipPopup(lines, options = {}) {
         .attr("data-row", k)
         .attr("opacity", 0);
     };
-    const badges = svg.append("g");
+    const badges = viewport.append("g");
     [lines.line1, lines.line2].forEach((line, side) => {
       line.forEach((person, index) => {
         const k = index + 1;
@@ -217,7 +222,7 @@ export function showRelationshipPopup(lines, options = {}) {
     });
 
     // Cards.
-    const cards = svg.append("g");
+    const cards = viewport.append("g");
     const drawCard = (person, x, y, k, { ancestor = false, end = false } = {}) => {
       const g = cards
         .append("g")
@@ -227,7 +232,8 @@ export function showRelationshipPopup(lines, options = {}) {
         .attr("opacity", 0)
         .on("mousemove", (event) => showTip(event, personTip(person, k)))
         .on("mouseleave", hideTip)
-        .on("click", () => person.wtid && window.open(profileUrl(person.wtid), "_blank", "noopener,noreferrer"));
+        // (one tab, not two, for a double-click)
+        .on("click", (event) => event.detail < 2 && person.wtid && window.open(profileUrl(person.wtid), "_blank", "noopener,noreferrer"));
       g.append("rect")
         .attr("class", "wbe-rel-box")
         .attr("width", CARD_W)
@@ -275,7 +281,7 @@ export function showRelationshipPopup(lines, options = {}) {
       .text(couple ? "COMMON ANCESTORS" : "COMMON ANCESTOR");
 
     // Each line's share labels, on the outside of the cards.
-    const shares = svg.append("g");
+    const shares = viewport.append("g");
     [lines.line1, lines.line2].forEach((line, side) => {
       line.forEach((person, index) => {
         const k = index + 1;
@@ -290,7 +296,7 @@ export function showRelationshipPopup(lines, options = {}) {
 
     // The bracket joining the two people, and what it means.
     const endRow = depth + 1;
-    const summary = svg.append("g").attr("data-row", endRow).attr("opacity", 0);
+    const summary = viewport.append("g").attr("data-row", endRow).attr("opacity", 0);
     summary
       .append("path")
       .attr("d", `M${cx[0]},${bottom1 + 4} L${cx[0]},${bracketY} L${cx[1]},${bracketY} L${cx[1]},${bottom2 + 4}`)
@@ -417,7 +423,7 @@ export function showRelationshipPopup(lines, options = {}) {
     return 34 + 2 * 44 + 26 + 2 * 17 + dnaLines().length * 17 + 14;
   }
   function drawPanel(x, y, row) {
-    const g = svg.append("g").attr("transform", `translate(${x},${y})`).attr("data-row", row).attr("opacity", 0);
+    const g = viewport.append("g").attr("transform", `translate(${x},${y})`).attr("data-row", row).attr("opacity", 0);
     g.append("rect").attr("width", PANEL_W).attr("height", panelHeight()).attr("rx", 12).attr("fill", "#fbfaff").attr("stroke", "#d9d0ee");
     g.append("text").attr("x", 14).attr("y", 24).attr("font-size", 12.5).attr("font-weight", 800).attr("fill", "#1d2a36").text("How sure is each line?");
     let yy = 34;
@@ -474,6 +480,9 @@ export function showRelationshipPopup(lines, options = {}) {
       popup.remove();
     } else if (button.dataset.link) chartLinkClick(popup, button, options.links, options.rootKey);
     else if (button.dataset.act === "replay") render();
+    else if (button.dataset.act === "zoomin" || button.dataset.act === "zoomout") {
+      svg.transition("zoom").duration(300).call(zoomer.scaleBy, button.dataset.act === "zoomin" ? 1.6 : 1 / 1.6);
+    } else if (button.dataset.act === "reset") svg.transition("zoom").duration(400).call(zoomer.transform, zoomIdentity);
     else if (button.dataset.act === "full") toggleChartFullScreen(popup);
     else if (button.dataset.act === "svg" || button.dataset.act === "png") {
       finishAnimations();

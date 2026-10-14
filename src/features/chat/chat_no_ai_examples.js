@@ -16,7 +16,12 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       { pattern: "[surname] born / died in [place] before or after [year]", examples: ["Smith born in Kent before 1800"] },
       { pattern: "[place] births / deaths [years]", examples: ["Devon births post-1850"] },
       { pattern: "born in [place] died in [place] [years]", examples: ["born in Ohio died in Texas 1900-1950"] },
-      { pattern: "Who was born / died in [place] in [year]?", examples: ["Who was born in Devon in 1820?"] },
+      { pattern: "Who was born / died in [place] in [year]?", examples: ["Who was born in Devon in 1820?", "Who else died in Motueka in 1898?"] },
+      {
+        pattern: "how many [search]?",
+        examples: ["How many profiles have the surname Alley?", "How many people were born in Kent in 1820?"],
+        note: "The search runs and says how many profiles it found.",
+      },
       { pattern: "born / died before or after [year] in [place]", examples: ["born before 1750 in Devon", "died after 1900 in Liverpool"] },
       { pattern: "[place] profiles with no biography", examples: ["Cheshire profiles with no biography"] },
       {
@@ -86,13 +91,18 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       },
       {
         pattern: "[surname] profiles",
-        examples: ["Garver profiles", "profiles with last name Garver"],
+        examples: ["Garver profiles", "profiles with last name Garver", "people with the surname Alley born in Nelson"],
         note: "A surname matches any last name, married names included; say \"with last name at birth Garver\" for the birth name only. A plural surname works too: Genie counts both spellings on WikiTree+, so \"the Smiths\" finds the Smith family.",
       },
       {
         pattern: "profiles I manage [with a condition or place]",
         examples: ["profiles I manage with no sources"],
         note: "Read from your watchlist when you're signed in to WikiTree Apps (the Apps button); otherwise from WikiTree+. Private profiles can only be shown when you're signed in to Apps. A big watchlist takes a minute or two to read the first time; Genie then keeps it for a few hours (\"refresh my watchlist\" reads it again).",
+      },
+      {
+        pattern: "profiles I created / created by [WikiTree ID] [with a condition or place]",
+        examples: ["How many profiles have I created?", "profiles I created in 2023"],
+        note: "Searched on WikiTree+, so it covers public profiles. \"I\" is you when you're signed in to WikiTree.",
       },
       {
         pattern: "profiles managed by [project or WikiTree ID] [with a condition or place]",
@@ -125,7 +135,14 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       { pattern: "only the [women / men]", examples: ["only the women"] },
       { pattern: "born in [decade or years]", examples: ["born in the 1850s"] },
       { pattern: "sort by [birth / death / name]", examples: ["sort by birth"] },
-      { pattern: "count them by [country / surname / decade]", examples: ["count them by country"] },
+      { pattern: "count them by [country / surname / decade / birth place]", examples: ["count them by country", "group them by birth place"] },
+      { pattern: "the most common [first name / surname / birth place]", examples: ["What was the most common first name?"] },
+      {
+        pattern: "which of them [married / never married / had children / have no parents]?",
+        examples: ["Which of them married?", "Which ones had children?"],
+        note: "Looks up each person's family on WikiTree (up to 2,000 people). After a WikiTree+ search, \"how many have no sources?\" or \"which ones have no parents?\" asks WikiTree+ itself.",
+      },
+      { pattern: "which of them [died young / lived past 90 / died under 5]?", examples: ["Which of them died young?"], note: "Young means 15 or under." },
       { pattern: "show them in a table", examples: ["show them in a table"] },
       { pattern: "export as [CSV / Excel / JSON]", examples: ["export as CSV"] },
     ],
@@ -162,10 +179,21 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       { pattern: "my [nth] cousins (born / died in [place])", examples: ["my 3rd cousins born in England", "my 2nd cousins once removed"] },
       { pattern: "[number] generations of my ancestors / descendants", examples: ["7 generations of my ancestors", "10 generations of my descendants"] },
       { pattern: "my ancestors who lived past / died under [age]", examples: ["my ancestors who lived past 90", "my ancestors who died under 5"] },
+      { pattern: "did any of [my / his / her] children die young / emigrate?", examples: ["Did any of her children die young?", "Which of his children emigrated?", "Did any of my ancestors emigrate?"] },
+      { pattern: "stepchildren; children after a husband or wife died", examples: ["Who were her stepchildren?", "Did she have any children after her first husband died?"] },
       { pattern: "brick walls", examples: ["brick walls", "my ancestors with a missing parent"] },
       { pattern: "my CC7", examples: ["my CC7"] },
       { pattern: "my / his / her CC7 born / died / in [place]", examples: ["his CC7 born in Ontario", "how many of my CC7 died in Kent"] },
-      { pattern: "birthdays and anniversaries", examples: ["on this day in my family", "who in my family was born in March"] },
+      {
+        pattern: "birthdays and anniversaries",
+        examples: ["on this day in my family", "who in my family was born in March", "Who was born on this day?"],
+        note: "WikiTree can't be searched by day and month, so \"who was born on this day?\" looks in the profile's family.",
+      },
+      {
+        pattern: "who else is buried in [this / her] cemetery?",
+        examples: ["Who else is buried in this cemetery?"],
+        note: "Searches WikiTree+ for the profile's cemetery category.",
+      },
       { pattern: "about the profile you're on", examples: ["her children", "When did she marry?", "How old was he when his first child was born?"] },
       {
         pattern: "when / where was [his / her] [relative] born / did they die",
@@ -222,6 +250,17 @@ export const NO_AI_EXAMPLE_SECTIONS = [
     items: [
       { pattern: "how complete is my tree?", examples: ["How complete is my tree?", "completeness heatmap"] },
       { pattern: "which of my ancestors need help?", examples: ["Which of my ancestors need help?"] },
+    ],
+  },
+  {
+    id: "wikitree",
+    title: "Questions about WikiTree",
+    intro: "Answers come from WikiTree's FAQ pages, short facts checked against its Help pages, and its Help search, each with a link. Genie shows the FAQ question it matched, so you can check it's the one you meant.",
+    items: [
+      { pattern: "what is [a WikiTree term]?", examples: ["What is a PPP?", "What does LNAB stand for?", "What is an orphan profile?"] },
+      { pattern: "how do I [do something on WikiTree]?", examples: ["How do I merge two profiles?", "How do I add a source?"] },
+      { pattern: "about WikiTree itself", examples: ["Who founded WikiTree?", "Is WikiTree free?", "What happens to my research when I die?"] },
+      { pattern: "about Genie", examples: ["What is Genie?", "What is WBE?"] },
     ],
   },
 ];

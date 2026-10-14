@@ -58,6 +58,23 @@ export function escapeText(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 }
 
+/** "Ellen (Cook-8721)" for an API profile: its RealName (else its ID), then its ID. */
+export function profileLabel(person) {
+  return `${person?.RealName || person?.Name} (${person?.Name})`;
+}
+
+/**
+ * Who a profile question is about, from the words its pattern caught: "" for the page's profile
+ * (subjectRe: "her", "this profile"…), a WikiTree ID or capitalised name as typed, or null. The
+ * patterns are case-insensitive, so a bare name must really be capitalised: "find matches for
+ * people born in Kent" is a search, not a person.
+ */
+export function promptTarget(text, subjectRe) {
+  const target = String(text || "").trim();
+  if (subjectRe.test(target)) return "";
+  return /-\d+$/.test(target) || /^(?:[A-Z][^\s]*\s*)+$/.test(target) ? target : null;
+}
+
 /** A typed value without the quotes or brackets round it: '"Devon"' → "Devon", "[1850s]" → "1850s". */
 export function stripSurroundingQuotes(value) {
   if (value == null) return "";

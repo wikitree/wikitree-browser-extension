@@ -11,8 +11,9 @@ import { plainWords } from "./chat_text_utils";
 // (v4: a county on its own is placed at the county; v3 namesakes chosen near the
 // county; v2 settlements only; v1 had streets and vice-counties)
 // (v5: names match St/Sainte and plurals, so v4's misses are looked up again; its hits are kept)
-const STORAGE_KEY = "museGeocodeCache5";
-const PREVIOUS_KEY = "museGeocodeCache4";
+// (v6: a town that can't be found goes to its county, so v5's misses are looked up again)
+const STORAGE_KEY = "museGeocodeCache6";
+const PREVIOUS_KEY = "museGeocodeCache5";
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
 const PHOTON = "https://photon.komoot.io/api/";
 // (fair use: a few at a time)
@@ -23,6 +24,8 @@ const SETTLEMENT_TYPES = new Set(["city", "town", "village", "hamlet", "suburb",
 
 // location key → {name, area, country, point: [lon, lat]} or 0 (looked up, not found)
 const cache = new Map();
+// location key → its county, shown while Nominatim still looks for the town
+const provisional = new Map();
 let loadPromise = null;
 let saveTimer = null;
 let lastRequest = 0;
@@ -57,7 +60,7 @@ export function loadGeocodeCache() {
       const area = storage();
       if (!area) return resolve();
       try {
-        area.remove?.(["museGeocodeCache", "museGeocodeCache2", "museGeocodeCache3"]);
+        area.remove?.(["museGeocodeCache", "museGeocodeCache2", "museGeocodeCache3", "museGeocodeCache4"]);
         area.get([STORAGE_KEY, PREVIOUS_KEY], (stored) => {
           const saved = stored?.[STORAGE_KEY];
           if (saved && typeof saved === "object") Object.entries(saved).forEach(([key, value]) => cache.has(key) || cache.set(key, value));
@@ -92,7 +95,8 @@ function saveSoon() {
 
 /** A looked-up place, without waiting: {name, area, country, point} or null. */
 export function cachedPoint(location) {
-  const hit = cache.get(locationKey(location));
+  const key = locationKey(location);
+  const hit = cache.get(key) || provisional.get(key);
   return hit && hit.point ? hit : null;
 }
 
@@ -134,9 +138,9 @@ async function search(query, limit = 1) {
 }
 
 // Photon hits for a whole location: towns and, usually, the county as well.
-// counties = the county layer instead ("Denbighshire, Wales" is a boundary, not a place).
-async function photonSearch(query, counties = false) {
-  const filter = counties ? "layer=county&layer=state" : "osm_tag=place";
+// layers = those layers instead ("Denbighshire, Wales" is a boundary, not a place).
+async function photonSearch(query, layers = []) {
+  const filter = layers.length ? layers.map((layer) => `layer=${layer}`).join("&") : "osm_tag=place";
   const response = await fetch(`${PHOTON}?limit=6&lang=en&${filter}&q=${encodeURIComponent(query)}`, { credentials: "omit" });
   if (!response.ok) throw new Error(`Photon ${response.status}`);
   const json = await response.json();
@@ -183,6 +187,25 @@ export function pickPhotonCounty(hits, location) {
   return (hits || []).find((hit) => namesMatch(hit.name, location)) || null;
 }
 
+/** The county a town is given in, when there's a town before it: "Roughton Head, Cumberland, England" → "cumberland". */
+export function parentCountyName(location) {
+  const parts = locationKey(location).split(", ").filter(Boolean);
+  return parts.length >= 3 ? parts[1] : "";
+}
+
+// (the whole name, give or take "County": namesMatch would take York County for "New York")
+const countyWords = (text) => nameWords(text).replace(/^county\s+|\s+county$/g, "");
+
+/**
+ * Where a town that can't be found goes: its county (the user, 2026-10-14: "Roughton Head,
+ * Cumberland" and "Honitone Clyst, Devon" stayed on an "England" dot). hits: Photon's county layer.
+ */
+export function pickParentCounty(hits, location) {
+  const wanted = countyWords(parentCountyName(location));
+  const county = wanted ? (hits || []).find((hit) => countyWords(hit.name) === wanted) : null;
+  return county ? { name: county.name, area: "county", country: county.country, point: county.point } : null;
+}
+
 /** Kilometres between two [lon, lat] points. */
 export function distanceKm([lon1, lat1], [lon2, lat2]) {
   const rad = Math.PI / 180;
@@ -225,7 +248,8 @@ export function geocodeQueries(location) {
 async function geocodeOne(location) {
   const key = locationKey(location);
   let found = null;
-  let anchor = null;
+  // (a namesake should be near the county, when Photon found it)
+  let anchor = provisional.get(key)?.point || null;
   for (const { query, wide } of geocodeQueries(key)) {
     const hits = await search(query, wide ? 5 : 1);
     found = wide ? pickTown(hits, anchor) : pickTown(hits, null);
@@ -234,9 +258,11 @@ async function geocodeOne(location) {
     if (!wide && hits[0] && !anchor) anchor = hits[0].point;
   }
   if (found) delete found.settlement;
-  cache.set(key, found || 0);
+  const result = found || provisional.get(key) || null;
+  cache.set(key, result || 0);
+  provisional.delete(key);
   saveSoon();
-  return found;
+  return result;
 }
 
 /**
@@ -261,7 +287,14 @@ export function geocodeLocations(locations, { onFound = () => {}, isWanted = () 
         let town = null;
         try {
           town = pickPhotonTown(await photonSearch(key), key);
-          if (!town) town = pickPhotonCounty(await photonSearch(key, true), key);
+          if (!town) town = pickPhotonCounty(await photonSearch(key, ["county", "state"]), key);
+          if (!town && parentCountyName(key)) {
+            const county = pickParentCounty(await photonSearch(key.split(", ").slice(1).join(", "), ["county"]), key);
+            if (county) {
+              provisional.set(key, county);
+              onFound(done, todo.length);
+            }
+          }
         } catch (error) {
           // (Photon down or busy: Nominatim gets it)
         }

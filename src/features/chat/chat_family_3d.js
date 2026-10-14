@@ -121,7 +121,7 @@ const CSS = `
   .wbe-3d-id { font-size: 11.5px; color: #8a8273; margin-top: 1px; }
   .wbe-3d-facts { margin-top: 10px; padding-top: 8px; border-top: 1px solid #eee5cf; font-size: 12.5px; line-height: 1.4; color: #2b2f36; }
   .wbe-3d-facts > div { margin: 0 0 5px; }
-  .wbe-3d-facts b { font-weight: 650; color: #8a6a12; margin-right: 4px; }
+  .wbe-3d .wbe-3d-facts b:not(#none) { font-weight: 650; color: #8a6a12 !important; margin-right: 4px; }
   .wbe-3d-facts small { color: #6b6458; font-size: 11.5px; }
   .wbe-3d-facts .wbe-3d-kids { margin: -2px 0 6px 12px; }
   .wbe-3d-facts .wbe-3d-loading { color: #6b6458; font-style: italic; }

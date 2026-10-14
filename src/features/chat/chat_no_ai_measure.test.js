@@ -21,6 +21,8 @@ import { createProfileSearchHandler } from "./chat_profile_search";
 import { ChatIntent, routeChatPrompt } from "./chat_router";
 import { classifyWtPrompt } from "./chat_search_mode";
 import { parseSearchSpecPrompt } from "./chat_spec_parser";
+import { parseWtPlusNarrowPrompt } from "./chat_wtplus_narrow";
+import { answerWikiTreeHelpQuestion, helpSearchKeywords } from "./chat_wikitree_help";
 
 const LAB = path.resolve(process.cwd(), ".chat-lab"); // (jest runs from the repo root)
 const CORPUS = path.join(LAB, "corpus.md");
@@ -72,6 +74,9 @@ const FOLLOW_UP_SECTIONS = new Set(["L", "M"]);
 
 async function measure(prompt, section) {
   const hasStructuredResult = FOLLOW_UP_SECTIONS.has(section);
+  // (chat.js narrows the WT+ search behind the table before routing: L1 is one)
+  const narrow = section === "L" ? parseWtPlusNarrowPrompt(prompt) : null;
+  if (narrow) return { outcome: "router", detail: `narrow WT+ (${narrow.flag})` };
   const intent = routeChatPrompt(prompt, { hasStructuredResult })?.intent;
   if (intent && !PASS_THROUGH.includes(intent) && (hasStructuredResult || intent !== ChatIntent.LAST_RESULT_OPERATION)) {
     return { outcome: "router", detail: intent };
@@ -81,7 +86,15 @@ async function measure(prompt, section) {
     getChatAiConfig: async () => ({ key: "" }),
     isUnclaimed: (text) => PASS_THROUGH.includes(routeChatPrompt(text, { hasStructuredResult: false })?.intent),
   });
-  if (target === "needsAi") return { outcome: "declined", detail: "needs AI (question)" };
+  if (target === "needsAi") {
+    // chat.js tries WikiTree's help before saying it needs AI (no FAQ pages here: the glossary only,
+    // and the key words the Help search would get)
+    const help = await answerWikiTreeHelpQuestion(prompt, { fetchPage: async () => "" });
+    if (help) return { outcome: "help", detail: `${help.source}: ${help.text.split("\n")[0].slice(0, 90)}` };
+    const keywords = helpSearchKeywords(prompt);
+    if (keywords) return { outcome: "help", detail: `FAQ pages or Help search: "${keywords}"` };
+    return { outcome: "declined", detail: "needs AI (question)" };
+  }
   // chat_search_mode runs a prompt the reader parses on WT+ first when there is no key
   const reader = parseSearchSpecPrompt(prompt);
   if (target !== "wtplus" && !reader) return { outcome: "person", detail: `person search (${target})` };

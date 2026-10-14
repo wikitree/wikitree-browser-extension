@@ -2,6 +2,9 @@
 // photo?" (the AI said no; she has one), "what templates are on her profile?"
 // (WT+ declined). getProfile has these fields; this reads them.
 
+import { linesWithMore } from "./chat_more_text";
+import { cleanSourceText } from "./chat_sources";
+
 const OWNER = String.raw`(this\s+profile|this\s+person|the\s+profile|her(?:\s+profile)?|his(?:\s+profile)?|their(?:\s+profile)?|she|he|they|it|my\s+profile|me|[A-Z][A-Za-z'_ -]*?-\d+(?:['’]s(?:\s+profile)?)?)`;
 
 const PATTERNS = [
@@ -28,6 +31,15 @@ const PATTERNS = [
   { fact: "privacy", re: new RegExp(String.raw`^what\s+is\s+${OWNER}\s+privacy(?:\s+(?:level|setting))?$`, "i") },
   { fact: "privacy", re: new RegExp(String.raw`^what(?:\s+privacy\s+level|['’]s\s+the\s+privacy(?:\s+level)?)\s+(?:is|of|on)\s+${OWNER}$`, "i") },
   { fact: "privacy", re: new RegExp(String.raw`^is\s+${OWNER}\s+(?:public|private|open)$`, "i") },
+  // Q2/Q8 (2026-10-14: needed the AI): "what categories is she in?", "does she have research notes?"
+  { fact: "categories", re: new RegExp(String.raw`^(?:what|which)\s+categor(?:y|ies)\s+(?:is|are|was|were)\s+${OWNER}\s+in$`, "i") },
+  { fact: "categories", re: new RegExp(String.raw`^(?:what|which)\s+categor(?:y|ies)\s+(?:is|are)\s+(?:on|in)\s+${OWNER}$`, "i") },
+  { fact: "categories", re: new RegExp(String.raw`^(?:what|which)\s+categor(?:y|ies)\s+(?:does|do)\s+${OWNER}\s+(?:have|belong\s+to)$`, "i") },
+  { fact: "categories", re: new RegExp(String.raw`^(?:is|does)\s+${OWNER}\s+(?:in|have)\s+any\s+categor(?:y|ies)$`, "i") },
+  { fact: "categories", re: new RegExp(String.raw`^(?:what\s+are|list|show(?:\s+me)?)\s+${OWNER}\s+categories$`, "i") },
+  { fact: "researchNotes", re: new RegExp(String.raw`^(?:does|do)\s+${OWNER}\s+have\s+(?:any\s+)?research\s+notes?$`, "i") },
+  { fact: "researchNotes", re: new RegExp(String.raw`^(?:are|is)\s+there\s+(?:any\s+)?research\s+notes?\s+(?:on|in|for)\s+${OWNER}$`, "i") },
+  { fact: "researchNotes", re: new RegExp(String.raw`^(?:what\s+(?:do|does)\s+|show(?:\s+me)?\s+|what\s+are\s+)?${OWNER}\s+research\s+notes?(?:\s+says?)?$`, "i") },
 ];
 
 function ownerKey(text) {
@@ -52,6 +64,19 @@ export function parseProfileFactPrompt(prompt) {
   return null;
 }
 
+const MAX_NOTES_CHARS = 700;
+
+/** The text under a Research Notes heading, as plain text; null when there's no such heading. */
+export function researchNotesText(bio) {
+  const section = String(bio || "").match(/^==+\s*Research\s+Notes?\s*==+[ \t]*$([\s\S]*?)(?=^==[^=]|(?![\s\S]))/im);
+  if (!section) return null;
+  return section[1]
+    .split("\n")
+    .map(cleanSourceText)
+    .filter(Boolean)
+    .join("\n");
+}
+
 export const PRIVACY_LEVELS = {
   10: "Unlisted",
   20: "Private",
@@ -67,8 +92,26 @@ function formatTouched(value) {
   return match ? `${match[1]}-${match[2]}-${match[3]}` : "";
 }
 
-/** profile: getProfile's profile object; label: "Ellen (Cook-8721)"; creatorLabel: the Creator's name, if looked up. */
-export function buildProfileFactAnswer(profile, fact, label, { creatorLabel = "" } = {}) {
+/**
+ * profile: getProfile's profile object; label: "Ellen (Cook-8721)"; creatorLabel: the Creator's name, if looked up;
+ * categories: getCategories' titles (null if it failed). researchNotes needs the profile's wikitext Bio.
+ */
+export function buildProfileFactAnswer(profile, fact, label, { creatorLabel = "", categories = null } = {}) {
+  if (fact === "categories") {
+    if (!Array.isArray(categories)) return `I couldn't read the categories for ${label}.`;
+    if (!categories.length) return `${label} isn't in any categories.`;
+    const names = categories.map((name) => `- ${String(name).replace(/_/g, " ")}`);
+    return `${label} is in ${names.length} categor${names.length === 1 ? "y" : "ies"}:\n${linesWithMore(names, 20, { after: "" })}`;
+  }
+  if (fact === "researchNotes") {
+    const bio = profile?.Bio ?? profile?.bio; // the API returns "bio"
+    if (typeof bio !== "string") return `I couldn't read ${label}'s biography, so I can't tell. (It may be private.)`;
+    const notes = researchNotesText(bio);
+    if (notes === null) return `No, ${label}'s biography has no Research Notes section.`;
+    if (!notes) return `${label}'s biography has a Research Notes heading, but nothing under it.`;
+    const shown = notes.length > MAX_NOTES_CHARS ? `${notes.slice(0, MAX_NOTES_CHARS - 1)}… (the rest is on the profile)` : notes;
+    return `Yes, ${label} has research notes:\n${shown}`;
+  }
   if (fact === "connected") {
     if (profile?.Connected === undefined || profile?.Connected === null) return `WikiTree didn't say whether ${label} is connected.`;
     return Number(profile.Connected) === 1

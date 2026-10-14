@@ -15,6 +15,12 @@ describe("chart cross-links", () => {
     expect(chartLinkButtons(undefined)).toBe("");
   });
 
+  test("a chart with no links of its own still gets the menu while Genie's box can open charts (user: 'the chart dropdown thing that I see on other charts')", () => {
+    setChartMenuHandler(jest.fn(() => true));
+    expect(chartLinkButtons(undefined)).toContain('data-link="menu"');
+    expect(chartMenuGroups(undefined).flatMap((group) => group.items).map((item) => item.key)).toContain("fan");
+  });
+
   test("the menu lists every chart through Genie, and this chart's extra links directly", () => {
     const lifeline = { key: "lifeline", label: "Life line", open: jest.fn() };
     const groups = chartMenuGroups([lifeline], { viaGenie: true });

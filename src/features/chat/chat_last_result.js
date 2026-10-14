@@ -1,6 +1,44 @@
 import { groupValue } from "./chat_group_rows";
 import { formatPreviewDate } from "./chat_preview_format";
-import { buildResultPickAnswer } from "./chat_result_pick";
+import { buildResultPickAnswer, describeAgeFilter, rowAgeMatches } from "./chat_result_pick";
+import {
+  RELATIVE_FILTER_FIELDS,
+  describeRelativeFilter,
+  relativeFilterMessage,
+  rowProfileKey,
+  splitRowsByRelative,
+} from "./chat_result_relatives";
+
+// Words for the fields in replies ("Grouped … by birth place", not birthLocation).
+const FIELD_LABELS = {
+  displayName: "name",
+  firstName: "first name",
+  lnab: "last name at birth",
+  birth: "birth date",
+  death: "death date",
+  birthLocation: "birth place",
+  deathLocation: "death place",
+  birthDecade: "birth decade",
+  deathDecade: "death decade",
+  birthCentury: "birth century",
+};
+const fieldLabel = (field) => FIELD_LABELS[field] || field;
+// (relatives are looked up for up to this many rows at once)
+const MAX_RELATIVE_ROWS = 2000;
+
+/** "The most common first name is Mary (12 of 85)." from count-by buckets ({label, count}), "Unknown" left out. */
+export function mostCommonMessage(groupedRows, field, total) {
+  const known = groupedRows.filter((row) => row.label !== "Unknown");
+  const label = fieldLabel(field);
+  if (!known.length) return `None of the ${total} rows has a ${label}.`;
+  const top = Math.max(...known.map((row) => row.count));
+  const leaders = known.filter((row) => row.count === top).map((row) => row.label);
+  if (top === 1 && known.length > 1) return `No ${label} comes up more than once among the ${total}.`;
+  if (leaders.length === 1) return `The most common ${label} is ${leaders[0]} (${top} of ${total}).`;
+  const shown = leaders.length > 5 ? [...leaders.slice(0, 5), `${leaders.length - 5} more`] : leaders;
+  return `The most common ${label}s are ${shown.slice(0, -1).join(", ")} and ${shown[shown.length - 1]} (${top} each of ${total}).`;
+}
+
 export function createLastResultOperationHandler({
   getLastStructuredResult,
   setLastStructuredResult,
@@ -11,6 +49,8 @@ export function createLastResultOperationHandler({
   normalizeNumberForSort,
   normalizeSurname,
   extractCountryFromLocation,
+  fetchPeoplePaged = null,
+  appId = "chat",
 }) {
   function extractYear(value) {
     const match = String(value || "")
@@ -24,6 +64,10 @@ export function createLastResultOperationHandler({
     const kind = String(filter?.kind || "text");
     const rawValue = String(filter?.value || "").trim();
     const value = rawValue || "(empty)";
+
+    if (kind === "ageAtDeath") {
+      return `${describeAgeFilter(filter)} (people without both dates are left out)`;
+    }
 
     if (kind === "gender") {
       return `gender is ${value}`;
@@ -63,6 +107,10 @@ export function createLastResultOperationHandler({
   function describeFilterForTitle(filter) {
     const kind = String(filter?.kind || "text");
     const value = String(filter?.value || "").trim() || "(empty)";
+
+    if (kind === "ageAtDeath") {
+      return describeAgeFilter(filter);
+    }
 
     if (kind === "gender") {
       return `gender=${value}`;
@@ -336,6 +384,7 @@ export function createLastResultOperationHandler({
   }
 
   function rowMatchesFilter(row, filter) {
+    if (filter.kind === "ageAtDeath") return rowAgeMatches(row, filter);
     // Year-range filters don't use a value field — handle before the empty-value guard.
     if (filter.kind === "birthYearRange" || filter.kind === "deathYearRange") {
       const rowDate = filter.kind === "birthYearRange" ? row.birth : row.death;
@@ -480,12 +529,14 @@ export function createLastResultOperationHandler({
 
       const summary = groupedRows.map((row) => `- ${row.label}: ${row.count}`);
       const { preview, inlineMore } = buildPreviewAndInlineMore(summary, 12);
+      // ("what was the most common first name?": the answer first, then the counts)
+      const lead = params.top ? `${mostCommonMessage(groupedRows, params.field, dataResult.rows.length)}\n` : "";
 
       return {
-        message: `Grouped the current results by ${params.field}:\n${preview}`,
+        message: `${lead}Grouped the current results by ${fieldLabel(params.field)}:\n${preview}`,
         inlineMore,
         table: {
-          title: `${dataResult.title} by ${params.field}`,
+          title: `${dataResult.title} by ${fieldLabel(params.field)}`,
           defaultOrder: [[1, "desc"]],
           sourceResult: dataSource,
           columns: [
@@ -499,6 +550,36 @@ export function createLastResultOperationHandler({
 
     if (params.action === "pick") {
       return buildResultPickAnswer(dataResult.rows, params.pick);
+    }
+
+    // "which of them married?", "which ones had children?": each row's relatives, fetched (2026-10-14)
+    if (params.action === "relativeFilter") {
+      const rows = dataResult.rows;
+      const keys = [...new Set(rows.map(rowProfileKey).filter(Boolean))];
+      if (!keys.length || typeof fetchPeoplePaged !== "function") {
+        return "These rows have no WikiTree IDs to look up, so I can't check their families.";
+      }
+      if (keys.length > MAX_RELATIVE_ROWS) {
+        return `This table has ${rows.length.toLocaleString("en-US")} rows. I can check families for up to ${MAX_RELATIVE_ROWS.toLocaleString(
+          "en-US"
+        )} at a time, so narrow it first (for example "only the women" or "born in the 1850s").`;
+      }
+      let people = {};
+      try {
+        [, , people] = await fetchPeoplePaged(appId, keys, RELATIVE_FILTER_FIELDS, {});
+      } catch (error) {
+        return `I couldn't look up their families (${error?.message || error}).`;
+      }
+      const { matched, unknown } = splitRowsByRelative(rows, people, params);
+      const message = relativeFilterMessage({ matched, unknown, total: rows.length, relation: params.relation, has: params.has });
+      if (!matched.length || params.countOnly) return { message };
+      const filteredResult = cloneResultWithRows(
+        dataResult,
+        `${dataResult.title} filtered (${describeRelativeFilter(params).title})`,
+        matched
+      );
+      const { preview, inlineMore } = summarizeStructuredRows(matched);
+      return { message: `${message}\n${preview}`, inlineMore, table: filteredResult };
     }
 
     if (params.action === "sort") {

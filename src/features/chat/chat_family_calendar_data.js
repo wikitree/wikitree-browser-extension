@@ -28,6 +28,13 @@ const PATTERNS = [
     ),
     today: true,
   },
+  // "who was born on this day?", "who died today?": WikiTree can't be searched by day and month, so the
+  // page person's family it is, and the reply says so (2026-10-14).
+  {
+    re: /^(?:who|which\s+people)\s+(?:(?:was|were)\s+)?(born|died|born\s+or\s+died)\s+(?:on\s+this\s+(?:day|date)|today)$/i,
+    today: true,
+    everyone: true,
+  },
   // "my ancestors' birthdays", "family birthdays", "Cook-8721's family calendar", "birthday calendar"
   {
     re: new RegExp(
@@ -42,7 +49,7 @@ const PATTERNS = [
 ];
 
 
-/** {owner, ancestorPrompt, today, month (1-12 or 0), event ("birth"|"death"|"")} or null. */
+/** {owner, ancestorPrompt, today, month (1-12 or 0), event ("birth"|"death"|""), everyone?} or null. */
 export function parseFamilyCalendarPrompt(prompt) {
   const text = String(prompt || "")
     .trim()
@@ -54,12 +61,12 @@ export function parseFamilyCalendarPrompt(prompt) {
     if (!match) continue;
     // A bare "calendar" or "anniversaries" needs "family"/"ancestors"/an owner: "calendar" alone isn't ours.
     if (pattern.needsQualifier && !/birthday/i.test(text) && !/\b(?:family|ancestors?|ancestral)\b/i.test(text)) return null;
-    const owner = canonicalOwner(match[1]);
-    const verb = String(match[2] || "").toLowerCase();
+    const owner = pattern.everyone ? "" : canonicalOwner(match[1]);
+    const verb = String((pattern.everyone ? match[1] : match[2]) || "").toLowerCase();
     const event = /^born$/.test(verb) ? "birth" : /^died$/.test(verb) ? "death" : "";
     const month = pattern.month ? MONTHS.findIndex((name) => name.toLowerCase() === String(match[3]).toLowerCase()) + 1 : 0;
     const ancestorPrompt = !owner ? "this profile's ancestors" : /^(?:my|her|his|their)$/.test(owner) ? `${owner} ancestors` : `${owner}'s ancestors`;
-    return { owner, ancestorPrompt, today: Boolean(pattern.today), month, event };
+    return { owner, ancestorPrompt, today: Boolean(pattern.today), month, event, ...(pattern.everyone ? { everyone: true } : {}) };
   }
   return null;
 }

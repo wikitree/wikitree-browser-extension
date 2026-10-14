@@ -8,12 +8,13 @@
 // Data comes from chat_migration_data.js. Places start as countries/regions
 // and become towns as chat_geocode looks them up (2026-10-03): the map redraws
 // inside the same popup, without replaying, every few seconds and at the end.
+// (2026-10-14: it only redrew at the end, minutes later, so the user saw "Wales" meanwhile.)
 
 import $ from "jquery";
 import { select } from "d3-selection";
 import "d3-transition";
 import { geoNaturalEarth1, geoMercator, geoPath, geoCentroid, geoArea, geoGraticule10 } from "d3-geo";
-import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
+import { zoom as d3zoom, zoomIdentity, zoomTransform } from "d3-zoom";
 import { scaleSqrt, scaleSequential } from "d3-scale";
 import { interpolateYlOrRd, interpolateBlues } from "d3-scale-chromatic";
 import { easeCubicOut } from "d3-ease";
@@ -49,6 +50,8 @@ const TILE_CREDIT = `Tiles © <a href="https://www.esri.com" target="_blank" rel
 // now gets the tiles, the whole world included (the tile zoom follows the fit).
 const LOCAL_SPAN = { lon: 350, lat: 125 };
 const LOCAL_MAX_LAT = 70;
+// How often the map takes in the towns found meanwhile.
+const REDRAW_MS = 4000;
 let worldPromise = null;
 let chartCounter = 0;
 
@@ -443,6 +446,7 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
       labelsLayer.selectAll("text").attr("display", null);
       declutterLabels();
       const total = Math.min(9000, Math.max(2600, flows.length * 260));
+      state.playingUntil = Date.now() + total + 900;
       const step = flows.length ? total / flows.length : 0;
       arcs.each(function (flow, index) {
         const length = this.getTotalLength?.() || 0;
@@ -527,7 +531,11 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
 
     const zoomer = d3zoom()
       .scaleExtent([0.4, 40])
+      .on("start", () => {
+        state.gesture = true;
+      })
       .on("end", (event) => {
+        state.gesture = false;
         updateTiles(event.transform);
         declutterLabels();
       })
@@ -582,8 +590,12 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
     svg.attr("data-uid", uid);
     view = {
       svg,
+      local,
       play,
       zoomToStart,
+      // (not while the reveal plays, a tip is showing or someone's zooming)
+      busy: () => Date.now() < (state.playingUntil || 0) || state.gesture || pinned || tip.style.opacity === "1",
+      restore: (transform) => svg.call(zoomer.transform, transform),
       reset: () => svg.transition().duration(400).call(zoomer.transform, zoomIdentity),
       stop: () => {
         clearTimeout(state.playTimer);
@@ -594,6 +606,8 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
       // Asked about a year ("where were my ancestors in 1850"): open at that year.
       const year = Math.min(Math.max(Number(options.year), yearRange[0]), yearRange[1]);
       slider.value = String(year);
+      // (and redraws as towns come in stay at that year)
+      touched = true;
       showUpTo(year);
     } else if (animate) play();
     else if (yearRange && yearRange[1] > yearRange[0] && Number(slider.value) < yearRange[1] && touched) showUpTo(Math.max(Number(slider.value), yearRange[0]));
@@ -642,6 +656,21 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
     status.textContent = `Finding towns… 0/${total}`;
     let drawnAt = 0;
     let changed = false;
+    // Again with the towns found since, keeping the zoom (unless it changed from the world map to tiles).
+    // Only when a place moved: a redraw reloads the tiles, and most lookups change nothing on the map.
+    const placement = (shown) => shown.places.map((place) => `${place.key}@${place.point || ""}:${place.count}`).join("|");
+    let drawnPlacement = "";
+    const redrawWithTowns = () => {
+      changed = false;
+      const next = firstMigration.refine(cachedPoint);
+      if (placement(next) === drawnPlacement) return;
+      const before = view;
+      const transform = before ? zoomTransform(before.svg.node()) : zoomIdentity;
+      migration = next;
+      drawnPlacement = placement(next);
+      draw(false);
+      if (view && before && view.local === before.local && (transform.k !== 1 || transform.x || transform.y)) view.restore(transform);
+    };
     const lookups = geocodeLocations(migration.locations, {
       isWanted: () => popup.isConnected,
       onFound: (done, count) => {
@@ -653,21 +682,25 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
     if (!popup.isConnected) return;
     waiting.remove();
     migration = firstMigration.refine(cachedPoint);
+    drawnPlacement = placement(migration);
     drawnAt = Date.now();
     draw(options.year ? "year" : true);
+    const refresher = setInterval(() => {
+      if (!popup.isConnected) clearInterval(refresher);
+      else if (changed && !view?.busy()) redrawWithTowns();
+    }, REDRAW_MS);
     try {
       await lookups.done;
     } catch (error) {
       console.warn("wbe: town lookups stopped", error);
     }
+    clearInterval(refresher);
     status.textContent = "";
-    if (!popup.isConnected || !changed) return;
-    // (after the reveal has finished playing)
-    const wait = Math.max(0, drawnAt + 9000 - Date.now());
-    setTimeout(() => {
-      if (!popup.isConnected) return;
-      migration = firstMigration.refine(cachedPoint);
-      draw(false);
-    }, wait);
+    const finish = () => {
+      if (!popup.isConnected || !changed) return;
+      if (view?.busy()) setTimeout(finish, 1000);
+      else redrawWithTowns();
+    };
+    finish();
   }
 }

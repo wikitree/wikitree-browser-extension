@@ -1,6 +1,6 @@
 jest.mock("../../core/common", () => ({ getProfilePersonInfo: jest.fn(() => ({ Name: "Cook-8721" })) }));
 
-import { buildBurialAnswer, findGraveLinks, parseBurialPrompt } from "./chat_burial";
+import { buildBurialAnswer, buildOthersBuriedSearch, findGraveLinks, parseBurialPrompt } from "./chat_burial";
 import { ChatIntent, routeChatPrompt } from "./chat_router";
 
 describe("parseBurialPrompt", () => {
@@ -61,5 +61,44 @@ describe("buildBurialAnswer", () => {
     const answer = buildBurialAnswer({ ...ellen, Categories: [], bio: "" });
     expect(answer).toContain("WikiTree doesn't record where Ellen (Cook-8721) is buried");
     expect(answer).toContain("That is the nearest clue.");
+  });
+});
+
+// C13 without AI (2026-10-14)
+describe("who else is buried in this cemetery?", () => {
+  test.each([
+    ["who else is buried in this cemetery?", ""],
+    ["Who else is buried there?", ""],
+    ["who else is buried with her?", ""],
+    ["who else is buried in her cemetery", ""],
+    ["who is buried in this cemetery?", ""],
+    ["people buried in this cemetery", ""],
+    ["who else is buried in the same cemetery as Cook-8721?", "Cook-8721"],
+  ])("%s", (prompt, target) => {
+    expect(parseBurialPrompt(prompt)).toEqual({ target, others: true });
+    expect(routeChatPrompt(prompt).intent).toBe(ChatIntent.PERSON_BURIAL);
+  });
+
+  test("where she is buried is still the answer, not a search", () => {
+    expect(parseBurialPrompt("where is she buried?")).toEqual({ target: "" });
+  });
+
+  test("the cemetery category becomes an exact WT+ category search", () => {
+    expect(
+      buildOthersBuriedSearch({ Name: "Cook-8721", RealName: "Ellen", Categories: ["Motueka_Cemetery,_Motueka,_Tasman", "Cook Name Study"] })
+    ).toEqual({
+      query: 'CategoryFull="Motueka Cemetery, Motueka, Tasman"',
+      note: 'Ellen (Cook-8721) is in the cemetery category "Motueka Cemetery, Motueka, Tasman", so here is everyone in that category on WikiTree.',
+    });
+    expect(buildOthersBuriedSearch({ Name: "X-1", Categories: ["A Cemetery", "B Churchyard"] }).query).toBe(
+      'CategoryFull="A Cemetery" OR CategoryFull="B Churchyard"'
+    );
+  });
+
+  test("no cemetery category: says so, with any grave citation", () => {
+    const out = buildOthersBuriedSearch({ Name: "Cook-8721", RealName: "Ellen", Categories: [], Bio: "{{FindAGrave|123}}" });
+    expect(out.query).toBeUndefined();
+    expect(out.message).toContain("has no cemetery category on WikiTree, so I can't search for others buried there");
+    expect(out.message).toContain("Find a Grave memorial 123");
   });
 });

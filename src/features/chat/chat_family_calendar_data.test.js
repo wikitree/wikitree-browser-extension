@@ -26,6 +26,10 @@ describe("parseFamilyCalendarPrompt", () => {
     ["Cook-8721's family calendar", { owner: "Cook-8721", today: false }],
     ["who in my family was born in March", { owner: "my", month: 3, event: "birth" }],
     ["which of her ancestors died in May", { owner: "her", month: 5, event: "death" }],
+    // (WikiTree can't be searched by day and month: the profile's family, and the reply says so)
+    ["who was born on this day?", { owner: "", today: true, event: "birth", everyone: true }],
+    ["Who died today?", { owner: "", today: true, event: "death", everyone: true }],
+    ["who was born or died on this date", { owner: "", today: true, event: "", everyone: true }],
   ])("%s", (prompt, expected) => {
     expect(parseFamilyCalendarPrompt(prompt)).toEqual(expect.objectContaining(expected));
   });

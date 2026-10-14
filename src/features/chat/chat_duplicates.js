@@ -8,6 +8,7 @@ import { compareScored, fetchProfiles } from "../find_matches_scores/find_matche
 import { buildProfiles } from "../find_matches_scores/find_matches_profiles";
 import { foldText } from "../find_matches_scores/match_locations";
 import { scorePair } from "../find_matches_scores/match_scoring";
+import { profileLabel, promptTarget } from "./chat_text_utils";
 
 const SUBJECT = String.raw`(this\s+(?:person|profile)|the\s+profile\s+person|he|she|they|him|her|them|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
 const DUPES = String.raw`(?:(?:possible|potential|likely)\s+)?(?:duplicates?|duplicate\s+profiles?|dupes?|matches|matching\s+profiles)`;
@@ -29,11 +30,8 @@ export function parseDuplicateCheckPrompt(prompt) {
   for (const re of DUPLICATE_PROMPT_RES) {
     const match = text.match(re);
     if (match?.[1]) {
-      const target = match[1].trim();
-      // The patterns are case-insensitive, so check a bare name really is capitalised:
-      // "find matches for people born in Kent" is a search, not a duplicate check.
-      if (!PROFILE_SUBJECT_RE.test(target) && !/-\d+$/.test(target) && !/^(?:[A-Z][^\s]*\s*)+$/.test(target)) return null;
-      return { target: PROFILE_SUBJECT_RE.test(target) ? "" : target };
+      const target = promptTarget(match[1], PROFILE_SUBJECT_RE);
+      return target === null ? null : { target };
     }
   }
   if (/^(?:any|are\s+there\s+any)\s+(?:possible\s+)?duplicates$/i.test(text)) return { target: "" };
@@ -137,7 +135,7 @@ export async function runDuplicateCheck(appId, person, fetchText, { readFinder =
   // The Duplicate Finder's scored pairs first, when it has looked at this profile (the user,
   // 2026-10-07); Find Matches otherwise, or when the Finder lists none.
   const finder = await readFinder(person.Name);
-  const subjectLabel = `${person.RealName || person.Name} (${person.Name})`;
+  const subjectLabel = profileLabel(person);
   if (finder?.lookupAvailable && finder.likely.length) return buildFinderAnswer(subjectLabel, finder, findMatchesUrl(person.Id));
   const found = await findDuplicates(appId, person, fetchText);
   if (finder?.lookupAvailable && !found.loginNeeded) {
@@ -159,7 +157,7 @@ export async function findDuplicates(appId, person, fetchText, { pagePerson = nu
   const relativeUrl = findMatchesUrl(person.Id);
   const origin = typeof location !== "undefined" && /^https?:/.test(location.origin) ? location.origin : "https://www.wikitree.com";
   const pageUrl = `${origin}${relativeUrl}`;
-  const subjectLabel = `${person.RealName || person.Name} (${person.Name})`;
+  const subjectLabel = profileLabel(person);
   const base = { subjectLabel, total: 0, scored: [], unscored: [], likely: [], pageUrl, origin };
   const html = await fetchText(relativeUrl);
   const block = readFindMatchesHtml(html);

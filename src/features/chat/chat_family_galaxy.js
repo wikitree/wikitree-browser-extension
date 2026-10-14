@@ -33,7 +33,8 @@ const GALAXY_CSS = `
   .wbe-galaxy-id { font-size: 11.5px; color: #8f98c4; margin-top: 1px; }
   .wbe-galaxy-facts { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(160,170,255,.22); font-size: 12.5px; line-height: 1.4; color: #dfe4ff; }
   .wbe-galaxy-facts > div { margin: 0 0 5px; }
-  .wbe-galaxy-facts b { font-weight: 650; color: #ffd166; margin-right: 4px; }
+  /* Custom Style forces b, em, strong and i dark grey with !important; unreadable on this dark card. */
+  .wbe-galaxy .wbe-galaxy-facts b:not(#none) { font-weight: 650; color: #ffd166 !important; margin-right: 4px; }
   .wbe-galaxy-facts small { color: #9aa4d6; font-size: 11.5px; }
   .wbe-galaxy-facts .wbe-galaxy-kids { margin: -2px 0 6px 12px; }
   .wbe-galaxy-facts .wbe-galaxy-loading { color: #9aa4d6; font-style: italic; }

@@ -31,11 +31,32 @@ describe("profileQuality", () => {
     const q = profileQuality({ ...full, DeathLocation: "", NoChildren: 0, DataStatus: { ...full.DataStatus, Spouse: "" }, Bio: "Born.<ref>a</ref> Died.<ref>b</ref>" });
     expect(q.missing).toEqual(['"no more spouses" box', '"no more children" box', "death place", "inline source citations"]);
     expect(q.items.sources).toBe(0.5);
-    expect(q.items.deathPlaceStatus).toBeUndefined();
+  });
+  test("a missing fact counts twice (no fact, no status) but is named once", () => {
+    const q = profileQuality({ ...full, DeathLocation: "" });
+    expect(q.items).toMatchObject({ deathPlace: 0, deathPlaceStatus: 0 });
+    expect(q.score).toBeCloseTo(15 / 17);
+    expect(q.missing).toEqual(["death place"]);
+    // a status gap of its own is still named
+    expect(profileQuality({ ...full, Spouses: [{ MarriageDate: "1834-09-23", MarriageLocation: "" }] }).missing).toEqual([
+      "marriage date and place",
+      "marriage date and place status",
+    ]);
   });
   test("items that don't apply are left out", () => {
     const q = profileQuality({ BirthDate: "1950-01-01", IsLiving: 1, DataStatus: {} });
-    expect(Object.keys(q.items)).toEqual(["birthDate", "birthDateStatus", "birthPlace", "father", "mother", "noMoreSpouses", "noMoreChildren"]);
+    expect(Object.keys(q.items)).toEqual([
+      "birthDate",
+      "birthDateStatus",
+      "birthPlace",
+      "birthPlaceStatus",
+      "father",
+      "fatherStatus",
+      "mother",
+      "motherStatus",
+      "noMoreSpouses",
+      "noMoreChildren",
+    ]);
   });
   test("half a marriage", () => {
     const q = profileQuality({ ...full, Spouses: [{ marriage_date: "1834-00-00", marriage_location: "", data_status: { marriage_date: "guess" } }] });
@@ -91,8 +112,8 @@ describe("buildNeedsHelpAnswer", () => {
       "Marked as needing work (Research Status), 1:",
       '- Help Requested: Ann (A-1), 94%: needs "no more children" box',
       "The least complete against the Gold Standard checklist:",
-      "- Cid (C-1), 87%: needs birth place and death place",
-      "- Bob (B-1), 87%: needs birth place and death place",
+      "- Cid (C-1), 76%: needs birth place and death place",
+      "- Bob (B-1), 76%: needs birth place and death place",
     ]);
   });
   test("no statuses set", () => {

@@ -1,6 +1,6 @@
 import { createConnectionSourceResolver } from "./chat_connection_source";
 import { REQUESTED_COLUMNS, addRequestedColumns, parseColumnRequest, requestedColumnFields } from "./chat_requested_columns";
-import { joinWithAnd } from "./chat_text_utils";
+import { joinWithAnd, profileLabel } from "./chat_text_utils";
 import { shownSpouses } from "./chat_marriage_display";
 import { shownGender } from "./chat_gender_display";
 import { joinWithAndMore } from "./chat_more_text";
@@ -18,6 +18,8 @@ import {
 import { rewriteOfRelationChain } from "./chat_relation_chain_text";
 import { groupKinListResult } from "./chat_group_rows";
 import { WIKITREE_GLOSSARY_FOR_AI } from "./chat_wikitree_glossary";
+import { answerWikiTreeHelpQuestion, namesWikiTree, withoutOnWikiTree } from "./chat_wikitree_help";
+import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import "../../core/userTimingCompat";
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
@@ -1253,6 +1255,8 @@ const tryHandleLastResultOperation = createLastResultOperationHandler({
   normalizeNumberForSort,
   normalizeSurname,
   extractCountryFromLocation,
+  fetchPeoplePaged,
+  appId: WBE_CHAT_APP_ID,
 });
 
 const {
@@ -2862,17 +2866,36 @@ async function handleChatResult(result) {
 
 // No AI key: say so, link to how to get one, and offer the search form filled
 // with what can't be misread in their prompt (a decade or year range).
-function showNeedsAiKey(prompt) {
+// A question about WikiTree itself ("what is a PPP?", "how do I merge two profiles?") gets
+// Genie's glossary, WikiTree's FAQ or its Help page search instead (chat_wikitree_help.js).
+async function showNeedsAiKey(prompt) {
   // (a question gets just the message and the link; something more like a search gets the form too)
   const withForm = !looksLikeQuestion(prompt);
+  // ("Owner of WikiTree" isn't shaped like a question, but it names WikiTree: live, 2026-10-14)
+  const help = withForm && !namesWikiTree(withoutOnWikiTree(prompt)) ? null : await findWikiTreeHelp(prompt);
   const needsKey = needsAiKeyMessage({ withForm, switchedOff: aiSwitchedOff });
-  appendMessage("assistant", needsKey.text, {
-    actions: [
-      { label: WHAT_CAN_I_TYPE, onClick: () => showNoAiExamples() },
-      ...needsKey.actions.map((action) => ({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })),
-    ],
-    searchForm: withForm ? prefillSearchForm(prompt) : null,
-  });
+  const actions = [
+    { label: WHAT_CAN_I_TYPE, onClick: () => showNoAiExamples() },
+    ...needsKey.actions.map((action) => ({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })),
+  ];
+  if (help) {
+    // (pages that may help aren't an answer: the AI key link stays)
+    appendMessage("assistant", help.text, { actions: help.source === "search" || help.source === "faq-list" ? actions : [] });
+    return;
+  }
+  appendMessage("assistant", needsKey.text, { actions, searchForm: withForm ? prefillSearchForm(prompt) : null });
+}
+
+async function findWikiTreeHelp(prompt) {
+  showChatShaky?.("Looking in WikiTree's Help...");
+  try {
+    return await answerWikiTreeHelpQuestion(prompt, { fetchPage: (path, query) => getWikiTreePage("Chat", path, query) });
+  } catch (error) {
+    console.warn("wbe: WikiTree help lookup failed", error);
+    return null;
+  } finally {
+    hideChatShaky?.();
+  }
 }
 
 // The search form's Search button: the same WT+ run the AI's searches use.
@@ -3795,7 +3818,14 @@ async function executeRoutedIntent(routed, prompt) {
     return await tryHandleProfileFactPrompt(routed.params, prompt);
   }
   if (routed.intent === ChatIntent.PERSON_BURIAL) {
-    return await tryHandlePersonBurialPrompt(routed.params, prompt);
+    const burial = await tryHandlePersonBurialPrompt(routed.params, prompt);
+    // "who else is buried in this cemetery?": the cemetery category, searched on WT+ (2026-10-14)
+    if (burial?.cemeterySearch) {
+      const found = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, burial.cemeterySearch);
+      if (found && typeof found === "object") return { ...found, message: `${burial.note}\n${found.message || ""}`.trim() };
+      return found ? `${burial.note}\n${found}` : burial.note;
+    }
+    return burial;
   }
   if (routed.intent === ChatIntent.FIND_BIO_RELATIVES) {
     return await tryHandleFindBioRelativesPrompt(routed.params, prompt);
@@ -4250,7 +4280,7 @@ async function buildRelativeBiosContextForAi(prompt, pageRoot) {
       ]
         .filter(Boolean)
         .join("; ");
-      return `${match[1]} of ${pageRoot.wtId}: ${person.RealName || person.Name} (${person.Name})${facts ? ` — ${facts}` : ""}\nBIO:\n${bio || "(empty)"}`;
+      return `${match[1]} of ${pageRoot.wtId}: ${profileLabel(person)}${facts ? ` — ${facts}` : ""}\nBIO:\n${bio || "(empty)"}`;
     });
     return `Relatives named in the request, with their biographies:\n\n${blocks.join("\n\n")}`;
   } catch (error) {

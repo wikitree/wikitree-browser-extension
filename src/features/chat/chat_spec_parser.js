@@ -12,8 +12,25 @@
 import { withAccentsMasked } from "./chat_accent_mask";
 import { isKnownPlaceName } from "./chat_known_places";
 import { projectAccountMap, projectKey } from "./chat_project_accounts";
+import { namesWikiTree, withoutOnWikiTree } from "./chat_wikitree_help";
 
-const LEAD_IN = /^\s*(?:(?:search(?:\s+for)?|find|show(?:\s+me)?|list|get|give\s+me)\s+)?(?:(?:who|which\s+(?:people|profiles))(?:\s+(?:was|were|is|are))?\s+)?/i;
+const LEAD_IN = /^\s*(?:(?:search(?:\s+for)?|find|show(?:\s+me)?|list|get|give\s+me)\s+)?(?:(?:who(?:\s+else)?|which\s+(?:people|profiles))(?:\s+(?:was|were|is|are))?\s+)?/i;
+// "how many profiles have the surname Alley?", "how many people were born in Kent in 1820?": a count is the
+// search, and its result says how many it found (2026-10-14). ("Who else died in Motueka in 1898?" above.)
+const COUNT_LEAD_IN =
+  /^\s*how\s+many\s+(?:(?:profiles|people|persons)\s+)?(?:(?:are|were)\s+there\s+)?(?:(?:on|in)\s+WikiTree\s+)?(?:(?:that|who)\s+)?(?:(?:have|has|had|did|were|was|are|is)\s+)?/i;
+
+// "with the surname Alley", "surnamed Alley": the word after it is the surname, whatever its case.
+const SURNAME_PHRASE =
+  /\b(?:(?:with|having|has|have|had)\s+)?(?:the\s+|a\s+)?(?:surname|last\s+name|family\s+name)\s+(?:of\s+)?([A-Za-z][A-Za-z'-]*)|\bsurnamed\s+([A-Za-z][A-Za-z'-]*)/i;
+
+// "profiles I created", "how many profiles have I created?", "created by me", "created by Beacall-6": WT+'s
+// Created=Creator_ID (the signed-in user's ID is put in by the caller, as for "profiles I manage").
+const CREATED_BY_ME =
+  /\b(?:(?:that|which)\s+)?(?:(?:have|did)\s+)?I\s+(?:have\s+|['’]ve\s+)?creat(?:ed|e)\b|\bcreated\s+by\s+me\b|\bmy\s+created(?=\s+profiles?\b)/i;
+const CREATED_BY_ID = /\bcreated\s+by\s+([A-Za-z][A-Za-z0-9_'-]*-\d+)\b/i;
+// ("profiles I created in 2023": the year stays for CREATED_PATTERN)
+const CREATED_WHEN = /^\s+(?:(?:in\s+or\s+)?(?:in|before|after|since|until|during|from|by)\s+\d{4}|this\s+year|last\s+year)\b/i;
 
 const STATUS_FLAGS = [
   ["Unsourced", /\b(?:unsourced|(?:with\s+)?no\s+sources?|without\s+(?:any\s+)?sources?|missing\s+sources?)\b/i, "no sources"],
@@ -231,9 +248,14 @@ export function parseSearchSpecPrompt(prompt) {
 function parseAsciiSearchSpecPrompt(prompt) {
   // (Find a Grave's own checks are suggestions; "Find a Grave profiles in Devon" isn't the surname Grave)
   if (/\bfind\s*a\s*grave\b/i.test(String(prompt || ""))) return null;
+  // WikiTree (or WT) is never a name or a place: "Owner of WikiTree" isn't the surname Owner in
+  // a place called WikiTree (live, 2026-10-14).
+  prompt = withoutOnWikiTree(prompt);
+  if (namesWikiTree(prompt)) return null;
   let text = ` ${String(prompt || "")
     .trim()
     .replace(/[?!.\s]+$/, "")
+    .replace(COUNT_LEAD_IN, "")
     .replace(LEAD_IN, "")} `;
   if (!text.trim()) return null;
   // (joined first, so the "Man" of "Isle of Man" isn't read as men)
@@ -266,6 +288,23 @@ function parseAsciiSearchSpecPrompt(prompt) {
     managedByMe = true;
     return " §F ";
   });
+  let creator = "";
+  for (const pattern of [CREATED_BY_ID, CREATED_BY_ME]) {
+    const match = text.match(pattern);
+    if (!match) continue;
+    if (creator) return null;
+    creator = pattern === CREATED_BY_ID ? match[1] : "me";
+    const rest = text.slice(match.index + match[0].length);
+    text = `${text.slice(0, match.index)} §K ${CREATED_WHEN.test(rest) ? "created" : ""}${rest}`;
+  }
+  let surname = "";
+  const surnameMatch = text.match(SURNAME_PHRASE);
+  if (surnameMatch) {
+    const word = surnameMatch[1] || surnameMatch[2];
+    if (PLACE_STOP.has(word.toLowerCase()) || SURNAME_PHRASE.test(text.replace(surnameMatch[0], " "))) return null;
+    surname = `${word[0].toUpperCase()}${word.slice(1)}`;
+    text = text.replace(surnameMatch[0], " §S ");
+  }
   let nationality = null;
   text = text.replace(NATIONALITY_PATTERN, (whole, word) => {
     nationality = nationality ? false : { word, country: NATIONALITIES[word] };
@@ -353,7 +392,7 @@ function parseAsciiSearchSpecPrompt(prompt) {
         spanned.push({ index: Number(word.slice(2)), event: event || "birth" });
         if (!event) sawBareDate = true;
       }
-      if (word === "§N") {
+      if (word === "§N" || word === "§S" || word === "§K") {
         sawMarker = true;
         continue;
       }
@@ -472,6 +511,7 @@ function parseAsciiSearchSpecPrompt(prompt) {
     !namedFamily &&
     !places.length &&
     !managedByMe &&
+    !creator &&
     !occupation &&
     !migration &&
     !emigrantCategory &&
@@ -519,6 +559,10 @@ function parseAsciiSearchSpecPrompt(prompt) {
     return null;
   }
   const names = {};
+  if (surname) {
+    if (lead.length) return null;
+    names.anyLastName = surname;
+  }
   if (lead.length) {
     if (!sawMarker || lead.length > 2 || !lead.every(isName) || !isSurname(lead[lead.length - 1])) return null;
     // "Scottish emigrants to Canada", "Irish farmers": a nationality, not a surname
@@ -563,9 +607,10 @@ function parseAsciiSearchSpecPrompt(prompt) {
   if (missingPlaces.length) spec.missingPlaces = [...new Set(missingPlaces)];
   if (managedByMe) spec.manager = "me";
   else if (manager) spec.manager = manager.id;
+  if (creator) spec.creator = creator;
   if (!Object.keys(spec).length) return null;
-  // Something to search on besides a gender or a status word alone (the profiles you manage are enough).
-  if (!spec.names && !spec.places && !spec.dates && !occupation && !emigrantCategory && !managedByMe && !manager) return null;
+  // Something to search on besides a gender or a status word alone (the profiles you manage or created are enough).
+  if (!spec.names && !spec.places && !spec.dates && !occupation && !emigrantCategory && !managedByMe && !manager && !creator) return null;
   // a nationality on its own ("Irish") says too little
   if (nationality && !occupation && !migration && !emigrantCategory && !spec.dates && !spec.flags && !spec.missingDates && !spec.missingPlaces && !spec.gender && !spec.names && spec.places.length < 2) return null;
 
@@ -590,6 +635,8 @@ function describeSpec(spec, flagLabels, createdLabel = "", { migration, occupati
   if (emigrantCategory) parts.push(`in the ${emigrantCategory} categories`);
   if (nationality) parts.push(`(${nationality.word} read as born in ${nationality.country})`);
   if (createdLabel) parts.push(createdLabel);
+  if (spec.creator === "me") parts.push("created by you");
+  else if (spec.creator) parts.push(`created by ${spec.creator}`);
   if (spec.manager === "me") parts.push("managed by you");
   else if (manager) parts.push(`managed by ${manager.label}`);
   parts.push(...flagLabels);

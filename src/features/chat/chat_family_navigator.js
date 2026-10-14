@@ -12,6 +12,7 @@ import { familyAround, familyLoaded, navigatorLayout, layoutBounds, NAV_SIZES, s
 export { stepWord };
 import { addStyleOnce, escapeText, fullName, lifeYears, photoUrl, profileUrl, siteUrl, yearOf } from "./chat_chart_common";
 import { initials } from "./chat_family_card";
+import { ageAtDeath, agedText, cardYear } from "./chat_family_card_data";
 import { reducedMotion } from "./chat_fractal_common";
 
 const GLIDE_MS = 850;
@@ -53,6 +54,9 @@ const NAV_CSS = `
   .wbe-nav-name { font-size: 1.12em; font-weight: 650; line-height: 1.18; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .wbe-nav-life { font-size: .9em; color: #5d6a72; white-space: nowrap; }
   .wbe-nav-place { font-size: .84em; color: #6f7a80; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wbe-nav-story { font-size: .84em; line-height: 1.25; color: #6f7a80; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  /* (a span, not b: Custom Style forces b dark grey) */
+  .wbe-nav-story-word { font-weight: 650; color: #8a6a12; }
   /* (#none: WikiTree's own link colours won, the name came out magenta) */
   .wbe-nav a.wbe-nav-profile:not(#none), .wbe-nav a.wbe-nav-profile:not(#none):visited { color: #1f2b33 !important; text-decoration: none; cursor: pointer; }
   .wbe-nav a.wbe-nav-profile:not(#none):hover { color: #2b6cb0 !important; text-decoration: underline; text-underline-offset: 3px; }
@@ -66,7 +70,17 @@ const NAV_CSS = `
   .wbe-nav-chip { padding: .3em .7em .3em .3em; gap: .5em; border-radius: 999px; }
   .wbe-nav-chip .wbe-nav-name { font-size: 1em; font-weight: 600; -webkit-line-clamp: 1; }
   .wbe-nav-chip .wbe-nav-photo { box-shadow: 0 0 0 2px var(--ring, #c9c2b2); }
+  .wbe-nav-xs { padding: .25em .5em .25em .3em; gap: .4em; border-radius: 10px; }
+  .wbe-nav-xs .wbe-nav-name { font-size: 1em; font-weight: 600; line-height: 1.15; }
+  .wbe-nav-xs .wbe-nav-photo { box-shadow: 0 0 0 2px var(--ring, #c9c2b2); }
   .wbe-nav-more { justify-content: center; color: #6f5c33; font-weight: 600; background: #fbf6e8; }
+  /* the tag above someone at the top whose parents are recorded */
+  .wbe-nav-card.wbe-nav-up { justify-content: center; gap: .4em; padding: 0 .8em; border-radius: 999px; border: 1px dashed #d9b45a; background: #fbf6e8;
+    color: #8a7444; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; box-shadow: 0 1px 3px rgba(60,50,20,.08); }
+  .wbe-nav-card.wbe-nav-up:hover { border-style: solid; background: #fff3c4; }
+  .wbe-nav-up svg { width: .95em; height: .6em; flex: none; }
+  .wbe-nav-card.wbe-nav-nub { padding: 0; }
+  .wbe-nav-links path.wbe-nav-up-line { stroke: #d9b45a; stroke-width: 1.6; stroke-dasharray: 3 4; }
   .wbe-nav-trail { position: absolute; top: 10px; left: 12px; right: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; z-index: 2; pointer-events: none; font-size: 12.5px; color: #8a7a5a; }
   .wbe-nav-trail button { pointer-events: auto; border: 1px solid rgba(60,50,30,.14); background: rgba(255,255,255,.85); color: #3c4a52; border-radius: 999px; padding: 2px 10px; font: 500 12.5px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; cursor: pointer; }
   .wbe-nav-trail button:hover { border-color: #d9b45a; background: #fff8e1; }
@@ -89,15 +103,27 @@ const NAV_CSS = `
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
 
-/** "Born 1898 in Vernon, Texas · died aged 99" for the person in the middle. */
-function storyLine(person) {
-  const born = yearOf(person.birth);
-  const died = yearOf(person.death);
-  const parts = [];
-  if (person.birthLocation) parts.push(`${born ? `Born ${born} in ` : "Born in "}${person.birthLocation}`);
-  // (an age on WikiTree is the age they died at)
-  if (born && died) parts.push(`died aged ${died - born}`);
-  return parts.join(" · ");
+/**
+ * The lines under the years on the middle card: "Born 1898 in Vernon, Texas", "Died 1997 in Dallas, Texas, aged 99"
+ * ("Died there in 1997" when it's the same place). Whole places, wrapping (user, 2026-10-14: "For the main card
+ * here, I think we can show more of the locations"); the age is the one they died at.
+ */
+export function storyLines(person) {
+  const born = cardYear(person.birth, person.birthStatus);
+  const died = cardYear(person.death, person.deathStatus);
+  const aged = agedText(ageAtDeath(person));
+  const birthPlace = String(person.birthLocation || "").trim();
+  const deathPlace = String(person.deathLocation || "").trim();
+  const lines = [];
+  if (birthPlace) lines.push(`Born ${born ? `${born} ` : ""}in ${birthPlace}`);
+  if (deathPlace) {
+    const there = birthPlace && deathPlace.toLowerCase() === birthPlace.toLowerCase();
+    // ("in 1997", but "about 1997" with no "in")
+    const when = died && (/^\d/.test(died) ? `in ${died}` : died);
+    const where = there ? `there${when ? ` ${when}` : ""}` : `${died ? `${died} ` : ""}in ${deathPlace}`;
+    lines.push(`Died ${where}${aged ? `, ${aged}` : ""}`);
+  } else if (aged) lines.push(`Died ${died ? `${died}, ` : ""}${aged}`);
+  return lines;
 }
 
 /**
@@ -183,6 +209,7 @@ export function mountFamilyNavigator(host, options) {
 
   function cardHtml(card) {
     if (card.more) return `<span class="wbe-nav-name">+${card.more} more</span>`;
+    if (card.up) return `<svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 5.2 5 1.2 9 5.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>${card.size === "nub" ? "" : escapeText(card.upWord)}`;
     const person = card.person;
     const url = person.hidden || person.stub ? "" : photoUrl(person, NAV_PHOTO_PX);
     // (a sized thumbnail doesn't exist for a small original: the API's own small one is tried next, then the initials)
@@ -190,7 +217,7 @@ export function mountFamilyNavigator(host, options) {
     const image = url ? `<img src="${escapeText(url)}" data-fallback="${escapeText(fallback)}" data-initials="${escapeText(initials(person))}" alt="" loading="lazy" draggable="false">` : "";
     const photo = `<span class="wbe-nav-photo">${image || escapeText(person.hidden ? "?" : initials(person))}</span>`;
     const name = person.hidden ? "Private" : fullName(person) || person.wtid;
-    if (card.size === "chip") return `${photo}<span class="wbe-nav-text"><span class="wbe-nav-name">${escapeText(name)}</span></span>`;
+    if (card.size === "chip" || card.size === "xs") return `${photo}<span class="wbe-nav-text"><span class="wbe-nav-name">${escapeText(name)}</span></span>`;
     const married = card.married && yearOf(card.married) ? ` · m. ${yearOf(card.married)}` : "";
     const lines = [
       card.role ? `<span class="wbe-nav-role">${escapeText(card.role + married)}</span>` : "",
@@ -201,8 +228,11 @@ export function mountFamilyNavigator(host, options) {
       lifeYears(person) ? `<span class="wbe-nav-life">${escapeText(lifeYears(person))}</span>` : "",
     ];
     if (card.size === "xl") {
-      const story = storyLine(person);
-      if (story) lines.push(`<span class="wbe-nav-place" title="${escapeText(story)}">${escapeText(story)}</span>`);
+      storyLines(person).forEach((story) => {
+        // "Born"/"Died" as a label (user: "should be different from the rest of the text")
+        const [, word, rest] = story.match(/^(\S+)(.*)$/);
+        lines.push(`<span class="wbe-nav-story" title="${escapeText(story)}"><span class="wbe-nav-story-word">${escapeText(word)}</span>${escapeText(rest)}</span>`);
+      });
     } else if (card.size === "l" && person.birthLocation) {
       lines.push(`<span class="wbe-nav-place">${escapeText(person.birthLocation)}</span>`);
     }
@@ -216,7 +246,10 @@ export function mountFamilyNavigator(host, options) {
     el.className = [
       "wbe-nav-card",
       card.size === "chip" ? "wbe-nav-chip" : "",
+      card.size === "xs" ? "wbe-nav-xs" : "",
+      card.size === "nub" ? "wbe-nav-nub" : "",
       card.more ? "wbe-nav-more" : "",
+      card.up ? "wbe-nav-up" : "",
       card.centre ? "wbe-nav-centre" : "",
       card.half ? "wbe-nav-half" : "",
       person.stub ? "wbe-nav-stub" : "",
@@ -225,13 +258,20 @@ export function mountFamilyNavigator(host, options) {
     ]
       .filter(Boolean)
       .join(" ");
-    const signature = `${card.size}|${card.role}|${card.more || ""}|${person.id}|${person.stub ? 1 : 0}|${card.married || ""}`;
+    const signature = `${card.size}|${card.role}|${card.more || ""}|${card.upWord || ""}|${person.id}|${person.stub ? 1 : 0}|${card.married || ""}`;
     if (entry.signature !== signature) {
       entry.signature = signature;
       el.innerHTML = cardHtml(card);
     }
     const name = card.more ? `${card.more} more of ${fullName(card.moreOf)}'s children` : person.hidden ? "Private" : fullName(person);
-    el.title = card.centre ? "" : card.more ? `Move to ${fullName(card.moreOf)} to see them all` : `${card.role ? `${card.role}: ` : ""}${name}${lifeYears(person) ? ` (${lifeYears(person)})` : ""}`;
+    const upWord = card.up && (card.upWord === "Parents" ? "parents are" : `${card.upWord.toLowerCase()} is`);
+    el.title = card.centre
+      ? ""
+      : card.more
+      ? `Move to ${fullName(card.moreOf)} to see them all`
+      : card.up
+      ? `${fullName(card.up)}'s ${upWord} on WikiTree: move to ${fullName(card.up)} to see them`
+      : `${card.role ? `${card.role}: ` : ""}${name}${lifeYears(person) ? ` (${lifeYears(person)})` : ""}`;
     el.setAttribute("aria-label", el.title || name);
   }
 
@@ -325,10 +365,12 @@ export function mountFamilyNavigator(host, options) {
       const el = document.createElementNS(SVG, "path");
       if (link.kind === "line" && /-bar$/.test(link.key)) el.setAttribute("class", "wbe-nav-bar");
       else if (/^tick-|^spine-/.test(link.key)) el.setAttribute("class", "wbe-nav-tick");
+      else if (/^up-/.test(link.key)) el.setAttribute("class", "wbe-nav-up-line");
       return el;
     });
+    const ownClass = new Set(["wbe-nav-bar", "wbe-nav-tick", "wbe-nav-up-line"]);
     paths.forEach((entry, key) => {
-      if (!entry.exiting && entry.el.getAttribute("class") !== "wbe-nav-bar" && entry.el.getAttribute("class") !== "wbe-nav-tick") {
+      if (!entry.exiting && !ownClass.has(entry.el.getAttribute("class"))) {
         entry.el.setAttribute("class", lineKeys.has(key) ? "wbe-nav-line" : "");
       }
     });
@@ -514,6 +556,7 @@ export function mountFamilyNavigator(host, options) {
     const card = entry?.card;
     if (!card || entry.exiting) return;
     if (card.more) return centre(card.moreOf.id);
+    if (card.up) return centre(card.up.id);
     const person = card.person;
     if (!person || person.hidden) return;
     if ((event.shiftKey || event.metaKey || event.ctrlKey) && person.wtid) {

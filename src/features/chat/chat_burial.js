@@ -3,9 +3,10 @@
 // the prompt became a failed person search; Cook-8721 is in "Motueka Cemetery,
 // Motueka, Tasman").
 
-import { pickCemeteryCategories } from "./chat_search_spec";
+import { applySameCemetery, compileSearchSpec, pickCemeteryCategories } from "./chat_search_spec";
 import { formatPreviewDate } from "./chat_preview_format";
 import { shownGender } from "./chat_gender_display";
+import { profileLabel, promptTarget } from "./chat_text_utils";
 
 const SUBJECT = String.raw`(this\s+person|the\s+profile\s+person|he|she|they|him|her|them|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
 const BURIAL_PROMPT_RES = [
@@ -17,19 +18,34 @@ const BURIAL_PROMPT_RES = [
 ];
 const PROFILE_SUBJECT_RE = /^(?:|this\s+person|the\s+profile\s+person|he|she|they|him|her|them)$/i;
 
-/** {target} ("" = the page profile), or null. */
+// C13, "who else is buried in this cemetery?": the page person's cemetery category, searched on WT+
+// (the AI's sameCemeteryAs; without a key it was "needs AI", 2026-10-14).
+const CEMETERY_WORDS = String.raw`(?:cemetery|graveyard|churchyard)`;
+const OTHERS_BURIED_RES = [
+  new RegExp(
+    String.raw`^(?:who|which\s+(?:other\s+)?(?:people|profiles))\s+else\s+(?:is|are|was|were)\s+buried\s+(?:in\s+(?:this|that|the\s+same|(?:his|her|their)(?:\s+own)?)\s+${CEMETERY_WORDS}|there|with\s+(?:him|her|them)|(?:in\s+the\s+same\s+${CEMETERY_WORDS}|in\s+the\s+same\s+place|alongside|near)\s+(?:as\s+)?${SUBJECT})$`,
+    "i"
+  ),
+  new RegExp(String.raw`^(?:who|which\s+(?:people|profiles))\s+(?:is|are|was|were)\s+(?:also\s+)?buried\s+in\s+(?:this|that|(?:his|her|their))\s+${CEMETERY_WORDS}$`, "i"),
+  new RegExp(String.raw`^(?:(?:show|list|find)\s+(?:me\s+)?)?(?:the\s+)?(?:other\s+)?(?:people|profiles|others)\s+(?:also\s+)?buried\s+in\s+(?:this|that|the\s+same|(?:his|her|their))\s+${CEMETERY_WORDS}$`, "i"),
+];
+
+/** {target} ("" = the page profile), plus others: true for "who else is buried there", or null. */
 export function parseBurialPrompt(prompt) {
   const text = String(prompt || "")
     .trim()
     .replace(/[.!?]+$/g, "");
+  for (const re of OTHERS_BURIED_RES) {
+    const match = text.match(re);
+    if (!match) continue;
+    const target = promptTarget(match[1], PROFILE_SUBJECT_RE);
+    return target === null ? null : { target, others: true };
+  }
   for (const re of BURIAL_PROMPT_RES) {
     const match = text.match(re);
     if (!match) continue;
-    const target = String(match[1] || "").trim();
-    if (PROFILE_SUBJECT_RE.test(target)) return { target: "" };
-    // Case-insensitive patterns: a bare name must really be capitalised.
-    if (!/-\d+$/.test(target) && !/^(?:[A-Z][^\s]*\s*)+$/.test(target)) return null;
-    return { target };
+    const target = promptTarget(match[1], PROFILE_SUBJECT_RE);
+    return target === null ? null : { target };
   }
   return null;
 }
@@ -51,7 +67,7 @@ export function findGraveLinks(bio) {
 }
 
 export function buildBurialAnswer(person) {
-  const label = `${person.RealName || person.Name} (${person.Name})`;
+  const label = profileLabel(person);
   const pronoun = { Female: "She", Male: "He" }[shownGender(person)] || "They";
   const categories = Array.isArray(person.Categories) ? person.Categories : Object.values(person.Categories || {});
   const cemeteries = pickCemeteryCategories(categories);
@@ -82,4 +98,30 @@ export function buildBurialAnswer(person) {
   }
   if (death) lines.push(death);
   return lines.join("\n");
+}
+
+/**
+ * "Who else is buried in this cemetery?": {query, note} for a WT+ search of the person's cemetery
+ * categories, or {message} when they have none.
+ */
+export function buildOthersBuriedSearch(person) {
+  const label = profileLabel(person);
+  const categories = Array.isArray(person.Categories) ? person.Categories : Object.values(person.Categories || {});
+  const cemeteries = pickCemeteryCategories(categories);
+  if (!cemeteries.length) {
+    const graves = findGraveLinks(person.Bio || person.bio);
+    return {
+      message: `${label} has no cemetery category on WikiTree, so I can't search for others buried there.${
+        graves.length ? ` The biography cites ${graves.join("; ")}.` : ""
+      } Adding the category (for example "Motueka Cemetery, Motueka, Tasman") would make this work.`,
+    };
+  }
+  const compiled = compileSearchSpec(applySameCemetery({ sameCemeteryAs: person.Name }, cemeteries));
+  if (!compiled.query || compiled.errors.length) return { message: `I couldn't make a search for ${cemeteries.join(" or ")}.` };
+  return {
+    query: compiled.query,
+    note: `${label} is in the cemetery categor${cemeteries.length === 1 ? "y" : "ies"} ${cemeteries
+      .map((name) => `"${name}"`)
+      .join(" and ")}, so here is everyone in ${cemeteries.length === 1 ? "that category" : "those categories"} on WikiTree.`,
+  };
 }

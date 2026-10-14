@@ -18,6 +18,7 @@ import { parseFanChartPrompt, parseSurnameChartPrompt } from "./chat_fan_chart_d
 import { parseCompletenessPrompt } from "./chat_completeness_data";
 import { parseDnaCarrierPrompt, parseDnaChartPrompt } from "./chat_dna_data";
 import { parseFamilyCalendarPrompt } from "./chat_family_calendar_data";
+import { parseRelativeFollowup } from "./chat_result_relatives";
 import { parseAgesPrompt } from "./chat_ages_data";
 import { parseTreeOverviewPrompt } from "./chat_tree_overview_data";
 import { parseFractalTreePrompt } from "./chat_fractal_tree_data";
@@ -44,7 +45,7 @@ import { splitKinDetailsClause } from "./chat_kin_details";
 import { splitKinOrderClause } from "./chat_kin_order";
 import { splitKinFilterClause } from "./chat_kin_filter";
 import { asksAboutRepeats, parseAncestorDepthOwner, parseAncestorSummaryOwner } from "./chat_ancestor_depth";
-import { parseResultPickPrompt } from "./chat_result_pick";
+import { AGE_AT_DEATH_WORDS, ageAtDeathRange, parseResultAgeFilter, parseResultPickPrompt } from "./chat_result_pick";
 import { isProfileNarrativePrompt } from "./chat_profile_narrative";
 
 export const ChatIntent = {
@@ -122,6 +123,25 @@ const RESULT_FIELD_ALIASES = {
   location: "birthLocation",
   "birth location": "birthLocation",
   "death location": "deathLocation",
+  // (M4 "group them by birth place" and "the most common first name", 2026-10-14)
+  "first names": "firstName",
+  "given names": "firstName",
+  "last name": "surname",
+  "last names": "surname",
+  "family name": "surname",
+  "family names": "surname",
+  "birth place": "birthLocation",
+  "birth places": "birthLocation",
+  birthplace: "birthLocation",
+  birthplaces: "birthLocation",
+  "place of birth": "birthLocation",
+  "places of birth": "birthLocation",
+  "birth locations": "birthLocation",
+  "death place": "deathLocation",
+  "death places": "deathLocation",
+  "place of death": "deathLocation",
+  "places of death": "deathLocation",
+  "death locations": "deathLocation",
   decade: "birthDecade",
   decades: "birthDecade",
   "birth decade": "birthDecade",
@@ -663,7 +683,19 @@ export function extractConnectionEndpoints(prompt) {
     if (isSelfReferenceEndpoint(target)) return { source: "", target: source };
     return { source: isSelfReferenceEndpoint(source) ? "" : source, target };
   }
-  const howAreMatch = isRelativesPhrase ? null : relatedQuestion.match(/^how\s+(?:are|were)\s+(.+?)\s+and\s+(.+?)\s+(?:related|connected)$/i);
+  // P7/F8, "is Ellen connected to me?", "is she related to Captain James Cook?" (2026-10-14: needed the AI).
+  // Not "is she connected to the global tree" (a profile fact) or "related to anyone famous".
+  const isMatch = isRelativesPhrase ? null : relatedQuestion.match(/^(?:is|was)\s+(.+?)\s+(?:related|connected)\s+to\s+(.+)$/i);
+  if (isMatch?.[1] && isMatch?.[2] && !/^(?:any(?:one|body)|someone|somebody|famous)\b|^(?:the\s+)?(?:global|main|big|world)\s+(?:family\s+)?tree$|^wikitree$/i.test(isMatch[2].trim())) {
+    const source = cleanConnectionEndpoint(isMatch[1]);
+    const target = cleanConnectionEndpoint(isMatch[2]);
+    // "is she related to me?": the page's person ("this profile", as in "connection to me")
+    if (isSelfReferenceEndpoint(target)) return { source: "", target: /^(?:she|he|they|her|him|them)$/i.test(source) ? "this profile" : source };
+    return { source: isSelfReferenceEndpoint(source) ? "" : source, target };
+  }
+  // "are we related?": the user and the page's person
+  if (/^(?:how\s+)?are\s+we\s+(?:related|connected)$/i.test(relatedQuestion)) return { source: "", target: "this profile" };
+  const howAreMatch = isRelativesPhrase ? null : relatedQuestion.match(/^(?:how\s+)?(?:are|were)\s+(.+?)\s+and\s+(.+?)\s+(?:related|connected)$/i);
   if (howAreMatch?.[1] && howAreMatch?.[2]) {
     const source = cleanConnectionEndpoint(howAreMatch[1]);
     const target = cleanConnectionEndpoint(howAreMatch[2]);
@@ -1249,24 +1281,17 @@ function parseBrickWallPrompt(prompt) {
 // Age-at-death suffix on a kin list. "past/over/older than 90" = 91+, "to 90" /
 // "90 or more" / "90+" = 90+, "under/younger than 5" / "before age 5" = 0-4,
 // "died aged 42" = 42.
+const AGE_AT_DEATH_SUFFIX = new RegExp(
+  String.raw`^(.*?\b(?:ancestors?|descendants?|children|kids|sons|daughters|(?:great-)*grand(?:children|sons|daughters)))\s+(?:who\s+)?${AGE_AT_DEATH_WORDS}$`,
+  "i"
+);
 export function parseAgeAtDeathSuffix(text) {
   const match = String(text || "")
     .trim()
     .replace(/[.!?]+$/g, "")
-    .match(
-      /^(.*?\b(?:ancestors?|descendants?|children|kids|sons|daughters|(?:great-)*grand(?:children|sons|daughters)))\s+(?:who\s+)?(?:(?:lived|died|were)\s+)?(aged\s+|at\s+(?=\d))?(?:(past|beyond|over|above|older\s+than|more\s+than)|(to|to\s+at\s+least|at\s+least)|(under|below|younger\s+than|less\s+than|before\s+(?:the\s+)?age(?:\s+of)?)|(young|as\s+(?:children|infants|babies)))?\s*(?:age\s+|the\s+age\s+of\s+)?(\d{1,3})?(\s*\+|\s+or\s+(?:more|older|over))?(?:\s+years?(?:\s+old)?)?$/i
-    );
-  if (!match) return null;
-  const [, subject, aged, over, atLeast, under, young, numText, plus] = match;
-  const rest = subject.replace(/^(?:which|who)\s+of\s+/i, "");
-  const n = Number(numText);
-  if (young && !numText) return { rest, range: { max: 15 } };
-  if (!numText || !Number.isFinite(n) || n > 125) return null;
-  if (under) return { rest, range: { max: n - 1 } };
-  if (plus || atLeast) return { rest, range: { min: n } };
-  if (over) return { rest, range: { min: n + 1 } };
-  if (aged) return { rest, range: { min: n, max: n } };
-  return null;
+    .match(AGE_AT_DEATH_SUFFIX);
+  const range = match && ageAtDeathRange(match.slice(2));
+  return range ? { rest: match[1].replace(/^(?:which|who|how\s+many)\s+of\s+/i, ""), range } : null;
 }
 
 function parseAncestorListPrompt(prompt) {
@@ -1565,6 +1590,8 @@ function parseAncestorListPrompt(prompt) {
   return null;
 }
 
+const DESCENDANT_KIN_WORDS = String.raw`children|grandchildren|great[\s-]*(?:great[\s-]*)*grandchildren|descendants`;
+
 function parseDescendantListPrompt(prompt) {
   const normalized = String(prompt || "")
     .trim()
@@ -1581,6 +1608,28 @@ function parseDescendantListPrompt(prompt) {
     if (base) return { ...base, livingOnly: true };
   }
 
+  // No-AI batch 3 (2026-10-14): "did any of her children die young?" asks the
+  // "which of" list. Only when a filter is kept: "did any of my grandchildren
+  // marry?" listed every grandchild.
+  const anyOfMatch = normalized.match(/^(?:did|do|were|was|have|has|had)\s+any\s+of\s+(.+)$/i);
+  if (anyOfMatch) {
+    const asked = parseDescendantListPrompt(`which of ${anyOfMatch[1].replace(/\b(die|emigrate|immigrate|migrate|move|live)\b/i, "$1d")}`);
+    const kin = anyOfMatch[1].match(new RegExp(String.raw`^(.*?\b(?:${DESCENDANT_KIN_WORDS}))\b`, "i"))?.[1];
+    const filtered = asked && (asked.location || asked.dateField || asked.ageAtDeath || asked.emigrated);
+    return filtered ? { ...asked, subjectText: asked.subjectText || kin } : null;
+  }
+
+  // "which of her children emigrated?": born in one country, died in another (as the ancestors' C6).
+  const emigratedMatch = normalized.match(
+    new RegExp(
+      String.raw`^(?:(?:how\s+many|which|who)\s+of\s+|(?:list|show(?:\s+me)?)\s+)?(.*?\b(?:${DESCENDANT_KIN_WORDS}))\s+(?:(?:who|that)\s+)?(?:emigrated|immigrated|migrated|moved\s+(?:abroad|overseas|to\s+another\s+country))$`,
+      "i"
+    )
+  );
+  if (emigratedMatch) {
+    const base = parseDescendantListPrompt(emigratedMatch[1].trim());
+    return base && !base.location ? { ...base, emigrated: true, subjectText: base.subjectText || emigratedMatch[1].trim() } : null;
+  }
 
   // H5 (live, 2026-10-03): "how many of her grandchildren were born in New
   // Zealand?" listed every grandchild; the place was dropped.
@@ -1609,7 +1658,8 @@ function parseDescendantListPrompt(prompt) {
   const ageAtDeath = parseAgeAtDeathSuffix(normalized);
   if (ageAtDeath) {
     const base = parseDescendantListPrompt(ageAtDeath.rest);
-    if (base) return { ...base, ageAtDeath: ageAtDeath.range };
+    // (subjectText: "which of Ellen Cook's children died young" is Ellen's list, not the page person's)
+    if (base) return { ...base, ageAtDeath: ageAtDeath.range, subjectText: base.subjectText || ageAtDeath.rest };
   }
 
   const bornInBeforeMatch = normalized.match(
@@ -1981,6 +2031,21 @@ function parseLastResultPrompt(prompt, options = {}) {
   if (allowConversationalFollowups) {
     const resultPick = parseResultPickPrompt(promptForMatch);
     if (resultPick) return resultPick;
+    // "which of them married?", "which ones had children?", "which ones have no parents?" (2026-10-14)
+    const relativeFollowup = parseRelativeFollowup(promptForMatch);
+    if (relativeFollowup) return relativeFollowup;
+    const ageFilter = parseResultAgeFilter(promptForMatch);
+    if (ageFilter) return ageFilter;
+    // "what was the most common first name?", "which birth place is most common among them?" (L9, 2026-10-14)
+    const mostCommon =
+      promptForMatch.match(
+        /^(?:(?:what|which)\s+(?:was|is|were|are)\s+)?(?:the\s+)?most\s+(?:common|popular|frequent|usual)\s+(.+?)(?:\s+(?:among|of|in|for)\s+(?:them|those|these|the\s+results|this\s+list))?\??$/i
+      ) ||
+      promptForMatch.match(
+        /^(?:what|which)\s+(.+?)\s+(?:is|was|are|were)\s+(?:the\s+)?most\s+(?:common|popular|frequent|usual)(?:\s+(?:among|of|in|for)\s+(?:them|those|these|the\s+results|this\s+list))?\??$/i
+      );
+    const mostCommonField = mostCommon ? normalizeFieldName(mostCommon[1]) : "";
+    if (mostCommonField) return { action: "countBy", field: mostCommonField, top: true };
     const ofThem = promptForMatch.match(
       /^(?:how\s+many|which(?:\s+ones)?|who)\s+(?:of\s+(?:them|those|these)|among\s+them)\s+(?:(?:were|are|was)\s+)?(.+?)\??$/i
     );
@@ -2589,11 +2654,12 @@ export function parseAncestorPlacePrompt(text) {
   }
   m = t.match(
     new RegExp(
-      String.raw`^(?:(?:which|who)\s+of\s+${ANCESTOR_OWNER_RE}\s+ancestors\s+(?:emigrated|immigrated|migrated|moved\s+(?:abroad|overseas|to\s+another\s+country))|${ANCESTOR_OWNER_RE}\s+(?:emigrant|immigrant)\s+ancestors|${ANCESTOR_OWNER_RE}\s+ancestors\s+who\s+(?:emigrated|immigrated))$`,
+      String.raw`^(?:(?:which|who|how\s+many)\s+of\s+${ANCESTOR_OWNER_RE}\s+ancestors\s+(?:emigrated|immigrated|migrated|moved\s+(?:abroad|overseas|to\s+another\s+country))|${ANCESTOR_OWNER_RE}\s+(?:emigrant|immigrant)\s+ancestors|${ANCESTOR_OWNER_RE}\s+ancestors\s+who\s+(?:emigrated|immigrated)|(?:did|have|had)\s+any\s+of\s+${ANCESTOR_OWNER_RE}\s+ancestors\s+(?:emigrated?|immigrated?|migrated?|moved?\s+(?:abroad|overseas|to\s+another\s+country)))$`,
       "i"
     )
   );
-  if (m) return build(m[1] || m[2] || m[3], { emigrated: true });
+  // ("did any of my ancestors emigrate?": no-AI batch 3, 2026-10-14)
+  if (m) return build(m[1] || m[2] || m[3] || m[4], { emigrated: true });
   return null;
 }
 
@@ -2651,14 +2717,15 @@ export function parseLongestLivedPrompt(text) {
   const t = String(text || "")
     .trim()
     .replace(/[.!?]+$/g, "");
-  const LIVED = String.raw`(?:lived\s+(?:the\s+)?longest|lived\s+to\s+the\s+greatest\s+age|died\s+(?:the\s+)?oldest|reached\s+the\s+greatest\s+age|had\s+the\s+longest\s+life)`;
+  // N3, "which of her ancestors died youngest?" (2026-10-14): the same list, shortest life first
+  const LIVED = String.raw`(?:lived\s+(?:the\s+)?longest|lived\s+to\s+the\s+greatest\s+age|died\s+(?:the\s+)?oldest|reached\s+the\s+greatest\s+age|had\s+the\s+longest\s+life|died\s+(?:the\s+)?youngest|had\s+the\s+shortest\s+life|lived\s+(?:the\s+)?shortest(?:\s+(?:life|time))?)`;
   const SCOPE = String.raw`(?:(?:family\s+)?tree|family|ancestors|ancestry)`;
   const patterns = [
     // "who in my tree lived the longest", "which of my ancestors lived longest"
     new RegExp(String.raw`^(?:who|which(?:\s+(?:person|one|ancestor))?)\s+(?:in|of|among)\s+${ANCESTOR_OWNER_RE}\s+(${SCOPE})\s+${LIVED}$`, "i"),
     // "my longest-lived ancestor", "who is the longest lived person in my tree"
-    new RegExp(String.raw`^(?:(?:who\s+(?:is|was)|show(?:\s+me)?|find)\s+)?${ANCESTOR_OWNER_RE}\s+()longest[\s-]+lived\s+(?:known\s+)?ancestor$`, "i"),
-    new RegExp(String.raw`^(?:who\s+(?:is|was)\s+)?the\s+(?:longest[\s-]+lived|oldest)\s+(?:person|ancestor|one)\s+(?:in|of|among)\s+${ANCESTOR_OWNER_RE}\s+(${SCOPE})$`, "i"),
+    new RegExp(String.raw`^(?:(?:who\s+(?:is|was)|show(?:\s+me)?|find)\s+)?${ANCESTOR_OWNER_RE}\s+()(?:longest|shortest)[\s-]+lived\s+(?:known\s+)?ancestor$`, "i"),
+    new RegExp(String.raw`^(?:who\s+(?:is|was)\s+)?the\s+(?:longest[\s-]+lived|shortest[\s-]+lived|oldest)\s+(?:person|ancestor|one)\s+(?:in|of|among)\s+${ANCESTOR_OWNER_RE}\s+(${SCOPE})$`, "i"),
   ];
   for (const re of patterns) {
     const m = t.match(re);
@@ -2669,7 +2736,7 @@ export function parseLongestLivedPrompt(text) {
     return {
       ...base,
       generation: MAX_ANCESTOR_GENERATIONS,
-      pick: "longest",
+      pick: /youngest|shortest/i.test(m[0]) ? "shortest" : "longest",
       treeTakenAsAncestors: /tree|family/i.test(m[2] || ""),
       subjectText: `${owner} ancestors`,
     };

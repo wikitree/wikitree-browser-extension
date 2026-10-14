@@ -103,7 +103,6 @@ describe("chat_profile_search query guards", () => {
       "Kentucky in the template",
       "people who died in the 1918 flu in Kent",
       "unbelegte Profile in Bayern",
-      "people with the surname Alley born in Nelson",
       "…",
       "(count)",
     ];
@@ -113,6 +112,10 @@ describe("chat_profile_search query guards", () => {
       if (wtAPIProfileSearch.mock.calls.length) throw new Error(`ran: ${prompt} -> ${decodeURIComponent(wtAPIProfileSearch.mock.calls[0][1])}`);
       expect(result).toBeTruthy(); // (Genie answers, with the form or the "needs AI" message, but runs nothing)
     }
+    // (it was here when the general parser read AllLastNames=Ellen; the reader reads "with the surname", 2026-10-14)
+    wtAPIProfileSearch.mockClear();
+    await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "people with the surname Alley born in Nelson");
+    expect(decodeURIComponent(wtAPIProfileSearch.mock.calls[0]?.[1] || "")).toContain("AllLastNames=Alley BirthLocation=Nelson");
   });
 
   // A place with status words and dates runs as the place; the reply offers the surname instead (Ohio and

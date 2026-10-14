@@ -4994,9 +4994,12 @@ export function createProfileSearchHandler({
     const specParsed = parseSearchSpecPrompt(normalizedText);
     // ("profiles I manage": the signed-in user; nobody signed in, nothing to search)
     const specManager = specParsed?.spec?.manager === "me" ? String(getUserWtId() || "").trim() : specParsed?.spec?.manager;
-    if (specParsed && specManager !== "") {
+    // ("profiles I created" the same way, 2026-10-14)
+    const specCreator = specParsed?.spec?.creator === "me" ? String(getUserWtId() || "").trim() : specParsed?.spec?.creator;
+    if (specParsed && specManager !== "" && specCreator !== "") {
       const managedByMe = specParsed.spec.manager === "me";
       if (specManager) specParsed.spec.manager = specManager;
+      if (specCreator) specParsed.spec.creator = specCreator;
       const compiledSpec = compileSearchSpec(specParsed.spec, {});
       if (compiledSpec.query && !compiledSpec.errors.length && !compiledSpec.routePrompt) {
         return {

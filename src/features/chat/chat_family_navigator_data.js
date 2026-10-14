@@ -9,14 +9,18 @@ import { yearOf } from "./chat_text_utils";
 /**
  * Card sizes at scale 1 (photo beside the words, so five generations fit on a screen at a size
  * that reads): the person (xl), husbands, wives and parents (l), brothers, sisters and children
- * (m), grandparents (s), and a grandchild's one-line chip.
+ * (m), grandparents (s), great-grandparents (xs), a grandchild's one-line chip, and the tags that
+ * say someone's parents are recorded (tag; nub, the small one over a great-grandparent).
  */
 export const NAV_SIZES = {
-  xl: { w: 340, h: 150, font: 16, photo: 116 },
+  xl: { w: 380, h: 182, font: 16, photo: 104 },
   l: { w: 232, h: 92, font: 14, photo: 66 },
   m: { w: 200, h: 78, font: 13, photo: 52 },
   s: { w: 178, h: 62, font: 12, photo: 40 },
   chip: { w: 152, h: 38, font: 12, photo: 28 },
+  xs: { w: 92, h: 34, font: 10.5, photo: 18 },
+  tag: { w: 100, h: 24, font: 11, photo: 0 },
+  nub: { w: 28, h: 16, font: 10, photo: 0 },
 };
 
 const GAP = 20; // between cards in a row
@@ -28,6 +32,9 @@ const SIBLINGS_IN_ONE_ROW = 4; // (more go in two rows)
 const WRAP_ROWS = [-44, 44]; // the two rows' middles (clear of the parents' and children's rows)
 const WRAP_COL_GAP = 30; // between columns then (room for the line down to the second row)
 const PARENT_SPREAD = 214; // each parent from the middle (room for both pairs of grandparents)
+const TAG_STEM = 16; // the line from a card at the top up to its "Parents" tag
+const GREAT_STEM = 22; // between a grandparent and their parents' small cards
+const GREAT_GAP = 6; // between a grandparent's two parents (no room for a ring)
 
 const byBirth = (a, b) => (a.birth || "9999").localeCompare(b.birth || "9999") || a.id - b.id;
 
@@ -38,6 +45,7 @@ function roleWord(kind, person) {
   const words = {
     parent: ["Father", "Mother", "Parent"],
     grandparent: ["Grandfather", "Grandmother", "Grandparent"],
+    greatGrandparent: ["Great-grandfather", "Great-grandmother", "Great-grandparent"],
     sibling: ["Brother", "Sister", "Sibling"],
     half: ["Half-brother", "Half-sister", "Half-sibling"],
     spouse: ["Husband", "Wife", "Spouse"],
@@ -106,6 +114,8 @@ export function familyAround(people, id) {
     father,
     mother,
     grandparents: { father: parentsOf(father), mother: parentsOf(mother) },
+    // (grandparent Id → their [father, mother], as far as they're loaded)
+    greatGrandparents: new Map([...parentsOf(father), ...parentsOf(mother)].filter(Boolean).map((gp) => [gp.id, parentsOf(gp)])),
     older,
     younger,
     spouses,
@@ -132,9 +142,9 @@ export function familyLoaded(world, id) {
 
 /**
  * Where everyone goes, the person at (0, 0): {cards: [{key, person, role, size, x, y, w, h, anchor,
- * centre?, placeholder?, more?}], links: [{key, kind: "curve"|"line", x1, y1, x2, y2, faint?}],
+ * centre?, placeholder?, more?, up?}], links: [{key, kind: "curve"|"line", x1, y1, x2, y2, faint?}],
  * rings: [{key, x, y, year}]}. x and y are a card's middle. anchor: the key of the card a new card
- * grows out of.
+ * grows out of. A card with `up` (a person) is the tag above them saying their parents are recorded.
  */
 export function navigatorLayout(family) {
   const cards = [];
@@ -256,6 +266,37 @@ export function navigatorLayout(family) {
     line("bus-siblings", Math.min(...xs), busY, Math.max(...xs), busY);
   }
 
+  // The people at the top: a tag above anyone whose parents are recorded (user, 2026-10-14: "an
+  // indication of more"). Everyone comes with their Father and Mother IDs, loaded or not (a private
+  // parent's is negative). Clicking it moves to them, which brings their parents in.
+  const tagParentsAbove = (card, size = "tag") => {
+    const person = card.person;
+    if (!person || person.hidden || person.stub || (!person.fatherId && !person.motherId)) return;
+    const tag = NAV_SIZES[size];
+    const y = top(card) - (size === "nub" ? TAG_STEM / 2 : TAG_STEM) - tag.h / 2;
+    const word = person.fatherId && person.motherId ? "Parents" : person.fatherId ? "Father" : "Mother";
+    add(null, "", size, card.x, y, card.key, { key: `up-${card.key}`, up: person, upWord: word });
+    line(`up-${card.key}`, card.x, top(card), card.x, y + tag.h / 2);
+  };
+  // A grandparent's parents, when they're loaded (user, 2026-10-14: "If we do have the parents'
+  // information … show their cards quite small at the top"), each with a nub when their parents are
+  // recorded; otherwise the grandparent's tag.
+  const xs = NAV_SIZES.xs;
+  const greatGrandparentsAbove = (gpCard) => {
+    const gp = gpCard.person;
+    const pair = gp.hidden ? [] : family.greatGrandparents?.get(gp.id) || [];
+    if (!pair.some(Boolean)) return tagParentsAbove(gpCard);
+    const y = top(gpCard) - GREAT_STEM - xs.h / 2;
+    const bothRecorded = gp.fatherId && gp.motherId;
+    pair.forEach((gg, side) => {
+      if (!gg) return;
+      const x = bothRecorded ? gpCard.x + (side ? 1 : -1) * ((xs.w + GREAT_GAP) / 2) : gpCard.x;
+      const card = add(gg, roleWord("greatGrandparent", gg), "xs", x, y, gpCard.key);
+      curve(`gg-${card.key}`, card.x, bottom(card), gpCard.x, top(gpCard));
+      tagParentsAbove(card, "nub");
+    });
+  };
+
   const s = NAV_SIZES.s;
   [
     [fatherCard, family.grandparents.father],
@@ -269,6 +310,9 @@ export function navigatorLayout(family) {
     const gpCards = placed.map((gp, i) => add(gp, roleWord("grandparent", gp), "s", x0 + i * (s.w + gap), ROW.grand, parentCard.key));
     const from = gpCards.length === 2 ? couple(`gp-${parentCard.key}`, gpCards[0], gpCards[1], "") : gpCards[0] ? descentFrom(gpCards[0]) : null;
     if (from) curve(`d-${parentCard.key}`, from.x, from.y, parentCard.x, top(parentCard));
+    // (a parent whose own parents aren't here yet gets the tag instead)
+    if (gpCards.length) gpCards.forEach(greatGrandparentsAbove);
+    else tagParentsAbove(parentCard);
   });
 
   // Children below, each family's under its couple; grandchildren listed under each child.

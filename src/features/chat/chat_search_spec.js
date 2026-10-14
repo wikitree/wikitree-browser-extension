@@ -358,6 +358,11 @@ function compileSingleSearchSpec(search, context) {
     terms.push(`${field}=${quoteWtPlusSpecValue(category.name)}`);
   }
   if (search.createdYear) terms.push(`Created=Created_${search.createdYear}`);
+  // ("profiles I created": the caller puts in the user's ID for "me", 2026-10-14)
+  if (search.creator) {
+    if (/^[A-Za-z][A-Za-z0-9_'-]*-\d+$/.test(String(search.creator))) terms.push(`Created=Creator_${search.creator}`);
+    else errors.push(`bad creator: ${JSON.stringify(search.creator)}`);
+  }
   if (search.templateText) terms.push(`TemplateText=${quoteWtPlusSpecValue(search.templateText)}`);
   if (search.manager) terms.push(`Manager=${quoteWtPlusSpecValue(search.manager)}`);
   if (search.managedOnlyBy) {
@@ -581,6 +586,7 @@ export function buildSearchSpecInstructions({
     '- categories: [{"name":"...","match":"full|word"}] — full = exact category name, word = any category containing the word.',
     '- templateText: "text found inside templates on the profile".',
     '- manager: "manager WikiTree ID or project name"; managedOnlyBy: same, when it must be the ONLY manager.',
+    '- creator: "WikiTree ID of the member who created the profile" (the user\'s own ID for "profiles I created"); enough on its own.',
     '- haplogroup: {"y":"R-M269"} or {"mt":"H1a"}.',
     '- deathAge: N (died aged exactly N), or {min, max} for a range ("lived past 90" = {min: 91}, "died under 5" = {max: 4}). findAGraveCemetery: N (Find a Grave cemetery ID).',
     '- parentStatus: [{"parent":"father"|"mother","status":"uncertain"|"nonBiological"|"certain"|"dnaConfirmed"}] — the relationship status set on the profile ("uncertain fathers" = father uncertain; "DNA-confirmed mothers" = mother dnaConfirmed).',

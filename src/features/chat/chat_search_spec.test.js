@@ -214,3 +214,15 @@ describe("created years", () => {
     expect(compileSearchSpec({ created: { from: 1990, to: 1995 } }).errors.length).toBe(1);
   });
 });
+
+describe("creator", () => {
+  test("an ID becomes Created=Creator_ID, beside a creation year too", () => {
+    expect(compileSearchSpec({ creator: "Beacall-6" })).toEqual({ query: "Created=Creator_Beacall-6", routePrompt: "", errors: [] });
+    expect(compileSearchSpec({ creator: "Beacall-6", created: { years: [2023] } }).query).toBe(
+      "Created=Created_2023 Created=Creator_Beacall-6"
+    );
+  });
+  test("an unresolved 'me' never runs", () => {
+    expect(compileSearchSpec({ creator: "me" }).errors).toContain('bad creator: "me"');
+  });
+});

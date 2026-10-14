@@ -481,7 +481,7 @@ export function createChatHistoryHandlers({
     }
     if (actionType === "Connections" || actionEntry.label === "Connections") {
       return {
-        label: "Connections",
+        label: actionEntry.label || "Connections",
         actionType: "Connections",
         onClick: () => toggleConnectionsPopup(),
       };

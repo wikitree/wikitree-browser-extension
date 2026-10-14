@@ -74,6 +74,77 @@ describe("Family view: who is round someone (user, 2026-10-11: 'Let's do all thr
     expect(layoutBounds(layout).y0).toBeLessThan(-300);
   });
 
+  // User, 2026-10-14: "an indication of more … that the people at the top have parents in the system".
+  test("a tag above anyone at the top whose parents are recorded, loaded or not", () => {
+    const people = world();
+    people.get(20).fatherId = 50; // (George's father, not loaded)
+    people.get(20).motherId = 51;
+    people.get(22).motherId = -3; // (Abel's mother, private)
+    const layout = navigatorLayout(familyAround(people, 1));
+    const tags = layout.cards.filter((card) => card.up);
+    expect(tags.map((card) => [card.up.name, card.upWord])).toEqual([
+      ["George", "Parents"],
+      ["Abel", "Mother"],
+    ]);
+    const george = cardOf(layout, "George");
+    expect(tags[0]).toMatchObject({ x: george.x, size: "tag", anchor: george.key });
+    expect(tags[0].y + tags[0].h / 2).toBeLessThan(george.y - george.h / 2);
+    expect(layout.links.find((link) => link.key === `up-${george.key}`)).toMatchObject({ x1: george.x, y1: george.y - george.h / 2, y2: tags[0].y + tags[0].h / 2 });
+    for (let i = 0; i < layout.cards.length; i += 1) {
+      for (let j = i + 1; j < layout.cards.length; j += 1) expect(overlaps(layout.cards[i], layout.cards[j])).toBe(false);
+    }
+  });
+
+  test("a parent whose parents aren't loaded yet gets the tag; no one without parents recorded does", () => {
+    const people = world();
+    [20, 21, 22].forEach((id) => people.delete(id));
+    const layout = navigatorLayout(familyAround(people, 1));
+    expect(layout.cards.filter((card) => card.up).map((card) => [card.up.name, card.upWord])).toEqual([
+      ["John", "Parents"],
+      ["Annie", "Father"],
+    ]);
+    expect(navigatorLayout(familyAround(world(), 1)).cards.some((card) => card.up)).toBe(false);
+  });
+
+  // User, 2026-10-14: "If we do have the parents' information, I guess we can show their cards quite small at the top?"
+  test("loaded great-grandparents: small cards over their child, a nub over any with parents recorded", () => {
+    const people = world();
+    people.get(11).motherId = 23;
+    people.set(23, P(23, "Grace", { gender: "Female" }));
+    [20, 21, 22, 23].forEach((gp, i) => {
+      const [dad, mum] = [50 + i * 2, 51 + i * 2];
+      people.get(gp).fatherId = dad;
+      people.get(gp).motherId = mum;
+      people.set(dad, P(dad, `Dad of ${gp}`, { gender: "Male", fatherId: i === 0 ? 90 : 0 }));
+      people.set(mum, P(mum, `Mum of ${gp}`, { gender: "Female" }));
+    });
+    const layout = navigatorLayout(familyAround(people, 1));
+    const greats = layout.cards.filter((card) => card.size === "xs");
+    expect(greats.map((card) => card.person.name)).toEqual(["Dad of 20", "Mum of 20", "Dad of 21", "Mum of 21", "Dad of 22", "Mum of 22", "Dad of 23", "Mum of 23"]);
+    expect(roles(layout)).toMatchObject({ "Dad of 20": "Great-grandfather", "Mum of 23": "Great-grandmother" });
+    const george = cardOf(layout, "George");
+    const [dad, mum] = [cardOf(layout, "Dad of 20"), cardOf(layout, "Mum of 20")];
+    expect(dad.x).toBeLessThan(george.x);
+    expect(mum.x).toBeGreaterThan(george.x);
+    expect(dad.y + dad.h / 2).toBeLessThan(george.y - george.h / 2);
+    expect(layout.links.find((link) => link.key === `gg-${dad.key}`)).toMatchObject({ x2: george.x, y2: george.y - george.h / 2 });
+    // (no "Parents" tags over the grandparents now; one nub, over the great-grandfather with a father recorded)
+    expect(layout.cards.filter((card) => card.up).map((card) => [card.size, card.up.name, card.upWord])).toEqual([["nub", "Dad of 20", "Father"]]);
+    for (let i = 0; i < layout.cards.length; i += 1) {
+      for (let j = i + 1; j < layout.cards.length; j += 1) {
+        expect([layout.cards[i].key, layout.cards[j].key, overlaps(layout.cards[i], layout.cards[j])]).toEqual([layout.cards[i].key, layout.cards[j].key, false]);
+      }
+    }
+  });
+
+  test("one great-grandparent loaded of one recorded: over the middle of their child", () => {
+    const people = world();
+    people.get(22).motherId = 52;
+    people.set(52, P(52, "Ida", { gender: "Female" }));
+    const layout = navigatorLayout(familyAround(people, 1));
+    expect(cardOf(layout, "Ida")).toMatchObject({ size: "xs", x: cardOf(layout, "Abel").x });
+  });
+
   test("grandchildren listed under their parent: three, then '+3 more'", () => {
     const layout = navigatorLayout(familyAround(world(), 1));
     const chips = layout.cards.filter((card) => card.size === "chip");

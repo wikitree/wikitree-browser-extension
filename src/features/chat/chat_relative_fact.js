@@ -5,6 +5,7 @@
 import { partialDateSortKey as birthKey } from "./chat_dates";
 import { formatPreviewDate } from "./chat_preview_format";
 import { ageAtDeath } from "./chat_result_pick";
+import { ordinal } from "./chat_text_utils";
 
 const RELATION = String.raw`(grandmothers?|grandfathers?|grandparents?|grandsons?|granddaughters?|grandchildren|grandchild|mother|father|parents?|husbands?|wife|wives|spouses?|sons?|daughters?|children|child|brothers?|sisters?|siblings?)`;
 const OWNER = String.raw`(her|his|their|my|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))`;
@@ -124,6 +125,12 @@ const SELF_PATTERNS = [
     re: new RegExp(String.raw`^(when|where|when\s+and\s+where)\s+(?:was|were|did)\s+${SELF_SUBJECT}\s+(born|die)$`, "i"),
     owner: (m) => m[2],
     fact: (m) => (/^born$/i.test(m[3]) ? (/^where$/i.test(m[1]) ? "birthPlace" : "birth") : /^where$/i.test(m[1]) ? "deathPlace" : "death"),
+  },
+  // I5, "what century was she born in?" (2026-10-14: needed the AI)
+  {
+    re: new RegExp(String.raw`^(?:in\s+)?(?:what|which)\s+century\s+(?:was|were|did)\s+${SELF_SUBJECT}\s+(born|die)(?:\s+in)?$`, "i"),
+    owner: (m) => m[1],
+    fact: (m) => (/^born$/i.test(m[2]) ? "birthCentury" : "deathCentury"),
   },
   {
     re: /^(?:what\s+(?:was|is)\s+)?(her|his|their|my|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s)|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.]*){0,3}(?:'s|’s))\s+(maiden\s+name|birth\s+(?:sur)?name|surname\s+at\s+birth|last\s+name\s+at\s+birth)$/i,
@@ -287,6 +294,8 @@ const FACT_LABELS = {
   deathPlace: "death place",
   name: "name",
   dates: "dates",
+  birthCentury: "birth year",
+  deathCentury: "death year",
 };
 
 function factValue(person, fact) {
@@ -303,6 +312,11 @@ function factValue(person, fact) {
     const died = factValue(person, "death");
     return [born ? `was born ${born}` : "", died ? `died ${died}` : ""].filter(Boolean).join(" and ");
   }
+  if (fact === "birthCentury" || fact === "deathCentury") {
+    // "the 19th century" is 1800–1899, as in the searches ("1800s century")
+    const year = Number(String((fact === "birthCentury" ? person?.BirthDate : person?.DeathDate) || "").slice(0, 4));
+    return year ? `the ${ordinal(Math.floor(year / 100) + 1)} century (${year})` : "";
+  }
   if (fact === "birthPlace") return String(person?.BirthLocation || "").trim();
   if (fact === "deathPlace") return String(person?.DeathLocation || "").trim();
   return "";
@@ -318,7 +332,7 @@ export function buildRelativeFactAnswer(people, fact, labelOf) {
   const lines = people.map((person) => {
     const value = factValue(person, fact);
     // "Martha … was born in Wrockwardine", not "Martha …: birth place Wrockwardine" (2026-10-04).
-    const verb = { birth: "was born", death: "died", birthPlace: "was born in", deathPlace: "died in", dates: "" }[fact] ?? "";
+    const verb = { birth: "was born", death: "died", birthPlace: "was born in", deathPlace: "died in", birthCentury: "was born in", deathCentury: "died in", dates: "" }[fact] ?? "";
     if (fact === "dates") return value ? `${labelOf(person)} ${value}` : `${labelOf(person)}: no dates recorded`;
     if (!value) return `${labelOf(person)}: no ${label} recorded`;
     return verb ? `${labelOf(person)} ${verb} ${value}` : `${labelOf(person)}: ${label} ${value}`;

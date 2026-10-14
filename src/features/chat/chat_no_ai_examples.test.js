@@ -16,6 +16,7 @@ import { NO_AI_EXAMPLE_SECTIONS, allNoAiExamples, isHelpPrompt, noAiExamplesHtml
 import { parseSearchSpecPrompt } from "./chat_spec_parser";
 import { parseColumnRequest } from "./chat_requested_columns";
 import { parseExportResultPrompt } from "./chat_router";
+import { answerWikiTreeHelpQuestion } from "./chat_wikitree_help";
 
 
 function makeHandler(overrides = {}) {
@@ -83,6 +84,12 @@ const WTPLUS_QUERIES = {
   "Devon births post-1850": "BirthLocation=Devon",
   "born in Ohio died in Texas 1900-1950": "BirthLocation=Ohio DeathLocation=Texas",
   "Who was born in Devon in 1820?": "BirthLocation=Devon B1820",
+  "Who else died in Motueka in 1898?": "DeathLocation=Motueka D1898",
+  "How many profiles have the surname Alley?": "AllLastNames=Alley",
+  "How many people were born in Kent in 1820?": "BirthLocation=Kent B1820",
+  "people with the surname Alley born in Nelson": "AllLastNames=Alley BirthLocation=Nelson",
+  "How many profiles have I created?": "Created=Creator_User-1",
+  "profiles I created in 2023": "Created=Created_2023 Created=Creator_User-1",
   "born before 1750 in Devon": "[Birth Date].AsNumber In 1..17499999",
   "died after 1900 in Liverpool": "[Death Date].AsNumber >= 19010000",
   "Cheshire profiles with no biography": "Suggestions=802",
@@ -130,15 +137,18 @@ const WTPLUS_QUERIES = {
   "Category: Pennsylvania Quakers died before 1800": "CategoryFull=Pennsylvania_Quakers sql=",
 };
 
-async function wtPlusQuery(prompt) {
-  const target = await classifyWtPrompt({
+const UNCLAIMED = [ChatIntent.FALLBACK_AI, ChatIntent.PROFILE_SEARCH];
+
+/** What chat_search_mode does with the prompt when there is no AI key. */
+const classifyWithoutKey = (prompt) =>
+  classifyWtPrompt({
     prompt,
     getChatAiConfig: async () => ({ key: "" }),
-    isUnclaimed: (text) =>
-      [ChatIntent.FALLBACK_AI, ChatIntent.PROFILE_SEARCH].includes(
-        routeChatPrompt(text, { hasStructuredResult: false })?.intent
-      ),
+    isUnclaimed: (text) => UNCLAIMED.includes(routeChatPrompt(text, { hasStructuredResult: false })?.intent),
   });
+
+async function wtPlusQuery(prompt) {
+  const target = await classifyWithoutKey(prompt);
   // (these look like questions about your own family to the router; chat_search_mode runs the reader for them with no key)
   const readerFirst = /\bemigrants\b/i.test(prompt) && Boolean(parseSearchSpecPrompt(prompt));
   if (target !== "wtplus" && !readerFirst) return `(${target})`;
@@ -177,10 +187,18 @@ describe("no-AI examples", () => {
   });
 
   const handledByRouter = allNoAiExamples()
-    .filter((e) => !["search", "columns", "followups"].includes(e.section))
+    .filter((e) => !["search", "columns", "followups", "wikitree"].includes(e.section))
     .map((e) => [e.section, e.example]);
   test.each(handledByRouter)("%s: %s", (section, prompt) => {
     expect(DETERMINISTIC.has(routeChatPrompt(prompt, { hasStructuredResult: false })?.intent)).toBe(true);
+  });
+
+  // (with no key a question ends in chat.js showNeedsAiKey, which tries WikiTree's help first;
+  // these must answer even when the FAQ pages can't be fetched)
+  test.each(bySection("wikitree"))("WikiTree question: %s", async (prompt) => {
+    expect(UNCLAIMED).toContain(routeChatPrompt(prompt, { hasStructuredResult: false })?.intent);
+    expect(await classifyWithoutKey(prompt)).toBe("needsAi");
+    expect((await answerWikiTreeHelpQuestion(prompt, { fetchPage: async () => "" }))?.text).toMatch(/wikitree\.com\/wiki\/(?:Help|Space):/);
   });
 
   test("wiki text has a table per section and escapes brackets", () => {

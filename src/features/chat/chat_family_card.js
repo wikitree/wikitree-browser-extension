@@ -4,7 +4,7 @@
 // fetching someone's family when their card opens and it isn't all loaded. Each view styles the classes
 // `${prefix}-facts`, `${prefix}-kids`, `${prefix}-who` and `${prefix}-loading` itself.
 
-import { cardFacts } from "./chat_family_card_data";
+import { agedText, cardFacts } from "./chat_family_card_data";
 import { escapeText, fullName, lifeYears, photoUrl, profileUrl, siteUrl } from "./chat_chart_common";
 
 /**
@@ -46,7 +46,7 @@ export function familyFactsHtml(people, id, { prefix, pickOf = () => "", pickTit
     if (pick) return `<button type="button" class="${prefix}-who" data-pick="${escapeText(pick)}" title="${escapeText(pickTitle)}">${escapeText(fullName(person))}</button>${after}`;
     return `${person.wtid ? link(person.wtid, fullName(person)) : escapeText(fullName(person))}${after}`;
   };
-  const age = facts.age ? `, aged ${facts.age.about ? "about " : ""}${facts.age.years}` : "";
+  const age = facts.age ? `, ${agedText(facts.age)}` : "";
   const event = (label, { date, place }, extra = "") => (date || place ? `<div><b>${label}</b>${escapeText(date)}${place ? `${date ? " in " : ""}${escapeText(place)}` : ""}${extra}</div>` : "");
   const privateNote = (count, others) => (count ? ` <small>(${others ? "and " : ""}${count} private)</small>` : "");
   const rows = [event("Born", facts.born), event("Died", facts.died, age)];

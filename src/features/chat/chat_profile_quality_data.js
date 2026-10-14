@@ -38,6 +38,26 @@ export const QUALITY_ITEMS = [
 ];
 const LABELS = Object.fromEntries(QUALITY_ITEMS.map((item) => [item.key, item.label]));
 
+// Each status indicator and the fact it is for. A missing fact has no status either, so it
+// counts twice in the score, but only the fact is named as missing (adding it means setting
+// its status too).
+const STATUS_OF = {
+  birthDateStatus: "birthDate",
+  birthPlaceStatus: "birthPlace",
+  fatherStatus: "father",
+  motherStatus: "mother",
+  marriageStatus: "marriages",
+  deathDateStatus: "deathDate",
+  deathPlaceStatus: "deathPlace",
+};
+
+/** The checklist keys still to do, leaving out statuses that are only missing because their fact is. */
+function gapKeys(items) {
+  return QUALITY_ITEMS.map((item) => item.key).filter(
+    (key) => key in items && items[key] < 1 && !(STATUS_OF[key] && items[key] >= items[STATUS_OF[key]])
+  );
+}
+
 const hasDate = (value) => /^\d{4}/.test(String(value || "")) && !/^0000/.test(String(value));
 const hasText = (value) => !!String(value || "").trim();
 const statusSet = (value) => value !== undefined && value !== null && String(value) !== "" && String(value) !== "0";
@@ -52,7 +72,7 @@ export function citationCount(bio) {
  * NoChildren, ResearchStatus, IsLiving and, for sources, Bio): {score 0–1, items:
  * {key: 0–1}, missing: [labels], researchStatus, gold}. Items that don't apply (death
  * facts for the living, marriages with no spouse, sources when the bio wasn't asked
- * for) are left out.
+ * for) are left out; a missing fact's status counts as missing too.
  */
 export function profileQuality(person) {
   const status = person?.DataStatus || {};
@@ -60,14 +80,15 @@ export function profileQuality(person) {
   const set = (key, value) => {
     items[key] = value === true ? 1 : value === false ? 0 : Math.max(0, Math.min(1, value));
   };
-  set("birthDate", hasDate(person?.BirthDate));
-  if (hasDate(person?.BirthDate)) set("birthDateStatus", statusSet(status.BirthDate));
-  set("birthPlace", hasText(person?.BirthLocation));
-  if (hasText(person?.BirthLocation)) set("birthPlaceStatus", statusSet(status.BirthLocation));
-  set("father", Number(person?.Father) > 0);
-  if (Number(person?.Father) > 0) set("fatherStatus", statusSet(status.Father));
-  set("mother", Number(person?.Mother) > 0);
-  if (Number(person?.Mother) > 0) set("motherStatus", statusSet(status.Mother));
+  // A fact and its status indicator; with no fact, there is no status to count.
+  const fact = (key, present, statusValue) => {
+    set(key, present);
+    set(`${key}Status`, present && statusSet(statusValue));
+  };
+  fact("birthDate", hasDate(person?.BirthDate), status.BirthDate);
+  fact("birthPlace", hasText(person?.BirthLocation), status.BirthLocation);
+  fact("father", Number(person?.Father) > 0, status.Father);
+  fact("mother", Number(person?.Mother) > 0, status.Mother);
   const spouses = Array.isArray(person?.Spouses) ? person.Spouses : Object.values(person?.Spouses || {});
   if (spouses.length) {
     const marriage = (spouse) => (hasDate(spouse?.MarriageDate || spouse?.marriage_date) ? 0.5 : 0) + (hasText(spouse?.MarriageLocation || spouse?.marriage_location) ? 0.5 : 0);
@@ -83,10 +104,8 @@ export function profileQuality(person) {
   set("noMoreSpouses", String(status.Spouse || "") === "blank");
   set("noMoreChildren", Number(person?.NoChildren) === 1);
   if (Number(person?.IsLiving) !== 1) {
-    set("deathDate", hasDate(person?.DeathDate));
-    if (hasDate(person?.DeathDate)) set("deathDateStatus", statusSet(status.DeathDate));
-    set("deathPlace", hasText(person?.DeathLocation));
-    if (hasText(person?.DeathLocation)) set("deathPlaceStatus", statusSet(status.DeathLocation));
+    fact("deathDate", hasDate(person?.DeathDate), status.DeathDate);
+    fact("deathPlace", hasText(person?.DeathLocation), status.DeathLocation);
   }
   const bio = person?.Bio ?? person?.bio;
   if (bio !== undefined && bio !== null) {
@@ -98,7 +117,7 @@ export function profileQuality(person) {
   const gold = researchStatus === 60;
   const keys = Object.keys(items);
   const score = gold ? 1 : keys.length ? keys.reduce((sum, key) => sum + items[key], 0) / keys.length : 0;
-  const missing = gold ? [] : QUALITY_ITEMS.filter((item) => item.key in items && items[item.key] < 1).map((item) => item.label);
+  const missing = gold ? [] : gapKeys(items).map((key) => LABELS[key]);
   return { score, items, missing, researchStatus, gold };
 }
 
@@ -131,11 +150,9 @@ export function buildQualitySummary(people, ownerText) {
     lines.push(`Research status: ${order.filter((label) => byStatus.has(label)).map((label) => `${byStatus.get(label)} ${label}`).join(", ")}.`);
   } else lines.push("None has a Research Status set yet.");
   const gaps = new Map();
-  scored.forEach((p) =>
-    Object.entries(p.quality.items).forEach(([key, value]) => {
-      if (value < 1 && !p.quality.gold) gaps.set(key, (gaps.get(key) || 0) + 1);
-    })
-  );
+  scored.forEach((p) => {
+    if (!p.quality.gold) gapKeys(p.quality.items).forEach((key) => gaps.set(key, (gaps.get(key) || 0) + 1));
+  });
   const commonest = [...gaps.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
   if (commonest.length) lines.push(`The commonest gaps: ${commonest.map(([key, count]) => `${LABELS[key]} (${count})`).join(", ")}.`);
   const nearest = scored

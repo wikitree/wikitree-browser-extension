@@ -3,6 +3,7 @@
 // bio handler read "profile" as a bio request and showed a husband's biography).
 
 import { linesWithMore } from "./chat_more_text";
+import { promptTarget } from "./chat_text_utils";
 
 const SUBJECT = String.raw`(this\s+(?:profile|page|person)|the\s+profile(?:\s+person)?|(?:his|her|their)\s+(?:profile|page)|he|she|they|him|her|them|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
 const SOURCES = String.raw`(?:sources?|citations?|references?)`;
@@ -16,6 +17,13 @@ const SOURCES_PROMPT_RES = [
   // "list her sources", "show me Cook-8721's sources", "what are her sources"
   new RegExp(String.raw`^(?:what\s+are|list|show(?:\s+me)?|give\s+me)\s+(his|her|their|[A-Z][A-Za-z'_ -]*?-\d+(?:'s|’s))\s+${SOURCES}$`, "i"),
 ];
+// Q7, yes/no (2026-10-14: needed the AI): "is she sourced?", "is this profile unsourced?",
+// "does she have any sources?", "are there sources on Cook-8721?"
+const SOURCED_PROMPT_RES = [
+  new RegExp(String.raw`^(?:is|was)\s+${SUBJECT}\s+((?:un-?)?sourced)$`, "i"),
+  new RegExp(String.raw`^(?:does|do|did)\s+${SUBJECT}\s+have\s+(?:any\s+)?${SOURCES}()$`, "i"),
+  new RegExp(String.raw`^(?:are|is)\s+there\s+(?:any\s+)?${SOURCES}\s+(?:on|in|for)\s+${SUBJECT}()$`, "i"),
+];
 const PROFILE_SUBJECT_RE =
   /^(?:|this\s+(?:profile|page|person)|the\s+profile(?:\s+person)?|(?:his|her|their)(?:\s+(?:profile|page))?|he|she|they|him|them)$/i;
 
@@ -27,19 +35,20 @@ export function parseProfileSourcesPrompt(prompt) {
   for (const re of SOURCES_PROMPT_RES) {
     const match = text.match(re);
     if (!match) continue;
-    const target = String(match[1] || "")
-      .trim()
-      .replace(/(?:'s|’s)$/, "");
-    const countOnly = /^how\s+many\b/i.test(text);
-    if (PROFILE_SUBJECT_RE.test(target)) return { target: "", countOnly };
-    // Case-insensitive patterns: a bare name must really be capitalised.
-    if (!/-\d+$/.test(target) && !/^(?:[A-Z][^\s]*\s*)+$/.test(target)) return null;
-    return { target, countOnly };
+    const target = promptTarget(String(match[1] || "").trim().replace(/(?:'s|’s)$/, ""), PROFILE_SUBJECT_RE);
+    return target === null ? null : { target, countOnly: /^how\s+many\b/i.test(text) };
+  }
+  for (const re of SOURCED_PROMPT_RES) {
+    const match = text.match(re);
+    if (!match) continue;
+    const target = promptTarget(match[1], PROFILE_SUBJECT_RE);
+    return target === null ? null : { target, countOnly: false, ask: /^un/i.test(match[2] || "") ? "unsourced" : "sourced" };
   }
   return null;
 }
 
-function cleanSourceText(text) {
+/** Wikitext as plain text: links to their words, no bold, tags or list marks. */
+export function cleanSourceText(text) {
   return String(text || "")
     .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, "$1")
     .replace(/\[(https?:\/\/[^\s\]]+)\s+([^\]]+)\]/g, "$2 ($1)")
@@ -82,14 +91,18 @@ export function extractBioSources(bio) {
 const MAX_LISTED = 15;
 const MAX_SOURCE_CHARS = 220;
 
-export function buildSourcesAnswer({ label, bio, countOnly = false }) {
+/** ask "sourced" | "unsourced": a yes/no question, answered Yes/No first. */
+export function buildSourcesAnswer({ label, bio, countOnly = false, ask = "" }) {
   const sources = extractBioSources(bio);
+  const answer = ask ? `${(ask === "sourced") === sources.length > 0 ? "Yes" : "No"}, ` : "";
+  // (the template sets the Unsourced category whatever the biography holds)
+  const template = ask && /\{\{\s*unsourced\b/i.test(String(bio || "")) ? " The biography also has the {{Unsourced}} template." : "";
   if (!sources.length) {
-    return `${label} has no sources in the biography: no <ref> citations and nothing under == Sources ==.`;
+    return `${answer}${label} has no sources in the biography: no <ref> citations and nothing under == Sources ==.${template}`;
   }
   const noun = `source${sources.length === 1 ? "" : "s"}`;
   if (countOnly) return `${label} has ${sources.length} ${noun} in the biography.`;
   const shorten = (source) => (source.length > MAX_SOURCE_CHARS ? `${source.slice(0, MAX_SOURCE_CHARS - 1)}…` : source);
   const listed = linesWithMore(sources.map((source, index) => `${index + 1}. ${shorten(source)}`), MAX_LISTED, { after: " on the profile" });
-  return `${label} has ${sources.length} ${noun} in the biography:\n${listed}`;
+  return `${answer}${label} has ${sources.length} ${noun} in the biography:${template ? `${template}` : ""}\n${listed}`;
 }

@@ -107,7 +107,8 @@ export function setChartMenuHandler(handler) {
  * charts this one used to link to. chartLinkClick opens the menu for the person at the centre.
  */
 export function chartLinkButtons(links) {
-  if (!(links || []).length) return "";
+  // (with Genie's box there every chart can be reached, links or none: the relationship chart has none; user, 2026-10-14)
+  if (!(links || []).length && !chartMenuHandler) return "";
   return `<button type="button" class="small wbe-chart-link wbe-chart-menu-button" data-link="menu" aria-haspopup="menu" aria-expanded="false" title="Another chart for the person at the centre">Charts ▾</button>`;
 }
 
@@ -347,6 +348,12 @@ const CHART_CSS = `
   .wbe-chart-stage { flex: 1; position: relative; min-height: 0; background: radial-gradient(ellipse at 50% 70%, rgba(47,111,179,.07), transparent 70%); }
   .wbe-chart-stage svg { width: 100%; height: 100%; display: block; cursor: grab; }
   .wbe-chart-stage svg:active { cursor: grabbing; }
+  .wbe-chart-zoom { position: absolute; right: 12px; bottom: 12px; z-index: 1; display: flex; flex-direction: column; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.18); border: 1px solid rgba(0,0,0,.15); background: #fff; }
+  .wbe-chart-popup .wbe-chart-zoom button { width: 34px; height: 32px; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: #fff; box-shadow: none; color: #1d2a36; font: 600 20px/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; cursor: pointer; }
+  .wbe-chart-popup .wbe-chart-zoom button + button { border-top: 1px solid rgba(0,0,0,.12); }
+  .wbe-chart-popup .wbe-chart-zoom button[data-act="reset"] { font-size: 11px; font-weight: 700; }
+  .wbe-chart-popup .wbe-chart-zoom button:hover { background: #eef4fb; color: #0b5cad; }
+  .wbe-chart-popup .wbe-chart-zoom button:focus-visible { outline: 2px solid #2f6fb3; outline-offset: -2px; }
   .wbe-chart-tip { position: absolute; pointer-events: none; background: #fffaf0; color: #2b2b2b; border: 1px solid #e3d9c3; padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.4; max-width: 280px; box-shadow: 0 6px 20px rgba(60,45,20,.18); opacity: 0; transition: opacity .12s; z-index: 2; }
   .wbe-chart-tip b { font-size: 13px; }
   .wbe-chart-tip .wbe-chart-tip-rel { color: #1f5f8b; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
@@ -589,6 +596,16 @@ export function photoUrl(person, size = 150) {
   if (data.path && Number(data.orig_width) > 0 && Number(data.orig_width) <= size) return siteUrl(data.path);
   if (data.dir && person.photo) return siteUrl(`${data.dir}/${person.photo}/${size}px-${person.photo}`);
   return data.url ? siteUrl(data.url) : "";
+}
+
+/** Zoom buttons in the stage's corner (user, 2026-10-14: "visible zoom controls"); each chart handles zoomin, zoomout and reset. */
+export function chartZoomControls() {
+  return `
+      <div class="wbe-chart-zoom" role="group" aria-label="Zoom">
+        <button type="button" data-act="zoomin" title="Zoom in (or scroll, pinch or double-click)" aria-label="Zoom in">+</button>
+        <button type="button" data-act="zoomout" title="Zoom out (or Shift+double-click)" aria-label="Zoom out">−</button>
+        <button type="button" data-act="reset" title="Back to the whole chart">Fit</button>
+      </div>`;
 }
 
 /** Standard controls; action names are shared by each chart's event handlers. */

@@ -24,6 +24,14 @@ export function cardDate(date, status = "") {
   return word ? `${word} ${text}` : text;
 }
 
+/** "1769", or "about 1769", "before 1769" or "after 1769" from the date's status. */
+export function cardYear(date, status = "") {
+  const at = parts(date);
+  if (!at) return "";
+  const word = STATUS_WORDS[String(status || "").toLowerCase()];
+  return word ? `${word} ${at.y}` : String(at.y);
+}
+
 /**
  * When something happened, to follow a verb: "on 12 March 1769" for a day, "in March 1769" or "in 1769", and no
  * "on" or "in" before "about", "before" or "after" (user, 2026-10-13: "It says 'in' and then gives a day").
@@ -46,6 +54,9 @@ export function ageAtDeath(person) {
   const sure = (status) => !STATUS_WORDS[String(status || "").toLowerCase()];
   return { years, about: !exact || !sure(person.birthStatus) || !sure(person.deathStatus) };
 }
+
+/** "aged 99" or "aged about 99" from ageAtDeath; "" with no age. */
+export const agedText = (age) => (age ? `aged ${age.about ? "about " : ""}${age.years}` : "");
 
 const byBirth = (a, b) => (a.birth || "9999").localeCompare(b.birth || "9999") || a.id - b.id;
 

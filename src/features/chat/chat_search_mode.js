@@ -1,6 +1,7 @@
 import { parseSearchSpecPrompt } from "./chat_spec_parser";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { WIKITREE_GLOSSARY_FOR_AI } from "./chat_wikitree_glossary";
+import { namesWikiTree, withoutOnWikiTree } from "./chat_wikitree_help";
 import { getFocusPersonInfo, getChosenFocusPerson } from "./chat_focus_person";
 import { isLikelyMarriedNoChildrenPrompt } from "./chat_married_no_children_filter";
 import { isLikelyParentAgeAtBirthPrompt } from "./chat_parent_age_filter";
@@ -981,6 +982,9 @@ export async function classifyWtPrompt({ prompt, getChatAiConfig, buildRecentUse
     // A question needs the AI to answer it: say so, rather than run a search that can't (2026-10-04).
     // ("Who was born in Devon in 1820?" is a search in question form: the strict reader runs it)
     if (question && !parseSearchSpecPrompt(normalizedPrompt)) return "needsAi";
+    // About WikiTree itself ("Owner of WikiTree", "WT founder"): no search can answer it, so it goes
+    // where chat.js tries WikiTree's help first (live, 2026-10-14)
+    if (namesWikiTree(withoutOnWikiTree(normalizedPrompt)) && !parseSearchSpecPrompt(normalizedPrompt)) return "needsAi";
     // "Devon centenarians", "Kent doctors" look like names, but the reader found a category word in
     // them: no point in a person search for "Devon Centenarians" first (2026-10-10).
     const readerSpec = parseSearchSpecPrompt(normalizedPrompt)?.spec;

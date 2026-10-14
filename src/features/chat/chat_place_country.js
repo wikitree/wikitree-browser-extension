@@ -46,9 +46,10 @@ export function summarizeCountries(rows, field = "birthLocation") {
   return { sorted, unknown };
 }
 
-// Born in one country and died in another (both known).
-export function isEmigrantRow(row) {
-  const born = getCountryFromLocation(row?.birthLocation);
-  const died = getCountryFromLocation(row?.deathLocation);
+// Born in one country and died in another (both known). countryOf can read a
+// state or county as its country (chat_world_events_data placeCountry).
+export function isEmigrantRow(row, countryOf = getCountryFromLocation) {
+  const born = countryOf(row?.birthLocation);
+  const died = countryOf(row?.deathLocation);
   return Boolean(born && died && born.toLowerCase() !== died.toLowerCase());
 }
