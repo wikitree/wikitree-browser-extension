@@ -588,13 +588,19 @@ export function saveChart(svgNode, fileBase, format) {
   image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`;
 }
 
-/** Thumbnail URL for a person's photo (getPeople PhotoData), about `size` pixels wide. */
+// WikiTree serves only the thumbnails it has already made: 75px (the API's) and 300px (the profile page's, for every
+// photo wider than that). Any other size is refused, 403 Forbidden: 150px failed for every photo tried (live, 2026-10-15).
+const MADE_SIZES = [75, 300];
+
+/** Thumbnail URL for a person's photo (getPeople PhotoData), at least `size` pixels wide where there is one. */
 export function photoUrl(person, size = 150) {
   const data = person?.photoData;
   if (!data) return "";
-  // (WikiTree makes no thumbnail as wide as the original or wider: the original then; live 2026-10-11)
-  if (data.path && Number(data.orig_width) > 0 && Number(data.orig_width) <= size) return siteUrl(data.path);
-  if (data.dir && person.photo) return siteUrl(`${data.dir}/${person.photo}/${size}px-${person.photo}`);
+  if (size <= MADE_SIZES[0] && data.url) return siteUrl(data.url);
+  const made = MADE_SIZES.find((width) => width >= size) || MADE_SIZES[MADE_SIZES.length - 1];
+  // (no thumbnail as wide as the original or wider: the original then; live 2026-10-11)
+  if (data.path && Number(data.orig_width) > 0 && Number(data.orig_width) <= made) return siteUrl(data.path);
+  if (data.dir && person.photo) return siteUrl(`${data.dir}/${person.photo}/${made}px-${person.photo}`);
   return data.url ? siteUrl(data.url) : "";
 }
 

@@ -1119,3 +1119,40 @@ function route(c, at, pageOf, F, { PLAQUE, LEVEL, G }) {
   });
   return links;
 }
+
+/**
+ * Arrow keys on the plaques, like the Family view's (the user, 2026-10-15): the slot to go to from slot `from`, or 0.
+ * ↑ a parent (the father first), ↓ a child (back to the one you came up from, `cameFrom`, else the middle one),
+ * ←/→ the brother or sister born before or after, Shift+←/→ the next husband or wife. Only people on the model
+ * (`slotOfId`, Id → slot) count. Ancestor plaques (`ancestors`) go by slot: ↑ a parent, ↓ the child, ←/→ the
+ * other parent of that child.
+ */
+export function plaqueNeighbour({ people, slots, slotOfId, from, direction, cameFrom = 0, ancestors = false }) {
+  const at = from || 1;
+  if (ancestors) {
+    if (direction === "up") return slots[at * 2] ? at * 2 : slots[at * 2 + 1] ? at * 2 + 1 : 0;
+    if (direction === "down") return at > 1 ? at >> 1 : 0;
+    return at > 1 && slots[at ^ 1] ? at ^ 1 : 0;
+  }
+  const person = slots[at];
+  if (!person) return 0;
+  const onModel = (id) => (id && slotOfId.has(id) && !people.get(id)?.hidden ? slotOfId.get(id) : 0);
+  const byBirth = (a, b) => String(a.birth || "9999").localeCompare(String(b.birth || "9999")) || a.id - b.id;
+  if (direction === "up") return onModel(person.fatherId) || onModel(person.motherId);
+  if (direction === "down") {
+    const children = [...people.values()].filter((other) => (other.fatherId === person.id || other.motherId === person.id) && onModel(other.id)).sort(byBirth);
+    if (cameFrom && children.some((child) => slotOfId.get(child.id) === cameFrom)) return cameFrom;
+    return children.length ? onModel(children[Math.floor((children.length - 1) / 2)].id) : 0;
+  }
+  if (direction === "spouse-left" || direction === "spouse-right") {
+    const spouses = (person.spouses || []).map((spouse) => spouse.id).filter(onModel);
+    if (!spouses.length) return 0;
+    // (from someone's husband or wife, through the rest of them in turn)
+    return onModel(spouses[direction === "spouse-left" ? spouses.length - 1 : 0]);
+  }
+  const shares = (other) => (person.fatherId && other.fatherId === person.fatherId) || (person.motherId && other.motherId === person.motherId);
+  const family = [...people.values()].filter((other) => other.id === person.id || (shares(other) && onModel(other.id))).sort(byBirth);
+  const index = family.findIndex((other) => other.id === person.id);
+  const next = family[index + (direction === "left" ? -1 : 1)];
+  return next ? onModel(next.id) : 0;
+}

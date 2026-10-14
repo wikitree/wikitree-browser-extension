@@ -15,11 +15,15 @@ async function init() {
 
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "wbe-gold-standard-button";
-  button.title = "Gold Standard Inspector";
+  // wbe-button gives it the size and tooltip of the other WBE buttons.
+  button.className = "wbe-button wbe-gold-standard-button";
   button.setAttribute("aria-label", "Gold Standard Inspector");
   button.setAttribute("aria-haspopup", "dialog");
-  button.textContent = "GSI";
+  button.setAttribute("data-tooltip", "Gold Standard Inspector");
+  const icon = document.createElement("span");
+  icon.className = "icon--goldStandard";
+  icon.style.backgroundImage = `url(${chrome.runtime.getURL("images/gold-standard.svg")})`;
+  button.appendChild(icon);
   button.addEventListener("click", () => {
     openInspector(profileId);
   });

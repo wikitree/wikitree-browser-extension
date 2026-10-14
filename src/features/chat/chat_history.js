@@ -2,7 +2,7 @@ import $ from "jquery";
 import { escapeHtml } from "../../core/lib/diff_utils";
 import { renderSearchForm } from "./chat_search_form";
 import { isTreeAppAction } from "./chat_tree_apps";
-import { moreTextToHtml } from "./chat_more_text";
+import { CHOICE_BUTTON, moreTextToHtml } from "./chat_more_text";
 
 export function createChatHistoryHandlers({
   chatMessagesId,
@@ -38,6 +38,7 @@ export function createChatHistoryHandlers({
   createAppsLoginButton,
   rebuildEditTextActions,
   rebuildEditCategoryAction,
+  chooseDisambiguation,
 }) {
   let historyQuotaWarningShown = false;
   const MAX_PERSISTED_STRUCTURED_ROWS = 250;
@@ -384,7 +385,13 @@ export function createChatHistoryHandlers({
     // AI answers use **bold** and bare help-page URLs (live C34, 2026-10-03).
     // URLs are parked before the WT ID linker so an ID inside one stays intact.
     const urls = [];
+    const choices = [];
     const escaped = escapeHtml(text)
+      // "Choose" buttons are parked first too: their WikiTree IDs aren't links
+      .replace(CHOICE_BUTTON, (all, reply) => {
+        choices.push(reply);
+        return `__WBE_CHOICE_${choices.length - 1}__`;
+      })
       .replace(/\n/g, "<br>")
       .replace(/\*\*([^*<]+)\*\*/g, "<strong>$1</strong>")
       // The text is already escaped, so a query string's & arrives as &amp;.
@@ -397,6 +404,10 @@ export function createChatHistoryHandlers({
         const href = `https://www.wikitree.com/wiki/${encodeURIComponent(wtId)}`;
         return `<a class="chat-results-link" href="${href}" target="_blank" rel="noopener noreferrer">${wtId}</a>`;
       })
+      .replace(
+        /__WBE_CHOICE_(\d+)__/g,
+        (full, index) => `<button type="button" class="wbe-chat-choose" data-choice="${choices[index]}" title="This one">Choose</button> `
+      )
       .replace(
         /__WBE_URL_(\d+)__/g,
         (full, index) =>
@@ -676,6 +687,16 @@ export function createChatHistoryHandlers({
 
     $body.on("click", (event) => {
       const $target = $(event.target || event.currentTarget);
+      const $choose = $target.closest(".wbe-chat-choose");
+      if ($choose.length) {
+        event.preventDefault();
+        // one answer per question: the list's buttons go quiet once one is clicked
+        const sent = chooseDisambiguation?.(String($choose.attr("data-choice") || ""));
+        $body.find(".wbe-chat-choose").prop("disabled", true);
+        if (sent) $choose.addClass("wbe-chat-choose--chosen").text("Chosen");
+        else $body.find(".wbe-chat-choose").attr("title", "This question was answered or has expired: ask again to choose");
+        return;
+      }
       const $inlineMoreLink = $target.closest(".chat-inline-show-more");
       if (!$inlineMoreLink.length) return;
 

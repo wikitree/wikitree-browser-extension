@@ -12,6 +12,17 @@ const LINK_END = "";
 const SEGMENT = /([^-]*)([^-]*)/g;
 const LINK_TEXT = /([^]*)/g;
 
+// A "Choose" button for one line of a "Which one did you mean?" list: clicking it sends the reply
+// (a WikiTree ID or a number) instead of typing it (the user, 2026-10-15).
+const CHOICE = "\uE010";
+const CHOICE_END = "\uE011";
+export const CHOICE_BUTTON = /\uE010([^\uE011]*)\uE011 ?/g;
+
+/** A marker the chat shows as a "Choose" button that sends reply. */
+export function choiceButton(reply) {
+  return `${CHOICE}${String(reply ?? "").replace(/[\uE010\uE011]/g, "")}${CHOICE_END} `;
+}
+
 function moreText(short, full) {
   return `${START}${short}${SPLIT}${full}${END}`;
 }
@@ -41,14 +52,17 @@ export function textWithMoreLink(before, linkText, after, full) {
 
 /** The text with every "N more" opened: for the AI, logs and anything else that isn't a chat message. */
 export function plainMoreText(text) {
-  return String(text ?? "").replace(SEGMENT, (all, short, full) => full);
+  return String(text ?? "")
+    .replace(SEGMENT, (all, short, full) => full)
+    .replace(CHOICE_BUTTON, "");
 }
 
 /** The short form as plain text ("a, b, c, and 4 more"), for a title or a tooltip. */
 export function shortMoreText(text) {
   return String(text ?? "")
     .replace(SEGMENT, (all, short) => short)
-    .replace(LINK_TEXT, "$1");
+    .replace(LINK_TEXT, "$1")
+    .replace(CHOICE_BUTTON, "");
 }
 
 export function hasMoreText(text) {

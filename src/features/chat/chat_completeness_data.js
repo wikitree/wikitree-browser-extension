@@ -50,6 +50,9 @@ const HEATMAP_PATTERNS = [
     String.raw`^which\s+(?:branches\s+of\s+${OWNER}\s+${TREE}|of\s+${OWNER}\s+branches|${OWNER}\s+branches)\s+(?:are|is)\s+(?:the\s+)?(?:most|least|more|less|best|worst)\s+(?:complete|researched|filled[\s-]+in)$`,
     "i"
   ),
+  // the one word, "completeness", "my completeness", "Cook-8721's completeness" (the user, 2026-10-15:
+  // it fell through to a surname search)
+  new RegExp(String.raw`^(?:(?:show|check)(?:\s+me)?\s+)?(?:${OWNER}\s+)?completeness$`, "i"),
 ];
 
 

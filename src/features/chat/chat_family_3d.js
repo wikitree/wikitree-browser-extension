@@ -39,7 +39,7 @@ import { buildColouring } from "./chat_fan_chart";
 import { ancestorWord } from "./chat_kin_labels";
 import { bindCardPhoto, cardHeadHtml, familyFactsHtml, familyFetcher, showMoreInCard } from "./chat_family_card";
 import { GALAXY_HUES, branchLabel } from "./chat_family_galaxy_data";
-import { NEARBY, nearbyPlaquesLayout } from "./chat_family_plaques_data";
+import { NEARBY, nearbyPlaquesLayout, plaqueNeighbour } from "./chat_family_plaques_data";
 import { easeCubicInOut as ease } from "d3-ease";
 import { addStyleOnce, downloadBlob, escapeText, fullName, lifeYears, photoUrl, siteUrl } from "./chat_chart_common";
 import { reducedMotion } from "./chat_fractal_common";
@@ -47,6 +47,11 @@ import { reducedMotion } from "./chat_fractal_common";
 const STYLE_ID = "wbe-3d-style";
 const SHAPE_KEY = "wbe-explorer-3d-look"; // (was -shape, before Plaques, the shape it now opens on)
 const SHAPES = ["plaques", "nearby", "tornado", "tower"];
+// (Shift, Alt or Ctrl+drag moves it, Riël's idea; the arrow keys go round the family, like the Family view's: the user, 2026-10-15)
+const HINTS = {
+  ancestors: "Drag to turn · Shift+drag to move · scroll to zoom · click someone or use the arrow keys to see who they are",
+  nearby: "Drag to turn · Shift+drag to move · scroll to zoom · click someone or use the arrow keys to go to them",
+};
 const SHAPE_NAMES = { plaques: "Plaques", nearby: "CC plaques", tornado: "Tornado", tower: "Fan tower" };
 const GENERATIONS_KEY = "wbe-explorer-3d-generations";
 const STEPS_KEY = "wbe-explorer-3d-steps";
@@ -111,7 +116,7 @@ const CSS = `
   .wbe-3d-key span { display: flex; gap: 6px; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .wbe-3d-key i { flex: none; width: 11px; height: 11px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); }
   .wbe-3d-key small { color: #6b6458; margin-top: 2px; }
-  .wbe-3d-hint { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); padding: 4px 14px; border-radius: 999px; background: rgba(255,255,255,.75); color: #5a5246; font-size: 12px; white-space: nowrap; pointer-events: none; }
+  .wbe-3d-hint { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 24px); box-sizing: border-box; padding: 4px 14px; border-radius: 999px; background: rgba(255,255,255,.75); color: #5a5246; font-size: 12px; text-align: center; pointer-events: none; }
   .wbe-3d-status { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); padding: 5px 14px; border-radius: 999px; background: rgba(60,74,92,.9); color: #fff; font-size: 12.5px; z-index: 2; }
   .wbe-3d-status[hidden], .wbe-3d-tip[hidden], .wbe-3d-card[hidden] { display: none; }
   .wbe-3d-tip { position: absolute; pointer-events: none; padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,.95); border: 1px solid #d8cfb8; box-shadow: 0 3px 10px rgba(0,0,0,.12); font-size: 12.5px; white-space: nowrap; transform: translate(14px, -50%); z-index: 2; }
@@ -230,7 +235,7 @@ export function mountFamily3d(host, options) {
     <div class="wbe-3d-key"></div>
     <div class="wbe-3d-tip" hidden></div>
     <div class="wbe-3d-card" hidden></div>
-    <div class="wbe-3d-hint">Drag to turn · scroll to zoom · click someone to see who they are</div>`;
+    <div class="wbe-3d-hint">${HINTS.ancestors}</div>`;
   host.appendChild(root);
   const canvas = root.querySelector("canvas");
   const ctx = canvas.getContext("2d");
@@ -278,6 +283,7 @@ export function mountFamily3d(host, options) {
   const IVORY = PART_COLOURS.root;
   const widths = new Map(); // text → its width at 100px, for fitting names
   let selected = 0; // a slot
+  let cameFrom = 0; // the slot ↑ left, for ↓ to go back to
   let hovered = 0;
   let frame = 0;
   let destroyed = false;
@@ -336,6 +342,7 @@ export function mountFamily3d(host, options) {
   }
 
   function rebuild() {
+    cameFrom = 0;
     if (shape === "nearby") {
       // (everyone numbered like slots, the person 1 and the rest nearest first, so picking and colouring work the same)
       const layout = nearbyPlaquesLayout(people, current, steps);
@@ -432,7 +439,7 @@ export function mountFamily3d(host, options) {
     // (CC plaques aren't made to print yet)
     $(".wbe-3d-print").hidden = near;
     if (near) menuEl.hidden = true;
-    $(".wbe-3d-hint").textContent = near ? "Drag to turn · scroll to zoom · click someone to go to them" : "Drag to turn · scroll to zoom · click someone to see who they are";
+    $(".wbe-3d-hint").textContent = near ? HINTS.nearby : HINTS.ancestors;
     if (near) return;
     const used = new Set([IVORY, ...colours.values()]).size;
     $(".wbe-3d-colours").textContent =
@@ -1031,7 +1038,18 @@ export function mountFamily3d(host, options) {
     glideTo({ distance: (plaque.w * focal) / 170, target: [plaque.x, plaque.y, plaque.z], pitch: camera.pitch, zoom: 1 });
   }
 
-  // Drag to turn, scroll to zoom, click someone.
+  /** CC plaques: brings slot's plaque to the middle, close enough to read, for the arrow keys. */
+  function follow(slot) {
+    const plaque = nearby?.plaques.find((entry) => entry.slot === slot);
+    if (!plaque) return;
+    const focal = Math.min(width, height) * 1.6;
+    const readable = (plaque.w * focal) / (camera.distance * camera.zoom) >= 110;
+    camera.close = true;
+    const target = [plaque.x, plaque.y, plaque.z];
+    glideTo(readable ? { distance: camera.distance, target, pitch: camera.pitch, zoom: camera.zoom } : { distance: (plaque.w * focal) / 170, target, pitch: camera.pitch, zoom: 1 });
+  }
+
+  // Drag to turn (Shift, Alt or Ctrl+drag to move), scroll to zoom, click someone.
   let dragging = null;
   const turnButton = $(".wbe-3d-turn button");
   const setTurning = (on) => {
@@ -1042,7 +1060,7 @@ export function mountFamily3d(host, options) {
   setTurning(turning);
   canvas.addEventListener("pointerdown", (event) => {
     setTurning(false);
-    dragging = { x: event.clientX, y: event.clientY, yaw: camera.yaw, pitch: camera.pitch, moved: false };
+    dragging = { x: event.clientX, y: event.clientY, yaw: camera.yaw, pitch: camera.pitch, moved: false, pan: event.shiftKey || event.altKey || event.ctrlKey, target: [...camera.target] };
     canvas.setPointerCapture?.(event.pointerId);
     menuEl.hidden = true;
   });
@@ -1052,9 +1070,18 @@ export function mountFamily3d(host, options) {
       const dx = event.clientX - dragging.x;
       const dy = event.clientY - dragging.y;
       if (Math.abs(dx) + Math.abs(dy) > 3) dragging.moved = true;
+      camera.fit = null;
+      if (dragging.pan) {
+        // (the model follows the pointer: millimetres a pixel where the camera is looking)
+        const { right, up } = frameNow();
+        const perPixel = (camera.distance * camera.zoom) / (Math.min(width, height) * 1.6);
+        camera.target = dragging.target.map((value, i) => value - (right[i] * dx - up[i] * dy) * perPixel);
+        // (clicking the background goes back to everyone)
+        camera.close = true;
+        return;
+      }
       camera.yaw = dragging.yaw - dx * 0.007;
       camera.pitch = Math.max(0.05, Math.min(1.4, dragging.pitch + dy * 0.005));
-      camera.fit = null;
       return;
     }
     const slot = slotAt(event.clientX - rect.left, event.clientY - rect.top);
@@ -1077,6 +1104,10 @@ export function mountFamily3d(host, options) {
     const slot = slotAt(event.clientX - rect.left, event.clientY - rect.top);
     showCard(slot || 1);
     if (shape === "nearby") goTo(slot);
+  });
+  // (Ctrl+click is a right click on a Mac: no menu while moving it)
+  canvas.addEventListener("contextmenu", (event) => {
+    if (event.ctrlKey) event.preventDefault();
   });
   canvas.addEventListener("pointerleave", () => {
     hovered = 0;
@@ -1131,6 +1162,20 @@ export function mountFamily3d(host, options) {
     drawKey();
   });
   root.addEventListener("keydown", (event) => {
+    const direction = event.shiftKey
+      ? { ArrowLeft: "spouse-left", ArrowRight: "spouse-right" }[event.key]
+      : { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" }[event.key];
+    if (direction && !event.altKey && !event.metaKey && !event.ctrlKey && !event.target.closest?.("select, input, textarea")) {
+      event.preventDefault();
+      const from = slots[selected] ? selected : 1;
+      const slot = plaqueNeighbour({ people, slots, slotOfId, from, direction, cameFrom, ancestors: shape !== "nearby" });
+      if (!slot) return;
+      cameFrom = direction === "up" ? from : 0;
+      setTurning(false);
+      showCard(slot);
+      if (shape === "nearby") follow(slot);
+      return;
+    }
     if (event.key !== "Escape") return;
     if (!menuEl.hidden) {
       event.stopPropagation();

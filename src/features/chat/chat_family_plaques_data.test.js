@@ -1,4 +1,4 @@
-import { nearbySteps, nearbyFamilies, nearbyPlaquesLayout, NEARBY } from "./chat_family_plaques_data";
+import { nearbySteps, nearbyFamilies, nearbyPlaquesLayout, NEARBY, plaqueNeighbour } from "./chat_family_plaques_data";
 import { PLAQUE } from "./chat_print3d_data";
 
 // A made-up family, the same every time: four generations of ancestors from the person (born 1950), each couple
@@ -194,5 +194,48 @@ describe("the CC plaques", () => {
     expect(layout.relation(people.get(focus).fatherId)).toBe("father");
     expect(layout.branches.length).toBeGreaterThan(2);
     expect(layout.plaques.filter((plaque) => plaque.id !== focus).every((plaque) => plaque.branch >= 0)).toBe(true);
+  });
+});
+
+describe("plaqueNeighbour: arrow keys on the plaques (the user, 2026-10-15)", () => {
+  // Dad (1) and Mum (2) with three children, oldest first: Ann (3), Bob (4), Cat (5); Bob married Dee (6), with Eve (7).
+  const person = (id, birth, fatherId = 0, motherId = 0, spouses = []) => ({ id, birth, fatherId, motherId, spouses: spouses.map((spouseId) => ({ id: spouseId })) });
+  const people = new Map(
+    [person(1, "1920", 0, 0, [2]), person(2, "1922", 0, 0, [1]), person(3, "1945", 1, 2), person(4, "1947", 1, 2, [6]), person(5, "1950", 1, 2), person(6, "1948", 0, 0, [4]), person(7, "1975", 4, 6)].map((p) => [p.id, p])
+  );
+  // Bob is slot 1, then the rest in any order
+  const slots = [null, people.get(4), people.get(1), people.get(2), people.get(3), people.get(5), people.get(6), people.get(7)];
+  const slotOfId = new Map(slots.map((p, slot) => [p?.id, slot]));
+  const go = (fromId, direction, extra = {}) => slots[plaqueNeighbour({ people, slots, slotOfId, from: slotOfId.get(fromId), direction, ...extra })]?.id || 0;
+
+  test("up to the father first, down to a child", () => {
+    expect(go(4, "up")).toBe(1);
+    expect(go(1, "down")).toBe(4); // the middle child
+    expect(go(1, "down", { cameFrom: slotOfId.get(5) })).toBe(5); // back where ↑ came from
+    expect(go(7, "down")).toBe(0);
+  });
+
+  test("left and right go through the brothers and sisters by birth; Shift to the husband or wife", () => {
+    expect(go(4, "left")).toBe(3);
+    expect(go(4, "right")).toBe(5);
+    expect(go(5, "right")).toBe(0);
+    expect(go(4, "spouse-right")).toBe(6);
+    expect(go(6, "spouse-left")).toBe(4);
+    expect(go(3, "spouse-right")).toBe(0);
+  });
+
+  test("only people on the model", () => {
+    const fewer = new Map([...slotOfId].filter(([id]) => id !== 3));
+    expect(plaqueNeighbour({ people, slots, slotOfId: fewer, from: 1, direction: "left" })).toBe(0);
+  });
+
+  test("ancestor plaques go by slot", () => {
+    const ancestors = [null, "me", "dad", "mum", null, "gran"];
+    const step = (from, direction) => plaqueNeighbour({ people, slots: ancestors, slotOfId, from, direction, ancestors: true });
+    expect(step(1, "up")).toBe(2);
+    expect(step(2, "up")).toBe(5); // no grandfather: the grandmother
+    expect(step(3, "down")).toBe(1);
+    expect(step(2, "right")).toBe(3);
+    expect(step(1, "left")).toBe(0);
   });
 });

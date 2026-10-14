@@ -894,6 +894,36 @@
   padding: 0.42rem 0.56rem;
 }
 
+/* "Choose" on each line of a "Which one did you mean?" list (the user, 2026-10-15) */
+.chat-message-body .wbe-chat-choose {
+  border: 1px solid #2f6fb3;
+  background: #eef4fb;
+  color: #1d3f66;
+  border-radius: 999px;
+  padding: 0 0.5rem;
+  margin: 0.1rem 0.2rem 0.1rem 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.chat-message-body .wbe-chat-choose:hover:not(:disabled) {
+  background: #2f6fb3;
+  color: #fff;
+}
+
+.chat-message-body .wbe-chat-choose:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.chat-message-body .wbe-chat-choose--chosen:disabled {
+  opacity: 1;
+  background: #2f6fb3;
+  color: #fff;
+}
+
 .chat-message-user .chat-message-body {
   background: #e6f3ea;
   border: 1px solid #c3ddcb;

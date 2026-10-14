@@ -114,6 +114,75 @@ describe("chat_connections target resolution", () => {
     );
   });
 
+  describe("a year and place typed after a common name (the user, 2026-10-15)", () => {
+    const bob = (Name, BirthDate, BirthLocation, DeathDate = "", DeathLocation = "") => ({
+      Id: Number(Name.split("-")[1]),
+      Name,
+      RealName: "Bob",
+      FirstName: "Bob",
+      LastNameAtBirth: "Jones",
+      LastNameCurrent: "Jones",
+      BirthDate,
+      BirthLocation,
+      DeathDate,
+      DeathLocation,
+    });
+    const bobs = [
+      bob("Jones-1", "1850-02-01", "Liverpool, Lancashire, England", "1920-01-01", "Liverpool, Lancashire, England"),
+      bob("Jones-2", "1923-05-01", "Cardiff, Wales", "1990-01-01", "Cardiff, Wales"),
+      bob("Jones-3", "1923-08-09", "Liverpool, Lancashire, England", "1985-01-01", "Leeds, Yorkshire, England"),
+      bob("Jones-4", "1901-01-01", "Bangor, Wales", "1990-06-01", "Liverpool, Lancashire, England"),
+    ];
+
+    beforeEach(() => {
+      // the API's own filters are not modelled: every lane returns all four
+      WikiTreeAPI.searchPerson.mockImplementation(async (_appId, params) => [0, params.FirstName === "Bob" || params.RealName === "Bob Jones" ? bobs : []]);
+    });
+
+    test.each([
+      ["Bob Jones in Liverpool 1923", "Jones-3"],
+      ["Bob Jones 1923 Cardiff", "Jones-2"],
+      ["Bob Jones (1923-1990)", "Jones-2"],
+      ["Bob Jones died 1990 in Liverpool", "Jones-4"],
+      ["Bob Jones born 1850", "Jones-1"],
+    ])("%s → %s", async (target, wtId) => {
+      const { resolveConnectionTargetPerson } = makeHandlers();
+      expect((await resolveConnectionTargetPerson(target, `Connection to ${target}`))?.Name).toBe(wtId);
+    });
+
+    test("the name alone is searched, with the year as a birth date and the place as a birth place", async () => {
+      const { resolveConnectionTargetPerson } = makeHandlers();
+      await resolveConnectionTargetPerson("Bob Jones in Liverpool 1923", "Connection to Bob Jones in Liverpool 1923");
+      const calls = WikiTreeAPI.searchPerson.mock.calls.map(([, params]) => params);
+      expect(calls.some((params) => params.FirstName === "Bob" && params.LastName === "Jones" && params.BirthLocation === "Liverpool")).toBe(true);
+      expect(calls.some((params) => params.FirstName === "Bob" && params.BirthDate === "1923-01-01" && params.dateSpread === 2)).toBe(true);
+      expect(calls.some((params) => /1923|Liverpool/.test(`${params.FirstName} ${params.LastName} ${params.RealName}`))).toBe(false);
+    });
+  });
+
+  test("asking which one offers every namesake, oldest first (the user, 2026-10-15)", async () => {
+    const lukers = Array.from({ length: 30 }, (_, i) => ({
+      Id: i + 1,
+      Name: `Luker-${i + 1}`,
+      RealName: "William",
+      FirstName: "William",
+      LastNameAtBirth: "Luker",
+      LastNameCurrent: "Luker",
+      BirthDate: `${1900 - i * 5}-01-01`,
+    }));
+    // the narrower lanes stop at 20; only the full list reaches the rest
+    WikiTreeAPI.searchPerson.mockImplementation(async (_appId, params) => [
+      0,
+      params.FirstName === "William" ? (params.limit === 100 && params.sort === "birth" ? lukers : lukers.slice(0, 20)) : [],
+    ]);
+    const { resolveConnectionTargetPerson } = makeHandlers({ shouldOfferDisambiguation: () => true });
+    const result = await resolveConnectionTargetPerson("William Luker", "Connection to William Luker", { allowDisambiguation: true });
+    expect(result?._disambiguationNeeded).toBe(true);
+    expect(result._candidates).toHaveLength(30);
+    expect(result._candidates[0].Name).toBe("Luker-30");
+    expect(result._candidates[29].Name).toBe("Luker-1");
+  });
+
   test("a typed middle name finds the right person and drops other middle names (live, 2026-10-06)", async () => {
     const william = (Name, MiddleName, BirthDate) => ({
       Id: Number(Name.split("-")[1]),

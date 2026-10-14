@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Gold Standard Inspector">
+  <g fill="none" stroke="#25422D" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="9" y="8" width="30" height="36" rx="3" />
+    <rect x="18" y="4.5" width="12" height="7" rx="2" fill="#25422D" />
+    <path d="M14 21l3 3 5-6M14 33l3 3 5-6" stroke="#E5B80B" stroke-width="3.6" />
+    <path d="M27 21h7M27 33h7" />
+  </g>
+</svg>

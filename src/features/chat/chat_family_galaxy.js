@@ -56,16 +56,27 @@ const GALAXY_CSS = `
 `;
 
 
-/** A soft round glow in `colour`, drawn once and stamped for each star. */
+// The sprites are drawn at twice their size: stretched to a near star on a sharp screen, a 96px one blurred
+// ("I keep wanting to adjust the focus", Riël, 2026-10-15).
+const SPRITE_SCALE = 2;
+
+/** A canvas `size` across in the sprite's own units, drawn at SPRITE_SCALE. */
+function spriteCanvas(size) {
+  const sprite = document.createElement("canvas");
+  sprite.width = sprite.height = size * SPRITE_SCALE;
+  const g = sprite.getContext("2d");
+  g.scale(SPRITE_SCALE, SPRITE_SCALE);
+  return { sprite, g };
+}
+
+/** A round glow in `colour`, drawn once and stamped for each star (tighter than it was, for the same reason). */
 function glowSprite(colour) {
   const size = 64;
-  const sprite = document.createElement("canvas");
-  sprite.width = sprite.height = size;
-  const g = sprite.getContext("2d");
+  const { sprite, g } = spriteCanvas(size);
   const gradient = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
   gradient.addColorStop(0, "#ffffff");
-  gradient.addColorStop(0.18, colour);
-  gradient.addColorStop(0.45, `${colour}55`);
+  gradient.addColorStop(0.16, colour);
+  gradient.addColorStop(0.32, `${colour}55`);
   gradient.addColorStop(1, `${colour}00`);
   g.fillStyle = gradient;
   g.fillRect(0, 0, size, size);
@@ -79,9 +90,7 @@ function glowSprite(colour) {
 function starSprite(colour, variant = 0) {
   const size = 96;
   const c = size / 2;
-  const sprite = document.createElement("canvas");
-  sprite.width = sprite.height = size;
-  const g = sprite.getContext("2d");
+  const { sprite, g } = spriteCanvas(size);
   g.translate(c, c);
   g.rotate((variant * Math.PI) / 7);
   [
@@ -102,8 +111,8 @@ function starSprite(colour, variant = 0) {
   });
   const halo = g.createRadialGradient(0, 0, 0, 0, 0, 20);
   halo.addColorStop(0, "#ffffff");
-  halo.addColorStop(0.3, "#ffffff");
-  halo.addColorStop(0.55, colour);
+  halo.addColorStop(0.36, "#ffffff");
+  halo.addColorStop(0.62, colour);
   halo.addColorStop(1, `${colour}00`);
   g.fillStyle = halo;
   g.beginPath();
@@ -120,9 +129,7 @@ function planetSprite(colour, variant = 0) {
   const size = 96;
   const c = size / 2;
   const radius = c - 4;
-  const sprite = document.createElement("canvas");
-  sprite.width = sprite.height = size;
-  const g = sprite.getContext("2d");
+  const { sprite, g } = spriteCanvas(size);
   g.save();
   g.beginPath();
   g.arc(c, c, radius, 0, Math.PI * 2);
@@ -138,7 +145,7 @@ function planetSprite(colour, variant = 0) {
     g.fillStyle = i % 2 ? "rgba(255,255,255,0.16)" : "rgba(0,0,30,0.14)";
     g.fillRect(-radius * 1.5, y - radius / bands / 1.6, radius * 3, (radius * 2) / bands / 1.3);
   }
-  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.setTransform(SPRITE_SCALE, 0, 0, SPRITE_SCALE, 0, 0);
   // Day and night: bright at the top left, dark round the far side.
   const light = g.createRadialGradient(c - radius * 0.45, c - radius * 0.45, radius * 0.05, c - radius * 0.1, c - radius * 0.1, radius * 1.35);
   light.addColorStop(0, "rgba(255,255,255,0.55)");
@@ -386,6 +393,8 @@ export function mountFamilyGalaxy(host, options) {
 
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, width, height);
+    // (the sprites are mostly drawn smaller than they were made: smooth them well)
+    ctx.imageSmoothingQuality = "high";
     // The sky.
     sky.forEach((s) => {
       ctx.globalAlpha = 0.35 + 0.25 * Math.sin(time / 900 + s.phase);
@@ -425,7 +434,7 @@ export function mountFamilyGalaxy(host, options) {
       // (bigger: user, 2026-10-11, "I'd just like them to be a bit bigger")
       const base = isFocus ? 30 : Math.max(8, 21 - node.steps * 1.8);
       p.r = base * p.scale;
-      const size = p.r * (lit.has(node.id) ? 3.4 : 2.8);
+      const size = p.r * (lit.has(node.id) ? 2.9 : 2.3);
       ctx.globalAlpha = p.star.alpha * Math.max(0.35, Math.min(1, 1.6 - p.depth / camera.distance));
       const hue = Math.max(0, node.branch) % sprites.length;
       ctx.drawImage(isFocus ? focusSprite : sprites[hue], p.sx - size / 2, p.sy - size / 2, size, size);

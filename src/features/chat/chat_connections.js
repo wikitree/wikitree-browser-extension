@@ -40,6 +40,7 @@ import { describeConnectionPath } from "./chat_relation_chain_text";
 import { shownGender } from "./chat_gender_display";
 import { hideChatShaky, showConnectionsPopup } from "./ui";
 import { PERSON_MEMORY_ALIAS_STOPWORDS, normalizePersonMemoryToken } from "./chat_person_memory";
+import { parseConnectionTargetHints, withTypedTargetHints } from "./chat_connection_target_hints";
 
 /**
  * Guard for searchPerson lookups: an extracted "name" whose first or last
@@ -765,16 +766,21 @@ export function createChatConnectionHandlers({
   }
 
   async function resolveConnectionTargetPerson(target, prompt = "", options = {}) {
-    const cleanedTarget = embeddedWikiTreeId(target) || normalizeConnectionTargetForSearch(target);
+    let cleanedTarget = embeddedWikiTreeId(target) || normalizeConnectionTargetForSearch(target);
     if (!cleanedTarget) {
       return null;
     }
+    // "Bob Jones in Liverpool 1923": search the name, rank by the year and place (chat_connection_target_hints.js).
+    // With them, the shortcuts by name alone (the page, the conversation, the family) are skipped: they'd
+    // take the first Bob Jones without looking at the year.
+    const typedHints = isWikiTreeId(cleanedTarget) ? null : parseConnectionTargetHints(cleanedTarget);
+    if (typedHints) cleanedTarget = typedHints.name;
 
     const excludedWtIds = new Set(
       (options?.excludeWtIds || []).map((value) => String(value || "").trim()).filter(Boolean)
     );
 
-    const pageContextCandidate = findPageContextPersonCandidate(cleanedTarget);
+    const pageContextCandidate = typedHints ? null : findPageContextPersonCandidate(cleanedTarget);
     if (pageContextCandidate?.wtId && !excludedWtIds.has(pageContextCandidate.wtId)) {
       const contextMatch = normalizeResolvedConnectionPerson(
         await WikiTreeAPI.getPerson(
@@ -796,7 +802,7 @@ export function createChatConnectionHandlers({
     // A bare first name may be the profile person's preferred name or nickname,
     // which the page itself doesn't show ("Benny" on Benjamin Otho Cantrell's
     // page went to Benny Goodman, live B7, 2026-10-02).
-    const profilePersonByName = await findProfilePersonByGivenName(cleanedTarget, excludedWtIds);
+    const profilePersonByName = typedHints ? null : await findProfilePersonByGivenName(cleanedTarget, excludedWtIds);
     if (profilePersonByName) {
       return profilePersonByName;
     }
@@ -820,7 +826,7 @@ export function createChatConnectionHandlers({
 
     // A person already resolved earlier in the conversation ("Sarah (Jones-12)")
     // costs one getPerson instead of a searchPerson fan-out.
-    const remembered = resolveAliasToRememberedPerson?.(cleanedTarget) || null;
+    const remembered = typedHints ? null : resolveAliasToRememberedPerson?.(cleanedTarget) || null;
     const rememberedWtId = String(remembered?.wtId || "").trim();
     if (rememberedWtId && isWikiTreeId(rememberedWtId) && !excludedWtIds.has(rememberedWtId)) {
       const rememberedMatch = normalizeResolvedConnectionPerson(
@@ -838,10 +844,12 @@ export function createChatConnectionHandlers({
 
     // A name with the profile person's or the user's surname, not linked on
     // the page: look in their CC7 before searching all of WikiTree.
-    const familyMatch = await findInFamilyCircle?.(cleanedTarget).catch((error) => {
-      console.debug("wbe: family circle lookup failed", error);
-      return null;
-    });
+    const familyMatch = typedHints
+      ? null
+      : await findInFamilyCircle?.(cleanedTarget).catch((error) => {
+          console.debug("wbe: family circle lookup failed", error);
+          return null;
+        });
     if (familyMatch?.Name && !excludedWtIds.has(familyMatch.Name)) {
       console.debug("wbe: resolveConnectionTargetPerson found name in family CC7", { cleanedTarget, wtId: familyMatch.Name });
       return normalizeResolvedConnectionPerson(familyMatch);
@@ -868,6 +876,8 @@ export function createChatConnectionHandlers({
     if (!aiExpansion?.searchName && commonAlias) {
       aiExpansion = commonAlias;
     }
+    // what was typed beats the AI's guesses
+    aiExpansion = withTypedTargetHints(aiExpansion, typedHints);
 
     if (trustedAliasWtId) {
       return normalizeResolvedConnectionPerson(
@@ -1403,7 +1413,11 @@ export function createChatConnectionHandlers({
           let score = entry.score;
 
           if (aiExpansion?.birthLocation) {
-            score += scoreConnectionLocationEvidence(entry.match?.BirthLocation, aiExpansion.birthLocation);
+            const birthScore = scoreConnectionLocationEvidence(entry.match?.BirthLocation, aiExpansion.birthLocation);
+            // "Bob Jones in Liverpool": born or died there
+            score += aiExpansion.placeAnywhere
+              ? Math.max(birthScore, scoreConnectionLocationEvidence(entry.match?.DeathLocation, aiExpansion.placeAnywhere))
+              : birthScore;
           }
 
           if (aiExpansion?.deathLocation) {
@@ -1411,6 +1425,18 @@ export function createChatConnectionHandlers({
           }
 
           return { ...entry, score };
+        })
+        .sort((left, right) => right.score - left.score);
+    }
+
+    // A typed death year ("Bob Jones d. 1990"): the AI's reading has none.
+    if (Number.isFinite(Number(aiExpansion?.deathYear)) && rankedMatches.length) {
+      rankedMatches = rankedMatches
+        .map((entry) => {
+          const candidateDeathYear = extractYearFromDate(entry.match?.DeathDate);
+          if (!Number.isFinite(candidateDeathYear)) return { ...entry, score: entry.score - 20 };
+          const gap = Math.abs(candidateDeathYear - aiExpansion.deathYear);
+          return { ...entry, score: entry.score + (gap === 0 ? 200 : gap <= 1 ? 120 : gap <= 3 ? 40 : gap >= 10 ? -150 : -50) };
         })
         .sort((left, right) => right.score - left.score);
     }
@@ -1612,9 +1638,31 @@ export function createChatConnectionHandlers({
     setLastConnectionRankedMatches(rankedMatches);
 
     if (options?.allowDisambiguation && shouldOfferDisambiguation(rankedMatches)) {
+      // Every namesake, not the first 8: the searches above stop at 20 each, oldest first, so the
+      // two William Lukers born in 1801 and 1802 (of 85) weren't offered (the user, 2026-10-15).
+      let everyone = [];
+      if (firstName && lastName && !middleNames.length) {
+        try {
+          const [, all] = await WikiTreeAPI.searchPerson(
+            "Chat",
+            { FirstName: firstName, LastName: lastName, skipVariants: 1, lastNameMatch: "strict", limit: 100, sort: "birth" },
+            fields
+          );
+          everyone = Array.isArray(all) ? all : [];
+        } catch (error) {
+          console.debug("wbe: full namesake list failed", error);
+        }
+      }
+      const ranked = rankedMatches.map((entry) => entry.match).filter(Boolean);
+      const hinted = Boolean(normalizedBirthDate || aiExpansion?.birthYear || aiExpansion?.deathYear || aiExpansion?.birthLocation || aiExpansion?.deathLocation);
+      const pool = mergeConnectionMatches([ranked, everyone]);
+      // With a year or place the best fits lead; without one, oldest first is easiest to scan.
+      const birthYearOf = (person) => extractYearFromDate(person?.BirthDate) || Number(String(person?.BirthDateDecade || "").slice(0, 4)) || Infinity;
+      const candidates = hinted ? pool : [...pool].sort((left, right) => birthYearOf(left) - birthYearOf(right));
+      setLastConnectionCandidates(candidates);
       return {
         _disambiguationNeeded: true,
-        _candidates: getLastConnectionCandidates().slice(0, 8),
+        _candidates: candidates,
       };
     }
 

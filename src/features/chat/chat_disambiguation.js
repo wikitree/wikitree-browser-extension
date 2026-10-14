@@ -1,4 +1,8 @@
 import { extractYearFromDate, isWikiTreeId } from "./chat_router";
+import { choiceButton, linesWithMore } from "./chat_more_text";
+
+// Shown before "…and N more" opens the rest (every number still works as a reply).
+const SHOWN_CANDIDATES = 20;
 
 export function shouldOfferDisambiguation(rankedMatches) {
   if (!Array.isArray(rankedMatches) || rankedMatches.length < 2) return false;
@@ -12,7 +16,7 @@ export function shouldOfferDisambiguation(rankedMatches) {
 }
 
 export function buildDisambiguationMessage(candidates, targetName, options = {}) {
-  const lines = candidates.slice(0, 8).map((c, i) => {
+  const lines = candidates.map((c, i) => {
     const wtId = c.Name || "";
     const displayName = c.RealName || c?.Derived?.ShortName || wtId;
     const birthYear = extractYearFromDate(c.BirthDate);
@@ -32,12 +36,12 @@ export function buildDisambiguationMessage(candidates, targetName, options = {})
     const dateParts = [birthPart, deathPart].filter(Boolean);
     const dates = dateParts.length ? ` (${dateParts.join(", ")})` : "";
     const label = displayName !== wtId ? `${wtId} - ${displayName}` : wtId;
-    return `  ${i + 1}. ${label}${dates}`;
+    return `  ${choiceButton(wtId || i + 1)}${i + 1}. ${label}${dates}`;
   });
   return [
-    `${options.heading || `I found several people named "${targetName}". Which one did you mean?`}\n`,
-    ...lines,
-    "\nReply with a number (1, 2, 3...) or paste a WikiTree ID.",
+    `${options.heading || `I found ${lines.length > 8 ? `${lines.length} people` : "several people"} named "${targetName}". Which one did you mean?`}\n`,
+    linesWithMore(lines, SHOWN_CANDIDATES),
+    `\nClick Choose, or reply with a number (1, 2, 3...) or a WikiTree ID.${lines.length > 8 ? " Adding a birth year or place to the name narrows it down." : ""}`,
   ].join("\n");
 }
 

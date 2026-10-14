@@ -115,11 +115,25 @@ describe("cardHeadHtml", () => {
     card.innerHTML = cardHeadHtml(sitter, { prefix: "wbe-galaxy" });
     bindCardPhoto(card, sitter);
     const image = card.querySelector("img");
-    expect(image.getAttribute("src")).toMatch(/150px-Ann\.jpg$/);
+    expect(image.getAttribute("src")).toMatch(/300px-Ann\.jpg$/); // (WikiTree serves 75px and 300px only, live 2026-10-15)
     image.dispatchEvent(new Event("error"));
     expect(image.getAttribute("src")).toMatch(/\/photo\.php\/a\/b\/Ann\.jpg$/);
     image.dispatchEvent(new Event("error"));
     expect(card.querySelector(".wbe-galaxy-photo").textContent).toBe("AS");
     expect(initials(person(4, { name: "Mary", lnab: "" }))).toBe("M");
+  });
+});
+
+describe("photoUrl: only the thumbnail sizes WikiTree serves (live, 2026-10-15)", () => {
+  const { photoUrl } = require("./chat_chart_common");
+  const photoData = (orig) => ({ dir: "/photo.php/thumb/8/89", path: "/photo.php/8/89/Loots-528.jpg", url: "/photo.php/thumb/8/89/Loots-528.jpg/75px-Loots-528.jpg", orig_width: String(orig) });
+  test.each([
+    [150, 3388, /\/300px-Loots-528\.jpg$/],
+    [240, 3388, /\/300px-Loots-528\.jpg$/],
+    [75, 3388, /\/75px-Loots-528\.jpg$/],
+    [150, 160, /\/photo\.php\/8\/89\/Loots-528\.jpg$/],
+    [500, 3388, /\/300px-Loots-528\.jpg$/],
+  ])("%ipx of a %ipx photo", (size, orig, expected) => {
+    expect(photoUrl({ photo: "Loots-528.jpg", photoData: photoData(orig) }, size)).toMatch(expected);
   });
 });

@@ -123,12 +123,18 @@ describe("completeness heatmap prompts", () => {
     ["Cook-8721's tree completeness heat map", "Cook-8721"],
     ["Which branches of my tree are most complete?", "my"],
     ["which of her branches are the least researched", "her"],
+    ["completeness", ""],
+    ["Completeness?", ""],
+    ["my completeness", "my"],
+    ["Cook-8721's completeness", "Cook-8721"],
   ])("%s", (prompt, owner) => {
     expect(parseCompletenessPrompt(prompt)).toMatchObject({ owner, heatmap: true, completeness: true });
   });
   test("the other completeness prompts don't ask for it", () => {
     expect(parseCompletenessPrompt("how complete is my tree").heatmap).toBeUndefined();
     expect(parseCompletenessPrompt("heatmap of my DNA matches")).toBeNull();
+    expect(parseCompletenessPrompt("my tree completeness").heatmap).toBeUndefined();
+    expect(parseCompletenessPrompt("completeness check")).toBeNull();
   });
 });
 

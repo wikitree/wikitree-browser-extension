@@ -14,6 +14,7 @@ async function loadFeature(response, bodyClass = "profile") {
   `;
   global.chrome = {
     runtime: {
+      getURL: (path) => `chrome-extension://wbe/${path}`,
       sendMessage: jest.fn((message, callback) => callback(response)),
     },
   };
@@ -55,7 +56,9 @@ describe("Gold Standard Inspector", () => {
     const button = researchStatus.lastElementChild;
     expect(button.classList.contains("wbe-gold-standard-button")).toBe(true);
     expect(button.getAttribute("aria-label")).toBe("Gold Standard Inspector");
-    expect(button.textContent).toBe("GSI");
+    expect(button.classList.contains("wbe-button")).toBe(true);
+    expect(button.getAttribute("data-tooltip")).toBe("Gold Standard Inspector");
+    expect(button.querySelector("span").style.backgroundImage).toContain("images/gold-standard.svg");
     expect(button.previousElementSibling.classList.contains("research-status-label")).toBe(true);
     await openInspector();
 

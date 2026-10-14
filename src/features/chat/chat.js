@@ -1152,6 +1152,12 @@ const {
     createAppsLoginButton(CHAT_APPS_LOGIN_BUTTON_APP_ID, "Log in to the apps server for a better WBE experience"),
   rebuildEditTextActions: (text) => editTextActions(text),
   rebuildEditCategoryAction: (category) => editCategoryAction(category),
+  // a list's "Choose" button: only while that question is still waiting for an answer
+  chooseDisambiguation: (reply) => {
+    if (!pendingDisambiguationContext || !reply) return false;
+    sendClarifiedPrompt(reply);
+    return true;
+  },
   resetTransientState: () => {
     pendingDisambiguationContext = null;
     lastConnectionCandidates = [];
@@ -3735,6 +3741,12 @@ async function sendChatPrompt() {
     const { provider, key, model } = await getChatAiConfig();
     if (!key) {
       recordUnanswered(prompt, "no AI key");
+      // Without AI, what Genie's own tools found ("I could not find William Luker born 1801")
+      // says more than "We need AI" (the user, 2026-10-15).
+      if (localFailureForAi && directToolResponse) {
+        await handleChatResult(directToolResponse);
+        return;
+      }
       showNeedsAiKey(prompt);
       return;
     }

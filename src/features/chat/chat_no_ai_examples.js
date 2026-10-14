@@ -219,7 +219,7 @@ export const NO_AI_EXAMPLE_SECTIONS = [
   {
     id: "relationships",
     title: "Relationships and connections",
-    intro: "Use WikiTree IDs (like Cook-8721) when a name is common.",
+    intro: "Use WikiTree IDs (like Cook-8721) when a name is common, or add a birth year and place after the name.",
     items: [
       {
         pattern: "how am I related to [person]? / my connection to [person]",
@@ -228,6 +228,8 @@ export const NO_AI_EXAMPLE_SECTIONS = [
           "how is Maloney-2332 related to McKusick-36?",
           "my connection to Cook-8721",
           "connection between Cook-8721 and Milliken-62",
+          "connection to Bob Jones in Liverpool 1923",
+          "relationship to Bob Jones (1923-1990)",
         ],
         note: "Finds how two people are connected on WikiTree.",
       },
