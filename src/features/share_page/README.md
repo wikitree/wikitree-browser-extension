@@ -58,10 +58,21 @@ living and not Private** (level 10). See `isNameSafe()` and `safeRelativeIds()`.
   named are still counted: "He was the father of Carl Jr and 3 more", or "He was the father of 5 children."
 - If the API cannot be reached, nobody is named, with the same counts. The card still shows the person's own dates and
   places.
-- A Tree Apps chart is a picture of whatever the page shows, which can include living people, so its picture goes on the
-  card only for the **fan chart** (ancestors), and only when `WikiTreeAPI.getAncestors` says every ancestor in it, down
-  to the generations shown, is deceased and not Private. Other views (descendants, CC7 and so on) get a text-only card,
-  and the dialog says why.
+- A Tree Apps chart is a picture of whatever the page shows, which can include living people. Names and portraits are
+  therefore only in the picture for views that show **just the person's ancestors**: Fan Chart (`fanchart`), Ancestor
+  Webs (`webs`), Fractal Tree (`fractal`), X Family Tree (`xtree`), Ancestor Lines Explorer (`ale`) and Name Cloud while
+  its scope is "ancestors" (`ancestorGenerations()` reads how many generations each is showing). They keep them only
+  when `WikiTreeAPI.getAncestors` says every ancestor in it, to that many generations, is deceased and not Private. If
+  the generations cannot be read, or are more than the API can check (10), nothing is verified. Every other view
+  (descendants, CC7 and so on), and an ancestor view that fails the check, gets a picture of its **shapes only**: the
+  text, portraits, names, dates and hover text are taken out of the SVG, and a canvas (which cannot be edited) is not
+  used. The dialog says names were left off. A name cloud without its names has no picture at all, because it is only
+  names. CC7's Circles display is drawn from its dots alone, with no initials. A picture with nothing left in it is not
+  used. **Slippy Tree** does not hide living people, so it is checked person by person: each person's box has their WikiTree
+  number in its id (`person-<id>`), `getPeople` is asked whether they are living or Private, and only the boxes of people
+  who are deceased and not Private keep their names and dates (everything else, boxes and lines, stays). Anyone who cannot
+  be checked is shown without a name, and the dialog says so. Members who can see living profiles in Tree Apps (managers and trusted-list members) get the same rule, because
+  the card goes to everyone.
 - A surname hub shows its coordinator, who is a public volunteer role, and the DNA test counts, which are numbers only.
 
 Levels 30 and 40 have a public biography, and level 40 a public tree, but the card and post draw on the data fields, so
@@ -87,6 +98,9 @@ A 1080 × 1080 square (1:1, the size of an Instagram post, which the other netwo
 (`/images/wikitree-logo-tagline.png`, loaded from the same address as the page so the picture can be saved). If Roboto or
 the logo has not loaded, it falls back to Arial and the word "WikiTree". The footer reads "WikiTree.com" and "The FREE
 Family Tree".
+
+**The person's WikiTree ID** (for example `Washington-11`) is on the card's first line, after the kind of page, on
+profile and Tree Apps cards, so anyone can find the profile from the picture.
 
 **Profiles** show the person's data fields (Born, Died, Parents, Spouse, with every parent and spouse name in bold), a
 portrait, and a short life summary:
@@ -162,125 +176,28 @@ and a picture of the chart as the member sees it.
 - The picture is taken from the largest SVG or canvas in `#view-container`. Tree Apps draw the chart after the people
   have loaded, so the capture first waits (up to 8 seconds) while `#view-loader` is showing or the drawing is still
   changing. The page's styles are copied onto a copy of the SVG (for the names, dates and portraits inside
-  `foreignObject` boxes, their sizes and spacing too), which is drawn first as it is (colours and text). Then the
-  portraits, whether SVG `<image>` elements or HTML `<img>` tags as the fan chart uses, are fetched, shrunk (JPEG photos
-  stay JPEG) and embedded, because an SVG drawn on its own cannot load outside pictures. The version with portraits is used only if it came out at least as full as the plain one. The empty
-  margin is trimmed so the chart gets the room. A portrait that cannot be fetched is left out rather than shown as a
-  broken-image icon. Views that are plain text and tables get no picture.
-
-**Image pages** have no card; the image is the picture.
-
-## Tree Apps links
-
-Tree Apps views open only for people logged in to WikiTree; anyone else sees the login page. So the link defaults to the
-person's profile, which anyone can open, and the post reads "Fan Chart for Firman Joseph Robinson on WikiTree. Explore
-their profile and family connections." A checkbox, "Link to the person's profile instead, so anyone can open it", switches
-to the view itself. Unticked, the post reads "Explore Fan Chart in WikiTree's Tree Apps for Firman Joseph Robinson." and a
-note explains the login. Text the member has edited keeps their words, and only the address is swapped.
-
-## Cropping a photo
-
-When a photo is selected, a "Crop picture" panel opens for it (with a picker when two or more photos are selected, for
-the one being cropped). The member chooses a shape, then which part of the picture shows:
-
-- Shapes: Original (the default, nothing cropped), Wide 1.91:1 (the shape of a link preview), Square 1:1, Tall 4:5.
-- A tall picture slides up and down, a wide one left and right. Drag the preview or use the slider (Top to Bottom, or
-  Left to Right). If the picture already has the shape, there is nothing to move.
-- The preview in the post, the grid and the saved picture all use the crop. A cropped picture is saved as
-  `name-cropped.jpg` (or `.png` if the original is a PNG) at up to 2,400 pixels wide, and the share sheet gets the same
-  file.
-- The share card is saved as `wtshare-` and the page's id: `wtshare-Robinson-27265.png`,
-  `wtshare-Andersonia,_California_One_Place_Study.png` (the `Space:`, `Project:`, `Category:` or `Help:` prefix is
-  dropped), `wtshare-PEASLEY.png`, and for a Tree Apps view the person and the view, `wtshare-Robinson-27274-fanchart.png`.
-  See `fileIdFor()`. The maths is `cropRect()` in `share_page_core.js`.
-
-## What each network allows
-
-| Network   | Tag                           | Characters | Pictures | Button                                                                                                      |
-| --------- | ----------------------------- | ---------- | -------- | ----------------------------------------------------------------------------------------------------------- |
-| X         | `@WikiTreers`                 | 280        | 4        | Opens the composer with the text filled in                                                                  |
-| Threads   | `@WikiTreers`                 | 500        | 20       | Opens the composer with the text filled in                                                                  |
-| Bluesky   | `@wikitree.bsky.social`       | 300        | 4        | Opens the composer with the text filled in                                                                  |
-| Mastodon  | `@wikitree@genealysis.social` | 500        | 4        | Opens the composer on the member's own server (option; `genealysis.social`, where WikiTree is, by default)  |
-| Reddit    | none                          | 300        | 1        | Opens a link post to r/wikitree. The text is the title, with no tags or hashtags                            |
-| Facebook  | `@WikiTree`                   | 63,206     | 10       | Passes the link only. The member pastes the text                                                            |
-| LinkedIn  | `@WikiTree`                   | 3,000      | 9        | Passes the link only. The member pastes the text                                                            |
-| Instagram | `@WikiTreers`                 | 2,200      | 10       | No web composer. Copy the caption, save the picture, post in the app                                        |
-| TikTok    | `@WikiTreers`                 | 2,200      | 35       | As Instagram                                                                                                |
-| YouTube   | `@WikiTreers`                 | 5,000      | 1        | As Instagram                                                                                                |
-| Email     | none                          | 1,500      | 10       | Opens the member's mail program (`mailto:`) with a subject and message, or Gmail, Outlook.com or Yahoo Mail |
-
-On X and Mastodon a link counts as 23 characters. No network accepts pictures through a link. The dialog saves them to
-the downloads folder, or opens the system share sheet where the browser supports sharing files. Facebook and LinkedIn
-build the picture from the link preview. A plain `@WikiTree` does not create a tag on Facebook or LinkedIn, so the dialog
-tells the member to retype the `@` and choose the account from the list. Links in Instagram captions are not clickable,
-so the dialog suggests the bio link. Email has an editable subject line, no tags or hashtags, and the message ends with
-the page address. A `mailto:` link cannot carry pictures or an address to send to, and some mail programs cut off a long
-link, so the message is limited to 1,500 characters. Members with no mail program set up can open the same message in
-Gmail, Outlook.com or Yahoo Mail (`WEBMAIL` in `share_page_core.js`), and Share with picture… sends the text and pictures to a
-mail app where the browser supports it. The system share sheet cannot set a subject, and Mail would show a title as a
-first line of the message, so no title is sent and a Copy subject button is offered instead. The character limits and picture counts are in `CHANNELS` in `share_page_core.js`
-and are planning values to re-check before each release.
-
-## Options
-
-| Option                                                                           | Default           |
-| -------------------------------------------------------------------------------- | ----------------- |
-| Channel selected when the dialog opens                                           | Facebook          |
-| Your Mastodon server (for example genealysis.social or mastodon.social)          | genealysis.social |
-| Add a short summary to the share card (life summary, or the page's opening text) | On                |
-| Add the WikiTree hashtags to the post                                            | On                |
-
-## Background script
-
-`public/background.js` has one handler for this feature, `sharePageFetchImage`. The content script asks it for a
-picture the page itself may not read (such as a portrait on `apps.wikitree.com`), and it replies with the bytes as base64.
-It ignores the browser's cross-origin rules, so it is strict about what it fetches:
-
-- only `https` addresses on `wikitree.com` or its subdomains (a look-alike such as `wikitree.com.example.net` is refused);
-- only responses that are images, and nothing larger than 3 MB;
-- a picture that redirects to another site is refused;
-- requests to `apps.wikitree.com` carry an `appId`, because that host answers requests without one with an empty page.
-
-No new permission is needed: the manifest already allows `https://*.wikitree.com/*`.
-
-## Files
-
-| File                          | Purpose                                                                                            |
-| ----------------------------- | -------------------------------------------------------------------------------------------------- |
-| `share_page_core.js`          | Pure logic: page detection, privacy rule, post text, networks, composer links, summaries, cropping |
-| `share_page_core.test.js`     | Unit tests for the core module (128)                                                               |
-| `share_page.js`               | Button, privacy check, dialog, share card drawing, chart capture, crop panel, copy and save        |
-| `share_page.test.js`          | jsdom tests that open the dialog and click through it (64)                                         |
-| `background_fetch.test.js`    | Runs the real `public/background.js` against the picture fetch rules (15)                          |
-| `share_page_card_art.js`      | The brand colours and font, and the drawn score, rank and DNA pictures for a surname hub           |
-| `share_page_card_art.test.js` | Tests for the drawn pictures (6)                                                                   |
-| `share_page_options.js`       | Registers the feature and its options                                                              |
-| `share_page.css`              | Dialog and button styles. Every class starts with `wbe-share`                                      |
-
-The feature is imported in `src/content_main.js` and its options in `src/features/register_feature_options.js`.
-
-## Development
-
-```bash
-npm install
-npx jest src/features/share_page   # the 213 tests for this feature
-npm run build-dev                  # build, plus the undefined-globals, Safari and palette checks
-```
-
-Load the `dist` folder as an unpacked extension (see `docs/tutorial.md`), switch on **Share Page** in the options, and
-visit a profile. The tests use jsdom, which has no canvas and does not load images, so they stand in for both. The card
-drawing, the chart capture, the crop preview and real photo fetching are only checked by loading the extension.
-
-The build forbids regular-expression lookbehind (older Safari) and test code that uses globals such as `Buffer` or
-`__dirname`, so the code and tests avoid both.
+  `foreignObject` boxes, their sizes and spacing too). Without permission for names, `text`, `tspan`, `foreignObject`,
+  `image`, `img`, `title` and `desc` are then removed (`PEOPLE_MARKUP`) and that is the picture. With permission, the SVG
+  is drawn first as it is (colours and text), then the portraits, whether SVG `<image>` elements or HTML `<img>` tags
+  as the fan chart uses, are fetched, shrunk (JPEG photos stay JPEG) and embedded, because an SVG drawn on its own
+  cannot load outside pictures. The version with portraits is used only if it came out at least as full as the plain
+  one. The empty margin is trimmed so the chart gets the room. A portrait that cannot be fetched is left out rather
+  than shown as a broken-image icon.
+- **CC7 Circles** is not one SVG. Each person is a small SVG (`#circlePerson<id>`) placed on a pale background SVG
+  (`#CirclesBkgd`) inside `#circlesDIV4SVG`, so `composeCirclesGraphic()` draws a canvas from the dots' positions and
+  colours and leaves out their initials or names. It is used only while the Circles display is showing. If the member
+  ticked **Central Photo**, that photo (`#theCentralPhotoIMG`, the photo of the person the view is about, who has already
+  passed the privacy check) is fetched and drawn in the middle.
+- Views with no chart (the Ahnentafel list, Descendants lists, WT+ Maps) get no picture, and the dialog says so.
 
 ## Open items
 
 - **Browser coverage.** Check Save picture, Share… and the crop panel in Safari and Firefox. Safari handles downloads
   differently (see the WBE help page's known issues).
 - **Other Tree Apps views.** The generation count is read from the fan chart's counter only. Other views use their own
-  description or a plain sentence, and their charts are captured the same way as the fan chart but have been tested on
-  stand-in markup.
+  description or a plain sentence. Their shapes-only pictures are captured the same way as the fan chart, but have only
+  been tested on stand-in markup, except the Circles display, whose real markup was read from the
+  `wikitree-dynamic-tree` source. A view that draws with several SVGs, or with HTML, may need its own capture like
+  Circles has.
 - **Network details.** Character limits, picture counts and the composer links can change. Re-check them before each
   release.

@@ -58,7 +58,7 @@ async function init() {
     const key = profileKeyFor(kind, window.location.pathname, window.location.hash);
     // Living people's names stay off the card, so find out who is safe to name before the dialog opens.
     const safeIds = kind === "profile" ? await fetchSafeRelativeIds(key) : new Set();
-    const chart = kind === "treeApp" ? await chartPermission(key) : { allowed: false, reason: "" };
+    const chart = kind === "treeApp" ? await chartPermission(key) : { names: false, reason: "" };
     openDialog(kind, options, now.profile, { safeIds, chart });
   });
 }
@@ -105,33 +105,93 @@ async function fetchSafeRelativeIds(key) {
   }
 }
 
+const NAMES_LEFT_OFF =
+  "Names and portraits are left off this picture, because this view can show living or private people. Views that show only a person's ancestors, such as the fan chart, keep them when everyone in them is deceased and not private.";
+const NAMES_NOT_VERIFIED =
+  "Names and portraits are left off the chart's picture, because it may include living or private people.";
+
 /**
- * Whether the picture of a Tree Apps chart may go on the card. The picture is whatever the page shows, so it is used only
- * for the fan chart, which shows ancestors, and only when the API says every ancestor in it is deceased and not Private.
+ * How many generations of ancestors a Tree Apps view is showing, for the views that show only the person's ancestors
+ * (the API can check up to 10). 0 means the view is not one of those, or its generations cannot be read or are more than
+ * the API can check, so its names cannot be verified.
+ */
+function ancestorGenerations(slug) {
+  const digits = (text) => parseInt(clean(text).replace(/\D/g, ""), 10) || 0;
+  const counter = () => digits($("#numGensInBBar").first().text());
+  let generations = 0;
+  switch (slug) {
+    case "fanchart":
+      generations = counter() || 10;
+      break;
+    case "fractal": // shows at most 10
+      generations = counter() || 10;
+      break;
+    case "webs": // shows up to 16, so it needs its counter
+      generations = counter();
+      break;
+    case "xtree": // shows at most 8
+      generations = 10;
+      break;
+    case "ale": // Ancestor Lines Explorer
+      generations = digits($("#generation").val());
+      break;
+    case "namecloud": // ancestors only while its scope is ancestors (the others are CC7, a category or a search)
+      generations = $("#ncloudScope").val() === "ancestors" ? digits($("#ncloudAmount").text()) : 0;
+      break;
+    default:
+      generations = 0;
+  }
+  return generations >= 1 && generations <= 10 ? generations : 0;
+}
+
+/**
+ * Views that draw each person in a box with their own WikiTree number in its id. They do not hide living people, so the
+ * people in the picture are looked up and only the ones the API says are deceased and not Private keep their names.
+ */
+const PERSON_BOXES = {
+  slippy: { box: 'g[id^="person-"]', idOf: (el) => (el.id || "").replace(/^person-/, "") },
+};
+
+const SOME_NAMES_LEFT_OFF =
+  "People who are living or private, or who could not be checked, are shown without names or portraits.";
+
+/** Of these WikiTree numbers, the ones the API says are deceased and not Private (and so may be named). */
+async function safePersonIds(ids) {
+  const safe = new Set();
+  for (let i = 0; i < ids.length; i += 200) {
+    try {
+      const [, , people] = await WikiTreeAPI.getPeople("sharePage", ids.slice(i, i + 200), [
+        "Id",
+        "IsLiving",
+        "Privacy",
+      ]);
+      Object.values(people || {}).forEach((person) => {
+        if (isNameSafe(person)) safe.add(String(person.Id));
+      });
+    } catch (e) {
+      // anyone who could not be checked is not named
+    }
+  }
+  return safe;
+}
+
+/**
+ * Whether a Tree Apps chart's picture may show names and portraits. The picture is whatever the page shows, so names go
+ * on the card only for a view that shows just ancestors, and only when the API says every ancestor in it is deceased
+ * and not Private. Every other view gets a picture of its shapes alone: its text and portraits are taken out.
  */
 async function chartPermission(key) {
-  if (viewSlug(window.location.hash) !== "fanchart") {
-    return {
-      allowed: false,
-      reason: "Only the fan chart's picture is put on the card, because other views can show living people.",
-    };
-  }
-  const generations = parseInt(clean($("#numGensInBBar").first().text()).replace(/\D/g, ""), 10) || 6;
+  const slug = viewSlug(window.location.hash);
+  if (PERSON_BOXES[slug]) return { names: false, reason: SOME_NAMES_LEFT_OFF };
+  const generations = ancestorGenerations(slug);
+  if (!generations) return { names: false, reason: NAMES_LEFT_OFF };
   try {
-    const ancestors = await WikiTreeAPI.getAncestors("sharePage", key, Math.min(10, generations), [
-      "Name",
-      "IsLiving",
-      "Privacy",
-    ]);
-    if (Array.isArray(ancestors) && ancestors.length && ancestors.every(isNameSafe))
-      return { allowed: true, reason: "" };
+    const ancestors = await WikiTreeAPI.getAncestors("sharePage", key, generations, ["Name", "IsLiving", "Privacy"]);
+    if (Array.isArray(ancestors) && ancestors.length && ancestors.every(isNameSafe)) return { names: true, reason: "" };
   } catch (e) {
     // treated as unsafe below
   }
-  return {
-    allowed: false,
-    reason: "The chart's picture is not on the card, because it may include living or private people.",
-  };
+  return { names: false, reason: NAMES_NOT_VERIFIED };
 }
 
 function showNotShareable($button) {
@@ -378,15 +438,100 @@ function inkScore(image) {
   }
 }
 
+// What shows people in a chart's SVG: names, dates, portraits and hover text. Taken out of a picture that may not show them.
+const PEOPLE_MARKUP = "text, tspan, foreignObject, image, img, title, desc";
+
+/**
+ * The CC7 view's Circles display: one dot per person, each its own little SVG placed on a pale background. Drawn from
+ * the dots' positions and colours alone, with no initials or names, so it shows the shape of the connections and
+ * nothing about who is in them. Returns a canvas, or null when that display is not on screen.
+ */
+async function composeCirclesGraphic() {
+  const holder = document.getElementById("circlesDIV4SVG");
+  const background = holder && holder.querySelector("#CirclesBkgd");
+  const dots = holder ? [...holder.querySelectorAll('svg[id^="circlePerson"]')] : [];
+  const box = background && background.getBoundingClientRect();
+  if (!box || box.width < 100 || box.height < 100 || !dots.length) return null;
+  const scale = Math.min(1, 1600 / Math.max(box.width, box.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(box.width * scale);
+  canvas.height = Math.round(box.height * scale);
+  const g = canvas.getContext("2d");
+  const rect = background.querySelector("rect");
+  g.fillStyle = (rect && getComputedStyle(rect).fill) || "#f0f8ff";
+  if (!g.fillStyle || g.fillStyle === "none") g.fillStyle = "#f0f8ff";
+  g.fillRect(0, 0, canvas.width, canvas.height);
+
+  // The "Central Photo" option puts the photo of the person the view is about in the middle, under their dot. That is
+  // the person whose page this is, who has already passed the privacy check, so it may go on the card.
+  const central = holder.querySelector("#theCentralPhotoIMG");
+  if (central && central.getAttribute("src")) {
+    try {
+      const blob = await Promise.race([
+        fetchPictureBlob(central.getAttribute("src")),
+        sleep(6000).then(() => Promise.reject(new Error("timeout"))),
+      ]);
+      const picture = await loadImage(await shrinkToDataUrl(blob, 600));
+      const at = central.getBoundingClientRect();
+      if (picture && at.width && at.height)
+        g.drawImage(
+          picture,
+          (at.left - box.left) * scale,
+          (at.top - box.top) * scale,
+          at.width * scale,
+          at.height * scale
+        );
+    } catch (e) {
+      // the circles are still worth sharing without the photo
+    }
+  }
+
+  dots.forEach((dot) => {
+    const shape = dot.querySelector("ellipse, circle");
+    const at = dot.getBoundingClientRect();
+    if (!shape || !at.width || !at.height) return;
+    const style = getComputedStyle(shape);
+    const colour = (value, attribute) =>
+      value && value !== "none" ? value : (shape.getAttribute(attribute) || "").trim() || "none";
+    const fill = colour(style.fill, "fill");
+    const edge = colour(style.stroke, "stroke");
+    g.beginPath();
+    g.arc(
+      (at.left - box.left + at.width / 2) * scale,
+      (at.top - box.top + at.height / 2) * scale,
+      Math.max(1, (Math.min(at.width, at.height) / 2 - 1) * scale),
+      0,
+      Math.PI * 2
+    );
+    if (fill !== "none") {
+      g.fillStyle = fill;
+      g.fill();
+    }
+    if (edge !== "none") {
+      g.strokeStyle = edge;
+      g.lineWidth = Math.max(1, scale);
+      g.stroke();
+    }
+  });
+  return canvas;
+}
+
 /**
  * A picture of the chart or tree on screen in a Tree Apps view, as the member sees it. Returns an Image (from the
- * page's SVG) or the canvas itself, or null when the view is plain text and tables.
+ * page's SVG) or a canvas, or null when the view has no chart (plain text, tables, maps).
+ *
+ * Without `names` the picture shows shapes only: text, portraits and hover text are taken out of an SVG, and a canvas
+ * (which cannot be edited) is not used. A picture with nothing left in it is not used either.
  */
-async function captureAppGraphic() {
+async function captureAppGraphic({ names = false } = {}) {
   await waitForChart();
+  const circles = await composeCirclesGraphic();
+  if (circles) return circles;
   const found = findChartElement();
   if (!found) return null;
-  if (found.tagName.toLowerCase() === "canvas") return found;
+  if (found.tagName.toLowerCase() === "canvas") return names ? found : null;
+  // a name cloud is its names: without them there is only the tree-shaped backdrop, which says nothing
+  if (!names && viewSlug(window.location.hash) === "namecloud") return null;
 
   // Copy the styles the page's own CSS gives the SVG, because the copy is drawn on its own.
   const box = found.getBoundingClientRect();
@@ -439,6 +584,22 @@ async function captureAppGraphic() {
   copy.querySelectorAll("img").forEach((img) => {
     ["srcset", "sizes", "loading", "crossorigin"].forEach((name) => img.removeAttribute(name));
   });
+  let hidden = 0;
+  if (!names) {
+    const per = PERSON_BOXES[viewSlug(window.location.hash)];
+    if (per) {
+      // keep the text only inside the boxes of people who may be named; everything else is shapes
+      const boxes = [...copy.querySelectorAll(per.box)];
+      const safe = await safePersonIds(boxes.map(per.idOf).filter(Boolean));
+      hidden = boxes.filter((box) => !safe.has(per.idOf(box))).length;
+      copy.querySelectorAll(PEOPLE_MARKUP).forEach((el) => {
+        const box = el.closest(per.box);
+        if (!box || !safe.has(per.idOf(box))) el.remove();
+      });
+    } else {
+      copy.querySelectorAll(PEOPLE_MARKUP).forEach((el) => el.remove());
+    }
+  }
   copy.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   copy.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
   copy.setAttribute("width", String(Math.round(box.width)));
@@ -455,6 +616,11 @@ async function captureAppGraphic() {
   const withoutPictures = copy.cloneNode(true);
   withoutPictures.querySelectorAll("image, img").forEach((el) => el.remove());
   const plain = await toImage(withoutPictures);
+  if (!names) {
+    const shapes = plain && inkScore(plain) !== 0 ? trimMargins(plain) : null;
+    if (shapes) shapes.wbeHidden = hidden; // how many people were left without a name, for the note
+    return shapes;
+  }
   await Promise.race([inlinePictures(copy), sleep(6000)]);
   copy.querySelectorAll("image, img").forEach((el) => {
     const href = el.getAttribute("href") || el.getAttributeNS(XLINK, "href") || el.getAttribute("src") || "";
@@ -698,7 +864,15 @@ const LOGO_PATH = "/images/wikitree-logo-tagline.png";
  *          subtitle?: string, graphic?: HTMLImageElement|HTMLCanvasElement|null}} [extras]
  */
 async function drawShareCard(kind, title, extras = {}) {
-  const { photoSrc = "", summary = null, subtitle = "", graphic = null, slot = null, badge = null } = extras;
+  const {
+    photoSrc = "",
+    summary = null,
+    subtitle = "",
+    graphic = null,
+    slot = null,
+    badge = null,
+    profileId = "",
+  } = extras;
   const placement = extras.placement === "under" ? "under" : "beside";
   const canvas = document.createElement("canvas");
   canvas.width = CARD_SIZE;
@@ -749,9 +923,15 @@ async function drawShareCard(kind, title, extras = {}) {
   g.font = font("700 22px");
   const kindLabel = (KIND_LABELS[kind] || "").toUpperCase();
   g.fillText(kindLabel, left, 146);
+  let labelEnd = left + g.measureText(kindLabel).width;
+  if (profileId) {
+    // the person's WikiTree ID, so anyone can find the profile from the card
+    g.fillText(`·  ${profileId}`, labelEnd + 16, 146);
+    labelEnd += 16 + g.measureText(`·  ${profileId}`).width;
+  }
   if (badge && !graphic) {
     // Research Status at Silver Standard or above, on the same line as the kind of page
-    const x = left + g.measureText(kindLabel).width + 44;
+    const x = labelEnd + 44;
     drawMedal(g, x, 139, badge.tier);
     g.fillStyle = BRAND.ink;
     g.font = font("700 20px");
@@ -1070,7 +1250,7 @@ const HOW = {
 
 function openDialog(kind, options, profile = null, extras = {}) {
   const safeIds = extras.safeIds || new Set();
-  const chart = extras.chart || { allowed: false, reason: "" };
+  const chart = extras.chart || { names: false, reason: "" };
   if ($(".wbe-share-overlay").length) return;
   const opener = document.activeElement;
   const app = kind === "treeApp" ? readAppContext(profile) : null;
@@ -1126,6 +1306,8 @@ function openDialog(kind, options, profile = null, extras = {}) {
   const lifeBio = cardSummary ? cardSummary.bio : "";
   state.bioSource = notability ? "notability" : "life";
   state.bio = cardSummary ? cardBio(state.bioSource, notability, lifeBio) : "";
+  const personKey = profileKeyFor(kind, window.location.pathname, window.location.hash);
+  const profileId = (kind === "profile" || kind === "treeApp") && /^[^:/\s]+-\d+$/.test(personKey) ? personKey : "";
   const badge = kind === "profile" || kind === "space" ? researchBadge(profile && profile.ResearchStatus) : null;
   // What the member can put in the card's picture slot: on a surname hub the drawn score, rank and DNA pictures, the
   // one-name study's coordinator and background, then the photos found on the page.
@@ -1168,7 +1350,17 @@ function openDialog(kind, options, profile = null, extras = {}) {
   const cardPhotoSrc = () => (chosenCard() && chosenCard().full) || "";
   const cardSlot = () => (chosenCard() && chosenCard().canvas) || null;
   const graphicPromise =
-    kind === "treeApp" && chart.allowed ? captureAppGraphic().catch(() => null) : Promise.resolve(null);
+    kind === "treeApp"
+      ? captureAppGraphic({ names: chart.names })
+          .catch(() => null)
+          .then((graphic) => {
+            state.graphicDone = true;
+            state.graphic = !!graphic;
+            state.hidden = (graphic && graphic.wbeHidden) || 0;
+            renderPost();
+            return graphic;
+          })
+      : Promise.resolve(null);
   let cardPromise;
   let cardRun = 0;
   function redrawCard() {
@@ -1182,6 +1374,7 @@ function openDialog(kind, options, profile = null, extras = {}) {
           summary: cardSummary ? { fields: cardSummary.fields, bio: state.bio } : null,
           placement: state.photoPlace,
           badge,
+          profileId,
           subtitle: app ? app.person : "",
           graphic,
         })
@@ -1545,7 +1738,20 @@ function openDialog(kind, options, profile = null, extras = {}) {
           channel.name
         }. Shorten it before posting.`
       );
-    if (kind === "treeApp" && !chart.allowed && chart.reason) notes.push(chart.reason);
+    if (
+      kind === "treeApp" &&
+      state.graphic &&
+      !chart.names &&
+      chart.reason &&
+      (!PERSON_BOXES[viewSlug(window.location.hash)] || state.hidden > 0)
+    )
+      notes.push(chart.reason);
+    if (kind === "treeApp" && state.graphicDone && !state.graphic)
+      notes.push(
+        !chart.names && viewSlug(window.location.hash) === "namecloud"
+          ? `${chart.reason} A name cloud is made of names, so the card has no picture.`
+          : "This view has no chart to picture, so the card is text only."
+      );
     if (kind === "treeApp" && state.url === viewUrl) {
       notes.push(
         "Tree Apps views open only for people logged in to WikiTree. Anyone else sees the login page." +
