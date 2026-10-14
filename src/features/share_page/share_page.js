@@ -148,8 +148,9 @@ function ancestorGenerations(slug) {
  * Views that draw each person in a box with their own WikiTree number in its id. They do not hide living people, so the
  * people in the picture are looked up and only the ones the API says are deceased and not Private keep their names.
  */
+// (The names here and in ancestorGenerations() are the `view=` names in the Tree Apps' index.js, such as "slippyTree".)
 const PERSON_BOXES = {
-  slippy: { box: 'g[id^="person-"]', idOf: (el) => (el.id || "").replace(/^person-/, "") },
+  slippyTree: { box: 'g[id^="person-"]', idOf: (el) => (el.id || "").replace(/^person-/, "") },
 };
 
 const SOME_NAMES_LEFT_OFF =

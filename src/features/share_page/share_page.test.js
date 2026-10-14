@@ -1357,7 +1357,7 @@ describe("Share Page dialog", () => {
   const openSlippy = (svg = SLIPPY_SVG) =>
     withBoxes(async () => {
       await loadFeature(
-        "/apps/Robinson-27274#name=Robinson-27274&view=slippy",
+        "/apps/Robinson-27274#name=Robinson-27274&view=slippyTree",
         `<h2 id="view-title">Slippy Tree</h2><div id="view-container">${svg}</div>`
       );
       await clickShare();
@@ -1445,7 +1445,7 @@ describe("Share Page dialog", () => {
   test("a canvas is not pictured unless names are allowed, because the names in it cannot be taken out", async () => {
     await withBoxes(async () => {
       await loadFeature(
-        "/apps/Robinson-27274#name=Robinson-27274&view=slippy",
+        "/apps/Robinson-27274#name=Robinson-27274&view=slippyTree",
         `<h2 id="view-title">Slippy Tree</h2><div id="view-container"><canvas width="600" height="400"></canvas></div>`
       );
       await clickShare();
