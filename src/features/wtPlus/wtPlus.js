@@ -6,6 +6,7 @@ import { mainDomain, isWikiEdit, isProfileEdit } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { dataTables, dataTableTemplateFindByName, dataTablesLoad } from "../../core/API/wtPlusData";
 import { selectCIB } from "./wtPlusDialogs";
+import { readEnhancedEditor, writeEnhancedEditor } from "../../core/enhancedEditor";
 
 export const tb = {};
 
@@ -307,14 +308,20 @@ const urlMappings = [
 /* Setting result */
 
 export function wtUpdateEdit() {
-  if (tb.elEnhancedActive) {
-    tb.elEnhanced.click();
+  if (tb.editorText) {
+    // The enhanced editor is on: the result goes into it (one undoable change), and it copies it to the box.
+    tb.elText.value = tb.textResult;
+    writeEnhancedEditor(tb.textResult, tb.selStart, tb.selEnd);
+  } else {
+    if (tb.elEnhancedActive) {
+      tb.elEnhanced.click();
+    }
+    tb.elText.value = tb.textResult;
+    if (tb.elEnhancedActive) {
+      tb.elEnhanced.click();
+    }
+    tb.elText.setSelectionRange(tb.selStart, tb.selEnd);
   }
-  tb.elText.value = tb.textResult;
-  if (tb.elEnhancedActive) {
-    tb.elEnhanced.click();
-  }
-  tb.elText.setSelectionRange(tb.selStart, tb.selEnd);
 
   if (tb.birthLocationResult) {
     tb.elBirthLocation.value = tb.birthLocationResult;
@@ -335,7 +342,7 @@ export function wtUpdateEdit() {
     }
     tb.elSummary.value = s;
   }
-  tb.elText.focus();
+  if (!tb.editorText) tb.elText.focus();
   tb.addToSummary = "";
 
   // Let the page know that changes have been made so that the "Save Changes" button works
@@ -1167,17 +1174,23 @@ function posToOffset(txt, pos) {
   return len + pos.ch;
 }
 */
-export function wtPlus(params) {
+export async function wtPlus(params) {
+  // With the enhanced editor on, work on its text where it is (core/cm_text.js), rather than
+  // switching it off (2026-10-14). Only if that fails is it switched off, as before.
+  tb.editorText = null;
   if (params.action !== "AddCIBCategory") {
     if (tb.elText.style.display == "none") {
-      alert("Enhanced editor is not supported.\n\nTurning it off to use the extension.");
-      tb.elEnhanced.click();
-      console.log("wt+");
+      tb.editorText = await readEnhancedEditor();
+      if (!tb.editorText) {
+        alert("Enhanced editor is not supported.\n\nTurning it off to use the extension.");
+        tb.elEnhanced.click();
+        console.log("wt+");
+      }
     }
   }
 
   //Sets all edit variables
-  tb.elEnhancedActive = tb.elText.style.display == "none";
+  tb.elEnhancedActive = !tb.editorText && tb.elText.style.display == "none";
   if (tb.elEnhancedActive) {
     console.log("wt+ temp Off");
     tb.elEnhanced.click();
@@ -1191,9 +1204,15 @@ export function wtPlus(params) {
 */
   }
 
-  tb.selStart = tb.elText.selectionStart;
-  tb.selEnd = tb.elText.selectionEnd;
-  tb.textAll = tb.elText.value;
+  if (tb.editorText) {
+    tb.selStart = tb.editorText.from;
+    tb.selEnd = tb.editorText.to;
+    tb.textAll = tb.editorText.text;
+  } else {
+    tb.selStart = tb.elText.selectionStart;
+    tb.selEnd = tb.elText.selectionEnd;
+    tb.textAll = tb.elText.value;
+  }
   if (tb.elBirthLocation) {
     tb.birthLocation = tb.elBirthLocation.value;
   }
@@ -1338,7 +1357,8 @@ function mainEventLoop(event) {
   }
   const op = element.dataset.op;
   const id = element.dataset.id;
-  if (tb.elText.style.display == "none") {
+  // (not when this run is working on the enhanced editor's own text)
+  if (tb.elText.style.display == "none" && !tb.editorText) {
     alert("Enhanced editor is not supported.\n\nTurning it off to use the extension.");
     console.log("Main");
     tb.elEnhanced.click();

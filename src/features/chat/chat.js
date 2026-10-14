@@ -24,7 +24,9 @@ import "../../core/userTimingCompat";
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getFeatureOptions } from "../../core/options/options_storage";
-import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
+import { wtAPICatCIBSearch, wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
+import { buildSuggestionsOptions } from "../wikitree_plus_helper/wikitree_plus_helper_suggestions";
+import { buildSelectOptions } from "../wikitree_plus_helper/wikitree_plus_helper_utils";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { buildConnectedTestsAnswer, buildHaplogroupAnswer, dnaTypesFromTestSlugs } from "./chat_dna";
 import { getUserWtId, getUserNumId, getProfilePersonInfo } from "../../core/common";
@@ -87,11 +89,40 @@ import {
   findSiblingProfileIdsFromDOM,
   findParentProfileIdsFromDOM,
 } from "./chat_dom_lookup";
-import { isPlusDomain } from "../../core/pageType";
+import { isPlusDomain, isProfileEdit } from "../../core/pageType";
+import { copyToClipboard } from "../../core/clipboard";
+import { insertIntoEnhancedEditor, readEnhancedEditor, writeEnhancedEditor } from "../../core/enhancedEditor";
+import {
+  EDIT_QUALITY_FIELDS,
+  bioChanges,
+  changeExplanation,
+  editCommandChips,
+  editFormChanges,
+  fillChangeExplanation,
+  isChangeExplanationPrompt,
+  editFormFacts,
+  editMenuItem,
+  editPageQualityMessage,
+  editPageQualityPerson,
+  enhancedEditorOn,
+  insertIntoBiography,
+  isMissingCheckPrompt,
+  parseEditCommand,
+} from "./chat_edit_page";
+import { profileQuality } from "./chat_profile_quality_data";
+import { editPagePerson, formBioDifferences, formBioDifferencesMessage, isFormBioCheckPrompt } from "./chat_edit_consistency";
+import {
+  addCategoryToText,
+  categorySearchPrompt,
+  categorySuggestionsMessage,
+  contextWords,
+  existingCategories,
+  isCategorySuggestPrompt,
+  parseCategorySearches,
+  pickCategory,
+} from "./chat_edit_categories";
 import { escapeHtml } from "../../core/lib/diff_utils";
 import { buildPlusUrl } from "../wikitree_plus_helper/wikitree_plus_helper_url";
-import { buildSuggestionsOptions } from "../wikitree_plus_helper/wikitree_plus_helper_suggestions";
-import { buildSelectOptions } from "../wikitree_plus_helper/wikitree_plus_helper_utils";
 import {
   setPopupPositionAndSize,
   positionPopupForOpen,
@@ -361,6 +392,8 @@ let pendingDisambiguationContext = null;
 // should run. Without this a bare affirmative falls through to profile search
 // and returns nonsense name matches for "Sure.".
 let pendingFollowupOffer = null;
+// Insert for the biography text Genie just wrote: Enter in the empty box runs it (the user, 2026-10-14).
+let pendingEditInsert = null;
 // The question Genie couldn't answer, or asked about, just now; the next reply may add detail to it.
 let awaitingDetailFor = "";
 // (the request as routed: after a follow-up was merged into it)
@@ -725,7 +758,8 @@ function isWtPlusSuggestionPrompt(text) {
     return false;
   }
 
-  return /(?:^|\s)(?:suggestions?|sug\w*|dbe\w*)\b/i.test(normalized);
+  // ("sug803" and "suggestion" ask for one; "Suggest categories" is the verb: edit page, 2026-10-14)
+  return /(?:^|\s)(?:suggestions?|sug(?!gest)\w*|dbe\w*)\b/i.test(normalized);
 }
 
 // Strip list/bullet decorations that ride along when a prompt is pasted from a
@@ -771,7 +805,7 @@ function parseSuggestionNumberFromPrompt(prompt) {
 
   // Match patterns like "dbe803", "sug803", "suggestion803", "suggestions803"
   // with optional "=" like "dbe=803", "sug=803"
-  const compactMatch = /(?:^|\s)(suggestions?|sug\w*|dbe)(?:\s*=?\s*)(\d+)\b/i.exec(original);
+  const compactMatch = /(?:^|\s)(suggestions?|sug(?!gest)\w*|dbe)(?:\s*=?\s*)(\d+)\b/i.exec(original);
   if (compactMatch) {
     const [fullMatch, keyword, number] = compactMatch;
     // Replace the matched pattern with normalized format
@@ -806,7 +840,7 @@ function upsertSuggestionInPrompt(prompt, suggestionNumber) {
   }
 
   // Replace trigger keywords: "suggestion(s)", "sug*", or "dbe*"
-  const triggerPattern = /(?:^|\s)(?:suggestions?|sug\w*|dbe\w*)\b/i;
+  const triggerPattern = /(?:^|\s)(?:suggestions?|sug(?!gest)\w*|dbe\w*)\b/i;
   if (triggerPattern.test(original)) {
     return original.replace(triggerPattern, (match) => {
       // If match starts with whitespace (not at start of string), preserve the space
@@ -1116,6 +1150,8 @@ const {
   onSearchFormSubmit: (values, built) => runSearchForm(values, built),
   createAppsLoginButton: () =>
     createAppsLoginButton(CHAT_APPS_LOGIN_BUTTON_APP_ID, "Log in to the apps server for a better WBE experience"),
+  rebuildEditTextActions: (text) => editTextActions(text),
+  rebuildEditCategoryAction: (category) => editCategoryAction(category),
   resetTransientState: () => {
     pendingDisambiguationContext = null;
     lastConnectionCandidates = [];
@@ -2977,18 +3013,286 @@ async function askAiBriefly(prompt) {
   return response?.success ? response.response || null : null;
 }
 
+// An edit-menu item asked for in the chat. The Family Lists text is shown first, with Insert and
+// Copy; the items that change the page themselves are clicked in the menu, as if picked there.
+async function runEditCommand(command) {
+  const menuItem = editMenuItem(command.title);
+  if (!menuItem) {
+    appendMessage("assistant", `"${command.title}" isn't on this page's edit menu: it may be switched off in the extension's options.`);
+    return;
+  }
+  if (command.kind === "run") {
+    menuItem.click();
+    appendMessage("assistant", `Ran ${command.title}, as on the edit menu. Check the biography box before you save.`, { shouldPersist: false });
+    return;
+  }
+  showChatShaky(`Writing ${command.title}...`);
+  let built;
+  try {
+    const { buildFamilyListText } = await import(/* webpackChunkName: "family-lists" */ "../family_lists/family_lists");
+    built = await buildFamilyListText(command.list);
+  } catch (error) {
+    console.error("wbe: edit command failed", command.title, error);
+    built = { error: `${command.title} didn't work this time: ${error?.message || "try the edit menu"}.` };
+  } finally {
+    hideChatShaky();
+  }
+  const text = String(built?.text || "").trim();
+  if (built?.error) {
+    appendMessage("assistant", built.error, { shouldPersist: false });
+    return;
+  }
+  if (built?.otherMessage || !text) {
+    // "Spouse and Child Details" came back empty for a man with neither (the user, 2026-10-14)
+    const name = getPageRootPerson()?.displayName || "This person";
+    const none = { spouseChildList: "no spouses or children", siblingList: "no siblings", death: "no death details", birthAndParents: "no birth or parent details" };
+    appendMessage("assistant", `${name} has ${none[command.list] || "nothing to add"} on WikiTree, so there's nothing to add.`, { shouldPersist: false });
+    return;
+  }
+  // (kept in the history, so the text and its buttons are still there after Genie closes)
+  const actions = editTextActions(text);
+  appendMessage("assistant", `${command.title}, ready to add:\n\n${text}\n\nPress Enter to insert it at the cursor.`, { actions });
+  pendingEditInsert = actions[0].onClick;
+}
+
+// The biography being edited: from the enhanced editor when it's on, else the box.
+async function liveBiography() {
+  const box = document.querySelector("#wpTextbox1");
+  return enhancedEditorOn() ? (await readEnhancedEditor())?.text ?? box?.value ?? "" : box?.value ?? "";
+}
+
+// Where the edit form and the biography disagree on birth and death (chat_edit_consistency.js).
+async function editPageDifferences(bio = null) {
+  const form = editFormFacts();
+  if (!form) return [];
+  const value = (id) => String(document.getElementById(id)?.value || "").trim();
+  const typed = { BirthDate: value("mBirthDate"), BirthLocation: value("mBirthLocation"), DeathDate: value("mDeathDate"), DeathLocation: value("mDeathLocation") };
+  return formBioDifferences(typed, bio ?? (await liveBiography()), editPagePerson(document, getPageRootPerson()?.displayName || ""));
+}
+
+// "What's missing?" on the edit page: the form and the biography as they are now, with the
+// relationships (not on this form) from the API.
+async function answerEditPageMissing() {
+  const page = getPageRootPerson();
+  if (!page?.wtId) {
+    appendMessage("assistant", "I can't tell which profile this edit page is for.", { shouldPersist: false });
+    return;
+  }
+  showChatShaky("Checking the profile...");
+  let apiPerson = null;
+  let bio = "";
+  try {
+    bio = await liveBiography();
+    [apiPerson] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, page.wtId, EDIT_QUALITY_FIELDS, { resolveRedirect: 1 });
+  } catch (error) {
+    console.warn("wbe: edit page check couldn't load the profile", error);
+  } finally {
+    hideChatShaky();
+  }
+  const quality = profileQuality(editPageQualityPerson(apiPerson, editFormFacts(), bio));
+  const note = apiPerson ? "" : "\n(I couldn't load the saved profile, so parents and marriages aren't counted.)";
+  const differences = formBioDifferencesMessage(await editPageDifferences(bio));
+  appendMessage("assistant", editPageQualityMessage(page.displayName || page.wtId, quality) + note + (differences ? `\n\n${differences}` : ""));
+}
+
+// "Suggest a change explanation": the form and biography now against how they loaded. (Not kept in
+// the history: it describes this edit only.)
+async function answerChangeExplanation() {
+  const box = document.querySelector("#wpTextbox1");
+  const now = await liveBiography();
+  const text = changeExplanation(editFormChanges(), bioChanges(box?.defaultValue ?? "", now));
+  if (!text) {
+    appendMessage("assistant", "Nothing has changed since the page loaded, so there's nothing to explain yet.", { shouldPersist: false });
+    return;
+  }
+  appendMessage("assistant", `A change explanation for this edit:\n\n${text}\n\nPress Enter to put it in the Change explanation box.`, {
+    shouldPersist: false,
+    actions: [
+      { label: "Use it", onClick: useIt },
+      {
+        label: "Copy",
+        onClick: () =>
+          copyToClipboard(text)
+            .then(() => appendMessage("assistant", "Copied.", { shouldPersist: false }))
+            .catch(() => appendMessage("assistant", "Couldn't copy it: select the text above and copy it.", { shouldPersist: false })),
+      },
+    ],
+  });
+  pendingEditInsert = useIt;
+  function useIt() {
+    pendingEditInsert = null;
+    appendMessage("assistant", fillChangeExplanation(text) ? "Added to the Change explanation box." : "There's no Change explanation box on this page.", { shouldPersist: false });
+  }
+}
+
+// "Suggest categories" on the edit page: the AI says what to look for in the biography, the category
+// database says which categories exist (chat_edit_categories.js). Nothing is added until a button is pressed.
+async function answerCategorySuggestions() {
+  const { key } = (await getChatAiConfig()) || {};
+  if (isAiPaused() || !key) {
+    const needsKey = needsAiKeyMessage({ switchedOff: Boolean(key) });
+    appendMessage(
+      "assistant",
+      `${needsKey.text.split("\n")[0]}\nWithout AI, Auto Categories (on the edit menu) adds the place categories it can work out, and the edit toolbar's category picker searches the database.`,
+      {
+        shouldPersist: false,
+        actions: needsKey.actions.map((action) => ({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })),
+      }
+    );
+    return;
+  }
+  showChatShaky("Reading the biography...");
+  let bio = "";
+  let searches = null;
+  let facts = {};
+  try {
+    bio = await liveBiography();
+    const value = (id) => String(document.getElementById(id)?.value || "").trim();
+    facts = {
+      Name: getPageRootPerson()?.displayName || "",
+      "Birth date": value("mBirthDate"),
+      "Birth place": value("mBirthLocation"),
+      "Death date": value("mDeathDate"),
+      "Death place": value("mDeathLocation"),
+    };
+    searches = parseCategorySearches(await askAiBriefly(categorySearchPrompt(bio, facts)));
+  } catch (error) {
+    console.warn("wbe: category suggestions: the AI call failed", error);
+  } finally {
+    hideChatShaky();
+  }
+  if (!searches) {
+    appendMessage("assistant", "The AI didn't give me anything to search for this time. Try again, or use Auto Categories on the edit menu.", { shouldPersist: false });
+    return;
+  }
+  showChatShaky("Searching the category database...");
+  const existing = existingCategories(bio);
+  const context = contextWords(bio, ...Object.values(facts));
+  const found = [];
+  try {
+    const responses = await Promise.all(
+      searches.map((search) =>
+        wtAPICatCIBSearch("ChatEditCategories", search.type, encodeURIComponent(search.search)).catch((error) => {
+          console.warn("wbe: category search failed", search.search, error);
+          return null;
+        })
+      )
+    );
+    responses.forEach((response, index) => {
+      const category = pickCategory(searches[index].search, response?.response?.categories, existing, context);
+      if (category && !found.some((item) => item.category === category)) found.push({ category, why: searches[index].why });
+    });
+  } finally {
+    hideChatShaky();
+  }
+  appendMessage("assistant", categorySuggestionsMessage(found), { actions: found.map((item) => editCategoryAction(item.category)) });
+}
+
+// "Add Category: X": at the top of the biography, after any categories there, in the box or the enhanced editor.
+function editCategoryAction(category) {
+  const say = (text) => appendMessage("assistant", text, { shouldPersist: false });
+  const add = async () => {
+    const box = document.querySelector("#wpTextbox1");
+    if (!box) {
+      say("There's no biography box on this page.");
+      return;
+    }
+    if (enhancedEditorOn()) {
+      const editor = await readEnhancedEditor();
+      const result = editor ? addCategoryToText(editor.text, category) : null;
+      if (result && !result.added) return say(`${category} is already in the biography.`);
+      // (the cursor stays where it was in the text)
+      const shift = (offset) => (offset >= result?.at ? offset + result.added.length : offset);
+      if (result && (await writeEnhancedEditor(result.text, shift(editor.from), shift(editor.to)))) return say(`Added [[Category: ${category}]] at the top of the biography.`);
+      return say(`Couldn't add it in the editor: paste [[Category: ${category}]] at the top of the biography.`);
+    }
+    const result = addCategoryToText(box.value, category);
+    if (!result.added) return say(`${category} is already in the biography.`);
+    box.setRangeText(result.added, result.at, result.at, "preserve");
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+    say(`Added [[Category: ${category}]] at the top of the biography.`);
+  };
+  return { label: `Add Category: ${category}`, actionType: "edit-category", editCategory: category, onClick: add };
+}
+
+// Insert and Copy for text Genie wrote for the biography. Insert goes in at the cursor, in the plain
+// box or in the enhanced editor (CodeMirror keeps its cursor while Genie has the focus).
+function editTextActions(text) {
+  const withBreak = `${text}\n`;
+  const copy = async (note) => {
+    try {
+      await copyToClipboard(withBreak);
+      appendMessage("assistant", note, { shouldPersist: false });
+    } catch (error) {
+      appendMessage("assistant", "Couldn't copy it: select the text above and copy it.", { shouldPersist: false });
+    }
+  };
+  const insert = async () => {
+    pendingEditInsert = null;
+    const inserted = insertIntoBiography(withBreak) || (enhancedEditorOn() && (await insertIntoEnhancedEditor(withBreak)));
+    if (inserted) appendMessage("assistant", "Added at the cursor in the biography.", { shouldPersist: false });
+    else if (!document.querySelector("#wpTextbox1")) copy("There's no biography box on this page, so I've copied it instead.");
+    else copy("Couldn't put it in the editor, so I've copied it instead: click where it should go and paste.");
+  };
+  return [
+    { label: "Insert at cursor", actionType: "edit-text", editText: text, onClick: insert },
+    { label: "Copy", actionType: "edit-text", editText: text, onClick: () => copy("Copied.") },
+  ];
+}
+
 async function sendChatPrompt() {
   const $input = $(`#${CHAT_INPUT_ID}`);
   if ($input.length === 0) return;
 
   const rawPrompt = stripPromptListDecorations(String($input.val() || ""));
+  const editInsert = pendingEditInsert;
+  pendingEditInsert = null;
   if (!rawPrompt) {
+    // Enter again after "add birth": insert what it wrote.
+    if (editInsert) void editInsert();
     return;
   }
   // "help", "what can I type?": the examples panel.
   if (isHelpPrompt(rawPrompt)) {
     $input.val("");
     showNoAiExamples();
+    return;
+  }
+  // On the edit page, "what's missing?": the Gold Standard checklist on the unsaved form.
+  if (isMissingCheckPrompt(rawPrompt, { onEditPage: isProfileEdit })) {
+    $input.val("");
+    appendMessage("user", rawPrompt);
+    await answerEditPageMissing();
+    return;
+  }
+  // On the edit page, "check the bio against the form": where the two disagree.
+  if (isFormBioCheckPrompt(rawPrompt, { onEditPage: isProfileEdit })) {
+    $input.val("");
+    appendMessage("user", rawPrompt, { shouldPersist: false });
+    const message = formBioDifferencesMessage(await editPageDifferences());
+    appendMessage("assistant", message || "The form and the biography agree on the birth and death dates and places, as far as I can tell.", { shouldPersist: false });
+    return;
+  }
+  // On the edit page, "suggest categories": AI search terms, checked against the category database.
+  if (isCategorySuggestPrompt(rawPrompt, { onEditPage: isProfileEdit })) {
+    $input.val("");
+    appendMessage("user", rawPrompt);
+    await answerCategorySuggestions();
+    return;
+  }
+  // On the edit page, "suggest a change explanation": from what changed since the page loaded.
+  if (isChangeExplanationPrompt(rawPrompt, { onEditPage: isProfileEdit })) {
+    $input.val("");
+    appendMessage("user", rawPrompt, { shouldPersist: false });
+    await answerChangeExplanation();
+    return;
+  }
+  // On the edit page, "add death", "auto categories": the edit menu's own items (chat_edit_page.js).
+  const editCommand = parseEditCommand(rawPrompt, { onEditPage: isProfileEdit });
+  if (editCommand) {
+    $input.val("");
+    appendMessage("user", rawPrompt);
+    await runEditCommand(editCommand);
     return;
   }
 
@@ -4453,6 +4757,12 @@ function bindOutsideClickToCloseChat() {
         return;
       }
 
+      // On the edit page, clicking in the biography (to place the cursor for Insert) or its menus
+      // leaves Genie open (the user, 2026-10-14).
+      if (isProfileEdit && targetElement?.closest("#wpTextbox1, .CodeMirror, #toolbar, #editToolbarExt")) {
+        return;
+      }
+
       closePopup();
     });
 }
@@ -4782,9 +5092,29 @@ export function welcomeChipPrompts(profileFirstName, { ai = true } = {}) {
 }
 
 function greetIfNothingAsked() {
+  // On the edit page, the edit menu's items come first, whatever was asked before (chat_edit_page.js).
+  appendEditChips();
   if (chatHistory.some((entry) => entry?.role === "user")) return;
   if (!chatHistory.length) appendMessage("assistant", "Genie is ready. Ask a question to begin.", { shouldPersist: false });
   appendWelcomeChips();
+}
+
+function appendEditChips() {
+  const $messages = $(`#${CHAT_MESSAGES_ID}`);
+  if (!isProfileEdit || !$messages.length) return;
+  $messages.find(".chat-edit-chips").remove();
+  const chips = ["What's missing?", ...editCommandChips(), "Suggest categories", "Change explanation"];
+  const $chips = $("<div>").addClass("chat-message-actions chat-edit-chips").attr("aria-label", "On this edit page");
+  $("<span>").addClass("chat-message-actions-label").text("For this biography").appendTo($chips);
+  chips.forEach((prompt) => {
+    $("<button>")
+      .attr("type", "button")
+      .addClass("chat-message-action")
+      .text(prompt)
+      .on("click", () => typeIntoBox(prompt))
+      .appendTo($chips);
+  });
+  $messages.append($chips);
 }
 
 function appendWelcomeChips() {

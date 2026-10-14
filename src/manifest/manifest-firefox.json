@@ -1,7 +1,7 @@
 {
   "name": "WikiTree Browser Extension (Preview)",
   "description": "The official WikiTree browser extension.",
-  "version": "2.19.0.17",
+  "version": "2.19.0.18",
   "manifest_version": 3,
   "options_ui": {
     "page": "options.html",
@@ -47,7 +47,9 @@
         "fonts/*.woff",
         "fonts/*.ttf",
         "features/text_expander/cm_helper.js",
-        "features/text_expander/event_dispatcher.js"
+        "features/text_expander/event_dispatcher.js",
+        "features/clipboard_and_notes/cm_insert.js",
+        "core/cm_text.js"
       ]
     }
   ],

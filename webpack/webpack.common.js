@@ -80,6 +80,16 @@ module.exports = (env) => ({
           to: "../features/text_expander/event_dispatcher.js",
           context: "src",
         },
+        {
+          from: "features/clipboard_and_notes/cm_insert.js",
+          to: "../features/clipboard_and_notes/cm_insert.js",
+          context: "src",
+        },
+        {
+          from: "core/cm_text.js",
+          to: "../core/cm_text.js",
+          context: "src",
+        },
       ],
     }),
     new webpack.DefinePlugin({

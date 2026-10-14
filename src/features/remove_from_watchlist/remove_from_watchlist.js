@@ -166,65 +166,75 @@ async function DoOrphan() {
   if (ids.length == 0) {
     return;
   }
-  const promises = [];
-  const form = CreateForm();
+  const myId = getUserNumId();
+  // Profile Ids (the checkbox values) that will be sent, and the PageIds the form needs for them
+  const removedIds = [];
+  const pageIds = [];
+  const skippedNames = [];
+  let loginChecked = false;
 
-  while (ids.length) {
-    let chunk = ids.splice(0, 100).join(",");
-    promises.push(
-      new Promise((resolve, reject) => {
-        WikiTreeAPI.getPeople(WBE_ORPHAN_WATCHLIST_APP_ID, chunk, "Id,PageId,Name,TrustedList").then(
-          async ([, , people]) => {
-            const theKeys = Object.keys(people);
-            for (const aKey of theKeys) {
-              const person = people[aKey];
-              if (person.PageId == undefined) {
-                const loggedIn = await WikiTreeAPI.isLoggedIntoAPI(getUserNumId(), WBE_ORPHAN_WATCHLIST_APP_ID);
-                if (!loggedIn) {
-                  if (
-                    confirm(
-                      "Removing yourself from private profiles requires API login. Would you like to log in now? You will be returned to this page after logging in."
-                    )
-                  ) {
-                    const returnURL = encodeURIComponent(window.location.href);
-                    window.location.href = `https://api.wikitree.com/api.php?action=clientLogin&appId=${WBE_ORPHAN_WATCHLIST_APP_ID}&returnURL=${returnURL}`;
-                  }
-                  reject();
-                  return;
-                }
+  try {
+    // Fetch the chunks one at a time so every PageId is collected before the form is built
+    while (ids.length) {
+      const chunk = ids.splice(0, 100).join(",");
+      const [, , people] = await WikiTreeAPI.getPeople(WBE_ORPHAN_WATCHLIST_APP_ID, chunk, "Id,PageId,Name,TrustedList");
+      for (const person of Object.values(people || {})) {
+        if (person.PageId == undefined) {
+          // Private profiles only return a PageId when logged into the API
+          if (!loginChecked) {
+            loginChecked = true;
+            const loggedIn = await WikiTreeAPI.isLoggedIntoAPI(myId, WBE_ORPHAN_WATCHLIST_APP_ID);
+            if (!loggedIn) {
+              if (
+                confirm(
+                  "Removing yourself from private profiles requires API login. Would you like to log in now? You will be returned to this page after logging in."
+                )
+              ) {
+                const returnURL = encodeURIComponent(window.location.href);
+                window.location.href = `https://api.wikitree.com/api.php?action=clientLogin&appId=${WBE_ORPHAN_WATCHLIST_APP_ID}&returnURL=${returnURL}`;
               }
-              addInvisibleInput(form, "idlist[]", person.PageId);
-              resolve();
+              return;
             }
           }
-        );
-      })
-    );
-  }
+          skippedNames.push(person.Name || person.Id);
+          continue;
+        }
+        removedIds.push(String(person.Id));
+        pageIds.push(person.PageId);
+      }
+    }
 
-  promises.push(
-    new Promise((resolve, reject) => {
-      const myId = getUserNumId();
-      addInvisibleInput(form, "action", "remove");
-      addInvisibleInput(form, "personId", myId);
-      addInvisibleInput(form, "go", "1");
-      getMyEmail(myId).then((myEmail) => {
-        addInvisibleInput(form, "object_email", myEmail);
-        // console.log("promise email done");
-        resolve();
-      });
-    })
-  );
+    if (pageIds.length == 0) {
+      alert("None of the selected profiles could be removed from your Watchlist.");
+      return;
+    }
 
-  Promise.all(promises).then(() => {
+    const myEmail = await getMyEmail(myId);
+
+    const form = CreateForm();
+    for (const pageId of pageIds) {
+      addInvisibleInput(form, "idlist[]", pageId);
+    }
+    addInvisibleInput(form, "action", "remove");
+    addInvisibleInput(form, "personId", myId);
+    addInvisibleInput(form, "go", "1");
+    addInvisibleInput(form, "object_email", myEmail);
+
     const submitButton = document.createElement("input");
     submitButton.type = "submit";
     submitButton.value = "Continue";
     form.appendChild(submitButton);
     submitButton.click();
-    HideOrphanedLines();
+    HideOrphanedLines(removedIds);
     form.remove();
-  });
+
+    if (skippedNames.length) {
+      alert("These profiles could not be removed from your Watchlist:\n" + skippedNames.join("\n"));
+    }
+  } catch (error) {
+    console.error("Remove from Watchlist failed:", error);
+    alert("Removing profiles from your Watchlist failed: " + (error?.message || error));
+  }
 }
 
 /**
@@ -248,14 +258,15 @@ function CreateForm() {
  * Hides the table rows corresponding to orphaned (removed) profiles.
  * Unchecks the checkboxes and sets the row visibility to "collapse".
  *
+ * @param {string[]} removedIds - The profile IDs that were sent for removal.
  * @returns {void}
  */
-function HideOrphanedLines() {
-  const checkBoxes = document.getElementsByTagName("input");
-  for (let i = 0; i < checkBoxes.length; i++) {
-    if (checkBoxes[i].checked) {
-      checkBoxes[i].checked = false;
-      checkBoxes[i].parentElement.parentElement.style.visibility = "collapse";
+function HideOrphanedLines(removedIds) {
+  for (const id of removedIds) {
+    const checkBox = document.getElementById("cb_" + id);
+    if (checkBox) {
+      checkBox.checked = false;
+      checkBox.parentElement.parentElement.style.visibility = "collapse";
     }
   }
 }
@@ -267,7 +278,8 @@ function HideOrphanedLines() {
  */
 function GetIdsToOrphan() {
   const ids = [];
-  const checkBoxes = document.getElementsByTagName("input");
+  // Only the checkboxes this feature added to the table
+  const checkBoxes = document.querySelectorAll("input.wbe[id^='cb_']");
   for (let i = 0; i < checkBoxes.length; i++) {
     if (checkBoxes[i].checked) {
       ids.push(checkBoxes[i].value);
@@ -285,16 +297,17 @@ function GetIdsToOrphan() {
  * @returns {Promise<string>} A promise that resolves to the user's email address.
  */
 async function getMyEmail(myId) {
-  return new Promise(function (resolve, reject) {
-    fetch("https://" + mainDomain + "/index.php?title=Special:EditPerson&u=" + myId)
-      .then((response) => response.text())
-      .then((text) => {
-        const parser = new DOMParser();
-        const htmlDocument = parser.parseFromString(text, "text/html");
-        const myEmail = htmlDocument.getElementsByName("mEmail")[0].value + "";
-        resolve(myEmail);
-      });
-  });
+  const response = await fetch("https://" + mainDomain + "/index.php?title=Special:EditPerson&u=" + myId);
+  if (!response.ok) {
+    throw new Error("Couldn't load your edit page (HTTP " + response.status + ")");
+  }
+  const text = await response.text();
+  const htmlDocument = new DOMParser().parseFromString(text, "text/html");
+  const emailField = htmlDocument.getElementsByName("mEmail")[0];
+  if (!emailField || !emailField.value) {
+    throw new Error("Couldn't find your email address on your edit page");
+  }
+  return emailField.value;
 }
 
 /**

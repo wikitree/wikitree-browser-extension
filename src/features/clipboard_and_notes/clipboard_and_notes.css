@@ -1,19 +1,31 @@
 #clipboard {
+  --cb-accent: #25422d;
+  --cb-tab: rgb(221, 250, 218);
+  --cb-tab-hover: rgb(192, 248, 187);
+  --cb-row-hover: rgb(243, 252, 242);
+  --cb-line: #e2e8e2;
+  --cb-muted: #6b726c;
+  --cb-bg: white;
+
   position: fixed;
   text-align: left;
   z-index: 100000000;
   top: 5%;
   right: 5%;
-  padding: 1em;
+  padding: 0 1em 1em;
   border: 2px solid forestgreen;
-  border-radius: 1em;
+  border-radius: 0.75em;
   height: 40em;
   max-height: 80%;
-  max-width: 50em;
-  min-width: min-content;
+  /* A fixed width, not one that follows the content, so the columns (and the edit and delete
+     buttons in them) stay put when switching tabs or deleting the longest item. */
+  width: 46em;
+  max-width: calc(100vw - 2em);
+  min-width: 24em;
   overflow: auto;
-  box-shadow: 0.1em 0.1em 0.1em 0.1em lightgreen;
-  background: white;
+  scrollbar-gutter: stable; /* or the columns shift when a long tab brings in the scrollbar */
+  box-shadow: 0 0.4em 1.5em rgba(0, 0, 0, 0.25);
+  background: var(--cb-bg);
   display: none;
   resize: both;
   user-select: none;
@@ -35,94 +47,292 @@ body.modal-open {
   display: block;
 }
 
-#clipboard textarea {
-  width: 90%;
+/* The title bar stays at the top while the list scrolls, so it can always be dragged and closed */
+#clipboard h1 {
   display: block;
-  margin: 1em auto;
-  height: 10em;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 0 calc(-1em / 1.2); /* out over the popup's 1em side padding, in this font size */
+  padding: 0.6em 2.5em;
+  font-size: 1.2em;
+  width: auto;
+  text-align: center;
+  cursor: move;
+  background: var(--cb-bg);
+}
+
+#clipboard h1 x {
+  position: absolute;
+  top: 50%;
+  right: 0.5em;
+  transform: translateY(-50%);
+  width: 1.6em;
+  height: 1.6em;
+  line-height: 1.5em;
+  border-radius: 50%;
+  font-weight: normal;
+  text-align: center;
+  cursor: pointer;
+}
+
+#clipboard h1 x:hover {
+  background: var(--cb-tab);
+}
+
+#clipboard h1 x:active {
+  font-weight: normal;
+}
+
+/* Tabs */
+#clipboard #groupTabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5em;
+  border-bottom: 2px solid var(--cb-accent);
+  margin-bottom: 0.25em;
+}
+
+#clipboard #reorderTabs {
+  flex: none;
+  display: inline-block;
+  width: auto;
+  margin: 0 0 4px;
+  padding: 2px 8px;
 }
 
 #tab-list {
   list-style-type: none;
-  display: inline;
-  padding-inline-start: 0.5em;
-  margin-left: 0;
+  display: block;
+  flex: 1;
+  margin: 0;
+  padding: 0;
 }
 
 #tab-list .tab {
   display: inline-block;
+  vertical-align: bottom;
   white-space: nowrap;
   word-wrap: normal;
-  background: rgb(221, 250, 218);
+  background: var(--cb-tab);
   text-align: center;
   cursor: pointer;
-  margin-top: 1px;
-  margin-right: 2px;
-  border-radius: 10px 10px 0 0;
+  margin: 2px 2px 0 0;
+  border-radius: 0.5em 0.5em 0 0;
   font-size: 10pt;
 }
 
-#tab-list .active {
+#clipboard .tab:hover {
+  background: var(--cb-tab-hover);
+}
+
+#tab-list .tab.active {
+  background: var(--cb-accent);
+  color: white;
   font-weight: bold;
-  border-bottom: 2px solid #333;
 }
 
 #tab-list .tab-handle {
   cursor: grab;
   display: inline-block;
-  padding: 8px 3px 8px 6px;
+  padding: 6px 3px 6px 8px;
+  opacity: 0.6;
 }
 #tab-list .tab-name {
   display: inline-block;
-  padding: 8px 6px 8px 3px;
+  padding: 6px 10px 6px 3px;
   min-width: 2em;
+}
+#tab-list .tab-name.no-group {
+  font-style: italic;
 }
 #tab-list .sortable-tab-placeholder {
   display: inline-block;
+  vertical-align: bottom;
   padding: 10px 0;
-  border: 2px solid red;
+  border: 2px dashed var(--cb-accent);
+  border-radius: 0.5em 0.5em 0 0;
   font-size: 10pt;
 }
 
-#clipboard .tab:hover {
-  background: rgb(192, 248, 187);
-}
 #clipboard .tab-content {
   display: none;
 }
 
-#clipboard #groupInput,
-#clipboard #thingTitle {
-  width: 12em;
-  height: 2em;
-  min-height: 2em;
-  padding: 2pt;
-  font-weight: bold;
-  margin: 1em 0 0 0.25em;
+/* The clippings or notes in a tab */
+#clipboard .tab-content table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  margin: 0;
 }
-#clipboard #thingTitleLabel {
-  display: inline-block;
+
+#clipboard .tab-content td {
+  padding: 0.5em 0.25em;
+  vertical-align: top;
+  border-bottom: 1px solid var(--cb-line);
+  font-size: 1rem;
+  line-height: 1.5;
+  background: transparent;
 }
-#clipboard span.labelWord {
-  display: inline-block;
-  width: 4em;
+
+#clipboard .tab-content tr:hover td {
+  background: var(--cb-row-hover);
+}
+
+#clipboard td.index {
+  width: 2.5em;
+  padding-right: 0.6em;
+  text-align: right;
+  color: var(--cb-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+#cbtBody caption,
+#clipboard .index {
+  cursor: move;
+}
+
+#clipboard td.editClipping,
+#clipboard td.deleteClipping {
+  width: 2.25em;
+  padding-left: 0;
+  padding-right: 0;
+  text-align: center;
+}
+
+#clipboard td.deleteClipping {
+  width: 2.5em;
+  padding-right: 0.25em;
+}
+
+#clipboard .clippingCell {
+  cursor: default;
+}
+
+#clipboard[data-type="clipboard"] .clippingCell {
+  cursor: pointer;
+}
+
+#clipboard .tab-content tr td.clippingCell.clip-selected {
+  background: var(--cb-tab);
+}
+
+#clipboard .tab-content tr td.clippingCell.clip-unselected {
+  background: var(--cb-bg) !important;
+}
+
+#clipboard[data-type="clipboard"] .clippingCell:active {
   font-weight: bold;
 }
 
-#clipboard #reorderTabs {
+#clipboard .tab-content tr.editing td {
+  background: var(--cb-tab);
+}
+
+#clipboard .tab-content tr.ui-sortable-helper {
+  background: var(--cb-bg);
+  box-shadow: 0 0.25em 0.75em rgba(0, 0, 0, 0.25);
+}
+
+#clipboard .tab-content tr.ui-sortable-helper td {
+  background: var(--cb-bg);
+  border-bottom: none;
+}
+
+#clipboard pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  white-space: -moz-pre-wrap;
+  white-space: -pre-wrap;
+  white-space: -o-pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  font: inherit;
+  margin: 0;
+}
+
+#clipboard .clippingCell .titleSpan {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.15em;
+}
+
+#clipboard tr img.button.small {
+  margin: 0;
+}
+
+/* The edit and delete buttons: the same size, centred in their columns, and big enough to hit */
+#clipboard .editClippingButton,
+#clipboard .deleteClippingButton {
+  display: block;
+  position: static;
+  width: 1.75em;
+  height: 1.75em;
+  margin: -0.125em auto 0;
+  padding: 0;
+  border-radius: 0.3em;
+  background-size: 1.1em 1.1em;
+  background-position: center;
+  background-repeat: no-repeat;
+  cursor: pointer;
+  opacity: 0.65;
+}
+
+#clipboard .editClippingButton:hover,
+#clipboard .deleteClippingButton:hover {
+  opacity: 1;
+  background-color: var(--cb-tab);
+}
+
+/* The form for adding and editing */
+#clipboard #clippingForm {
+  margin-top: 1.25em;
+}
+
+#clipboard #clippingForm > span:first-child {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5em 0.75em;
+  align-items: center;
+}
+
+#clipboard label {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0;
+  font-weight: bold;
+}
+
+#clipboard span.labelWord {
+  flex: none;
+  width: 3.5em;
+  font-weight: bold;
+}
+
+#clipboard #groupInput,
+#clipboard #thingTitle {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  height: 2em;
+  min-height: 2em;
+  margin: 0;
+  padding: 2px 6px;
+}
+
+#clipboard #renameGroup {
   display: inline-block;
   margin: 0;
   width: auto;
 }
-#clipboard #renameGroup {
-  display: inline-block;
-  margin: 10px;
-  width: auto;
-}
 
-#clipboard label {
-  margin-left: 2em;
-  font-weight: bold;
+#clipboard textarea {
+  display: block;
+  width: 100%;
+  height: 8em;
+  margin: 0.75em 0;
 }
 
 #clipboard button {
@@ -131,51 +341,67 @@ body.modal-open {
   width: 12em;
 }
 
-#clipboard h1 {
-  display: block;
-  font-size: 1.2em;
-  width: auto;
-  text-align: center;
-  position: relative;
-  cursor: move;
-}
-
 #clipboard p {
   text-align: center;
+  margin-top: 1em;
 }
 
-#clipboard table td {
-  padding: 0.25em;
+#clipboardInfo {
+  display: block;
+  margin: 1em auto 0;
+  text-align: center;
 }
-
-#clipboard .clippingCell {
-  cursor: default;
-}
-
-#clipboard .clippingCell.clip-selected,
-#clipboard .clippingCell:hover {
-  background: rgb(221, 250, 218);
-}
-
-#clipboard .clippingCell.clip-unselected {
-  background: #fff !important;
-}
-
-#clipboard[data-type="clipboard"] .clippingCell:active {
-  font-weight: bold;
-}
-
-#clipboard h1 x {
-  position: absolute;
-  top: 0.1em;
-  right: 0.2em;
+#clipboardInfo b {
   cursor: pointer;
 }
-
-#clipboard h1 x:active {
-  font-weight: normal;
+#clipboardInfo a {
+  padding: 0.2em;
+  margin: 0;
 }
 
+/* WBE's Dark Mode sets every div, span and table cell to its own colours with !important */
+body.darkMode #clipboard {
+  --cb-bg: #36393f;
+  --cb-line: #4a4f57;
+}
+body.darkMode #clipboard #tab-list .tab,
+body.darkMode #clipboard #tab-list .tab span {
+  background-color: #4a4f57 !important;
+  color: #dedecb !important;
+}
+body.darkMode #clipboard #tab-list .tab:hover,
+body.darkMode #clipboard #tab-list .tab:hover span {
+  background-color: #565c65 !important;
+}
+body.darkMode #clipboard #tab-list .tab.active,
+body.darkMode #clipboard #tab-list .tab.active span {
+  background-color: #3b6b47 !important;
+  color: white !important;
+}
+body.darkMode #clipboard #groupTabs {
+  border-bottom-color: #3b6b47;
+}
+body.darkMode #clipboard .tab-content tr:hover td,
+body.darkMode #clipboard .tab-content tr.editing td,
+body.darkMode #clipboard .tab-content tr td.clippingCell.clip-selected {
+  background-color: #42464d !important;
+}
+body.darkMode #clipboard .tab-content tr td.clippingCell.clip-unselected {
+  background-color: #36393f !important;
+}
+body.darkMode #clipboard td.index {
+  color: #a9aea6 !important;
+}
+body.darkMode #clipboard .editClippingButton,
+body.darkMode #clipboard .deleteClippingButton {
+  filter: brightness(0) invert(0.85);
+  background-color: transparent !important;
+}
+body.darkMode #clipboard h1 x:hover {
+  background: #4a4f57;
+}
+
+/* The Clipboard and Notes buttons */
 .theClipboardButtons {
   position: relative;
   top: 0.5em;
@@ -201,41 +427,6 @@ form[name="a_form"] {
   margin-right: 0.1em;
   padding-left: 0.5em;
   padding-right: 0.5em;
-}
-
-#clipboard .deleteClipping,
-#clipboard .editClipping {
-  cursor: pointer;
-}
-
-#clipboard .deleteClippingButton {
-  padding: 5px 15px;
-}
-
-#clipboard .deleteClipping:active,
-#clipboard .editClipping:active {
-  font-weight: bold;
-}
-
-#clipboard .editing {
-  background: rgb(221, 250, 218);
-}
-
-#clipboard tr {
-  background: white;
-}
-
-#clipboard tr img.button.small {
-  margin: 0;
-}
-
-#clipboard tr {
-  vertical-align: top;
-}
-
-#cbtBody caption,
-#clipboard .index {
-  cursor: move;
 }
 
 .editClippingButton {
@@ -278,43 +469,8 @@ body.qa-body-js-on .button.small {
   line-height: normal;
 }
 
-body.qa-body-js-on .deleteClippingButton {
-  position: relative;
-  top: 0.5em;
-}
-
-#clipboard pre {
-  overflow-x: auto;
-  white-space: pre-wrap;
-  white-space: -moz-pre-wrap;
-  white-space: -pre-wrap;
-  white-space: -o-pre-wrap;
-  word-wrap: break-word;
-  font: inherit;
-  margin-top: 0;
-}
-
 #toolbar .theClipboardButtons {
   top: auto !important;
-}
-
-#clipboardInfo {
-  display: block;
-  margin: 1.5em auto;
-  width: 37em;
-}
-#clipboardInfo b {
-  cursor: pointer;
-}
-#clipboardInfo a {
-  padding: 0.2em;
-  margin: 0;
-}
-#clipboard .clippingCell .titleSpan {
-  display: block;
-  font-weight: bold;
-  font-size: 1.2em;
-  margin-bottom: 0.5em;
 }
 
 .qa-body-wrapper td.clippingCell pre {

@@ -36,6 +36,8 @@ export function createChatHistoryHandlers({
   resetTransientState,
   onSearchFormSubmit,
   createAppsLoginButton,
+  rebuildEditTextActions,
+  rebuildEditCategoryAction,
 }) {
   let historyQuotaWarningShown = false;
   const MAX_PERSISTED_STRUCTURED_ROWS = 250;
@@ -458,6 +460,8 @@ export function createChatHistoryHandlers({
       serialized.chartKey = String(action.chartKey);
       serialized.chartArgs = Array.isArray(action.chartArgs) ? action.chartArgs.map(String) : [];
     }
+    if (action.actionType === "edit-text" && action.editText) serialized.editText = action.editText;
+    if (action.actionType === "edit-category" && action.editCategory) serialized.editCategory = action.editCategory;
     if (action.newSearch === true) serialized.newSearch = true;
     if (action.wtPlusSuggestionOptions && typeof action.wtPlusSuggestionOptions === "object") {
       const opts = action.wtPlusSuggestionOptions;
@@ -478,6 +482,15 @@ export function createChatHistoryHandlers({
     const actionType = actionEntry.actionType || actionEntry.label;
     if (actionType === "chart") {
       return typeof rebuildChartAction === "function" ? rebuildChartAction(actionEntry) : null;
+    }
+    if (actionType === "edit-text") {
+      // Insert and Copy for text written for the biography: rebuilt by chat.js.
+      const rebuilt = actionEntry.editText && typeof rebuildEditTextActions === "function" ? rebuildEditTextActions(actionEntry.editText) : [];
+      return rebuilt.find((action) => action.label === actionEntry.label) || null;
+    }
+    if (actionType === "edit-category") {
+      // "Add Category: X" from the category suggestions: rebuilt by chat.js.
+      return actionEntry.editCategory && typeof rebuildEditCategoryAction === "function" ? rebuildEditCategoryAction(actionEntry.editCategory) : null;
     }
     if (actionType === "Connections" || actionEntry.label === "Connections") {
       return {
@@ -806,7 +819,10 @@ export function createChatHistoryHandlers({
       if (hydratedActions.length) {
         opts.actions = hydratedActions;
       }
-      appendMessage(message.role, message.text, opts);
+      // ("Press Enter to insert it" only works straight after "add birth": not on a restored message)
+      const isEditText = actionEntries.some((entry) => entry?.actionType === "edit-text");
+      const text = isEditText ? String(message.text || "").replace(/\n+Press Enter to insert it at the cursor\.\s*$/, "") : message.text;
+      appendMessage(message.role, text, opts);
     });
   }
 

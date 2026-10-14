@@ -138,7 +138,11 @@ async function pasteResult() {
   }
 }
 
-async function getList(functionName) {
+/**
+ * The text one Family Lists item would add, without copying or pasting it (Genie shows it first,
+ * 2026-10-14): {text, message, otherMessage}, or {error} when there's no profile to build from.
+ */
+export async function buildFamilyListText(functionName) {
   const {
     splitBioIntoSections,
     sourcesArray,
@@ -157,9 +161,7 @@ async function getList(functionName) {
   let otherMessage = false;
 
   if (!window.profilePerson) {
-    message = "No profile found on the apps server. Please try again a little later.";
-    showCopyMessage(message, true);
-    return;
+    return { error: "No profile found on the apps server. Please try again a little later." };
   }
 
   if (functionName == "death" && !window.references) {
@@ -208,6 +210,15 @@ async function getList(functionName) {
       break;
     default:
       break;
+  }
+  return { text: result, message, otherMessage };
+}
+
+async function getList(functionName) {
+  const { text: result, message, otherMessage, error } = await buildFamilyListText(functionName);
+  if (error) {
+    showCopyMessage(error, true);
+    return;
   }
   copyToClipboard(result).catch((err) => console.error("Copy failed:", err));
   if (

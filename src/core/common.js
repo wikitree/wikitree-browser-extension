@@ -1563,6 +1563,22 @@ const WBE_LOCAL_STORAGE_KEYS = {
   textExpander: "wbe_text_expander_custom", // src/features/text_expander
 };
 
+// The order the user has dragged the Clipboard and Notes tabs and items into
+// (src/features/clipboard_and_notes). There is one item-order key per group, named after the
+// group, so there is no fixed list of keys to put in the table above: they are gathered by
+// name instead. Restoring checks every key against this too, because backup files get passed
+// between people and a restore should not write anything else into WikiTree's localStorage.
+const CLIPBOARD_ORDER_KEY = /^clipboard_(clipboard|notes)_(order|group_order)/;
+
+function clipboardOrder() {
+  const order = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (CLIPBOARD_ORDER_KEY.test(key)) order[key] = localStorage.getItem(key);
+  }
+  return order;
+}
+
 async function backupData(compactMode, sendResponse) {
   const data = {};
   // getItem() rather than property access, and the null is kept rather than left out:
@@ -1572,6 +1588,7 @@ async function backupData(compactMode, sendResponse) {
   for (const [field, key] of Object.entries(WBE_LOCAL_STORAGE_KEYS)) {
     data[field] = localStorage.getItem(key);
   }
+  data.clipboardOrder = clipboardOrder();
   // localStorage belongs to whichever WikiTree host this ran on, and the feature data
   // is only there if the features were used on that same host, so a backup that came
   // back thinner than expected can be explained rather than guessed at.
@@ -1782,6 +1799,11 @@ async function restoreData(data, sendResponse) {
   // watchlist would leave notes on profiles that are no longer in it.
   if (Object.prototype.hasOwnProperty.call(data, "extraWatchlistNotes") && !data.extraWatchlistNotes) {
     localStorage.removeItem("extraWatchlistNotes");
+  }
+  // Only the orders in the file are replaced, as with the clippings themselves: groups that are
+  // here and not in the backup keep their order.
+  for (const [key, value] of Object.entries(data.clipboardOrder ?? {})) {
+    if (CLIPBOARD_ORDER_KEY.test(key) && typeof value === "string") localStorage.setItem(key, value);
   }
   try {
     if (data.clipboard) {
