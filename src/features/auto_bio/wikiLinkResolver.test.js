@@ -119,6 +119,13 @@ describe("resolvePlaceLinks", () => {
     expect(fetchJson).not.toHaveBeenCalled();
   });
 
+  test("a place with a One Place Study is linked to the study, the others to their category", async () => {
+    const exists = async (kind, title) => kind === "Space" && title === "Caledonia, Missouri One Place Study";
+    await resolvePlaceLinks(place, { categoryFor, exists, fetchJson: jest.fn(), wikipedia: false });
+    expect(getWikiLink(CALEDONIA)).toEqual({ kind: "space", title: "Caledonia, Missouri One Place Study" });
+    expect(getWikiLink(WASHINGTON)).toEqual({ kind: "category", title: "Washington County, Missouri" });
+  });
+
   test("with only Wikipedia links on, the category says which article, and WikiTree pages are not linked", async () => {
     const exists = jest.fn(async () => true);
     const fetchJson = jest.fn(async (url) => {

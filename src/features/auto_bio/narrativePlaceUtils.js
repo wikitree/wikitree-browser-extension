@@ -7,10 +7,13 @@ import { findUSState, removeCountryName } from "./locationCategoryUtils.js";
 
 const wikiLinkSettings = { language: "en" };
 const wikiLinks = new Map();
+/* The targets formatWikiLink has linked to, so that limitRepeatedLinks only unlinks links made here. */
+const linkedTargets = new Set();
 
 export function configureWikiLinks({ language } = {}) {
   wikiLinkSettings.language = normalizeLanguage(language);
   wikiLinks.clear();
+  linkedTargets.clear();
 }
 
 export function normalizeLanguage(language) {
@@ -51,26 +54,63 @@ export function getWikiLink(key) {
 
 export function clearWikiLinks() {
   wikiLinks.clear();
+  linkedTargets.clear();
 }
 
-export function formatWikiLink(target, text) {
-  if (!target?.title) {
-    return text;
-  }
+/* The page a link points to, as written inside [[ ]] before the "|". */
+function linkPage(target) {
   switch (target.kind) {
     case "category":
-      return `[[:Category:${target.title}|${text}]]`;
+      return `:Category:${target.title}`;
     case "project":
-      return `[[Project:${target.title}|${text}]]`;
+      return `Project:${target.title}`;
     case "space":
-      return `[[Space:${target.title}|${text}]]`;
+      return `Space:${target.title}`;
     case "wikipedia": {
       const lang = target.lang && target.lang !== "en" ? target.lang + ":" : "";
-      return `[[Wikipedia:${lang}${target.title}|${text}]]`;
+      return `Wikipedia:${lang}${target.title}`;
     }
     default:
-      return text;
+      return "";
   }
+}
+
+const normalizePage = (page) => page.trim().replace(/_/g, " ");
+
+export function formatWikiLink(target, text) {
+  const page = target?.title ? linkPage(target) : "";
+  if (!page) {
+    return text;
+  }
+  linkedTargets.add(normalizePage(page));
+  return `[[${page}|${text}]]`;
+}
+
+/**
+ * A place (or war, or occupation) is linked once. Of the links formatWikiLink made, every one after the first
+ * to the same page is left as its text. Other links (people, the Space pages under See also) are not touched,
+ * and neither is anything from "== Sources ==" on.
+ */
+export function limitRepeatedLinks(text) {
+  const sources = String(text).search(/^==\s*Sources\s*==/im);
+  const body = sources === -1 ? String(text) : String(text).slice(0, sources);
+  const rest = sources === -1 ? "" : String(text).slice(sources);
+  const seen = new Set();
+  const limited = body.replace(
+    /\[\[((?::Category:|Project:|Space:|Wikipedia:)[^|\]\n]+)\|([^\]\n]*)\]\]/g,
+    (match, page, label) => {
+      const key = normalizePage(page);
+      if (!linkedTargets.has(key)) {
+        return match;
+      }
+      if (seen.has(key)) {
+        return label;
+      }
+      seen.add(key);
+      return match;
+    }
+  );
+  return limited + rest;
 }
 
 /** Link a word or phrase (an occupation, a war) that was looked up under the given key. */

@@ -222,7 +222,7 @@ const autoBio = {
           id: "keepInlineCitations",
           type: OptionType.CHECKBOX,
           label:
-            "Keep the citations the old bio had inline with the event they followed (even when their wording doesn't say what they are). Keep sentences Auto Bio can't write itself (e.g. imprisonment) and how a death was put (e.g. 'was murdered'). Don't use Find a Grave for the death when another source was cited for it.",
+            "Keep the citations the old bio had inline with the event they followed (even when their wording doesn't say what they are). Keep sentences Auto Bio can't write itself (e.g. imprisonment) and how a death was put (e.g. 'was murdered'). Don't use Find a Grave for the death when another source was cited or listed for it; use it for the burial.",
           defaultValue: false,
         },
         {

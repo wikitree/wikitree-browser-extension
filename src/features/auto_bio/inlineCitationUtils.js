@@ -203,7 +203,7 @@ function yearInLife(text, { birthYear, deathYear }) {
  * Use the anchors on the references Auto Bio has read from the bio:
  *  - a citation whose wording gave it no type is given the type of the sentence it followed (a citation
  *    that followed the birth sentence is a Birth citation), so it is used inline and not left under "See also";
- *  - when another source was cited inline for the death, Find a Grave is no longer taken as the death source
+ *  - when another source was cited for the death (inline, or listed under Sources), Find a Grave is no longer taken as the death source
  *    (a memorial is a headstone at a cemetery, so it is a source for the burial);
  *  - a sentence about something Auto Bio cannot write (imprisonment, say) is kept, with its citations, to be
  *    put in the narrative as it was;
@@ -277,8 +277,12 @@ export function applyInlineCitationAnchors(references, anchors, life = {}) {
     });
   });
 
-  // 2. Another source was cited for the death, so Find a Grave is not taken as the source of it.
-  if (citedForDeath.size) {
+  /* 2. Another source was cited for the death (inline, or listed under Sources and typed Death by its wording),
+  so Find a Grave is not taken as the source of it. */
+  const hasOtherDeathSource = references.some(
+    (reference) => !isFindAGrave(reference) && !reference.Relation && reference["Record Type"]?.includes("Death")
+  );
+  if (citedForDeath.size || hasOtherDeathSource) {
     references.forEach((reference) => {
       const events = anchoredEvents.get(reference);
       const citedHereForDeath = events && (events.has("Death") || events.has("Burial"));

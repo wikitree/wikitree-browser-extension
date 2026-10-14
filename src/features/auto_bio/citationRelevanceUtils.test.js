@@ -4,6 +4,7 @@ import {
   citationGenderConflicts,
   citationMatchesEventYear,
   yearFromDate,
+  yearNearEvent,
   yearsInCitation,
 } from "./citationRelevanceUtils.js";
 
@@ -158,5 +159,20 @@ describe("couldHaveServedIn", () => {
     expect(couldHaveServedIn(null, 1914)).toBe(true);
     expect(couldHaveServedIn(1852, null)).toBe(true);
     expect(couldHaveServedIn("", "")).toBe(true);
+  });
+});
+
+describe("yearNearEvent", () => {
+  const birth = `"Texas Births and Christenings, 1840-1981", database, ''FamilySearch'' (https://familysearch.org/ark:/61903/1:1:VRSB-S1Y : 13 February 2020), Roderick Wilson Rigdon, 1885.`;
+  test("finds the year of the event, not the database's range or the day it was looked at", () => {
+    expect(yearNearEvent(birth, 1885)).toBe(1885);
+  });
+  test("takes the closest of several years near the event", () => {
+    expect(yearNearEvent("Entry for John, 1880; his sister, 1884", 1885)).toBe(1884);
+  });
+  test("is null when no year is near, or the event year is unknown", () => {
+    expect(yearNearEvent(birth, 1930)).toBeNull();
+    expect(yearNearEvent(birth, null)).toBeNull();
+    expect(yearNearEvent("no year at all", 1885)).toBeNull();
   });
 });
