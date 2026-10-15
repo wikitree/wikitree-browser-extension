@@ -3,7 +3,7 @@
 // CSS), styled in chat.css (.wbe-overview-*). Data from chat_tree_overview_data.js.
 
 import $ from "jquery";
-import { createChartPopup, mountChartPopup, closeChartPopup, yearOf, centrePopup, escapeText, injectChartStyles, profileUrl, raiseAboveOtherPopups, toggleChartFullScreen } from "./chat_chart_common";
+import { chartLinkButtons, createChartPopup, mountChartPopup, yearOf, escapeText, injectChartStyles, profileUrl, handleChartPopupButton } from "./chat_chart_common";
 import { generationLabel } from "./chat_kin_labels";
 
 const PCT_COLOUR = (percent) => (percent >= 100 ? "#3f9b6b" : percent >= 50 ? "#e0a100" : "#d9573f");
@@ -40,7 +40,6 @@ function columns(items, max, { colour, label, value, title }) {
  */
 export function showTreeOverviewPopup(overview, options = {}) {
   if (overview.descendants) return showDescendantOverview(overview, options);
-  $("#wbe-tree-overview-popup").remove();
   injectChartStyles();
   const { stats, percent, countries, surnames, lifespans, months, datedBirths, interval, repeats, people, earliest, root } = overview;
   const panels = [];
@@ -166,17 +165,16 @@ export function showTreeOverviewPopup(overview, options = {}) {
     )
   );
 
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = "wbe-tree-overview-popup";
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: "wbe-tree-overview-popup",
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
         <button type="button" class="small" data-open="fan" title="All the ancestors as a fan chart">Fan</button>
         <button type="button" class="small" data-open="explorer" title="Family Explorer">Explorer</button>
         <button type="button" class="small" data-open="familymap" title="Counts of relatives, with names and dates">Relationship Chart</button>
+        ${chartLinkButtons(options.links)}
         <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
         <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
       </div>
@@ -184,9 +182,8 @@ export function showTreeOverviewPopup(overview, options = {}) {
     <div class="chat-popup-body" style="overflow:auto;padding:10px 12px;display:block">
       <div class="wbe-overview-root">${root ? link(root, root.name || root.wtid) : ""}</div>
       <div class="wbe-overview-grid">${panels.join("")}</div>
-    </div>`;
-  document.body.appendChild(popup);
-  centrePopup(popup);
+    </div>`,
+  });
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Tree overview";
 
   // Grow the bars in, one panel after another.
@@ -205,17 +202,14 @@ export function showTreeOverviewPopup(overview, options = {}) {
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) {
-      popup._wbeLeaveFullScreen?.();
-      popup.remove();
-    } else if (button.dataset.open) {
+    if (handleChartPopupButton(popup, button, { links: options.links, rootKey: options.rootKey || root?.wtid })) return;
+    if (button.dataset.open) {
       popup._wbeLeaveFullScreen?.();
       options.open?.[button.dataset.open]?.();
-    } else if (button.dataset.act === "full") toggleChartFullScreen(popup);
+    }
   });
 
-  raiseAboveOtherPopups(popup);
-  $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+  mountChartPopup(popup);
   return popup;
 }
 
@@ -232,14 +226,13 @@ function showDescendantOverview(overview, options) {
     panel("names", "Surnames", [...surnameCounts].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([name, count]) => `<div>${escapeText(name)} (${count})</div>`).join("") || "No surnames were returned.", { chart: "names", label: "Name cloud" }),
   ];
   const popup = createChartPopup({ id: "wbe-tree-overview-popup", html: `
-    <div class="chat-popup-header"><strong class="wbe-chart-title">${escapeText(options.title || "Tree overview")} · descendants</strong><div class="chat-popup-controls"><button type="button" data-open="familymap" title="Counts of relatives, with names and dates">Relationship Chart</button><button type="button" data-act="full">Full screen</button><button type="button" class="close-popup" aria-label="Close">×</button></div></div>
+    <div class="chat-popup-header"><strong class="wbe-chart-title">${escapeText(options.title || "Tree overview")} · descendants</strong><div class="chat-popup-controls"><button type="button" data-open="familymap" title="Counts of relatives, with names and dates">Relationship Chart</button>${chartLinkButtons(options.links)}<button type="button" data-act="full">Full screen</button><button type="button" class="close-popup" aria-label="Close">×</button></div></div>
     <div class="chat-popup-body"><p>No parents are attached on WikiTree, so this overview shows descendants.</p><div class="wbe-overview-grid">${panels.join("")}</div></div>` });
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) closeChartPopup(popup);
-    else if (button.dataset.act === "full") toggleChartFullScreen(popup);
-    else if (button.dataset.open) options.open?.[button.dataset.open]?.();
+    if (handleChartPopupButton(popup, button, { links: options.links, rootKey: options.rootKey || overview.root?.wtid })) return;
+    if (button.dataset.open) options.open?.[button.dataset.open]?.();
   });
   mountChartPopup(popup);
   return popup;

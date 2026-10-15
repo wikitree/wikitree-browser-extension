@@ -13,7 +13,7 @@ import { area, curveMonotoneY } from "d3-shape";
 import { easeCubicOut } from "d3-ease";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import { LINK_STATUS } from "./chat_relationship_data";
-import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, chartZoomControls, escapeText, injectChartStyles, photoUrl, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, truncate } from "./chat_chart_common";
+import { chartPopupControls, chartLinkButtons, chartZoomControls, escapeText, photoUrl, profileUrl, truncate, createChartPopup, mountChartPopup, handleChartPopupButton } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const WIDTH = 960;
@@ -50,14 +50,9 @@ const percent = (share) => {
  * route (analyseRelationship's first route: couple, cm, chance), otherRoutes, links, rootKey}.
  */
 export function showRelationshipPopup(lines, options = {}) {
-  $("#wbe-relationship-popup").remove();
-  injectChartStyles();
-
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = "wbe-relationship-popup";
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: "wbe-relationship-popup",
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
@@ -70,7 +65,8 @@ export function showRelationshipPopup(lines, options = {}) {
       <div class="wbe-chart-toolbar"><span class="wbe-rel-note" style="opacity:.7"></span></div>
       <div class="wbe-chart-stage"><div class="wbe-chart-tip"></div>${chartZoomControls()}</div>
       <div class="wbe-chart-footer"><div class="wbe-chart-legend"></div></div>
-    </div>`;
+    </div>`,
+  });
   popup.insertAdjacentHTML(
     "afterbegin",
     `<style>
@@ -79,7 +75,6 @@ export function showRelationshipPopup(lines, options = {}) {
       #wbe-relationship-popup .wbe-rel-card:hover text.wbe-rel-name { fill: #0b5cad; text-decoration: underline; }
     </style>`
   );
-  document.body.appendChild(popup);
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Relationship";
   const others = Number(options.otherRoutes) || 0;
   popup.querySelector(".wbe-rel-note").textContent =
@@ -466,28 +461,17 @@ export function showRelationshipPopup(lines, options = {}) {
   }
 
   render();
-  centrePopup(popup);
-  raiseAboveOtherPopups(popup);
-  if ($.fn.draggable) $(popup).draggable({ handle: ".chat-popup-header" });
-  popup.querySelector(".chat-popup-header").addEventListener("dblclick", (event) => {
-    if (!event.target.closest("button")) toggleChartFullScreen(popup);
-  });
+  mountChartPopup(popup, () => svg?.selectAll("*").interrupt());
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) {
-      popup._wbeLeaveFullScreen?.();
-      popup.remove();
-    } else if (button.dataset.link) chartLinkClick(popup, button, options.links, options.rootKey);
-    else if (button.dataset.act === "replay") render();
+    const fileBase = `relationship-${String(options.rootKey || "").replace(/[^A-Za-z0-9_-]/g, "")}`;
+    const svgNode = () => (finishAnimations(), svg.node());
+    if (handleChartPopupButton(popup, button, { svg: svgNode, fileBase, links: options.links, rootKey: options.rootKey })) return;
+    if (button.dataset.act === "replay") render();
     else if (button.dataset.act === "zoomin" || button.dataset.act === "zoomout") {
       svg.transition("zoom").duration(300).call(zoomer.scaleBy, button.dataset.act === "zoomin" ? 1.6 : 1 / 1.6);
     } else if (button.dataset.act === "reset") svg.transition("zoom").duration(400).call(zoomer.transform, zoomIdentity);
-    else if (button.dataset.act === "full") toggleChartFullScreen(popup);
-    else if (button.dataset.act === "svg" || button.dataset.act === "png") {
-      finishAnimations();
-      saveChart(svg.node(), `relationship-${String(options.rootKey || "").replace(/[^A-Za-z0-9_-]/g, "")}`, button.dataset.act);
-    }
   });
   return popup;
 }

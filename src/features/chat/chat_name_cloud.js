@@ -9,20 +9,9 @@ import "d3-transition";
 import { scaleSqrt, scaleSequential } from "d3-scale";
 import { interpolateSpectral } from "d3-scale-chromatic";
 import { easeBackOut } from "d3-ease";
+import { mergeNames, setMainName, spellingsText, ungroupNames } from "./chat_name_variants";
 import { hsl } from "d3-color";
-import {
-  chartPopupControls,
-  centrePopup,
-  chartLinkButtons,
-  chartLinkClick,
-  escapeText,
-  injectChartStyles,
-  profileUrl,
-  raiseAboveOtherPopups,
-  saveChart,
-  tipMoreHint,
-  toggleChartFullScreen,
-} from "./chat_chart_common";
+import { chartPopupControls, chartLinkButtons, escapeText, injectChartStyles, profileUrl, tipMoreHint, createChartPopup, mountChartPopup, handleChartPopupButton } from "./chat_chart_common";
 
 const FONT = "Georgia, 'Times New Roman', serif";
 const WIDTH = 960;
@@ -79,17 +68,18 @@ export function layoutCloud(words, sizeOf, width = WIDTH, height = HEIGHT) {
   return placed;
 }
 
-/** clouds: {first, surname} from buildNameCloud. options: {title, links, rootKey, onRiver}. */
+/**
+ * clouds: {first, surname} from buildNameCloud. options: {title, links, rootKey, onRiver,
+ * rebuild}: rebuild() gives new clouds after you group or ungroup names (drag one onto
+ * another, or Shift-click both; Ungroup under a selected name).
+ */
 export function showNameCloudPopup(clouds, options = {}) {
-  $("#wbe-name-cloud-popup").remove();
   injectChartStyles();
-  const state = { kind: clouds.first?.length ? "first" : "surname", colouring: "era", selected: null };
+  const state = { kind: clouds.first?.length ? "first" : "surname", colouring: "era", selected: null, picked: null };
 
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = "wbe-name-cloud-popup";
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: "wbe-name-cloud-popup",
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
@@ -105,13 +95,12 @@ export function showNameCloudPopup(clouds, options = {}) {
         <span style="width:12px"></span>
         ${COLOURINGS.map((c) => `<button type="button" class="wbe-chart-mode" data-colouring="${c.key}">${c.label}</button>`).join("")}
         <span class="wbe-chart-spacer"></span>
-        <span style="opacity:.65">Bigger = more ${escapeText(options.scope || "ancestors")} · click a name for who</span>
+        <span style="opacity:.65">Bigger = more ${escapeText(options.scope || "ancestors")} · click a name for who${options.rebuild ? " · drag a name onto another to count them as one" : ""}</span>
       </div>
       <div class="wbe-chart-stage"><div class="wbe-chart-tip"></div></div>
       <div class="wbe-chart-footer"><div class="wbe-chart-legend"></div></div>
-    </div>`;
-  document.body.appendChild(popup);
-  centrePopup(popup);
+    </div>`,
+  });
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Name cloud";
 
   const stage = popup.querySelector(".wbe-chart-stage");
@@ -147,6 +136,12 @@ export function showNameCloudPopup(clouds, options = {}) {
     return word.meanYear ? era(word.meanYear) : "#7a8590";
   }
 
+  // Spellings counted as this one name (José and Jose).
+  function spellingsLine(word) {
+    if (!word.spellings) return "";
+    return `<div style="opacity:.8">${word.yours ? "Your grouping" : "Spellings counted together"}: ${escapeText(spellingsText(word.spellings))}</div>`;
+  }
+
   function showTip(event, word) {
     const rect = stage.getBoundingClientRect();
     const years = word.people.map((person) => person.birthYear).filter(Boolean);
@@ -155,7 +150,7 @@ export function showNameCloudPopup(clouds, options = {}) {
       .slice(0, 8)
       .map((person) => `<div>${escapeText(person.name)}${state.kind === "first" && person.lnab && !person.name.includes(person.lnab) ? ` ${escapeText(person.lnab)}` : ""}${person.birthYear ? ` <span style="opacity:.6">b. ${person.birthYear}</span>` : ""}</div>`)
       .join("");
-    tip.innerHTML = `<div class="wbe-chart-tip-rel">${word.count} ${options.scope === "descendants" ? "descendant" : "ancestor"}${word.count === 1 ? "" : "s"}${range ? ` · born ${range}` : ""}</div><b>${escapeText(word.text)}</b>${names}${
+    tip.innerHTML = `<div class="wbe-chart-tip-rel">${word.count} ${options.scope === "descendants" ? "descendant" : "ancestor"}${word.count === 1 ? "" : "s"}${range ? ` · born ${range}` : ""}</div><b>${escapeText(word.text)}</b>${spellingsLine(word)}${names}${
       word.people.length > 8 ? tipMoreHint(word.people.length - 8) : `<div class="wbe-chart-tip-hint">Click to list them</div>`
     }`;
     tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 290)}px`;
@@ -165,6 +160,12 @@ export function showNameCloudPopup(clouds, options = {}) {
 
   function drawLegend(list, era) {
     legend.innerHTML = "";
+    if (state.picked) {
+      const note = document.createElement("span");
+      note.innerHTML = `<b>${escapeText(state.picked.text)}</b>: Shift-click another name to count them as one (Esc to cancel)`;
+      legend.appendChild(note);
+      return;
+    }
     legend.style.maxHeight = "96px";
     legend.style.overflowY = "auto";
     const add = (colour, label) => {
@@ -176,8 +177,28 @@ export function showNameCloudPopup(clouds, options = {}) {
     if (state.selected) {
       const word = state.selected;
       const head = document.createElement("span");
-      head.innerHTML = `<b>${escapeText(word.text)}</b>&nbsp;(${word.count}):`;
+      head.innerHTML = `<b>${escapeText(word.text)}</b>&nbsp;(${word.count}${word.spellings ? `: ${word.yours ? "your grouping, " : ""}${escapeText(spellingsText(word.spellings))}` : ""}):`;
       legend.appendChild(head);
+      if (word.spellings && options.rebuild) {
+        const ungroup = document.createElement("button");
+        ungroup.type = "button";
+        ungroup.className = "small";
+        ungroup.dataset.act = "ungroup";
+        ungroup.textContent = "Ungroup";
+        ungroup.title = "Count each spelling on its own in all your charts";
+        legend.appendChild(ungroup);
+        // The spelling the group is shown as: yours to choose.
+        word.spellings.slice(1).forEach(([name]) => {
+          const main = document.createElement("button");
+          main.type = "button";
+          main.className = "small";
+          main.dataset.act = "main";
+          main.dataset.name = name;
+          main.textContent = `Show as ${name}`;
+          main.title = `Show this name as ${name} in all your charts`;
+          legend.appendChild(main);
+        });
+      }
       word.people.forEach((person) => {
         const link = document.createElement("a");
         link.href = profileUrl(person.wtid);
@@ -206,6 +227,12 @@ export function showNameCloudPopup(clouds, options = {}) {
         legend.appendChild(note);
       }
     }
+    if (list.some((word) => word.spellings)) {
+      const note = document.createElement("span");
+      note.style.opacity = "0.7";
+      note.innerHTML = `<u style="text-decoration-style:dotted">underlined</u>: spellings counted together (hover)`;
+      legend.appendChild(note);
+    }
     const total = clouds[state.kind]?.length || 0;
     if (total > MAX_WORDS) {
       const more = document.createElement("span");
@@ -213,6 +240,69 @@ export function showNameCloudPopup(clouds, options = {}) {
       more.textContent = `top ${MAX_WORDS} of ${total}`;
       legend.appendChild(more);
     }
+  }
+
+  // Grouping names (2026-10-15): save, rebuild the clouds, and redraw with every name equal.
+  async function regroup(change) {
+    if (!options.rebuild) return;
+    state.picked = null;
+    state.selected = null;
+    await change();
+    clouds = options.rebuild();
+    render();
+  }
+
+  // A click on empty space clears a selected name or a Shift-click pick.
+  svg.on("click.clear", (event) => {
+    if (event.target.tagName === "text" || (!state.selected && !state.picked)) return;
+    state.selected = null;
+    state.picked = null;
+    g.selectAll("text").attr("opacity", 1);
+    drawLegend(words(), eraScale(words()));
+  });
+
+  // Drag a name onto another: a ghost label follows the pointer; dropping on a name merges.
+  let drag = null;
+  let justDragged = false;
+  const ghost = document.createElement("div");
+  ghost.className = "wbe-chart-tip";
+  ghost.style.cssText = "opacity:0;pointer-events:none;font-weight:700;max-width:none";
+  stage.appendChild(ghost);
+  const wordAt = (event) => {
+    const element = document.elementFromPoint(event.clientX, event.clientY);
+    return element?.tagName === "text" && element.__data__?.word ? element.__data__.word : null;
+  };
+  function startDrag(event, word) {
+    if (!options.rebuild || event.button !== 0 || event.shiftKey) return;
+    drag = { word, x: event.clientX, y: event.clientY, moved: false };
+    const move = (e) => {
+      if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+      drag.moved = true;
+      tip.style.opacity = "0";
+      const rect = stage.getBoundingClientRect();
+      const target = wordAt(e);
+      ghost.textContent = target && target !== drag.word ? `${drag.word.text} → count as ${target.text}` : drag.word.text;
+      ghost.style.left = `${e.clientX - rect.left + 12}px`;
+      ghost.style.top = `${e.clientY - rect.top + 12}px`;
+      ghost.style.opacity = "1";
+      g.selectAll("text").attr("opacity", (other) => (other.word === drag.word || other.word === target ? 1 : 0.35));
+    };
+    const up = (e) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      ghost.style.opacity = "0";
+      const done = drag;
+      drag = null;
+      if (!done.moved) return;
+      justDragged = true;
+      setTimeout(() => (justDragged = false), 0);
+      const target = wordAt(e);
+      if (target && target !== done.word) regroup(() => mergeNames(state.kind, target.text, done.word.text));
+      else g.selectAll("text").attr("opacity", (other) => (!state.selected || other.word === state.selected ? 1 : 0.25));
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    event.preventDefault();
   }
 
   function render() {
@@ -236,9 +326,25 @@ export function showNameCloudPopup(clouds, options = {}) {
       .attr("opacity", 0)
       .style("cursor", "pointer")
       .text((d) => d.word.text)
-      .on("mousemove", (event, d) => showTip(event, d.word))
+      // (dotted underline: several spellings counted as this name)
+      .style("text-decoration", (d) => (d.word.spellings ? "underline dotted" : null))
+      .on("mousemove", (event, d) => !drag?.moved && showTip(event, d.word))
       .on("mouseleave", () => (tip.style.opacity = "0"))
+      .on("pointerdown", (event, d) => startDrag(event, d.word))
       .on("click", (event, d) => {
+        if (justDragged) return;
+        if (event.shiftKey && options.rebuild) {
+          if (state.picked && state.picked !== d.word) {
+            const picked = state.picked.text; // (regroup clears the pick first)
+            regroup(() => mergeNames(state.kind, d.word.text, picked));
+          } else {
+            state.picked = state.picked === d.word ? null : d.word;
+            text.attr("opacity", (other) => (!state.picked || other.word === state.picked ? 1 : 0.5));
+            drawLegend(list, era);
+          }
+          return;
+        }
+        state.picked = null;
         state.selected = state.selected === d.word ? null : d.word;
         text.attr("opacity", (other) => (!state.selected || other.word === state.selected ? 1 : 0.25));
         drawLegend(list, era);
@@ -249,7 +355,7 @@ export function showNameCloudPopup(clouds, options = {}) {
       .duration(650)
       .ease(easeBackOut)
       .attr("transform", (d) => `translate(${d.x},${d.y}) scale(1)`)
-      .attr("opacity", 1);
+      .attr("opacity", (d) => (!state.selected || d.word === state.selected ? 1 : 0.25));
     popup.querySelectorAll("[data-kind]").forEach((button) => button.classList.toggle("active", button.dataset.kind === state.kind));
     popup.querySelectorAll("[data-colouring]").forEach((button) => {
       button.classList.toggle("active", button.dataset.colouring === state.colouring);
@@ -261,12 +367,11 @@ export function showNameCloudPopup(clouds, options = {}) {
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) {
-      popup._wbeLeaveFullScreen?.();
-      popup.remove();
-    } else if (button.dataset.link) chartLinkClick(popup, button, options.links, options.rootKey);
-    else if (button.dataset.kind) {
+    const fileBase = () => `name-cloud-${state.kind}-${String(options.rootKey || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`;
+    if (handleChartPopupButton(popup, button, { svg: svg.node(), fileBase, links: options.links, rootKey: options.rootKey })) return;
+    if (button.dataset.kind) {
       state.kind = button.dataset.kind;
+      state.picked = null;
       state.selected = null;
       render();
     } else if (button.dataset.colouring) {
@@ -275,20 +380,32 @@ export function showNameCloudPopup(clouds, options = {}) {
       g.selectAll("text").transition("colour").duration(400).attr("fill", (d) => colourFor(d.word, era));
       popup.querySelectorAll("[data-colouring]").forEach((other) => other.classList.toggle("active", other === button));
       drawLegend(words(), era);
+    } else if (button.dataset.act === "main" && button.dataset.name) {
+      const name = button.dataset.name;
+      regroup(() => setMainName(state.kind, name));
+    } else if (button.dataset.act === "ungroup" && state.selected?.spellings) {
+      const names = state.selected.spellings.map(([name]) => name);
+      state.selected = null;
+      regroup(() => ungroupNames(state.kind, names));
     } else if (button.dataset.act === "replay") {
       state.selected = null;
       render();
     } else if (button.dataset.act === "river") {
       popup._wbeLeaveFullScreen?.(); // (a full-screen chart would hide the new one)
       options.onRiver();
-    } else if (button.dataset.act === "full") toggleChartFullScreen(popup);
-    else if (button.dataset.act === "svg" || button.dataset.act === "png") {
-      saveChart(svg.node(), `name-cloud-${state.kind}-${String(options.rootKey || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`, button.dataset.act);
     }
   });
 
-  raiseAboveOtherPopups(popup);
-  $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+  const cancelPick = (event) => {
+    if (event.key !== "Escape" || !state.picked) return;
+    state.picked = null;
+    g.selectAll("text").attr("opacity", 1);
+    drawLegend(words(), eraScale(words()));
+    event.stopPropagation();
+  };
+  document.addEventListener("keydown", cancelPick, { capture: true, signal: popup._wbeSignal.signal });
+
+  mountChartPopup(popup, () => g.selectAll("*").interrupt());
   render();
   return popup;
 }

@@ -16,22 +16,7 @@ import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import { birthYearColouring, countValues, topValueColouring } from "./chat_chart_colours";
 import { descendantTreeStats } from "./chat_descendant_chart_data";
 import { dnaCarrierKind } from "./chat_dna_data";
-import {
-  chartPopupControls,
-  centrePopup,
-  escapeText,
-  injectChartStyles,
-  lifeYears,
-  profileUrl,
-  raiseAboveOtherPopups,
-  saveChart,
-  toggleChartFullScreen,
-  chartLinkButtons,
-  chartLinkClick,
-  textColourFor,
-  truncate,
-  yearOf,
-} from "./chat_chart_common";
+import { chartPopupControls, escapeText, injectChartStyles, profileUrl, chartLinkButtons, textColourFor, truncate, yearOf, handleChartPopupButton, createChartPopup, mountChartPopup } from "./chat_chart_common";
 
 const MODES = [
   { key: "branch", label: "Family branch" },
@@ -129,7 +114,6 @@ function buildColouring(root, mode, focus = root) {
  * tree: from buildDescendantTree. options: {title, generations}.
  */
 export function showDescendantChartPopup(tree, options = {}) {
-  $("#wbe-descendant-chart-popup").remove();
   injectChartStyles();
 
   const root = hierarchy(tree, (d) => d.children).sum(() => 1);
@@ -144,11 +128,9 @@ export function showDescendantChartPopup(tree, options = {}) {
     highlight: null,
   };
 
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = "wbe-descendant-chart-popup";
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: "wbe-descendant-chart-popup",
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
@@ -172,9 +154,8 @@ export function showDescendantChartPopup(tree, options = {}) {
         <div class="wbe-chart-bars" title="Descendants in each generation"></div>
         <div class="wbe-chart-legend"></div>
       </div>
-    </div>`;
-  document.body.appendChild(popup);
-  centrePopup(popup);
+    </div>`,
+  });
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Descendants";
 
   const stage = popup.querySelector(".wbe-chart-stage");
@@ -468,12 +449,10 @@ export function showDescendantChartPopup(tree, options = {}) {
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button || button.classList.contains("wbe-chart-crumb")) return;
-    if (button.classList.contains("close-popup")) {
-      popup._wbeLeaveFullScreen?.();
-      popup.remove();
-    } else if (button.dataset.link) {
-      chartLinkClick(popup, button, options.links, state.focus.data.person?.wtid); // (whoever is at the centre)
-    } else if (button.dataset.mode) {
+    const fileBase = `descendants-${(tree.person.wtid || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`;
+    // (the Charts menu opens for whoever is at the centre)
+    if (handleChartPopupButton(popup, button, { svg: svg.node(), fileBase, links: options.links, rootKey: state.focus.data.person?.wtid })) return;
+    if (button.dataset.mode) {
       state.mode = button.dataset.mode;
       render({ animate: false });
       path.attr("fill-opacity", (d) => (arcVisible(d.current) ? 0.4 : 0)).transition().duration(350).attr("fill-opacity", (d) => (arcVisible(d.current) ? 1 : 0));
@@ -481,15 +460,10 @@ export function showDescendantChartPopup(tree, options = {}) {
       svg.transition("zoom").duration(300).call(zoomer.scaleBy, button.dataset.act === "zoomin" ? 1.6 : 1 / 1.6);
     } else if (button.dataset.act === "reset") {
       resetZoom();
-    } else if (button.dataset.act === "full") {
-      toggleChartFullScreen(popup);
-    } else if (button.dataset.act === "svg" || button.dataset.act === "png") {
-      saveChart(svg.node(), `descendants-${(tree.person.wtid || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`, button.dataset.act);
     }
   });
 
-  raiseAboveOtherPopups(popup);
-  $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+  mountChartPopup(popup, () => svg.selectAll("*").interrupt());
   updateCentre();
   updateCrumbs();
   render({ animate: true });

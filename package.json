@@ -16,9 +16,10 @@
     "test:wtplus": "jest src/features/chat/wt_plus_query_grammar.test.js src/features/chat/wt_plus_sql_edge_corpus.test.js",
     "clean": "rimraf dist",
     "download-templates": "node download-templates.js",
+    "download-surname-variants": "node scripts/download-surname-variants.mjs",
     "update-test-pages": "node src/testing/update_test_pages.js",
-    "zip": "npm run download-templates && npm run clean && npm run build && cd dist && bestzip ../dist-chrome.zip *",
-    "zip-firefox": "npm run download-templates && npm run clean && npm run build-firefox && cd dist && bestzip ../dist-firefox.zip *",
+    "zip": "npm run download-templates && npm run download-surname-variants && npm run clean && npm run build && cd dist && bestzip ../dist-chrome.zip *",
+    "zip-firefox": "npm run download-templates && npm run download-surname-variants && npm run clean && npm run build-firefox && cd dist && bestzip ../dist-firefox.zip *",
     "zip-and-rename-both": "npm run zip && npm run zip-firefox && python scripts/name_zip.py",
     "check-palette": "node scripts/check-palette.mjs",
     "check-undefined-globals": "node scripts/check-undefined-globals.mjs"

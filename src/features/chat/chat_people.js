@@ -59,6 +59,7 @@ import { showDescendantChartPopup } from "./chat_descendant_chart";
 import { tableFromLifespanRows, tableFromPeople, tableFromSlots, tableFromTree } from "./chat_chart_table";
 import { buildFamilyTimelineRows, buildFamilyTimelineSummary, familyLifespanRows } from "./chat_family_timeline_data";
 import { buildOriginsSeries, buildSurnameRiver, describeOriginsShift, describeSurnameRiver } from "./chat_origins_data";
+import { describeCustomNameGroups, loadCustomNameGroups, mergeNames, ungroupNames } from "./chat_name_variants";
 import { showOriginsPopup } from "./chat_origins_chart";
 import { buildMigration, buildMigrationSummary, buildMigrationYearSummary, buildDescendantMigration, buildDescendantMigrationSummary } from "./chat_migration_data";
 import { showMigrationMapPopup } from "./chat_migration_map";
@@ -621,6 +622,8 @@ export function createChatPeopleHandlers({
         title: `${placeWord === "death" ? "Where they died" : "Ancestral origins"}: ${rootPerson.displayName}`,
         placeWord,
         fileBase: `origins-${String(rootPerson.wtId || rootPerson.key || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
+        rootKey: rootPerson.wtId || rootPerson.key,
+        links: chartLinks("fan", "names", "lifespans", "explorer"),
       });
     // Where they came from is the origins chart's question: it opens, with the map beside it.
     if (showChart) setTimeout(openOrigins, 0);
@@ -1995,6 +1998,7 @@ export function createChatPeopleHandlers({
       await showMigrationMapPopup(migration, {
         title: `Descendants' map: ${personNameText(person)} (${person.wtid})`,
         fileBase: `descendant-map-${String(person.wtid || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
+        rootKey: person.wtid,
         arcHint: "Parent → child born in a new place",
         peopleWord: "descendant",
       });
@@ -2043,6 +2047,7 @@ export function createChatPeopleHandlers({
         showMigrationMapPopup(migration, {
           title: `Migration map: ${label}`,
           fileBase: `migration-map-${String(slots[1].wtid || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
+          rootKey: slots[1].wtid,
           year: Number(params?.year) || 0,
         });
       const canMap = migration.places.length > 0;
@@ -2134,7 +2139,9 @@ export function createChatPeopleHandlers({
       };
       if (tree) visit(tree);
     }
-    const clouds = { first: buildNameCloud(names, "first"), surname: buildNameCloud(names, "surname") };
+    await loadCustomNameGroups();
+    const buildClouds = () => ({ first: buildNameCloud(names, "first"), surname: buildNameCloud(names, "surname") });
+    const clouds = buildClouds();
     const opened = clouds.first.length + clouds.surname.length > 0;
     if (opened) {
       showNameCloudPopup(clouds, {
@@ -2143,6 +2150,8 @@ export function createChatPeopleHandlers({
         rootKey: slots[1].wtid,
         links: chartLinks("overview", "fan", "lifespans", "explorer"),
         ...(scope === "ancestors" ? { onRiver: () => showSurnameRiver(slots) } : {}),
+        // After you group or ungroup names (2026-10-15).
+        rebuild: buildClouds,
       });
     }
     return { slots, names, scope, opened };
@@ -2170,12 +2179,14 @@ export function createChatPeopleHandlers({
   }
 
   // Surname river (2026-10-04): ancestors' surnames by generation, as a streamgraph.
-  function showSurnameRiver(slots, generations = NAME_CLOUD_GENERATIONS) {
-    const series = buildSurnameRiver(slots);
+  function showSurnameRiver(slots, generations = NAME_CLOUD_GENERATIONS, groupVariants = true) {
+    const series = buildSurnameRiver(slots, { groupVariants });
     if (!series || series.generations.length < 2) return null;
     showOriginsPopup(series, {
       kind: "surname",
       title: `Surname river: ${personNameText(slots[1])} (${slots[1].wtid})`,
+      rootKey: slots[1].wtid,
+      links: chartLinks("names", "fan", "overview", "lifespans", "explorer"),
       fileBase: `surname-river-${String(slots[1].wtid || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
       // More or fewer generations: reload the ancestors and redraw.
       generations,
@@ -2183,19 +2194,44 @@ export function createChatPeopleHandlers({
       maxGenerations: FAN_CHART_MAX_GENERATIONS,
       onGenerations: async (wanted) => {
         const more = await loadFanSlots(slots[1].wtid || slots[1].id, wanted);
-        if (more[1]) showSurnameRiver(more, wanted);
+        if (more[1]) showSurnameRiver(more, wanted, groupVariants);
       },
+      // Spellings of one surname in one band, or each on its own (2026-10-15).
+      onGroupVariants: (grouped) => showSurnameRiver(slots, generations, grouped),
+      // After you group or ungroup surnames: the same river, regrouped.
+      onRegroup: () => showSurnameRiver(slots, generations, groupVariants),
     });
     return series;
   }
 
   async function openSurnameRiver(key) {
+    await loadCustomNameGroups();
     const slots = await loadFanSlots(key, NAME_CLOUD_GENERATIONS);
     if (!slots[1]) return null;
     return { slots, series: showSurnameRiver(slots) };
   }
 
+  // "count Smith as Smit" (2026-10-15): your own groupings, for every name cloud and surname river.
+  async function handleNameGrouping({ action, kind, names, main }) {
+    await loadCustomNameGroups();
+    const word = kind === "first" ? "first name" : "surname";
+    const where = kind === "first" ? "name clouds" : "name clouds and surname rivers";
+    if (action === "list") {
+      const text = describeCustomNameGroups();
+      return text
+        ? `Your name groupings (on top of the One Name Study variants and accents):\n${text}\nSay "ungroup Smith" to undo one.`
+        : `You haven't grouped any names yet. Drag a name onto another in a name cloud or surname river, or say "count Smith as Smit".`;
+    }
+    if (action === "merge") {
+      await mergeNames(kind, names[0], names[1], main || null);
+      return `${names[0]} and ${names[1]} now count as one ${word}${main ? `, shown as ${main},` : ""} in your ${where}. Say "ungroup ${names[0]}" to undo it.`;
+    }
+    await ungroupNames(kind, names);
+    return `${names.join(" and ")} ${names.length > 1 ? "now count as separate" : "now counts as its own"} ${word}${names.length > 1 ? "s" : ""} in your ${where}.`;
+  }
+
   async function tryHandleNameCloudPrompt(params, prompt = "") {
+    if (params?.grouping) return handleNameGrouping(params.grouping);
     const rootPerson = await resolveAncestorSubjectRoot(params?.ancestorPrompt || prompt);
     if (rootPerson?.unresolvedName) {
       return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
@@ -2333,6 +2369,7 @@ export function createChatPeopleHandlers({
       const run = (action) => () => action.onClick();
       showTreeOverviewPopup(overview, {
         title: `Tree overview: ${personNameText(slots[1]) || wtid} (${wtid})`,
+        rootKey: wtid,
         open: {
           familymap: run(chartAction("Relationship Chart", async () => {
             const result = await tryHandleFamilyMatrixPrompt({ ancestorPrompt: `${wtid}'s ancestors` });
@@ -2807,6 +2844,7 @@ export function createChatPeopleHandlers({
           await showMigrationMapPopup(migration, {
             title: `Migration map: ${personNameText(slots[1])} (${slots[1].wtid})`,
             fileBase: `migration-map-${String(slots[1].wtid || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
+            rootKey: slots[1].wtid,
           });
           return { opened: true };
         }
@@ -2988,6 +3026,7 @@ export function createChatPeopleHandlers({
           showMigrationMapPopup(migration, {
             title: `${testWord} map: profiles connected to ${takerKey}'s test`,
             fileBase: `dna-map-${String(key).replace(/[^A-Za-z0-9_-]/g, "")}`,
+            rootKey: takerKey,
             peopleWord: "connected profile",
             arcHint: "Parent → child born in a new place",
           });

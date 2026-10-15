@@ -162,6 +162,7 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       { pattern: "migration map", examples: ["map my ancestors", "where were my ancestors living in 1850?", "map her descendants"] },
       { pattern: "where your ancestors came from", examples: ["where did my ancestors come from?"] },
       { pattern: "names", examples: ["name cloud", "surname river"] },
+      { pattern: "count two names as one", examples: ["count Smith as Smit", "ungroup Smith", "show my name groupings"] },
       { pattern: "family calendar", examples: ["family calendar"] },
       { pattern: "tree overview", examples: ["tree overview", "Tell me about my tree"] },
       {

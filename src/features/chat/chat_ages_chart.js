@@ -11,7 +11,7 @@ import { scaleLinear } from "d3-scale";
 import { line as d3line, curveMonotoneX } from "d3-shape";
 import { easeCubicOut } from "d3-ease";
 import { ageTrend, deathAgeRows, parentAgeRows } from "./chat_ages_data";
-import { createChartPopup, mountChartPopup, handleChartPopupButton, chartPopupControls, chartLinkButtons, chartLinkClick, escapeText, profileUrl, } from "./chat_chart_common";
+import { createChartPopup, mountChartPopup, handleChartPopupButton, chartPopupControls, chartLinkButtons, escapeText, profileUrl } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const WIDTH = 940;
@@ -273,11 +273,12 @@ export function showAgesPopup(slots, options = {}) {
       handleChartPopupButton(popup, button, {
         svg: svg.node(),
         fileBase: `lives-and-ages-${String(slots[1]?.wtid || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`,
+        links: options.links,
+        rootKey: slots[1]?.wtid || options.rootKey,
       })
     )
       return;
-    if (button.dataset.link) chartLinkClick(popup, button, options.links, slots[1]?.wtid || options.rootKey);
-    else if (button.dataset.mode) {
+    if (button.dataset.mode) {
       state.mode = button.dataset.mode;
       draw();
     } else if (button.dataset.act === "flags") {

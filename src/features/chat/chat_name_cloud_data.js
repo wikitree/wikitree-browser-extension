@@ -4,6 +4,7 @@
 // chat_name_cloud.js.
 
 import { yearOf } from "./chat_chart_common";
+import { groupNameSpellings, isCustomGroup, nameKeyFor } from "./chat_name_variants";
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { CHART_OWNER as OWNER, canonicalChartOwner as canonicalOwner } from "./chat_chart_owner";
 
@@ -71,11 +72,14 @@ export function firstNameOf(person) {
 
 /**
  * Words for the cloud: [{text, count, people:[{wtid, name, birthYear, generation}], meanYear,
- * gender}] for "first" or "surname", most first. Each ancestor counts once (pedigree
+ * gender, spellings?}] for "first" or "surname", most first. Each ancestor counts once (pedigree
  * collapse puts some in several slots). gender: the commoner gender for a first name.
+ * Spellings of one name count together under the commonest (2026-10-15): José and Jose, and
+ * for surnames the One Name Study variants too; spellings lists them ([[spelling, n]]) when
+ * there are several. Your own groupings apply too (yours: true when they made the group).
  */
 export function buildNameCloud(slots, kind = "first") {
-  const words = new Map();
+  const found = [];
   const seen = new Set();
   (slots || []).forEach((person, slot) => {
     if (!person || slot < 2) return;
@@ -84,6 +88,16 @@ export function buildNameCloud(slots, kind = "first") {
     seen.add(id);
     const text = kind === "surname" ? String(person.lnab || "").trim() : firstNameOf(person);
     if (!text || /^unknown$/i.test(text)) return;
+    found.push({ person, slot, text });
+  });
+  const groups = groupNameSpellings(
+    found.map(({ text }) => text),
+    nameKeyFor(kind === "surname" ? "surname" : "first"),
+    kind === "surname" ? "surname" : "first"
+  );
+  const words = new Map();
+  found.forEach(({ person, slot, text: spelling }) => {
+    const text = groups.labelOf(spelling);
     const entry = words.get(text) || { text, count: 0, people: [], years: [], male: 0, female: 0 };
     entry.count += 1;
     const birthYear = yearOf(person.birth);
@@ -98,6 +112,9 @@ export function buildNameCloud(slots, kind = "first") {
       ...entry,
       meanYear: years.length ? Math.round(years.reduce((sum, year) => sum + year, 0) / years.length) : null,
       gender: male > female ? "Male" : female > male ? "Female" : "",
+      ...(groups.spellings.has(entry.text) ? { spellings: groups.spellings.get(entry.text) } : {}),
+      // (yours: grouped by you, not by a One Name Study or accents)
+      ...(groups.spellings.has(entry.text) && isCustomGroup(groups.spellings.get(entry.text).map(([name]) => name), kind === "surname" ? "surname" : "first") ? { yours: true } : {}),
     }))
     .sort((a, b) => b.count - a.count || a.text.localeCompare(b.text));
 }

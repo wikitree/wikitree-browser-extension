@@ -65,8 +65,19 @@ describe("surname river", () => {
   });
   test("each band knows its people, oldest first", () => {
     const series = buildSurnameRiver(slots);
-    expect(series.generations[1].people.Smith).toEqual([{ name: "Smith-4", wtid: "Smith-4", year: 1870 }]);
-    expect(series.generations[0].people.Jones).toEqual([{ name: "Jones-3", wtid: "Jones-3", year: 1902 }]);
+    expect(series.generations[1].people.Smith).toEqual([{ name: "Smith-4", wtid: "Smith-4", year: 1870, lnab: "Smith" }]);
+    expect(series.generations[0].people.Jones).toEqual([{ name: "Jones-3", wtid: "Jones-3", year: 1902, lnab: "Jones" }]);
+  });
+  test("spellings of one surname share a band, named by the commonest", () => {
+    const kin = [null, person(1, "Kool"), person(2, "Kool", "1900"), person(3, "Cole", "1902"), person(4, "Kool", "1870"), person(5, "Müller", "1872"), person(6, "Muller"), person(7, "Brown")];
+    const series = buildSurnameRiver(kin);
+    expect(series.keys).toEqual(["Kool", "Muller", "Brown"]);
+    expect(series.variants).toEqual({ Kool: [["Kool", 2], ["Cole", 1]], Muller: [["Muller", 1], ["Müller", 1]] });
+    expect(series.groupable).toBe(2);
+    expect(describeSurnameRiver(series, "your")).toContain("Spellings counted as one surname (One Name Study variants, the same name with and without accents, or your own groupings): Kool (2), Cole; Muller, Müller.");
+    const apart = buildSurnameRiver(kin, { groupVariants: false });
+    expect(apart.keys).toHaveLength(5);
+    expect(apart).toMatchObject({ grouped: false, groupable: 2, variants: {} });
   });
   test("summary", () => {
     const text = describeSurnameRiver(buildSurnameRiver(slots), "Your");

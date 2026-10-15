@@ -40,6 +40,9 @@ jobs:
       - name: Download WikiTree+ templates
         # only run this once per release to ensure it is identical in all builds
         run: npm run download-templates
+      - name: Download surname variants (One Name Studies sheet)
+        # also once per release; keeps the repo's copy if the sheet can't be read
+        run: npm run download-surname-variants
       - name: Build for Chrome
         run: |
           npm run clean

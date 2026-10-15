@@ -11,7 +11,8 @@ import { area, curveMonotoneX, stack, stackOffsetExpand, stackOffsetWiggle, stac
 import { scaleLinear, scalePoint } from "d3-scale";
 import { easeCubicInOut } from "d3-ease";
 import { OTHER_COUNTRIES } from "./chat_origins_data";
-import { chartPopupControls, centrePopup, escapeText, injectChartStyles, raiseAboveOtherPopups, saveChart, tipMoreHint, toggleChartFullScreen, textColourFor } from "./chat_chart_common";
+import { mergeNames, setMainName, spellingsText, ungroupNames } from "./chat_name_variants";
+import { chartLinkButtons, chartPopupControls, chartSwitchHtml, escapeText, injectChartStyles, tipMoreHint, textColourFor, createChartPopup, mountChartPopup, handleChartPopupButton } from "./chat_chart_common";
 
 const WIDTH = 900;
 const HEIGHT = 470;
@@ -86,17 +87,14 @@ let chartCounter = 0;
 
 /**
  * series: from buildOriginsSeries (or buildSurnameRiver). options: {title, placeWord: "birth"|"death",
- * kind: "surname" for the surname river}.
+ * kind: "surname" for the surname river, links and rootKey: the Charts menu, onRegroup: redraw after you group or ungroup surnames
+ * (drag a legend entry onto another, or Shift-click both; Ungroup in a band's pinned tip)}.
  */
 export function showOriginsPopup(series, options = {}) {
   if (!series?.generations?.length) return null;
   chartCounter += 1;
   const uid = `wbe-origins-${chartCounter}`;
   const popupId = options.kind === "surname" ? "wbe-surname-river-popup" : "wbe-origins-popup";
-  // Redrawn with more or fewer generations: open where the old one was.
-  const previous = document.getElementById(popupId);
-  const previousPlace = previous ? { left: previous.style.left, top: previous.style.top, width: previous.style.width, height: previous.style.height } : null;
-  $(`#${popupId}`).remove();
   injectChartStyles();
 
   const placeWord = options.placeWord === "death" ? "death" : "birth";
@@ -105,21 +103,20 @@ export function showOriginsPopup(series, options = {}) {
   const OTHER = series.otherKey || OTHER_COUNTRIES;
   const withWord = surnames ? "with a surname recorded" : `with a ${placeWord}place`;
   const withoutWord = surnames ? "have no surname recorded" : `have no ${placeWord}place`;
-  const state = { mode: "stream", highlight: null };
+  const state = { mode: "stream", highlight: null, picked: null };
   // Oldest generation on the left, so the stream flows towards the present.
   const generations = [...series.generations].sort((a, b) => b.generation - a.generation);
   const keys = series.keys;
   const colourOf = new Map(keys.map((key, index) => [key, key === OTHER ? OTHER_COLOUR : streamColour(index)]));
 
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = popupId;
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: popupId,
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
         <button type="button" class="small" data-act="replay" title="Play the reveal again">Replay</button>
+        ${chartLinkButtons(options.links)}
         ${chartPopupControls()}
       </div>
     </div>
@@ -135,6 +132,18 @@ export function showOriginsPopup(series, options = {}) {
         </span>`
             : ""
         }
+        ${
+          options.onGroupVariants && series.groupable
+            ? chartSwitchHtml({
+                act: "variants",
+                label: "Group spellings",
+                on: series.grouped,
+                title: series.grouped
+                  ? "On: spellings of one surname share a band (One Name Study variants, accents, your own groupings)"
+                  : "Off: each spelling has its own band",
+              })
+            : ""
+        }
         <span class="wbe-chart-spacer"></span>
         <span style="opacity:.65">Oldest generation on the left · hover a band for its numbers</span>
       </div>
@@ -143,10 +152,8 @@ export function showOriginsPopup(series, options = {}) {
         <div class="wbe-chart-stats"></div>
         <div class="wbe-chart-legend"></div>
       </div>
-    </div>`;
-  document.body.appendChild(popup);
-  centrePopup(popup);
-  if (previousPlace?.left) Object.assign(popup.style, previousPlace);
+    </div>`,
+  });
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Ancestral origins";
 
   const stage = popup.querySelector(".wbe-chart-stage");
@@ -219,8 +226,9 @@ export function showOriginsPopup(series, options = {}) {
   // The people behind a band (the surname river knows them): hover lists this
   // generation's; a click pins the tip with every generation's, as links.
   let pinned = false;
-  const personLink = (person) => {
-    const label = `${person.name}${person.year ? ` (b. ${person.year})` : ""}`;
+  const personLink = (person, key) => {
+    const spelling = person.lnab && series.variants?.[key] && !String(person.name).includes(person.lnab) ? ` · ${person.lnab}` : "";
+    const label = `${person.name}${spelling}${person.year ? ` (b. ${person.year})` : ""}`;
     return person.wtid
       ? `<a href="/wiki/${encodeURIComponent(person.wtid)}" target="_blank" rel="noopener" title="Open ${escapeText(person.wtid)} in a new tab">${escapeText(label)}</a>`
       : escapeText(label);
@@ -230,12 +238,12 @@ export function showOriginsPopup(series, options = {}) {
       const people = gen.people?.[key] || [];
       if (!people.length) return "";
       const shown = people.slice(0, 6);
-      return `<div style="margin-top:4px">${shown.map((person) => `<div>${personLink(person)}</div>`).join("")}</div>
+      return `<div style="margin-top:4px">${shown.map((person) => `<div>${personLink(person, key)}</div>`).join("")}</div>
         ${people.length > shown.length ? tipMoreHint(people.length - shown.length) : `<div class="wbe-chart-tip-hint">Click to list everyone with this name</div>`}`;
     }
     const groups = generations
       .filter((g) => g.people?.[key]?.length)
-      .map((g) => `<div class="wbe-chart-tip-rel" style="margin-top:6px">${escapeText(g.name)}</div>${g.people[key].map((person) => `<div>${personLink(person)}</div>`).join("")}`);
+      .map((g) => `<div class="wbe-chart-tip-rel" style="margin-top:6px">${escapeText(g.name)}</div>${g.people[key].map((person) => `<div>${personLink(person, key)}</div>`).join("")}`);
     return groups.join("");
   }
 
@@ -246,6 +254,12 @@ export function showOriginsPopup(series, options = {}) {
     return `<div style="margin-top:4px">${shown.map(([name, n]) => escapeText(n > 1 ? `${name} (${n})` : name)).join(", ")}</div>${all ? "" : tipMoreHint(gen.otherNames.length - shown.length)}`;
   }
 
+  // The spellings a grouped band holds.
+  function spellingsHtml(key) {
+    const list = series.variants?.[key];
+    return list ? `<div style="margin-top:2px;opacity:.8">${series.yours?.includes(key) ? "Your grouping" : "Spellings"}: ${escapeText(spellingsText(list))}</div>` : "";
+  }
+
   function pinTip(event, key) {
     const gen = nearestGeneration(pointer(event, svg.node())[0]);
     if (!gen.people?.[key] && !generations.some((g) => g.people?.[key]?.length) && !otherNamesHtml(gen, key, true)) return;
@@ -253,7 +267,11 @@ export function showOriginsPopup(series, options = {}) {
     pinned = true;
     tip.classList.add("wbe-chart-tip-pinned");
     tip.style.pointerEvents = "auto";
-    tip.innerHTML = `<b>${escapeText(key)}</b><div>${overall} ${overall === 1 ? "ancestor" : "ancestors"}</div>${otherNamesHtml(gen, key, true)}${peopleHtml(gen, key, true)}
+    tip.innerHTML = `<b>${escapeText(key)}</b><div>${overall} ${overall === 1 ? "ancestor" : "ancestors"}</div>${spellingsHtml(key)}${otherNamesHtml(gen, key, true)}${peopleHtml(gen, key, true)}
+      ${series.variants?.[key] && options.onRegroup ? `<button type="button" class="small" data-act="ungroup" data-key="${escapeText(key)}" title="Count each spelling on its own in all your charts" style="margin-top:6px">Ungroup</button>${series.variants[key]
+              .slice(1)
+              .map(([name]) => ` <button type="button" class="small" data-act="main" data-name="${escapeText(name)}" title="Show this surname as ${escapeText(name)} in all your charts">Show as ${escapeText(name)}</button>`)
+              .join("")}` : ""}
       <div class="wbe-chart-tip-hint">Click a name to open the profile · click the chart to close</div>`;
     const rect = stage.getBoundingClientRect();
     tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 290)}px`;
@@ -279,6 +297,7 @@ export function showOriginsPopup(series, options = {}) {
     const overallCount = key === OTHER ? series.totals.slice(keys.length - 1).reduce((sum, [, n]) => sum + n, 0) : overall || 0;
     tip.innerHTML = `<div class="wbe-chart-tip-rel">${escapeText(gen.name)}${gen.meanYear ? ` · born about ${gen.meanYear}` : ""}</div>
       <b>${escapeText(key)}</b>
+      ${spellingsHtml(key)}
       <div>${count} of ${gen.total} ${withWord} (${percent}%)</div>
       ${gen.unknown ? `<div style="opacity:.75">${gen.unknown} more ${withoutWord}</div>` : ""}
       ${otherNamesHtml(gen, key, false)}
@@ -537,7 +556,7 @@ export function showOriginsPopup(series, options = {}) {
       drawLabels(layers, y, 650);
       drawDots(layers, y, 0, true);
     }
-    popup.querySelectorAll(".wbe-chart-mode").forEach((button) => button.classList.toggle("active", button.dataset.mode === state.mode));
+    popup.querySelectorAll(".wbe-chart-mode[data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === state.mode));
   }
 
   function drawFooter() {
@@ -557,7 +576,45 @@ export function showOriginsPopup(series, options = {}) {
           : series.totals.find(([country]) => country === key)?.[1] || 0;
       const span = document.createElement("span");
       span.innerHTML = `<i style="background:${colourOf.get(key)}"></i>`;
-      span.appendChild(document.createTextNode(`${key} (${count})`));
+      // A grouped band names its first spellings: "Kool/Cole/Cool (6)".
+      const spellings = series.variants?.[key]?.map(([name]) => name) || [key];
+      span.appendChild(document.createTextNode(`${spellings.slice(0, 3).join("/")}${spellings.length > 3 ? "/…" : ""} (${count})`));
+      span.title = [
+        spellings.length > 1 ? `${series.yours?.includes(key) ? "Your grouping" : "Counted as one surname"}: ${spellingsText(series.variants[key])}` : "",
+        options.onRegroup && key !== OTHER ? "Drag onto another surname (or Shift-click both) to count them as one" : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+      // Your own groupings (2026-10-15): drop one surname on another, or Shift-click both.
+      if (options.onRegroup && key !== OTHER) {
+        span.draggable = true;
+        span.style.cursor = "grab";
+        span.addEventListener("dragstart", (event) => {
+          event.dataTransfer.setData("text/plain", key);
+          event.dataTransfer.effectAllowed = "move";
+        });
+        span.addEventListener("dragover", (event) => {
+          event.preventDefault();
+          span.style.outline = "2px dashed currentColor";
+        });
+        span.addEventListener("dragleave", () => (span.style.outline = ""));
+        span.addEventListener("drop", (event) => {
+          event.preventDefault();
+          span.style.outline = "";
+          const from = event.dataTransfer.getData("text/plain");
+          if (from && from !== key && keys.includes(from)) mergeNames("surname", key, from).then(() => options.onRegroup());
+        });
+        span.addEventListener("click", (event) => {
+          if (!event.shiftKey) return;
+          if (state.picked && state.picked !== key) {
+            mergeNames("surname", key, state.picked).then(() => options.onRegroup());
+            return;
+          }
+          state.picked = state.picked === key ? null : key;
+          legend.querySelectorAll("span").forEach((other) => (other.style.outline = ""));
+          if (state.picked) span.style.outline = "2px solid currentColor";
+        });
+      }
       span.addEventListener("mouseenter", () => {
         state.highlight = key;
         applyHighlight();
@@ -573,14 +630,18 @@ export function showOriginsPopup(series, options = {}) {
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) {
-      popup._wbeLeaveFullScreen?.();
-      popup.remove();
-    } else if (button.dataset.mode && button.dataset.mode !== state.mode) {
+    // (the reveal's clip stops, so the saved chart is whole)
+    const saved = () => (clipRect.interrupt().attr("width", WIDTH), svg.node());
+    if (handleChartPopupButton(popup, button, { svg: saved, fileBase: options.fileBase || "ancestral-origins", links: options.links, rootKey: options.rootKey })) return;
+    if (button.dataset.mode && button.dataset.mode !== state.mode) {
       state.mode = button.dataset.mode;
       render({ reveal: false });
     } else if (button.dataset.act === "replay") render({ reveal: true });
-    else if (button.dataset.act === "full") toggleChartFullScreen(popup);
+    else if (button.dataset.act === "variants" && options.onGroupVariants) options.onGroupVariants(!series.grouped);
+    else if (button.dataset.act === "main" && options.onRegroup && button.dataset.name) setMainName("surname", button.dataset.name).then(() => options.onRegroup());
+    else if (button.dataset.act === "ungroup" && options.onRegroup && series.variants?.[button.dataset.key]) {
+      ungroupNames("surname", series.variants[button.dataset.key].map(([name]) => name)).then(() => options.onRegroup());
+    }
     else if ((button.dataset.act === "more" || button.dataset.act === "fewer") && options.onGenerations) {
       const wanted = options.generations + (button.dataset.act === "more" ? 1 : -1);
       popup.querySelectorAll(".wbe-river-generations button").forEach((b) => (b.disabled = true));
@@ -588,10 +649,6 @@ export function showOriginsPopup(series, options = {}) {
       Promise.resolve(options.onGenerations(wanted)).catch((error) => {
         popup.querySelector(".wbe-river-generations-text").textContent = `Couldn't load (${error?.message || error})`;
       });
-    }
-    else if (button.dataset.act === "svg" || button.dataset.act === "png") {
-      clipRect.interrupt().attr("width", WIDTH);
-      saveChart(svg.node(), options.fileBase || "ancestral-origins", button.dataset.act);
     }
   });
 
@@ -602,8 +659,10 @@ export function showOriginsPopup(series, options = {}) {
     applyHighlight();
   });
 
-  raiseAboveOtherPopups(popup);
-  $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+  mountChartPopup(popup, () => {
+    clipRect.interrupt();
+    svg.selectAll("*").interrupt();
+  });
   drawAxis();
   drawFooter();
   render({ reveal: true });

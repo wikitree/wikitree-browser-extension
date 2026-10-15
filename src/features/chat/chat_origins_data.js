@@ -5,6 +5,7 @@
 
 import { getCountryFromLocation } from "./chat_place_country";
 import { yearOf } from "./chat_chart_common";
+import { groupNameSpellings, isCustomGroup, nameKeyFor, spellingsText } from "./chat_name_variants";
 
 // Every country gets its own band, as in the Surname Stream (2026-10-05): no "Other countries" catch-all.
 export const ORIGINS_TOP_COUNTRIES = Infinity;
@@ -46,7 +47,7 @@ export function buildOriginsSeries(rows, { field = "birthLocation", top = ORIGIN
     // Who they are, when the rows say (the surname river's do).
     if (row.name || row.wtid) {
       if (!bucket.people.has(country)) bucket.people.set(country, []);
-      bucket.people.get(country).push({ name: row.name || row.wtid, wtid: row.wtid || "", year: year || null });
+      bucket.people.get(country).push({ name: row.name || row.wtid, wtid: row.wtid || "", year: year || null, ...(row.lnab ? { lnab: row.lnab } : {}) });
     }
     totals.set(country, (totals.get(country) || 0) + 1);
   });
@@ -102,8 +103,14 @@ export function describeOriginsShift(series) {
 export const SURNAME_RIVER_TOP = Infinity;
 export const OTHER_SURNAMES = "Rarer surnames";
 
-/** The streamgraph series for ancestors' surnames at birth (LNAB), from fan chart slots. */
-export function buildSurnameRiver(slots, { top = SURNAME_RIVER_TOP } = {}) {
+/**
+ * The streamgraph series for ancestors' surnames at birth (LNAB), from fan chart slots.
+ * groupVariants (2026-10-15): one band for spellings of the same surname (One Name Study
+ * variants, or accents), named by the tree's commonest spelling. The series says
+ * grouped, variants {label: [[spelling, n]]}, groupable (how many groups grouping makes) and
+ * yours (the labels of groups you made; see chat_name_variants.js).
+ */
+export function buildSurnameRiver(slots, { top = SURNAME_RIVER_TOP, groupVariants = true } = {}) {
   const seen = new Set();
   const rows = [];
   (slots || []).forEach((person, slot) => {
@@ -118,7 +125,13 @@ export function buildSurnameRiver(slots, { top = SURNAME_RIVER_TOP } = {}) {
     const name = String(row.lnab || "").trim();
     return name && !/^unknown$/i.test(name) ? name : "";
   };
-  return buildOriginsSeries(rows, { keyOf: surnameOf, top, otherLabel: OTHER_SURNAMES });
+  const groups = groupNameSpellings(rows.map(surnameOf), nameKeyFor("surname"), "surname");
+  const keyOf = groupVariants ? (row) => groups.labelOf(surnameOf(row)) : surnameOf;
+  const series = buildOriginsSeries(rows, { keyOf, top, otherLabel: OTHER_SURNAMES });
+  if (!series) return null;
+  return { ...series, grouped: groupVariants, groupable: groups.spellings.size, variants: groupVariants ? Object.fromEntries(groups.spellings) : {},
+    // The bands you grouped yourself (2026-10-15).
+    yours: groupVariants ? [...groups.spellings].filter(([, list]) => isCustomGroup(list.map(([name]) => name), "surname")).map(([label]) => label) : [] };
 }
 
 /** The chat line for the river: how many surnames, the main ones, and when each first appears. */
@@ -132,6 +145,11 @@ export function describeSurnameRiver(series, ownerText) {
     .slice(0, 6)
     .map((key) => `${key} (${series.totals.find(([name]) => name === key)[1]}, from ${generationName(firstSeen(key)).toLowerCase()})`);
   const lines = [`${series.totals.length} surnames run through ${owner} ${series.known} ancestors over ${gens.length} generations. The biggest streams: ${main.join(", ")}.`];
+  const grouped = Object.entries(series.variants || {});
+  if (grouped.length) {
+    const shown = grouped.slice(0, 6).map(([, list]) => spellingsText(list));
+    lines.push(`Spellings counted as one surname (One Name Study variants, the same name with and without accents, or your own groupings): ${shown.join("; ")}${grouped.length > shown.length ? `; and ${grouped.length - shown.length} more` : ""}.`);
+  }
   lines.push("Each band is a surname at birth, oldest generation on the left; a band widens where more ancestors carried it.");
   return lines.join("\n");
 }

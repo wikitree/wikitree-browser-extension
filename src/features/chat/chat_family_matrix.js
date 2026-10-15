@@ -1,4 +1,4 @@
-import { createChartPopup, mountChartPopup, closeChartPopup, escapeText, profileUrl, toggleChartFullScreen, chartPopupControls, saveChart } from "./chat_chart_common";
+import { chartLinkButtons, createChartPopup, mountChartPopup, escapeText, profileUrl, chartPopupControls, handleChartPopupButton } from "./chat_chart_common";
 import { fullWikiTreeName } from "./chat_fan_chart_data";
 import { ordinal } from "./chat_text_utils";
 
@@ -73,7 +73,7 @@ export function familyRelationshipsSvg(popup, title) {
 export function showFamilyMatrixPopup(matrix, { reload } = {}) {
   const rootName = fullWikiTreeName(matrix.root) || matrix.root.RealName || matrix.root.Name || "Private profile";
   const popup = createChartPopup({ id: "wbe-family-matrix-popup", keepFullScreen: true, html: `
-    <div class="chat-popup-header"><strong>Relationship Chart: ${escapeText(rootName)}</strong><div class="chat-popup-controls">${chartPopupControls()}</div></div>
+    <div class="chat-popup-header"><strong>Relationship Chart: ${escapeText(rootName)}</strong><div class="chat-popup-controls">${chartLinkButtons()}${chartPopupControls()}</div></div>
     <div class="chat-popup-body wbe-kin-dashboard">
       <div class="wbe-kin-controls"><label>Ancestors <input type="number" name="ancestors" min="1" max="25" value="${matrix.ancestorDepth}"></label><label>Descendant branches <input type="number" name="descendants" min="1" max="10" value="${matrix.descendantDepth}"></label><button type="button" data-act="load">Load generations</button><input type="search" placeholder="Find a relative" aria-label="Find a relative"></div>
       <p class="wbe-kin-status">${matrix.total} relatives found. Hover or focus a card for names and dates; click to pin its hover list.</p>
@@ -122,12 +122,9 @@ export function showFamilyMatrixPopup(matrix, { reload } = {}) {
   popup.addEventListener("click", async (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) closeChartPopup(popup);
-    else if (button.dataset.act === "full") toggleChartFullScreen(popup);
-    else if (["svg", "png"].includes(button.dataset.act)) {
-      saveChart(familyRelationshipsSvg(popup, `Relationship Chart: ${rootName}`), `${matrix.root.Name || "profile"}-relationships`, button.dataset.act);
-    }
-    else if (button.dataset.act === "load" && reload) {
+    const svg = () => familyRelationshipsSvg(popup, `Relationship Chart: ${rootName}`);
+    if (handleChartPopupButton(popup, button, { svg, fileBase: `${matrix.root.Name || "profile"}-relationships`, links: [], rootKey: matrix.root.Name })) return;
+    if (button.dataset.act === "load" && reload) {
       const ancestors = popup.querySelector('[name="ancestors"]');
       const descendants = popup.querySelector('[name="descendants"]');
       if (!ancestors.reportValidity() || !descendants.reportValidity()) return;

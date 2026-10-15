@@ -32,6 +32,7 @@ import { parseLifespansPrompt } from "./chat_lifespans_data";
 import { parseFamilySizePrompt } from "./chat_family_size_data";
 import { parseHistoryPrompt } from "./chat_world_events_data";
 import { parseNameCloudPrompt } from "./chat_name_cloud_data";
+import { parseNameGroupingPrompt } from "./chat_name_variants";
 import { parseProfileSourcesPrompt } from "./chat_sources";
 import { parseMarriagePrompt } from "./chat_marriage";
 import { parseRelativeAgePrompt, parseRelativeFactPrompt } from "./chat_relative_fact";
@@ -2875,6 +2876,9 @@ function routeAsciiChatPrompt(prompt, options = {}) {
   // Profile facts are exact phrasings; "how many contributions does X have" mustn't become a relation count.
   // The fractal tree comes first: it takes "visualize my ancestors" (2026-10-03, the user prefers it to a fan chart).
   // The family world (the CC7-style fractal tree) before the CC7 list parsers: "show my CC7 tree".
+  // Your own name groupings (2026-10-15): "count Smith as Smit", "ungroup Smith".
+  const nameGrouping = parseNameGroupingPrompt(prompt);
+  if (nameGrouping) return { intent: ChatIntent.NAME_CLOUD, params: { grouping: nameGrouping } };
   const familyWorld = parseFamilyWorldPrompt(prompt);
   if (familyWorld) return { intent: ChatIntent.FAMILY_WORLD, params: familyWorld };
   const fractalTree = parseFractalTreePrompt(prompt);

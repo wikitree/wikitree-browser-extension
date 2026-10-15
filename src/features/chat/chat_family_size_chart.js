@@ -9,7 +9,7 @@ import { select } from "d3-selection";
 import "d3-transition";
 import { easeBackOut } from "d3-ease";
 import { DIED_YOUNG_AGE } from "./chat_family_size_data";
-import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, truncate } from "./chat_chart_common";
+import { chartPopupControls, chartLinkButtons, escapeText, profileUrl, truncate, createChartPopup, mountChartPopup, handleChartPopupButton } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const WIDTH = 1000;
@@ -40,14 +40,9 @@ const years = (child) => (child.birthYear ? `${child.birthYear}–${child.deathY
 
 /** data: from buildFamilySizes. options: {title, links, rootKey}. */
 export function showFamilySizePopup(data, options = {}) {
-  $("#wbe-family-size-popup").remove();
-  injectChartStyles();
-
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = "wbe-family-size-popup";
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: "wbe-family-size-popup",
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
@@ -62,7 +57,8 @@ export function showFamilySizePopup(data, options = {}) {
       </div>
       <div class="wbe-chart-stage" style="overflow-y:auto"><div class="wbe-chart-tip"></div></div>
       <div class="wbe-chart-footer"><div class="wbe-chart-legend"></div></div>
-    </div>`;
+    </div>`,
+  });
   popup.insertAdjacentHTML(
     "afterbegin",
     `<style>
@@ -70,7 +66,6 @@ export function showFamilySizePopup(data, options = {}) {
       #wbe-family-size-popup circle.wbe-fs-hot { stroke: #0b5cad; stroke-width: 3px; }
     </style>`
   );
-  document.body.appendChild(popup);
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Family size";
   const stage = popup.querySelector(".wbe-chart-stage");
   const tip = popup.querySelector(".wbe-chart-tip");
@@ -313,27 +308,17 @@ export function showFamilySizePopup(data, options = {}) {
   stage.addEventListener("mouseout", (event) => highlight(event, false));
 
   render();
-  centrePopup(popup);
-  raiseAboveOtherPopups(popup);
-  if ($.fn.draggable) $(popup).draggable({ handle: ".chat-popup-header" });
-  popup.querySelector(".chat-popup-header").addEventListener("dblclick", (event) => {
-    if (!event.target.closest("button")) toggleChartFullScreen(popup);
-  });
+  mountChartPopup(popup, () => svg?.selectAll("*").interrupt());
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) {
-      popup._wbeLeaveFullScreen?.();
-      popup.remove();
-    } else if (button.dataset.link) chartLinkClick(popup, button, options.links, options.rootKey);
-    else if (button.dataset.act === "sort") {
+    const fileBase = `family-size-${String(options.rootKey || "").replace(/[^A-Za-z0-9_-]/g, "")}`;
+    const svgNode = () => (finishAnimations(), svg.node());
+    if (handleChartPopupButton(popup, button, { svg: svgNode, fileBase, links: options.links, rootKey: options.rootKey })) return;
+    if (button.dataset.act === "sort") {
       state.sortBySize = !state.sortBySize;
       button.textContent = state.sortBySize ? "Family tree order" : "Sort by size";
       render();
-    } else if (button.dataset.act === "full") toggleChartFullScreen(popup);
-    else if (button.dataset.act === "svg" || button.dataset.act === "png") {
-      finishAnimations();
-      saveChart(svg.node(), `family-size-${String(options.rootKey || "").replace(/[^A-Za-z0-9_-]/g, "")}`, button.dataset.act);
     }
   });
   return popup;

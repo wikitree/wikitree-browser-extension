@@ -8,7 +8,7 @@ import "d3-transition";
 import { scaleLinear } from "d3-scale";
 import { easeCubicOut } from "d3-ease";
 import { aliveIn, rowSpan } from "./chat_family_timeline_data";
-import { createChartPopup, mountChartPopup, handleChartPopupButton, chartPopupControls, chartLinkButtons, chartLinkClick, createPinnableTip, escapeText, fullName, profileUrl, tipMoreHint, truncate, yearOf } from "./chat_chart_common";
+import { createChartPopup, mountChartPopup, handleChartPopupButton, chartPopupControls, chartLinkButtons, createPinnableTip, escapeText, fullName, profileUrl, tipMoreHint, truncate, yearOf } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const ROW_H = 24;
@@ -331,11 +331,12 @@ export function showFamilyTimelinePopup(rows, options = {}) {
       handleChartPopupButton(popup, button, {
         svg: svg.node(),
         fileBase: `family-timeline-${(selfItem?.row.wtid || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`,
+        links: options.links,
+        rootKey: selfItem?.row.wtid,
       })
     )
       return;
-    if (button.dataset.link) chartLinkClick(popup, button, options.links, selfItem?.row.wtid);
-    else if (button.dataset.act === "history") bands.attr("display", bands.attr("display") === "none" ? null : "none");
+    if (button.dataset.act === "history") bands.attr("display", bands.attr("display") === "none" ? null : "none");
   });
 
   mountChartPopup(popup, () => {

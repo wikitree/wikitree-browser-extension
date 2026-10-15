@@ -20,7 +20,7 @@ import { interpolateRgb } from "d3-interpolate";
 import { easeCubicInOut } from "d3-ease";
 import { birthYearColouring } from "./chat_chart_colours";
 import { buildFractalLayout, graftBranch, hasFrontier, NESTED_GEOMETRY } from "./chat_fractal_tree_data";
-import { createChartPopup, mountChartPopup, closeChartPopup, chartLinkButtons, chartLinkClick, escapeText, fullName, lifeYears as years, photoUrl, profileUrl, siteUrl, toggleChartFullScreen, yearOf } from "./chat_chart_common";
+import { createChartPopup, mountChartPopup, chartLinkButtons, escapeText, fullName, lifeYears as years, photoUrl, profileUrl, siteUrl, yearOf, handleChartPopupButton, saveChart } from "./chat_chart_common";
 import { showSpiralTreePopup } from "./chat_fractal_spiral";
 import { mountFamilyNavigator } from "./chat_family_navigator";
 import { mountFamilyGalaxy } from "./chat_family_galaxy";
@@ -241,6 +241,7 @@ function showNestedTreePopup(tree, options = {}) {
         ${options.onSwitchLayout ? `<button type="button" class="small" data-act="layout" title="Switch to the spiral layout: siblings bud off curling stems">Spiral</button>` : ""}
         ${chartLinkButtons(options.links)}
         <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
+        <button type="button" class="small" data-act="svg" title="Save the Family view as SVG">SVG</button>
         <button type="button" class="small" data-act="png" title="Save the current view as PNG">PNG</button>
         <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
       </div>
@@ -1609,6 +1610,7 @@ function showNestedTreePopup(tree, options = {}) {
     popup.classList.toggle("wbe-explorer-alt", name !== "tree");
     popup.classList.toggle("wbe-explorer-galaxy", name === "galaxy");
     popup.classList.toggle("wbe-explorer-3d", name === "3d");
+    popup.classList.toggle("wbe-explorer-family", name === "family");
     popup.querySelectorAll("[data-view]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.view === name)));
     if (name === "tree" && state.restartTree) {
       // (round whoever the other view is on now, not the one switched: live, Terry's view after Patty's switch)
@@ -1646,11 +1648,9 @@ function showNestedTreePopup(tree, options = {}) {
     const button = event.target.closest("button");
     if (!button || button.classList.contains("wbe-chart-crumb")) return;
     const act = button.dataset.act;
-    if (button.classList.contains("close-popup")) {
-      closeChartPopup(popup);
-    } else if (button.dataset.link) {
-      chartLinkClick(popup, button, options.links, focusedPersonKey());
-    } else if (button.dataset.view) {
+    // (a canvas, so Save PNG is its own, below)
+    if (handleChartPopupButton(popup, button, { links: options.links, rootKey: focusedPersonKey })) return;
+    if (button.dataset.view) {
       switchView(button.dataset.view);
     } else if (button.dataset.mode) {
       state.mode = button.dataset.mode;
@@ -1668,8 +1668,9 @@ function showNestedTreePopup(tree, options = {}) {
     else if (act === "out") {
       const parent = nodes[focusedNode().index]?.parent ?? -1;
       flyTo(parent >= 0 ? parent : 0, 900);
-    } else if (act === "full") {
-      toggleChartFullScreen(popup);
+    } else if ((act === "png" || act === "svg") && explorerView?.api.exportSvg) {
+      const wtid = explorerView.api.currentWtid().replace(/[^A-Za-z0-9_-]/g, "");
+      saveChart(explorerView.api.exportSvg(), `family-${wtid || "view"}`, act);
     } else if (act === "png" && explorerView?.api.canvas) {
       saveFractalPng(explorerView.api.canvas, tree, button);
     } else if (act === "png") {

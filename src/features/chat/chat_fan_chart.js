@@ -20,7 +20,7 @@ import { buildMigration } from "./chat_migration_data";
 import { showMigrationMapPopup } from "./chat_migration_map";
 import { PARENT_STATUSES, autosomalShare, dnaLineAncestors, dnaLineCarrierNote, dnaLineOf, lineTestSummary, parentLinkStatus, parentStatusCounts, percentText, xDnaShares } from "./chat_dna_data";
 import { researchStatusLabel } from "./chat_profile_quality_data";
-import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, personNameText, lifeYears as years, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, textColourFor, truncate } from "./chat_chart_common";
+import { chartPopupControls, chartLinkButtons, escapeText, injectChartStyles, personNameText, lifeYears as years, profileUrl, textColourFor, truncate, handleChartPopupButton, createChartPopup, mountChartPopup } from "./chat_chart_common";
 import { joinWithAnd, yearOf } from "./chat_text_utils";
 import { joinWithAndMore, moreTextToHtml } from "./chat_more_text";
 
@@ -343,7 +343,6 @@ export function buildColouring(slots, mode, maxGeneration, extra = {}) {
 export function showFanChartPopup(slots, options = {}) {
   chartCounter += 1;
   const uid = `wbe-fan-${chartCounter}`;
-  $("#wbe-fan-popup").remove();
   injectChartStyles();
 
   const state = {
@@ -403,11 +402,9 @@ export function showFanChartPopup(slots, options = {}) {
     if (popup.isConnected && state.mode === "dnalines") render({ animate: false });
   }
 
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = "wbe-fan-popup";
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: "wbe-fan-popup",
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
@@ -440,9 +437,8 @@ export function showFanChartPopup(slots, options = {}) {
         <div class="wbe-chart-bars" title="How full each generation is"></div>
         <div class="wbe-chart-legend"></div>
       </div>
-    </div>`;
-  document.body.appendChild(popup);
-  centrePopup(popup);
+    </div>`,
+  });
 
   const stage = popup.querySelector(".wbe-chart-stage");
   const tip = popup.querySelector(".wbe-chart-tip");
@@ -1021,12 +1017,9 @@ export function showFanChartPopup(slots, options = {}) {
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) {
-      popup._wbeLeaveFullScreen?.();
-      popup.remove();
-    } else if (button.dataset.link) {
-      chartLinkClick(popup, button, options.links, state.slots[1]?.wtid); // (the person now at the centre)
-    } else if (button.dataset.mode) {
+    // (the Charts menu opens for the person now at the centre)
+    if (handleChartPopupButton(popup, button, { svg: svg.node(), fileBase, links: options.links, rootKey: state.slots[1]?.wtid })) return;
+    if (button.dataset.mode) {
       state.mode = button.dataset.mode;
       render({ animate: false });
       // A soft colour cross-fade instead of the full sweep.
@@ -1053,6 +1046,8 @@ export function showFanChartPopup(slots, options = {}) {
         showOriginsPopup(series, {
           title: `Ancestral origins: ${personNameText(state.slots[1])} (${state.slots[1]?.wtid || ""})`,
           fileBase: fileBase().replace(/^fan-chart/, "origins"),
+          rootKey: state.slots[1]?.wtid,
+          links: options.links,
         });
       } else button.title = "No birthplaces recorded in this chart";
     } else if (button.dataset.act === "map") {
@@ -1062,14 +1057,14 @@ export function showFanChartPopup(slots, options = {}) {
         void showMigrationMapPopup(migration, {
           title: `Migration map: ${personNameText(state.slots[1])} (${state.slots[1]?.wtid || ""})`,
           fileBase: fileBase().replace(/^fan-chart/, "migration-map"),
+          rootKey: state.slots[1]?.wtid,
+          links: options.links,
         }).catch((error) => console.warn("wbe: migration map failed", error));
       } else button.title = "No birthplaces recorded in this chart";
     } else if (button.dataset.act === "reset") svg.transition().duration(400).call(zoomer.transform, zoomIdentity);
     else if (button.dataset.act === "zoomin" || button.dataset.act === "zoomout") {
       svg.transition("zoom").duration(300).call(zoomer.scaleBy, button.dataset.act === "zoomin" ? 1.6 : 1 / 1.6);
     } else if (button.dataset.act === "fewer" || button.dataset.act === "more") void changeGenerations(button.dataset.act === "more" ? 1 : -1);
-    else if (button.dataset.act === "full") toggleChartFullScreen(popup);
-    else if (button.dataset.act === "svg" || button.dataset.act === "png") saveChart(svg.node(), fileBase(), button.dataset.act);
   });
 
   // − / +: the same person with a generation fewer (no fetch: the slots are cut)
@@ -1097,8 +1092,7 @@ export function showFanChartPopup(slots, options = {}) {
     render({ animate: false });
   }
 
-  raiseAboveOtherPopups(popup);
-  $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+  mountChartPopup(popup, () => svg.selectAll("*").interrupt());
   render();
   return popup;
 }

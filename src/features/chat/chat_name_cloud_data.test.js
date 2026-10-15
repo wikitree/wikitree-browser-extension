@@ -82,3 +82,13 @@ test("both name clouds retain the full profile name for their tooltips", () => {
 test("a name without a formatted full name still includes the surname", () => {
   expect(buildNameCloud([null, null, { id: 2, name: "Rene Georgina", lnab: "Curd" }], "surname")[0].people[0].name).toBe("Rene Georgina Curd");
 });
+
+test("spellings with and without accents count as one first name", () => {
+  const slots = [null, null, p(2, "José", "Garcia", "Male", "1850"), p(3, "Jose", "Lopez", "Male", "1852"), p(4, "José Maria", "Ruiz", "Male"), p(5, "Ana", "Kool", "Female"), p(6, "Ann", "Cole", "Female")];
+  const first = buildNameCloud(slots, "first");
+  expect(first[0]).toMatchObject({ text: "José", count: 3, spellings: [["José", 2], ["Jose", 1]] });
+  // Ana and Ann are different names; only accents fold.
+  expect(first.find((word) => word.text === "Ana").spellings).toBeUndefined();
+  // Surnames group One Name Study variants as well.
+  expect(buildNameCloud(slots, "surname").find((word) => word.text === "Cole")).toMatchObject({ count: 2, spellings: [["Cole", 1], ["Kool", 1]] });
+});

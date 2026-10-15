@@ -16,7 +16,6 @@ import {
   handleChartPopupButton,
   chartPopupControls,
   chartLinkButtons,
-  chartLinkClick,
   escapeText,
   profileUrl,
   truncate,
@@ -340,11 +339,12 @@ export function showFamilyCalendarPopup(events, options = {}) {
       handleChartPopupButton(popup, button, {
         svg: svg.node(),
         fileBase: `family-calendar-${String(root?.wtid || options.rootKey || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`,
+        links: options.links,
+        rootKey: root?.wtid || options.rootKey,
       })
     )
       return;
-    if (button.dataset.link) chartLinkClick(popup, button, options.links, root?.wtid || options.rootKey);
-    else if (button.dataset.mode) {
+    if (button.dataset.mode) {
       state.mode = button.dataset.mode;
       popup.querySelectorAll(".wbe-chart-mode").forEach((b) => b.classList.toggle("active", b.dataset.mode === state.mode));
       drawBars();

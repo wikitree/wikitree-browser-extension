@@ -213,6 +213,30 @@ export function chartLinkClick(popup, button, links, key) {
   return true;
 }
 
+/**
+ * A new chart window takes the place of the one open (the user, 2026-10-15: one chart at a
+ * time, choosing a chart uses the same window). Any other chart closes; the new one opens
+ * where it was, at its size (and smaller-window setting), or centred when none was open.
+ */
+export function placeNewChart(popup) {
+  const others = [...document.querySelectorAll(".wbe-chart-popup")].filter((other) => other !== popup);
+  const previous = others[others.length - 1];
+  const place = previous
+    ? { left: previous.style.left, top: previous.style.top, width: previous.style.width, height: previous.style.height, small: previous.classList.contains("wbe-chart-small") }
+    : null;
+  others.forEach((other) => closeChartPopup(other));
+  if (place?.small) popup.classList.add("wbe-chart-small");
+  centrePopup(popup);
+  // (centred again once drawn, in mountChartPopup, since drawing can change its size)
+  popup._wbeCentreWhenDrawn = !(place?.left && place?.top);
+  if (place?.left && place?.top) {
+    popup.style.left = place.left;
+    popup.style.top = place.top;
+    if (place.width) popup.style.width = place.width;
+    if (place.height) popup.style.height = place.height;
+  }
+}
+
 export function centrePopup(popup) {
   popup.style.position = "fixed";
   const rect = popup.getBoundingClientRect();
@@ -345,6 +369,20 @@ const CHART_CSS = `
   .wbe-chart-toolbar .wbe-chart-mode { border: 1px solid rgba(0,0,0,.15); background: transparent; border-radius: 999px; padding: 3px 10px; cursor: pointer; font-size: 12px; color: inherit; }
   .wbe-chart-toolbar .wbe-chart-mode.active { background: #2f6fb3; border-color: #2f6fb3; color: #fff; }
   .wbe-chart-toolbar .wbe-chart-spacer { flex: 1; }
+  /* An on/off switch, as Genie's "AI Off ◯ On" (chartSwitchHtml): the knob points at the word that applies. */
+  .wbe-chart-switch { display: inline-flex; align-items: center; gap: 5px; margin: 0 4px; padding: 2px 4px; border: 0; background: none; font: inherit; font-size: 12px; color: inherit; cursor: pointer; user-select: none; }
+  .wbe-chart-switch:focus-visible { outline: 2px solid #4caf50; outline-offset: 2px; border-radius: 4px; }
+  .wbe-chart-switch .wbe-switch-label { margin-right: 3px; font-weight: 600; }
+  .wbe-chart-switch .wbe-switch-state { opacity: .45; }
+  .wbe-chart-switch[aria-checked="false"] .wbe-switch-off, .wbe-chart-switch[aria-checked="true"] .wbe-switch-on { opacity: 1; font-weight: 600; }
+  .wbe-chart-switch[aria-checked="true"] .wbe-switch-on { color: #2e7d32; }
+  .wbe-chart-switch .wbe-switch-track { position: relative; display: inline-block; flex: 0 0 auto; width: 34px; height: 18px; border-radius: 9px; background: #b0b3b8; transition: background .2s ease; }
+  .wbe-chart-switch .wbe-switch-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: left .2s ease; }
+  .wbe-chart-switch[aria-checked="true"] .wbe-switch-track { background: #4caf50; }
+  .wbe-chart-switch[aria-checked="true"] .wbe-switch-knob { left: 18px; }
+  body.darkMode .wbe-chart-switch:not(#none) { background: none !important; border: 0 !important; }
+  body.darkMode .wbe-chart-switch[aria-checked="false"]:not(#none) .wbe-switch-track { background: #6b7079 !important; }
+  body.darkMode .wbe-chart-switch[aria-checked="true"]:not(#none) .wbe-switch-on { color: #a5d167 !important; }
   .wbe-chart-stage { flex: 1; position: relative; min-height: 0; background: radial-gradient(ellipse at 50% 70%, rgba(47,111,179,.07), transparent 70%); }
   .wbe-chart-stage svg { width: 100%; height: 100%; display: block; cursor: grab; }
   .wbe-chart-stage svg:active { cursor: grabbing; }
@@ -615,6 +653,11 @@ export function chartZoomControls() {
 }
 
 /** Standard controls; action names are shared by each chart's event handlers. */
+/** "Label Off ◯ On" as a switch button (role="switch"); clicks reach the popup's handler by data-act. */
+export function chartSwitchHtml({ act, label, on, title = "" }) {
+  return `<button type="button" class="wbe-chart-switch" role="switch" aria-checked="${on ? "true" : "false"}" data-act="${escapeText(act)}" title="${escapeText(title)}"><span class="wbe-switch-label">${escapeText(label)}</span><span class="wbe-switch-state wbe-switch-off">Off</span><span class="wbe-switch-track"><span class="wbe-switch-knob"></span></span><span class="wbe-switch-state wbe-switch-on">On</span></button>`;
+}
+
 export function chartPopupControls() {
   return `
         <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
@@ -623,10 +666,18 @@ export function chartPopupControls() {
         <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>`;
 }
 
-/** Handle the shared controls; return false for a chart's own controls. */
-export function handleChartPopupButton(popup, button, { svg, fileBase }) {
+/**
+ * Handle the shared controls (close, full screen, SVG/PNG, the Charts menu); return false
+ * for a chart's own controls. svg and rootKey may be functions, read at the click (the
+ * node to save, the person whose charts the menu offers).
+ */
+export function handleChartPopupButton(popup, button, { svg, fileBase, links, rootKey } = {}) {
   if (button.classList.contains("close-popup")) {
     closeChartPopup(popup);
+    return true;
+  }
+  if (button.dataset.link) {
+    chartLinkClick(popup, button, links, typeof rootKey === "function" ? rootKey() : rootKey);
     return true;
   }
   const action = button.dataset.act;
@@ -634,8 +685,9 @@ export function handleChartPopupButton(popup, button, { svg, fileBase }) {
     toggleChartFullScreen(popup);
     return true;
   }
-  if (action === "svg" || action === "png") {
-    saveChart(svg, fileBase, action);
+  if ((action === "svg" || action === "png") && svg) {
+    const node = typeof svg === "function" ? svg() : svg;
+    if (node) saveChart(node, typeof fileBase === "function" ? fileBase() : fileBase, action);
     return true;
   }
   return false;
@@ -646,7 +698,7 @@ export function closeChartPopup(popup) {
   if (popup._wbeCloseChart) popup._wbeCloseChart();
   else {
     popup._wbeLeaveFullScreen?.();
-    popup.remove();
+    $(popup).remove(); // (jQuery's, so draggable's data goes too)
   }
 }
 
@@ -664,7 +716,7 @@ export function createChartPopup({ id, html, keepFullScreen = false }) {
     previous.innerHTML = html;
     return previous;
   }
-  if (previous) closeChartPopup(previous);
+  // (the previous one closes in placeNewChart, which opens this one where it was)
   injectChartStyles();
   const popup = document.createElement("div");
   popup.id = id;
@@ -677,6 +729,7 @@ export function createChartPopup({ id, html, keepFullScreen = false }) {
     if (closed) return;
     closed = true;
     popup._wbeLeaveFullScreen?.();
+    popup._wbeSignal?.abort(); // (listeners on document or window that used it go too)
     try {
       popup._wbeChartCleanup?.();
     } finally {
@@ -684,7 +737,7 @@ export function createChartPopup({ id, html, keepFullScreen = false }) {
     }
   };
   document.body.appendChild(popup);
-  centrePopup(popup);
+  placeNewChart(popup);
   return popup;
 }
 
@@ -700,6 +753,8 @@ export function mountChartPopup(popup, cleanup, { stage, resize } = {}) {
       if ($.fn.draggable && $(popup).data("ui-draggable")) $(popup).draggable("destroy");
     }
   };
+  if (popup._wbeCentreWhenDrawn && !popup.classList.contains("wbe-chart-full")) centrePopup(popup);
+  popup._wbeCentreWhenDrawn = false;
   raiseAboveOtherPopups(popup);
   if ($.fn.draggable) $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
 }

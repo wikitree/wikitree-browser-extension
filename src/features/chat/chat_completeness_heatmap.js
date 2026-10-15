@@ -16,7 +16,7 @@ import { easeCubicOut } from "d3-ease";
 import { buildCompletenessGrid, HEATMAP_BRANCH_GENERATIONS } from "./chat_completeness_data";
 import { ancestorWord, generationLabel } from "./chat_kin_labels";
 import { researchStatusLabel } from "./chat_profile_quality_data";
-import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, profileUrl, raiseAboveOtherPopups, saveChart, textColourFor, toggleChartFullScreen, truncate } from "./chat_chart_common";
+import { chartPopupControls, chartLinkButtons, escapeText, injectChartStyles, profileUrl, textColourFor, truncate, handleChartPopupButton, createChartPopup, mountChartPopup } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const WIDTH = 960;
@@ -36,16 +36,13 @@ export function heatColour(share) {
 
 /** slots: from buildFanSlots. options: {title, links, rootKey, onOpenBranch(wtid)}. */
 export function showCompletenessHeatmapPopup(slots, options = {}) {
-  $("#wbe-heatmap-popup").remove();
   injectChartStyles();
   const hasQuality = slots.some((person) => person?.quality);
   const state = { branchGeneration: 4, measure: hasQuality ? "profiles" : "found" };
 
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = "wbe-heatmap-popup";
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: "wbe-heatmap-popup",
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
@@ -67,9 +64,8 @@ export function showCompletenessHeatmapPopup(slots, options = {}) {
       </div>
       <div class="wbe-chart-stage"><div class="wbe-chart-tip"></div></div>
       <div class="wbe-chart-footer"><div class="wbe-chart-stats"></div><div class="wbe-chart-legend"></div></div>
-    </div>`;
-  document.body.appendChild(popup);
-  centrePopup(popup);
+    </div>`,
+  });
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Completeness heatmap";
 
   const stage = popup.querySelector(".wbe-chart-stage");
@@ -270,25 +266,18 @@ export function showCompletenessHeatmapPopup(slots, options = {}) {
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) {
-      popup._wbeLeaveFullScreen?.();
-      popup.remove();
-    } else if (button.dataset.link) chartLinkClick(popup, button, options.links, slots[1]?.wtid || options.rootKey);
-    else if (button.dataset.measure) {
+    const fileBase = `completeness-heatmap-${String(slots[1]?.wtid || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`;
+    if (handleChartPopupButton(popup, button, { svg: svg.node(), fileBase, links: options.links, rootKey: slots[1]?.wtid || options.rootKey })) return;
+    if (button.dataset.measure) {
       state.measure = button.dataset.measure;
       draw();
     } else if (button.dataset.level) {
       state.branchGeneration = Number(button.dataset.level);
       draw();
     } else if (button.dataset.act === "replay") draw();
-    else if (button.dataset.act === "full") toggleChartFullScreen(popup);
-    else if (button.dataset.act === "svg" || button.dataset.act === "png") {
-      saveChart(svg.node(), `completeness-heatmap-${String(slots[1]?.wtid || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`, button.dataset.act);
-    }
   });
 
   draw();
-  raiseAboveOtherPopups(popup);
-  $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+  mountChartPopup(popup, () => svg.selectAll("*").interrupt());
   return popup;
 }

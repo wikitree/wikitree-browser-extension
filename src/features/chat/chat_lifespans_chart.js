@@ -21,7 +21,6 @@ import {
   handleChartPopupButton,
   chartPopupControls,
   chartLinkButtons,
-  chartLinkClick,
   createPinnableTip,
   escapeText,
   fullName,
@@ -627,13 +626,14 @@ export function showLifespansPopup(rows, options = {}) {
       handleChartPopupButton(popup, button, {
         svg: svg.node(),
         fileBase: `lifespans-${(root?.wtid || "chart").replace(/[^A-Za-z0-9_-]/g, "")}`,
+        links: options.links,
+        rootKey: root?.wtid,
       })
     )
       return;
     if (button.dataset.view) {
       if (button.dataset.view !== (options.view || "ancestors")) options.onView?.(button.dataset.view, { left: popup.style.left, top: popup.style.top });
-    } else if (button.dataset.link) chartLinkClick(popup, button, options.links, root?.wtid);
-    else if (button.dataset.mode) {
+    } else if (button.dataset.mode) {
       state.mode = button.dataset.mode;
       bars.transition("fill").duration(400).attr("fill", (d) => fillFor(d.row, state.mode)); // (named: it mustn't stop the bars growing)
       drawLegend();

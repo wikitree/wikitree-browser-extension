@@ -131,6 +131,213 @@ export function storyLines(person) {
  * childrenKnown, tried, focusId), load(id) → Promise (fetches the family round someone), startId,
  * onCentre(person)}. Returns {centre(id), up(), home(), resize(), destroy(), currentId()}.
  */
+const SVG_NS = "http://www.w3.org/2000/svg";
+const LINE_STYLES = ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "opacity", "font-family", "font-size", "font-weight", "text-anchor"];
+
+/** A colour for a box: its background colour, else the first colour of its gradient. */
+function boxColour(style, fallback) {
+  const colour = style.backgroundColor;
+  if (colour && !/rgba\([^)]*,\s*0\)|transparent/.test(colour)) return colour;
+  return style.backgroundImage.match(/rgba?\([^)]*\)|#[0-9a-f]{3,8}/i)?.[0] || fallback;
+}
+
+/** A loaded photo as a data URL (it is from WikiTree's own site, so the canvas can read it), else its address. */
+function photoHref(img) {
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.getContext("2d").drawImage(img, 0, 0);
+    return canvas.toDataURL("image/jpeg", 0.9);
+  } catch (error) {
+    return img.currentSrc || img.src; // (the SVG keeps the link; a PNG then goes without that photo)
+  }
+}
+
+let measurer = null;
+/** How wide `text` is in a computed style's font. */
+function textWidth(text, style) {
+  measurer ??= document.createElement("canvas").getContext("2d");
+  measurer.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  return measurer.measureText(text).width;
+}
+
+function svgEl(name, attrs = {}) {
+  const el = document.createElementNS(SVG_NS, name);
+  Object.entries(attrs).forEach(([key, value]) => value !== null && value !== undefined && el.setAttribute(key, value));
+  return el;
+}
+
+/**
+ * The Family view as a standalone SVG, for Save SVG and PNG (user, 2026-10-15: the Family view had no image
+ * buttons). The lines and rings are copied as drawn; each card is redrawn from where it sits on screen
+ * (box, photo, and each line of text in its own font), so the picture matches what's shown.
+ */
+function familyViewSvg({ root, pathLayer, ringLayer, cardEls, view, bounds }) {
+  const pad = 28;
+  const x0 = bounds.x0 - pad;
+  const y0 = bounds.y0 - pad;
+  const w = bounds.x1 - bounds.x0 + pad * 2;
+  const h = bounds.y1 - bounds.y0 + pad * 2;
+  const svg = svgEl("svg", { xmlns: SVG_NS, viewBox: `${x0} ${y0} ${w} ${h}`, width: Math.round(w), height: Math.round(h) });
+  // (saveChart drops the first group's transform, so the first group has none)
+  const all = svg.appendChild(svgEl("g"));
+  all.appendChild(svgEl("rect", { x: x0, y: y0, width: w, height: h, fill: boxColour(getComputedStyle(root), "#f6f3ea") }));
+  [pathLayer, ringLayer].forEach((layer) => {
+    const copy = layer.cloneNode(true);
+    const from = [...layer.querySelectorAll("*")];
+    [...copy.querySelectorAll("*")].forEach((el, index) => {
+      const style = getComputedStyle(from[index]);
+      LINE_STYLES.forEach((property) => el.style.setProperty(property, style.getPropertyValue(property)));
+    });
+    all.appendChild(copy);
+  });
+
+  const rootRect = root.getBoundingClientRect();
+  const place = (el) => {
+    const rect = el.getBoundingClientRect();
+    return { x: (rect.left - rootRect.left - view.x) / view.k, y: (rect.top - rootRect.top - view.y) / view.k, w: rect.width / view.k, h: rect.height / view.k };
+  };
+  // Each line of a card's text as the card shows it: wrapped to its width over as many rows as
+  // it has room for, the last cut with "…", each word in its own style ("Born" keeps its colour).
+  const textAt = (el, box, parent, right) => {
+    const style = getComputedStyle(el);
+    const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2;
+    const rows = Math.max(1, Math.round(box.h / lineHeight));
+    const width = right - box.x;
+    const words = [];
+    el.childNodes.forEach((node) => {
+      const own = node.nodeType === Node.ELEMENT_NODE ? getComputedStyle(node) : style;
+      const shown = own.textTransform === "uppercase" ? node.textContent.toUpperCase() : node.textContent; // ("BROTHER")
+      shown.split(/(\s+)/).filter(Boolean).forEach((text) => words.push({ text, own }));
+    });
+    const lines = [[]];
+    let used = 0;
+    let cut = false;
+    for (const word of words) {
+      const line = lines[lines.length - 1];
+      const w = textWidth(word.text, word.own);
+      if (!word.text.trim()) {
+        if (line.length) (line.push(word), (used += w));
+        continue;
+      }
+      if (used + w > width && line.length) {
+        if (lines.length === rows) {
+          cut = true;
+          break;
+        }
+        while (line.length && !line[line.length - 1].text.trim()) line.pop();
+        lines.push([word]);
+        used = w;
+      } else (line.push(word), (used += w));
+    }
+    const last = lines[lines.length - 1];
+    while (last.length && !last[last.length - 1].text.trim()) last.pop();
+    const lastWidth = () => last.reduce((sum, word) => sum + textWidth(word.text, word.own), 0);
+    if (cut || lastWidth() > width) {
+      // (drop letters from the end until it fits with "…")
+      while (last.length && lastWidth() + textWidth("…", last[last.length - 1].own) > width) {
+        const end = last[last.length - 1];
+        end.text = end.text.slice(0, -1).trimEnd();
+        if (!end.text) last.pop();
+      }
+      if (last.length) last[last.length - 1].text += "…";
+    }
+    lines.forEach((line, row) => {
+      const text = svgEl("text", {
+        x: box.x,
+        y: box.y + lineHeight * (row + 0.5),
+        "dominant-baseline": "central",
+        fill: style.color,
+        "font-family": style.fontFamily,
+        "font-size": style.fontSize,
+        "font-weight": style.fontWeight,
+        "font-style": style.fontStyle === "italic" ? "italic" : null,
+        "letter-spacing": style.letterSpacing !== "normal" ? style.letterSpacing : null,
+      });
+      line.forEach(({ text: words, own }) => {
+        const part = svgEl("tspan", own === style ? {} : { fill: own.color, "font-weight": own.fontWeight });
+        part.textContent = words;
+        text.appendChild(part);
+      });
+      parent.appendChild(text);
+    });
+  };
+
+
+  cardEls.forEach((el, index) => {
+    const style = getComputedStyle(el);
+    if (Number(style.opacity) < 0.05) return;
+    const box = place(el);
+    const card = all.appendChild(svgEl("g", { opacity: Number(style.opacity) < 1 ? style.opacity : null }));
+    const radius = Math.min(parseFloat(style.borderTopLeftRadius) || 0, box.h / 2);
+    const clip = svgEl("clipPath", { id: `wbe-nav-clip-${index}` });
+    clip.appendChild(svgEl("rect", { x: box.x, y: box.y, width: box.w, height: box.h, rx: radius }));
+    card.appendChild(clip);
+    const border = parseFloat(style.borderTopWidth) || 0;
+    card.appendChild(
+      svgEl("rect", {
+        x: box.x + border / 2,
+        y: box.y + border / 2,
+        width: box.w - border,
+        height: box.h - border,
+        rx: Math.max(0, radius - border / 2),
+        fill: boxColour(style, "#ffffff"),
+        stroke: border ? style.borderTopColor : null,
+        "stroke-width": border || null,
+        "stroke-dasharray": style.borderTopStyle === "dashed" ? "5 4" : null,
+      })
+    );
+    const inside = card.appendChild(svgEl("g", { "clip-path": `url(#wbe-nav-clip-${index})` }));
+    const photo = el.querySelector(".wbe-nav-photo");
+    if (photo) {
+      const spot = place(photo);
+      const r = spot.w / 2;
+      const ring = style.getPropertyValue("--ring").trim() || "#c9c2b2";
+      card.insertBefore(svgEl("circle", { cx: spot.x + r, cy: spot.y + r, r: r + 1.5, fill: "none", stroke: ring, "stroke-width": 3 }), inside);
+      inside.appendChild(svgEl("circle", { cx: spot.x + r, cy: spot.y + r, r, fill: boxColour(getComputedStyle(photo), "#b9cbb0") }));
+      const img = photo.querySelector("img");
+      if (img?.complete && img.naturalWidth) {
+        const photoClip = svgEl("clipPath", { id: `wbe-nav-photo-${index}` });
+        photoClip.appendChild(svgEl("circle", { cx: spot.x + r, cy: spot.y + r, r }));
+        inside.appendChild(photoClip);
+        // (object-position 50% 20%: nearer the top, where faces are)
+        inside.appendChild(svgEl("image", { href: photoHref(img), x: spot.x, y: spot.y, width: spot.w, height: spot.h, preserveAspectRatio: "xMidYMin slice", "clip-path": `url(#wbe-nav-photo-${index})` }));
+      } else if (photo.textContent.trim()) {
+        const initials = svgEl("text", { x: spot.x + r, y: spot.y + r, "dominant-baseline": "central", "text-anchor": "middle", fill: getComputedStyle(photo).color, "font-family": style.fontFamily, "font-size": getComputedStyle(photo).fontSize, "font-weight": 600 });
+        initials.textContent = photo.textContent.trim();
+        inside.appendChild(initials);
+      }
+    }
+    const textBox = el.querySelector(".wbe-nav-text");
+    if (textBox) {
+      // (the card's own padding edge: the text box can be narrower than the room the card gives it)
+      const right = box.x + box.w - (parseFloat(style.paddingRight) || 0);
+      [...textBox.children].forEach((line) => textAt(line, place(line), inside, right));
+    }
+    else {
+      // ("↑ Parents" and "+3 more": an arrow and a word)
+      el.querySelectorAll("svg").forEach((icon) => {
+        const spot = place(icon);
+        const copy = icon.cloneNode(true);
+        Object.entries({ x: spot.x, y: spot.y, width: spot.w, height: spot.h, color: style.color }).forEach(([key, value]) => copy.setAttribute(key, value));
+        inside.appendChild(copy);
+      });
+      const words = el.textContent.trim();
+      if (words) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const spans = [...range.getClientRects()].filter((rect) => rect.width > 0);
+        const last = spans[spans.length - 1]; // (the text, after any arrow)
+        const label = svgEl("text", { x: last ? place({ getBoundingClientRect: () => last }).x : box.x + box.w / 2, y: box.y + box.h / 2, "dominant-baseline": "central", fill: style.color, "font-family": style.fontFamily, "font-size": style.fontSize, "font-weight": style.fontWeight });
+        label.textContent = words;
+        inside.appendChild(label);
+      }
+    }
+  });
+  return svg;
+}
+
 export function mountFamilyNavigator(host, options) {
   addStyleOnce(STYLE_ID, NAV_CSS);
   const world = options.world;
@@ -615,6 +822,16 @@ export function mountFamilyNavigator(host, options) {
     home: () => centre(world.focusId),
     resize,
     currentId: () => current,
+    currentWtid: () => people.get(current)?.wtid || "",
+    exportSvg: () =>
+      familyViewSvg({
+        root,
+        pathLayer,
+        ringLayer,
+        cardEls: [...cards.values()].filter((entry) => !entry.exiting && entry.el.isConnected).map((entry) => entry.el),
+        view,
+        bounds: layoutBounds(layout),
+      }),
     destroy() {
       destroyed = true;
       cancelAnimationFrame(frame);

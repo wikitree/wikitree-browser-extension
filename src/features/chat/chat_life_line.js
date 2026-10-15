@@ -12,7 +12,7 @@ import { area as d3area, curveStepAfter } from "d3-shape";
 import { easeCubicOut } from "d3-ease";
 import { LIFE_EVENT_KINDS } from "./chat_life_line_data";
 import { EVENT_KIND_COLOURS, eventYears } from "./chat_world_events_data";
-import { chartPopupControls, centrePopup, chartLinkButtons, chartLinkClick, escapeText, injectChartStyles, profileUrl, raiseAboveOtherPopups, saveChart, toggleChartFullScreen, truncate } from "./chat_chart_common";
+import { chartPopupControls, chartLinkButtons, escapeText, profileUrl, truncate, createChartPopup, mountChartPopup, handleChartPopupButton } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const WIDTH = 980;
@@ -60,14 +60,9 @@ function assignLanes(items, maxLanes) {
 
 /** line: from buildLifeLine. options: {title, links, fileBase}. */
 export function showLifeLinePopup(line, options = {}) {
-  $("#wbe-life-line-popup").remove();
-  injectChartStyles();
-
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = "wbe-life-line-popup";
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: "wbe-life-line-popup",
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
@@ -83,8 +78,8 @@ export function showLifeLinePopup(line, options = {}) {
       </div>
       <div class="wbe-chart-stage" style="overflow-y:auto"><div class="wbe-chart-tip"></div></div>
       <div class="wbe-chart-footer"><div class="wbe-chart-legend"></div></div>
-    </div>`;
-  document.body.appendChild(popup);
+    </div>`,
+  });
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Life line";
   const stage = popup.querySelector(".wbe-chart-stage");
   const tip = popup.querySelector(".wbe-chart-tip");
@@ -404,26 +399,18 @@ export function showLifeLinePopup(line, options = {}) {
   }
 
   render();
-  centrePopup(popup);
-  raiseAboveOtherPopups(popup);
-  if ($.fn.draggable) $(popup).draggable({ handle: ".chat-popup-header" });
-  popup.querySelector(".chat-popup-header").addEventListener("dblclick", (event) => {
-    if (!event.target.closest("button")) toggleChartFullScreen(popup);
-  });
+  mountChartPopup(popup, () => svg?.selectAll("*").interrupt());
 
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) {
-      popup._wbeLeaveFullScreen?.();
-      popup.remove();
-    } else if (button.dataset.link) chartLinkClick(popup, button, options.links, line.self.wtid);
-    else if (button.dataset.act === "history" || button.dataset.act === "minor") {
+    const fileBase = options.fileBase || `life-line-${String(line.self.wtid || "").replace(/[^A-Za-z0-9_-]/g, "")}`;
+    if (handleChartPopupButton(popup, button, { svg: svg.node(), fileBase, links: options.links, rootKey: line.self.wtid })) return;
+    if (button.dataset.act === "history" || button.dataset.act === "minor") {
       state[button.dataset.act] = !state[button.dataset.act];
       button.classList.toggle("active", !state[button.dataset.act]);
       render();
-    } else if (button.dataset.act === "full") toggleChartFullScreen(popup);
-    else if (button.dataset.act === "svg" || button.dataset.act === "png") saveChart(svg.node(), options.fileBase || `life-line-${String(line.self.wtid || "").replace(/[^A-Za-z0-9_-]/g, "")}`, button.dataset.act);
+    }
   });
   return popup;
 }

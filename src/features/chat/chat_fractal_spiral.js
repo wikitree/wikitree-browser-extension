@@ -19,7 +19,7 @@ import { birthYearColouring, countValues, topValueColouring } from "./chat_chart
 import { easeCubicInOut } from "d3-ease";
 import { buildSpiralLayout } from "./chat_fractal_spiral_data";
 import { hasFrontier } from "./chat_fractal_tree_data";
-import { createChartPopup, mountChartPopup, closeChartPopup, escapeText, fullName, lifeYears as years, photoUrl, profileUrl, siteUrl, toggleChartFullScreen, yearOf } from "./chat_chart_common";
+import { chartLinkButtons, createChartPopup, mountChartPopup, escapeText, fullName, lifeYears as years, photoUrl, profileUrl, siteUrl, yearOf, handleChartPopupButton } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const BRANCH = "#6e6e6e";
@@ -101,6 +101,7 @@ export function showSpiralTreePopup(tree, options = {}) {
         <button type="button" class="small" data-act="reset" title="Show the whole tree">Whole tree</button>
         ${options.onSwitchWhich ? `<button type="button" class="small" data-act="which" title="Turn the tree round: this person's ${which === "ancestors" ? "descendants" : "ancestors"}">${which === "ancestors" ? "Descendants" : "Ancestors"}</button>` : ""}
         <button type="button" class="small" data-act="layout" title="Switch to the nested layout: each person's family inside their circle">Nested</button>
+        ${chartLinkButtons(options.links)}
         <button type="button" class="small" data-act="full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
         <button type="button" class="small" data-act="png" title="Save the current view as PNG">PNG</button>
         <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
@@ -479,9 +480,14 @@ export function showSpiralTreePopup(tree, options = {}) {
     const button = event.target.closest("button");
     if (!button || button.classList.contains("wbe-chart-crumb")) return;
     const act = button.dataset.act;
-    if (button.classList.contains("close-popup")) {
-      closeChartPopup(popup);
-    } else if (button.dataset.mode) {
+    // (the Charts menu opens for the person in focus, as in the fractal tree)
+    const focusKey = () => {
+      let node = nodes[state.focus];
+      while (node && !node.person?.wtid) node = nodes[node.parent];
+      return node?.person?.wtid || options.linkKey || "";
+    };
+    if (handleChartPopupButton(popup, button, { links: options.links, rootKey: focusKey })) return;
+    if (button.dataset.mode) {
       state.mode = button.dataset.mode;
       colouring = buildColouring(nodes, state.mode);
       drawFooter();
@@ -495,8 +501,6 @@ export function showSpiralTreePopup(tree, options = {}) {
       let parent = nodes[state.focus]?.parent ?? -1;
       while (parent > 0 && nodes[parent].kind !== "person") parent = nodes[parent].parent;
       flyTo(parent >= 0 ? parent : 0, 900);
-    } else if (act === "full") {
-      toggleChartFullScreen(popup);
     } else if (act === "png") {
       saveFractalPng(canvas, tree, button);
     }

@@ -21,7 +21,7 @@ import { easeCubicOut } from "d3-ease";
 import { feature } from "topojson-client";
 import { REGION_POINTS, SPLIT_COUNTRIES } from "./chat_migration_data";
 import { cachedPoint, geocodeLocations, loadGeocodeCache, pendingLookups } from "./chat_geocode";
-import { chartPopupControls, centrePopup, escapeText, injectChartStyles, raiseAboveOtherPopups, saveChart, tipMoreHint, toggleChartFullScreen } from "./chat_chart_common";
+import { chartLinkButtons, chartPopupControls, escapeText, injectChartStyles, tipMoreHint, handleChartPopupButton, createChartPopup, mountChartPopup } from "./chat_chart_common";
 
 const WIDTH = 960;
 const HEIGHT = 540;
@@ -93,7 +93,6 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
   let migration = firstMigration.refine ? firstMigration.refine(cachedPoint) : firstMigration;
   chartCounter += 1;
   const uid = `wbe-migration-${chartCounter}`;
-  $("#wbe-migration-popup").remove();
   injectChartStyles();
 
   const countryByName = new Map(countries.map((country) => [country.properties.name, country]));
@@ -108,17 +107,16 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
     return country ? mainCentroid(country) : null;
   };
 
-  const popup = document.createElement("div");
-  popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
-  popup.id = "wbe-migration-popup";
-  popup.style.display = "flex";
-  popup.innerHTML = `
+  const popup = createChartPopup({
+    id: "wbe-migration-popup",
+    html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
         <button type="button" class="small" data-act="replay" title="Play the moves again in date order">Replay</button>
         <button type="button" class="small" data-act="start" title="Zoom to where the earliest moves began">Zoom to the start</button>
         <button type="button" class="small" data-act="reset" title="Reset zoom">Reset</button>
+        ${chartLinkButtons(options.links)}
         ${chartPopupControls()}
       </div>
     </div>
@@ -135,9 +133,8 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
         <div class="wbe-chart-stats"></div>
         <div class="wbe-chart-legend"></div>
       </div>
-    </div>`;
-  document.body.appendChild(popup);
-  centrePopup(popup);
+    </div>`,
+  });
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Ancestor migrations";
 
   const stage = popup.querySelector(".wbe-chart-stage");
@@ -617,21 +614,14 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
   popup.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.classList.contains("close-popup")) {
-      popup._wbeLeaveFullScreen?.();
-      view?.stop();
-      popup.remove();
-    } else if (button.dataset.act === "replay") view?.play();
+    const svg = () => view?.svg.node();
+    if (handleChartPopupButton(popup, button, { svg, fileBase: options.fileBase || "migration-map", links: options.links, rootKey: options.rootKey })) return;
+    if (button.dataset.act === "replay") view?.play();
     else if (button.dataset.act === "reset") view?.reset();
     else if (button.dataset.act === "start") view?.zoomToStart();
-    else if (button.dataset.act === "full") toggleChartFullScreen(popup);
-    else if (button.dataset.act === "svg" || button.dataset.act === "png") {
-      if (view) saveChart(view.svg.node(), options.fileBase || "migration-map", button.dataset.act);
-    }
   });
 
-  raiseAboveOtherPopups(popup);
-  $(popup).draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+  mountChartPopup(popup, () => view?.stop());
   void start();
   return popup;
 
