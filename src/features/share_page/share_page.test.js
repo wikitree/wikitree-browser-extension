@@ -11,6 +11,7 @@ jest.mock("../../core/API/WikiTreeAPI", () => ({
     getProfile: (...args) => global.mockGetProfile(...args),
     getRelatives: (...args) => global.mockGetRelatives(...args),
     getAncestors: (...args) => global.mockGetAncestors(...args),
+    getPeople: (...args) => global.mockGetPeople(...args),
   },
 }));
 jest.mock("../../core/clipboard.js", () => ({ copyToClipboard: jest.fn(() => Promise.resolve()) }));
@@ -115,7 +116,9 @@ beforeAll(() => {
     moveTo() {},
     lineTo() {},
     quadraticCurveTo() {},
-    arc() {},
+    arc(...args) {
+      global.mockArcs.push(args);
+    },
     ellipse() {},
     fill() {},
     stroke() {},
@@ -139,7 +142,7 @@ beforeAll(() => {
           this.naturalWidth = this.width = 600;
           this.naturalHeight = this.height = 400;
           if (this.onload) this.onload();
-        } else if (size && /photo\.php/.test(value)) {
+        } else if (size && (/photo\.php/.test(value) || /^data:image\/(jpeg|png)/.test(value))) {
           this.naturalWidth = this.width = size[0];
           this.naturalHeight = this.height = size[1];
           if (this.onload) this.onload();
@@ -172,6 +175,8 @@ beforeEach(() => {
   global.mockSvgSources = [];
   global.mockCardText = [];
   global.mockCanvasSizes = [];
+  global.mockGetPeople = jest.fn(() => Promise.resolve(["", {}, {}]));
+  global.mockArcs = [];
   global.mockDrawn = [];
   global.mockPhotoSize = null;
   global.mockGetProfile = jest.fn(() => Promise.resolve([{ Privacy: 60, IsLiving: 0 }, 0, "page"]));
@@ -1250,10 +1255,7 @@ describe("Share Page dialog", () => {
     expect($(".wbe-share-note").text()).not.toContain("living");
   });
 
-  test("the fan chart's picture is left off when an ancestor in it is living", async () => {
-    global.mockGetAncestors = jest.fn(() =>
-      Promise.resolve([relative("Robinson-27274"), relative("Robinson-99999", 1)])
-    );
+  const withBoxes = async (fn) => {
     const getBox = window.Element.prototype.getBoundingClientRect;
     window.Element.prototype.getBoundingClientRect = () => ({
       width: 600,
@@ -1264,34 +1266,352 @@ describe("Share Page dialog", () => {
       bottom: 400,
     });
     try {
+      await fn();
+      await new Promise((resolve) => setTimeout(resolve, 1800)); // the capture waits for the drawing to settle
+    } finally {
+      window.Element.prototype.getBoundingClientRect = getBox;
+    }
+  };
+  const PEOPLE_SVG = `<svg id="fanChartSVG" width="600" height="400">
+      <path d="M0 0L90 90 L0 90Z" fill="#cceeee"/>
+      <text x="10" y="10">Living Person</text>
+      <image href="/photo.php/thumb/a/aa/Person-1.jpg/75px-Person-1.jpg" width="20" height="20"/>
+      <foreignObject x="0" y="0" width="60" height="60"><div>Another Living Person</div></foreignObject>
+    </svg>`;
+
+  test("a fan chart with a living ancestor in it is pictured as shapes only, with no names or portraits", async () => {
+    global.mockGetAncestors = jest.fn(() =>
+      Promise.resolve([relative("Robinson-27274"), relative("Robinson-99999", 1)])
+    );
+    await withBoxes(async () => {
       await loadFeature(
         "/apps/Robinson-27274#name=Robinson-27274&view=fanchart",
-        `<h2 id="view-title">Fan Chart</h2><div id="view-container"><svg id="fanChartSVG" width="600" height="400"><path d="M0 0L9 9"/></svg></div>`
+        `<h2 id="view-title">Fan Chart</h2><div id="view-container">${PEOPLE_SVG}</div>`
+      );
+      await clickShare();
+    });
+    expect(global.mockSvgSources.length).toBeGreaterThan(0); // the chart was captured
+    global.mockSvgSources.forEach((svg) => {
+      expect(svg).toContain("<path");
+      expect(svg).not.toMatch(/Living Person|<text|<image|<img|<foreignObject/);
+    });
+    expect($(".wbe-share-note").text()).toContain("may include living or private people");
+  });
+
+  test("the fan chart's picture keeps its names when every ancestor is deceased and not private", async () => {
+    await withBoxes(async () => {
+      await loadFeature(
+        "/apps/Robinson-27274#name=Robinson-27274&view=fanchart",
+        `<h2 id="view-title">Fan Chart</h2><div id="view-container">${PEOPLE_SVG}</div>`
+      );
+      await clickShare();
+    });
+    expect(global.mockSvgSources.join("")).toContain("Living Person");
+    expect($(".wbe-share-note").text()).not.toContain("Names and portraits are left off");
+  });
+
+  test("the fan chart's picture has no names when the API cannot say who is in it", async () => {
+    global.mockGetAncestors = jest.fn(() => Promise.reject(new Error("network")));
+    await withBoxes(async () => {
+      await loadFeature(
+        "/apps/Robinson-27274#name=Robinson-27274&view=fanchart",
+        `<h2 id="view-title">Fan Chart</h2><div id="view-container">${PEOPLE_SVG}</div>`
+      );
+      await clickShare();
+    });
+    expect(global.mockSvgSources.join("")).not.toContain("Living Person");
+    expect($(".wbe-share-note").text()).toContain("may include living or private people");
+  });
+
+  test.each([
+    ["descendants", "Descendants"],
+    ["dynamictree", "Dynamic Tree"],
+    ["superbig", "Super Tree"],
+  ])("the %s view is pictured as shapes only, and the API is not asked about it", async (view, name) => {
+    await withBoxes(async () => {
+      await loadFeature(
+        `/apps/Robinson-27274#name=Robinson-27274&view=${view}`,
+        `<h2 id="view-title">${name}</h2><div id="view-container">${PEOPLE_SVG}</div>`
+      );
+      await clickShare();
+    });
+    expect(global.mockGetAncestors).not.toHaveBeenCalled();
+    expect(global.mockSvgSources.length).toBeGreaterThan(0);
+    global.mockSvgSources.forEach((svg) => expect(svg).not.toMatch(/Living Person|<text|<image|<img|<foreignObject/));
+    expect($(".wbe-share-note").text()).toContain("Names and portraits are left off this picture");
+  });
+
+  const SLIPPY_SVG = `<svg id="slippy" width="600" height="400">
+      <g class="people">
+        <g id="person-101" class="member"><rect width="80" height="20"/><text>Living Jane Robinson</text></g>
+        <g id="person-102" class="member"><rect width="80" height="20"/><text>Dead John Robinson (1850-1920)</text></g>
+        <g id="person-103" class="member"><rect width="80" height="20"/><text>Private Person</text></g>
+      </g>
+      <text>Some heading</text>
+    </svg>`;
+  const people = {
+    101: { Id: 101, IsLiving: 1, Privacy: 50 },
+    102: { Id: 102, IsLiving: 0, Privacy: 60 },
+    103: { Id: 103, IsLiving: 0, Privacy: 10 },
+  };
+  const openSlippy = (svg = SLIPPY_SVG) =>
+    withBoxes(async () => {
+      await loadFeature(
+        "/apps/Robinson-27274#name=Robinson-27274&view=slippyTree",
+        `<h2 id="view-title">Slippy Tree</h2><div id="view-container">${svg}</div>`
+      );
+      await clickShare();
+    });
+
+  test("Slippy Tree names only the people the API says are deceased and not private", async () => {
+    global.mockGetPeople = jest.fn(() => Promise.resolve(["", {}, people]));
+    await openSlippy();
+    expect(global.mockGetPeople).toHaveBeenCalledWith(
+      "sharePage",
+      ["101", "102", "103"],
+      ["Id", "IsLiving", "Privacy"]
+    );
+    const svg = global.mockSvgSources.join("");
+    expect(svg).toContain("Dead John Robinson");
+    expect(svg).not.toContain("Living Jane");
+    expect(svg).not.toContain("Private Person");
+    expect(svg).not.toContain("Some heading"); // text that is not a person's is left out
+    expect(svg.match(/<rect/g).length).toBe(3); // every box is still drawn
+    expect($(".wbe-share-note").text()).toContain("People who are living or private");
+  });
+
+  test("Slippy Tree names nobody when the API cannot be reached", async () => {
+    global.mockGetPeople = jest.fn(() => Promise.reject(new Error("network")));
+    await openSlippy();
+    expect(global.mockSvgSources.join("")).not.toMatch(/Dead John|Living Jane|Private Person/);
+    expect($(".wbe-share-note").text()).toContain("People who are living or private");
+  });
+
+  test("Slippy Tree needs no note when everyone in it can be named", async () => {
+    global.mockGetPeople = jest.fn(() =>
+      Promise.resolve([
+        "",
+        {},
+        { 102: people[102], 101: { Id: 101, IsLiving: 0, Privacy: 60 }, 103: { Id: 103, IsLiving: 0, Privacy: 50 } },
+      ])
+    );
+    await openSlippy();
+    expect(global.mockSvgSources.join("")).toContain("Living Jane Robinson");
+    expect($(".wbe-share-note").text()).not.toContain("People who are living or private");
+  });
+
+  test("the card shows the person's WikiTree ID next to the kind of page", async () => {
+    await loadFeature("/wiki/Robinson-27274", PROFILE_HTML);
+    await clickShare();
+    await settle();
+    expect(global.mockCardText).toContain("PROFILE");
+    expect(global.mockCardText).toContain("·  Robinson-27274");
+  });
+
+  test("a Tree Apps card shows the ID of the person whose view it is", async () => {
+    await loadFeature(
+      "/apps/Robinson-27274#name=Robinson-27274&view=fanchart",
+      `<h2 id="view-title">Fan Chart</h2><div id="view-container"></div>`
+    );
+    await clickShare();
+    await settle();
+    expect(global.mockCardText).toContain("TREE APPS VIEW");
+    expect(global.mockCardText).toContain("·  Robinson-27274");
+  });
+
+  test("pages that are not a person's have no ID on the card", async () => {
+    await loadFeature(
+      "/wiki/Help:Projects",
+      `<main><h1>Help:Projects</h1><div class="body-text"><p>A project is a group of members.</p></div></main>`,
+      "Help:Projects | WikiTree FREE Family Tree"
+    );
+    await clickShare();
+    await settle();
+    expect(global.mockCardText.join("|")).not.toContain("·");
+  });
+
+  test("a view whose chart is only text has nothing to picture, and the card says so", async () => {
+    await withBoxes(async () => {
+      await loadFeature(
+        "/apps/Robinson-27274#name=Robinson-27274&view=descendants",
+        `<h2 id="view-title">Descendants</h2><div id="view-container"><ul><li>John Robinson</li></ul></div>`
+      );
+      await clickShare();
+    });
+    expect($(".wbe-share-note").text()).toContain("no chart to picture");
+    expect($(".wbe-share-note").text()).not.toContain("Names and portraits are left off");
+  });
+
+  test("a canvas is not pictured unless names are allowed, because the names in it cannot be taken out", async () => {
+    await withBoxes(async () => {
+      await loadFeature(
+        "/apps/Robinson-27274#name=Robinson-27274&view=slippyTree",
+        `<h2 id="view-title">Slippy Tree</h2><div id="view-container"><canvas width="600" height="400"></canvas></div>`
+      );
+      await clickShare();
+    });
+    expect($(".wbe-share-note").text()).toContain("no chart to picture");
+  });
+
+  const ANCESTORS_SVG = `<svg id="webs" width="600" height="400">
+      <line x1="0" y1="0" x2="90" y2="90" stroke="#8cf"/>
+      <g><rect width="40" height="20" fill="#fff" stroke="#ccc"/><text x="4" y="14">JR</text></g>
+    </svg>`;
+  const askedFor = (depth) =>
+    expect(global.mockGetAncestors).toHaveBeenCalledWith("sharePage", "Robinson-27274", depth, [
+      "Name",
+      "IsLiving",
+      "Privacy",
+    ]);
+
+  test.each([
+    ["webs", "Ancestor Webs", '<span id="numGensInBBar">4</span>', 4],
+    ["fractal", "Fractal Tree", '<span id="numGensInBBar">6</span>', 6],
+    ["fractal", "Fractal Tree", "", 10],
+    ["xtree", "X Family Tree", "", 10],
+    ["ale", "Ancestor Lines Explorer", '<input id="generation" value="7">', 7],
+  ])(
+    "the %s view keeps its labels when every ancestor it shows is safe (%s generations: %s)",
+    async (view, name, counter, depth) => {
+      await withBoxes(async () => {
+        await loadFeature(
+          `/apps/Robinson-27274#name=Robinson-27274&view=${view}`,
+          `<h2 id="view-title">${name}</h2>${counter}<div id="view-container">${ANCESTORS_SVG}</div>`
+        );
+        await clickShare();
+      });
+      askedFor(depth);
+      expect(global.mockSvgSources.join("")).toContain("JR");
+      expect($(".wbe-share-note").text()).not.toContain("Names and portraits are left off");
+    }
+  );
+
+  test("an ancestor view loses its labels when an ancestor in it is living", async () => {
+    global.mockGetAncestors = jest.fn(() =>
+      Promise.resolve([relative("Robinson-27274"), relative("Robinson-99999", 1)])
+    );
+    await withBoxes(async () => {
+      await loadFeature(
+        "/apps/Robinson-27274#name=Robinson-27274&view=webs",
+        `<h2 id="view-title">Ancestor Webs</h2><span id="numGensInBBar">4</span><div id="view-container">${ANCESTORS_SVG}</div>`
+      );
+      await clickShare();
+    });
+    expect(global.mockSvgSources.length).toBeGreaterThan(0);
+    expect(global.mockSvgSources.join("")).not.toMatch(/JR|<text/);
+    expect(global.mockSvgSources.join("")).toContain("<rect"); // the boxes stay, without their labels
+    expect(global.mockSvgSources.join("")).toContain("<line");
+    expect($(".wbe-share-note").text()).toContain("may include living or private people");
+  });
+
+  test.each([
+    ["webs", "Ancestor Webs", ""], // its generations cannot be read
+    ["ale", "Ancestor Lines Explorer", '<input id="generation" value="12">'], // more than the API can check
+    ["webs", "Ancestor Webs", '<span id="numGensInBBar">11</span>'],
+  ])(
+    "%s with unknown or more than 10 generations is never verified, so it has no labels",
+    async (view, name, counter) => {
+      await withBoxes(async () => {
+        await loadFeature(
+          `/apps/Robinson-27274#name=Robinson-27274&view=${view}`,
+          `<h2 id="view-title">${name}</h2>${counter}<div id="view-container">${ANCESTORS_SVG}</div>`
+        );
+        await clickShare();
+      });
+      expect(global.mockGetAncestors).not.toHaveBeenCalled();
+      expect(global.mockSvgSources.join("")).not.toContain("JR");
+    }
+  );
+
+  test("a name cloud of ancestors keeps its names when every ancestor is safe", async () => {
+    await withBoxes(async () => {
+      await loadFeature(
+        "/apps/Robinson-27274#name=Robinson-27274&view=namecloud",
+        `<h2 id="view-title">Name Cloud</h2><select id="ncloudScope"><option value="ancestors" selected>Ancestors</option><option value="cc7">CC7</option></select>
+         <span id="ncloudAmount">5 generations</span><div id="view-container">${ANCESTORS_SVG}</div>`
+      );
+      await clickShare();
+    });
+    askedFor(5);
+    expect(global.mockSvgSources.join("")).toContain("JR");
+  });
+
+  test("a name cloud of CC7, a category or a search has no picture, because it is only names", async () => {
+    await withBoxes(async () => {
+      await loadFeature(
+        "/apps/Robinson-27274#name=Robinson-27274&view=namecloud",
+        `<h2 id="view-title">Name Cloud</h2><select id="ncloudScope"><option value="ancestors">Ancestors</option><option value="cc7" selected>CC7</option></select>
+         <span id="ncloudAmount">3 degrees</span><div id="view-container">${ANCESTORS_SVG}</div>`
+      );
+      await clickShare();
+    });
+    expect(global.mockGetAncestors).not.toHaveBeenCalled();
+    expect(global.mockSvgSources).toEqual([]);
+    expect($(".wbe-share-note").text()).toContain("A name cloud is made of names, so the card has no picture");
+  });
+
+  test("the CC7 Circles view is pictured as its dots, with no initials or names", async () => {
+    const boxes = {
+      CirclesBkgd: { left: 0, top: 0, width: 600, height: 600 },
+      circlePerson1: { left: 100, top: 100, width: 38, height: 38 },
+      circlePerson2: { left: 300, top: 250, width: 38, height: 38 },
+      circlePerson3: { left: 450, top: 400, width: 38, height: 38 },
+    };
+    const getBox = window.Element.prototype.getBoundingClientRect;
+    window.Element.prototype.getBoundingClientRect = function () {
+      const b = boxes[this.id] || { left: 0, top: 0, width: 600, height: 600 };
+      return { ...b, right: b.left + b.width, bottom: b.top + b.height };
+    };
+    const dot = (id, colour) =>
+      `<svg id="${id}" width="38" height="38"><ellipse cx="19" cy="19" rx="18" ry="18" stroke="black" fill="${colour} "></ellipse><text x="19" y="22">AB</text></svg>`;
+    try {
+      await loadFeature(
+        "/apps/Robinson-27274#name=Robinson-27274&view=cc7",
+        `<h2 id="view-title">CC7 Views</h2><div id="view-container"><div id="circlesDisplay">
+           <div id="circlesDIV4SVG"><svg id="CirclesBkgd" width="600" height="600"><rect id="CirclesBkgdRect" width="600" height="600" style="fill:aliceblue"></rect></svg>
+           ${dot("circlePerson1", "green")}${dot("circlePerson2", "cyan")}${dot(
+          "circlePerson3",
+          "orange"
+        )}</div></div></div>`
       );
       await clickShare();
       await new Promise((resolve) => setTimeout(resolve, 1800));
     } finally {
       window.Element.prototype.getBoundingClientRect = getBox;
     }
-    expect(global.mockSvgSources).toEqual([]); // the chart was never captured
-    expect($(".wbe-share-note").text()).toContain("may include living or private people");
+    expect(global.mockArcs.length).toBe(3); // one circle for each person
+    expect(global.mockCardText.join("|")).not.toMatch(/AB/);
+    expect(global.mockSvgSources).toEqual([]); // not captured as an SVG, which would only be the pale background
+    expect($(".wbe-share-note").text()).not.toContain("no chart to picture");
   });
 
-  test("the fan chart's picture is left off when the API cannot say who is in it", async () => {
-    global.mockGetAncestors = jest.fn(() => Promise.reject(new Error("network")));
-    await loadFeature("/apps/Robinson-27274#name=Robinson-27274&view=fanchart", `<div id="view-container"></div>`);
-    await clickShare();
-    expect($(".wbe-share-note").text()).toContain("may include living or private people");
-  });
-
-  test("other Tree Apps views get no chart picture, because they can show living people", async () => {
-    await loadFeature(
-      "/apps/Robinson-27274#name=Robinson-27274&view=descendants",
-      `<h2 id="view-title">Descendants</h2><div id="view-container"></div>`
-    );
-    await clickShare();
-    expect(global.mockGetAncestors).not.toHaveBeenCalled();
-    expect($(".wbe-share-note").text()).toContain("Only the fan chart's picture is put on the card");
+  test("the CC7 Circles view draws the central photo when the member chose it", async () => {
+    global.mockPhotoSize = [400, 600];
+    const boxes = {
+      CirclesBkgd: { left: 0, top: 0, width: 600, height: 600 },
+      circlePerson1: { left: 281, top: 450, width: 38, height: 38 },
+      theCentralPhotoIMG: { left: 250, top: 250, width: 100, height: 150 },
+    };
+    const getBox = window.Element.prototype.getBoundingClientRect;
+    window.Element.prototype.getBoundingClientRect = function () {
+      const b = boxes[this.id] || { left: 0, top: 0, width: 600, height: 600 };
+      return { ...b, right: b.left + b.width, bottom: b.top + b.height };
+    };
+    try {
+      await loadFeature(
+        "/apps/Robinson-27274#name=Robinson-27274&view=cc7",
+        `<h2 id="view-title">CC7 Views</h2><div id="view-container"><div id="circlesDisplay">
+           <div id="circlesDIV4SVG"><svg id="CirclesBkgd" width="600" height="600"><rect id="CirclesBkgdRect" width="600" height="600" style="fill:aliceblue"></rect></svg>
+           <g id="theCentralPhoto" class="image-box"><div><img id="theCentralPhotoIMG" src="https://www.wikitree.com/photo.php/thumb/4/49/Robinson-27274.jpg/300px-Robinson-27274.jpg"></div></g>
+           <svg id="circlePerson1" width="38" height="38"><ellipse cx="19" cy="19" rx="18" ry="18" stroke="black" fill="green"></ellipse></svg></div></div></div>`
+      );
+      await clickShare();
+      await new Promise((resolve) => setTimeout(resolve, 1800));
+    } finally {
+      window.Element.prototype.getBoundingClientRect = getBox;
+    }
+    expect(global.mockDrawn.some((src) => /^data:image\//.test(src))).toBe(true); // the photo, drawn on the circles
+    expect(global.mockArcs.length).toBe(1);
   });
 
   const saveName = async () => {
