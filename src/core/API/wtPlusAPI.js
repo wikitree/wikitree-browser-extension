@@ -138,6 +138,27 @@ export const wtAPICatCIBSearch = (callerID, cibType, query) =>
 export const wtAPINameDistribution = (callerID, firstNames) =>
   wtAPICall(`wtWebNameDistribution/apiWBE_${callerID}.json?FirstName=${firstNames}`);
 
+/********************************************************************
+  wtAPIFindAGraveMemorials  Retrieve the WikiTree profiles that cite Find a Grave memorials
+    Parameters:
+      callerID:         Prefarably unique name of the caller: "FindAGraveMemorialExtractor"
+      memorialIDs:      Array of Find a Grave memorial IDs. A request of 1000 IDs works.
+    Returns:            JS object:
+      {
+        "response": {
+          "memorials": [
+            { "memorial": 24170737, "WikiTreeID": "Apodaca-290" },
+            ...
+          ]
+        }
+      }
+      A memorial with no profile is left out; one with several profiles appears once for each.
+*******************************************************************/
+
+// https://plus.wikitree.com/function/wtFindAGrave4Bee/apiWBE_FindAGraveMemorialExtractor.json?query=24170737,24170759&format=json
+export const wtAPIFindAGraveMemorials = (callerID, memorialIDs) =>
+  wtAPICall(`wtFindAGrave4Bee/apiWBE_${callerID}.json?query=${encodeURIComponent(memorialIDs.join(","))}`);
+
 // *******************************************************************
 // Base call to WikiTree+
 // *******************************************************************

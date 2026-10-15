@@ -1,14 +1,29 @@
 /*
 Created By: Miyako Jones (Jones-108375)
+Extended By: Azure Robinson (Robinson-27225)
 */
 
-import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { getDownloadLink, triggerDownload } from "../../core/common";
+import { wtAPIFindAGraveMemorials } from "../../core/API/wtPlusAPI";
+import { buildCsv } from "./fg_csv";
+import { parseRecordCount } from "./fg_memorial_parser";
+import { buildOutcomeNotes, emptyRunNote } from "./fg_messages";
+import { askForPageRange, RANGE_PANEL_ID } from "./fg_range_panel";
+import { createRunState, fetchMemorialDetails, loadListPages } from "./fg_runner";
+import { MAX_PAGES_PER_RUN, ROWS_PER_PAGE, defaultRange, listKey, nextRange, pageFilenameSuffix } from "./fg_pages";
 import "./find_a_grave_memorial_extractor.css";
 
 // Developer flag for debugging (set to true to enable console logging)
 const DEBUG_MODE = false;
 
-shouldInitializeFeature("findAGraveMemorialExtractor").then((result) => {
+const FEATURE_ID = "findAGraveMemorialExtractor";
+const WIKITREE_CALLER_ID = "FindAGraveMemorialExtractor"; // identifies this extension to WikiTree+ (docs/CallsTo wikitree.com.md)
+
+// The last run on this list, so the next prompt can suggest the following pages
+let lastRun = null; // { key, to }
+
+shouldInitializeFeature(FEATURE_ID).then((result) => {
   if (result) {
     init();
   }
@@ -49,31 +64,7 @@ function addExtractionButton() {
   button.textContent = "Extract to CSV";
   button.title = "WBE: Find a Grave Memorial Extractor";
 
-  // Add click handler
-  button.addEventListener("click", async () => {
-    const originalText = button.textContent;
-    button.disabled = true;
-    button.textContent = "Extracting...";
-
-    // Always use WikiTree matching
-    const useWikiTreeCheck = true;
-
-    if (DEBUG_MODE) {
-      console.log("FindAGrave Memorial Extractor started");
-      console.log("WikiTree check enabled: " + useWikiTreeCheck);
-    }
-
-    try {
-      await processMemorialList(useWikiTreeCheck);
-    } catch (error) {
-      console.error("Extraction failed:", error);
-      showErrorPopup("Extraction failed. Check console for details.");
-    } finally {
-      // Re-enable button
-      button.disabled = false;
-      button.textContent = originalText;
-    }
-  });
+  button.addEventListener("click", () => runExtraction(button));
 
   // Insert button after the Search tips div
   searchTipsDiv.parentNode.insertBefore(button, searchTipsDiv.nextSibling);
@@ -83,266 +74,176 @@ function addExtractionButton() {
   if (refineBtn != null) refineBtn.parentNode.insertBefore(button, refineBtn.nextSibling);
 }
 
-// Extract FindAGrave memorial data from a cemetery memorial list page.
-// Columns:
-//   Memorial ID
-//   Name of deceased
-//   Birth date
-//   Death date
-//   Whether or not there is a photo in general
-//   Whether or not there is a grave photo specifically
-//   Link to the memorial page
-//   Links to all matching WikiTree profiles if any were found
-function processMemorialList(useWikiTreeCheck) {
-  if (window.location.hostname.includes("findagrave.com") && window.location.pathname.includes("memorial-search")) {
-    let totalPages =
-      document.querySelector("#gotoPage") != null
-        ? parseInt(document.querySelector("#gotoPage").getAttribute("max"))
-        : 1;
+async function runExtraction(button) {
+  const originalText = button.textContent;
+  const state = createRunState();
+  let cancelButton = null;
 
-    // auto-scroll to the bottom of the page in order to load all of the memorials if there is more than one page
-    if (totalPages > 1) {
-      let lastHeight = 0;
-      var intervalId = setInterval(() => {
-        window.scrollTo(0, document.body.scrollHeight);
+  button.disabled = true;
 
-        if (document.querySelectorAll(".list-item-page").length != totalPages) {
-          lastHeight = document.body.scrollHeight;
-        } else {
-          // all memorial pages have been loaded, so extract the data
-          clearInterval(intervalId);
-          extractMemorialData(useWikiTreeCheck);
-        }
-      }, 1000);
-    } else {
-      extractMemorialData(useWikiTreeCheck);
+  try {
+    const options = await getFeatureOptions(FEATURE_ID);
+    if (DEBUG_MODE) console.log("FindAGrave Memorial Extractor started", options);
+
+    const recordCount = getRecordCount();
+    const totalPages = getTotalPages(recordCount);
+
+    // A list that fits in one run is read whole; a longer one needs the user to choose which pages
+    let range = defaultRange(totalPages);
+    if (totalPages > MAX_PAGES_PER_RUN) {
+      button.textContent = "Choose pages...";
+      const suggested =
+        lastRun && lastRun.key === listKey(window.location.href)
+          ? nextRange(lastRun.to, totalPages)
+          : defaultRange(totalPages);
+      range = await askForPageRange({ anchor: button, recordCount, totalPages, suggested });
+      if (!range) return;
     }
-  } else {
-    showErrorPopup("The FindAGrave Memorial Extractor extension only works on FindAGrave memorial list pages.");
-  }
-}
 
-async function extractMemorialData(useWikiTreeCheck) {
-  let extractedMemorials = [];
-  let allMemorials = document.querySelectorAll(".memorial-list-data .memorial-item");
+    cancelButton = addCancelButton(button, state);
 
-  for (let memorial of allMemorials) {
-    let memorialID = memorial.getAttribute("id").split("sr-")[1];
-    let nameofDeceased = processNameOfDeceased(memorial);
-
-    let birthAndDeathDatesArray = processBirthAndDeathDates(
-      memorial.querySelector(".birthDeathDates").textContent.trim()
+    button.textContent = "Loading list...";
+    const { rows, failedPages, skippedRows } = await loadListPages(
+      window.location.href,
+      range,
+      state,
+      (done, count) => {
+        button.textContent = `Loading list page ${done} / ${count}`;
+      },
+      totalPages
     );
-    let birthDate = birthAndDeathDatesArray[0];
-    let deathDate = birthAndDeathDatesArray[1];
 
-    let hasPhoto = memorial.querySelector(".memorial-item-pic img") ? "Y" : "N";
-    let hasGravePhoto =
-      memorial.querySelector(".memorial-item-pic").innerHTML.toLowerCase().match("no grave photo") == null ? "Y" : "N";
-    let memorialLink = memorial.querySelector("a").href;
+    // nothing gathered: say why, and do not download a file with only a header row
+    if (rows.length === 0) {
+      const note = emptyRunNote(state, failedPages);
+      showMessage(note.text, note.error === true, 15000);
+      return;
+    }
 
-    extractedMemorials.push({
-      memorialID,
-      nameofDeceased,
-      birthDate,
-      deathDate,
-      hasPhoto,
-      hasGravePhoto,
-      memorialLink,
+    let failedCount = 0;
+    let fetchedCount = rows.length;
+    if (options.fetchMemorialPages && !state.cancelled && state.stopReason === null) {
+      ({ failedCount, fetchedCount } = await fetchMemorialDetails(rows, state, (done) => {
+        button.textContent = `Fetching memorial ${done} / ${rows.length}`;
+      }));
+    }
+
+    button.textContent = "Matching WikiTree...";
+    const wikiTreeIDs = await findWTMatchesInBatches(rows.map((row) => row.memorialId));
+    rows.forEach((row) => {
+      row.wikiTreeIDs = (wikiTreeIDs && wikiTreeIDs[row.memorialId]) || [];
     });
-  }
 
-  if (useWikiTreeCheck) {
-    const allMemorialIDs = extractedMemorials.map((memorial) => memorial.memorialID);
+    downloadCsv(
+      buildCsv(rows, options.fetchMemorialPages ? "genealogy" : "original"),
+      pageFilenameSuffix(range.from, range.to, totalPages)
+    );
+    if (!state.cancelled && state.stopReason === null) lastRun = { key: listKey(window.location.href), to: range.to };
 
-    if (DEBUG_MODE) {
-      console.log("all memorials:");
-      console.log(allMemorialIDs);
-    }
-
-    await findWTMatchesInBatches(allMemorialIDs).then((wikitreeIDs) => {
-      if (wikitreeIDs != null) {
-        extractedMemorials.forEach((memorial) => {
-          const memorialMatches = wikitreeIDs[memorial.memorialID];
-
-          if (memorialMatches && memorialMatches.length > 0) {
-            const wikitreeIDsAsUrls = memorialMatches.map(
-              (wikiTreeID) => "https://www.wikitree.com/wiki/" + wikiTreeID
-            );
-            memorial.wikiTreeIDs = wikitreeIDsAsUrls.join(",");
-
-            if (DEBUG_MODE) {
-              console.log(wikitreeIDsAsUrls);
-              console.log(memorial.wikiTreeIDs);
-            }
-          } else {
-            memorial.wikiTreeIDs = "";
-          }
-        });
-
-        if (DEBUG_MODE) {
-          console.log("extracted memorials:");
-          console.log(extractedMemorials);
-        }
-      } else {
-        extractedMemorials.map((memorial) => {
-          memorial.wikiTreeIDs = "";
-        });
-      }
-
-      createCSV(extractedMemorials, useWikiTreeCheck);
+    const notes = buildOutcomeNotes(state, {
+      rowCount: rows.length,
+      fetchedCount,
+      failedPages,
+      skippedRows,
+      failedCount,
+      range,
+      totalPages,
+      fetchMemorialPages: options.fetchMemorialPages,
     });
-  } else {
-    createCSV(extractedMemorials, useWikiTreeCheck);
-  }
-}
-
-function processNameOfDeceased(memorial) {
-  let nameofDeceased = memorial.querySelector(".name-grave i").innerHTML;
-
-  // extract the prefix of the deceased's name if present
-  if (nameofDeceased.match('<span class="prefix">') != null) {
-    let prefix = memorial.querySelector(".name-grave i .prefix").innerHTML;
-    nameofDeceased = prefix.trim() + " " + nameofDeceased.replace(/<span class="prefix">.*<\/span>/, "").trim();
-  }
-
-  // replace the italics tags denoting last name at birth with parentheses
-  if (nameofDeceased.match("<i>") != null) {
-    nameofDeceased = nameofDeceased.replace(/<i>/, "(").replace(/<\/i>/, ")");
-  }
-
-  return nameofDeceased.trim();
-}
-
-function processBirthAndDeathDates(birthAndDeathDates) {
-  let processedArray = [];
-  let birthAndDeathDatesArray = birthAndDeathDates.split("–");
-
-  // the birth and death dates are both missing
-  if (birthAndDeathDatesArray.length == 1) {
-    processedArray[0] = "unknown";
-    processedArray[1] = "unknown";
-  }
-  // one or both of the dates are present
-  else if (birthAndDeathDatesArray.length == 2) {
-    processedArray[0] = birthAndDeathDatesArray[0].trim();
-    processedArray[1] = birthAndDeathDatesArray[1].trim();
-  }
-
-  return processedArray;
-}
-
-// Convert the extractedMemorials array to CSV format and download it
-function createCSV(extractedMemorials, useWikiTreeCheck) {
-  let csvRows = ["FG ID,Name,Birth Date,Death Date,Has Photo,Has Grave Photo,Memorial Link"];
-
-  if (useWikiTreeCheck) {
-    csvRows[0] += ",WikiTree Link";
-  }
-
-  extractedMemorials.forEach((memorial) => {
-    // Escape double quotes and wrap in quotes if needed
-    let safeName = memorial.nameofDeceased.replace(/"/g, '""');
-    if (safeName.includes(",") || safeName.includes('"')) {
-      safeName = `"${safeName}"`;
+    if (notes.length > 0) {
+      showMessage(
+        notes.map((note) => note.text).join("\n\n"),
+        notes.some((note) => note.error),
+        20000
+      );
     }
+  } catch (error) {
+    console.error("Extraction failed:", error);
+    showMessage("Extraction failed. Check console for details.", true);
+  } finally {
+    document.getElementById(RANGE_PANEL_ID)?.remove();
+    cancelButton?.remove();
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
 
-    let row = `${memorial.memorialID},${safeName},${memorial.birthDate},${memorial.deathDate},${memorial.hasPhoto},${memorial.hasGravePhoto},${memorial.memorialLink}`;
-
-    if (useWikiTreeCheck) {
-      row += `,${memorial.wikiTreeIDs}`;
-    }
-
-    csvRows.push(row);
+function addCancelButton(button, state) {
+  const cancelButton = document.createElement("button");
+  cancelButton.type = "button";
+  cancelButton.id = "wbe-fg-cancel-btn";
+  cancelButton.className = "btn me-2 btn-secondary";
+  cancelButton.textContent = "Stop and download what I have";
+  cancelButton.addEventListener("click", () => {
+    state.cancelled = true;
+    state.controller.abort(); // end a fetch that is in flight as well as the pauses
+    cancelButton.disabled = true;
   });
+  button.parentNode.insertBefore(cancelButton, button.nextSibling);
+  return cancelButton;
+}
 
-  let csvContent = csvRows.join("\n");
-  let blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
-  let url = URL.createObjectURL(blob);
+// The page count the list shows beside "Page 1 of N", or null if it shows none
+function pageCountOnPage() {
+  const pages = parseInt(document.querySelector("#gotoPage")?.getAttribute("max"));
+  return isNaN(pages) ? null : pages;
+}
 
-  let link = document.createElement("a");
-  link.setAttribute("href", url);
+function getTotalPages(recordCount) {
+  return pageCountOnPage() ?? Math.max(1, Math.ceil(recordCount / ROWS_PER_PAGE));
+}
 
+// The list header says "47 matching records found". If Find a Grave changes that, go by the page count.
+function getRecordCount() {
+  for (const heading of document.querySelectorAll("h1")) {
+    const count = parseRecordCount(heading.textContent);
+    if (count !== null) return count;
+  }
+  return (pageCountOnPage() ?? 1) * ROWS_PER_PAGE;
+}
+
+function downloadCsv(csv, filenameSuffix = "") {
   // replace the spaces of the cemetery page title with underscores for filename use
-  let filename = document.querySelector(".page-title").textContent.trim().replace(/ /g, "_");
-  link.setAttribute("download", filename + ".csv");
-
-  document.body.appendChild(link); // required for Firefox
-  link.click();
-
-  // Clean up the object URL after download
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-    link.remove();
-  }, 1000);
+  const title = document.querySelector(".page-title")?.textContent.trim() || "Find_a_Grave_memorials";
+  const filename = title.replace(/\s+/g, "_") + filenameSuffix + ".csv";
+  triggerDownload(getDownloadLink(filename, csv));
 }
 
 const wikiTreeErrorMsg = "Error downloading data from the WikiTree+ server.";
 const wtPlusBatchSize = 1000; // number of memorial IDs to query WikiTree+ for at a time
 
 // Query the WikiTree+ server to find matching profiles for an array of FindAGrave memorial IDs.
+// Returns an object mapping a memorial ID to an array of WikiTree IDs, or null if there were no matches.
 async function findWTMatchesInBatches(memorialIDs) {
   const batches = chunkArray(memorialIDs, wtPlusBatchSize);
-  let allResults = [];
+  const allResultsMap = {};
   for (const batch of batches) {
-    if (DEBUG_MODE) {
-      console.log("batch:");
-      console.log(batch);
-    }
-
     const result = await findWTMatches(batch);
     if (result) {
-      allResults = allResults.concat(result);
+      // there can be more than one matching WikiTree ID per memorial ID
+      result.forEach(({ memorialID, wikiTreeID }) => {
+        if (!allResultsMap[memorialID]) allResultsMap[memorialID] = [];
+        if (!allResultsMap[memorialID].includes(wikiTreeID)) allResultsMap[memorialID].push(wikiTreeID);
+      });
     }
-  }
-
-  // re-process just in case there is more than one matching WikiTree ID per memorial ID
-  let allResultsMap = {};
-
-  for (const index in allResults) {
-    const result = allResults[index];
-
-    if (!allResultsMap[result.memorialID]) {
-      allResultsMap[result.memorialID] = [];
-    }
-
-    allResultsMap[result.memorialID].push(result.wikiTreeID);
   }
 
   return Object.keys(allResultsMap).length > 0 ? allResultsMap : null;
 }
 
 async function findWTMatches(memorialIDs) {
-  const params = new URLSearchParams();
-  params.append("query", memorialIDs.join(","));
-  // use the API endpoint originally meant for WikiTree BEE
-  const wikitreePlusUrl = `https://plus.wikitree.com/function/wtFindAGrave4Bee/FindAGraveMemorialExtractor.json?${params}`;
-
   try {
-    const response = await fetch(wikitreePlusUrl, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-      },
-    });
-
-    if (!response.ok) {
-      showErrorPopup(wikiTreeErrorMsg);
-    }
-
-    const result = await response.json();
-
-    if (result.response.memorials.length > 0) {
-      return result.response.memorials.map((memorial) => ({
-        memorialID: memorial.memorial,
-        wikiTreeID: memorial.WikiTreeID,
-      }));
-    } else {
-      return null;
-    }
+    const result = await wtAPIFindAGraveMemorials(WIKITREE_CALLER_ID, memorialIDs);
+    const memorials = result?.response?.memorials;
+    if (!memorials || memorials.length === 0) return null;
+    return memorials.map((memorial) => ({
+      memorialID: String(memorial.memorial),
+      wikiTreeID: memorial.WikiTreeID,
+    }));
   } catch (error) {
     if (DEBUG_MODE) console.error("WikiTree API error:", error);
-    showErrorPopup(wikiTreeErrorMsg);
+    showMessage(wikiTreeErrorMsg, true);
+    return null;
   }
 }
 
@@ -354,22 +255,14 @@ function chunkArray(array, size) {
   return result;
 }
 
-function showErrorPopup(message) {
+function showMessage(message, isError, duration = 5500) {
   const popup = document.createElement("div");
+  popup.className = "wbe-fg-message";
   popup.textContent = message;
-  popup.style.width = "375px";
-  popup.style.position = "absolute";
-  popup.style.top = "0";
-  popup.style.right = "10px";
-  popup.style.background = "#FFFFFF";
-  popup.style.color = "#FF0000";
-  popup.style.padding = "12px 24px";
-  popup.style.borderRadius = "8px";
-  popup.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
-  popup.style.zIndex = 9999;
+  popup.style.color = isError ? "#FF0000" : "#25422d";
   document.body.appendChild(popup);
 
   setTimeout(() => {
     popup.remove();
-  }, 5500);
+  }, duration);
 }
