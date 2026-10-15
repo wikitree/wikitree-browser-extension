@@ -31,15 +31,17 @@ export const CHART_SHORTCUTS = [
 
 // The "Charts ▾" menu in every chart window's header (2026-10-11), by what the chart is about.
 // Keys not in CHART_SHORTCUTS (lifeline, familysize, desclives) appear when the chart links to them.
+// No "history" here or in the bar (user, 2026-10-15): it opens the same Lifespans chart; only Genie's
+// answer differs, and typing "… in history" still gets that.
 export const CHART_MENU_GROUPS = [
-  { label: "Ancestors", keys: ["fan", "explorer", "lifespans", "history", "map", "names", "calendar", "overview", "familysize", "ages"] },
+  { label: "Ancestors", keys: ["fan", "explorer", "lifespans", "map", "names", "calendar", "overview", "familysize", "ages"] },
   { label: "Descendants", keys: ["descendants", "descmap", "desclives"] },
   { label: "Family", keys: ["familymap", "timeline", "lifeline"] },
   { label: "DNA", keys: ["xdna", "dnalines", "dnaproof"] },
 ];
 
 // The buttons along the top of Genie, in order (the descendants' map is reached from the descendant chart).
-export const CHART_BAR_KEYS = ["fan", "explorer", "descendants", "lifespans", "history", "map", "calendar", "names", "overview", "familymap", "ages", "xdna", "dnalines", "ydnamap", "dnatesters"];
+export const CHART_BAR_KEYS = ["fan", "explorer", "descendants", "lifespans", "map", "calendar", "names", "overview", "familymap", "ages", "xdna", "dnalines", "ydnamap", "dnatesters"];
 
 // (lower case too: "beacall-9 fractal" can only be an ID)
 // Accents and hyphens too: "Lefèvre-123", "Saint-Pierre-12" (Anne, on her French grandfather, 2026-10-12: every
