@@ -1,4 +1,4 @@
-import { foldName, groupNameSpellings, isCustomGroup, mergeNames, nameKeyFor, parseNameGroupingPrompt, setCustomNameGroups, setMainName, spellingsText, surnameGroupKey, ungroupNames } from "./chat_name_variants";
+import { foldName, groupNameSpellings, isCustomGroup, mergeNames, nameKeyFor, parseNameGroupingPrompt, setCustomNameGroups, setMainName, spellingsText, surnameGroupKey, takeOutName, ungroupNames } from "./chat_name_variants";
 
 describe("name variants", () => {
   test("foldName drops accents and special letters", () => {
@@ -60,12 +60,37 @@ describe("your own groupings", () => {
   });
 });
 
+describe("takeOutName", () => {
+  beforeEach(() => setCustomNameGroups(null));
+
+  test("takes one spelling out of a study group and leaves the rest together", async () => {
+    await takeOutName("surname", "Cole", ["Kool", "Cole", "Cool"]);
+    const keyOf = nameKeyFor("surname");
+    expect(keyOf("Cole")).not.toBe(keyOf("Kool"));
+    expect(keyOf("Cool")).toBe(keyOf("Kool"));
+  });
+
+  test("takes an accent spelling out of its group", async () => {
+    await takeOutName("surname", "Rousseaù", ["Rousseau", "Rousseaù"]);
+    expect(nameKeyFor("surname")("Rousseaù")).not.toBe(nameKeyFor("surname")("Rousseau"));
+  });
+
+  test("undoes your merge without splitting anything else", async () => {
+    await mergeNames("surname", "Smit", "Smith");
+    await takeOutName("surname", "Smith", ["Smit", "Smith"]);
+    const keyOf = nameKeyFor("surname");
+    expect(keyOf("Smith")).not.toBe(keyOf("Smit"));
+    expect(keyOf("Smith")).toBe(keyOf("Smíth"));
+  });
+});
+
 describe("parseNameGroupingPrompt", () => {
   test.each([
     ["count Smith as Smit", { action: "merge", kind: "surname", names: ["Smith", "Smit"], main: "Smit" }],
     ["Group Smith with Smit please", { action: "merge", kind: "surname", names: ["Smith", "Smit"], main: "Smit" }],
     ["treat Smith and Smit as the same surname", { action: "merge", kind: "surname", names: ["Smith", "Smit"] }],
     ["count Jan and Johannes as the same first name", { action: "merge", kind: "first", names: ["Jan", "Johannes"] }],
+    ["treat Rousseau and Rousseaù as the same surname", { action: "merge", kind: "surname", names: ["Rousseau", "Rousseaù"] }],
     ["Smith is the same surname as Smit", { action: "merge", kind: "surname", names: ["Smith", "Smit"], main: "Smit" }],
     ["count van der Merwe as Vandermerwe", { action: "merge", kind: "surname", names: ["van der Merwe", "Vandermerwe"], main: "Vandermerwe" }],
     ["count smith and smit as one name", { action: "merge", kind: "surname", names: ["smith", "smit"] }],

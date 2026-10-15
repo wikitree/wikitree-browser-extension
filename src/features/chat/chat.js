@@ -3377,7 +3377,10 @@ async function sendChatPrompt() {
 
   lastRoutedPrompt = prompt;
   ensureResolvedPersonMemoryLoaded();
-  const aliasRewrite = applyResolvedPersonAliasesToPrompt(prompt);
+  // "treat Rousseau and Rousseaù as the same surname" names surnames, not people: no alias or
+  // connection rewrites (live, 2026-10-16: "Rousseau" became Pierre Rousseau Smit, then a connection lookup).
+  const isNameGrouping = Boolean(routeChatPrompt(prompt)?.params?.grouping);
+  const aliasRewrite = isNameGrouping ? { changed: false } : applyResolvedPersonAliasesToPrompt(prompt);
   if (aliasRewrite.changed) {
     prompt = aliasRewrite.prompt;
     console.debug("wbe: resolved prompt alias from chat memory", {
@@ -3406,7 +3409,7 @@ async function sendChatPrompt() {
     });
     if (pronounRewrite.changed) prompt = pronounRewrite.prompt;
   }
-  const coercedConnectionPrompt = maybeCoerceFollowupConnectionPrompt(prompt);
+  const coercedConnectionPrompt = isNameGrouping ? { changed: false } : maybeCoerceFollowupConnectionPrompt(prompt);
   if (coercedConnectionPrompt.changed) {
     prompt = coercedConnectionPrompt.prompt;
     console.debug("wbe: coerced follow-up prompt to connection lookup", {

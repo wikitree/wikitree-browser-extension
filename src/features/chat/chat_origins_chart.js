@@ -11,7 +11,7 @@ import { area, curveMonotoneX, stack, stackOffsetExpand, stackOffsetWiggle, stac
 import { scaleLinear, scalePoint } from "d3-scale";
 import { easeCubicInOut } from "d3-ease";
 import { OTHER_COUNTRIES } from "./chat_origins_data";
-import { mergeNames, setMainName, spellingsText, ungroupNames } from "./chat_name_variants";
+import { mergeNames, setMainName, spellingsText, takeOutName, ungroupNames } from "./chat_name_variants";
 import { chartLinkButtons, chartPopupControls, chartSwitchHtml, escapeText, injectChartStyles, tipMoreHint, textColourFor, createChartPopup, mountChartPopup, handleChartPopupButton } from "./chat_chart_common";
 
 const WIDTH = 900;
@@ -84,6 +84,8 @@ const MODES = [
   { key: "share", label: "Share (100%)" },
 ];
 let chartCounter = 0;
+// The key under the chart: largest first, or A–Z (2026-10-16; kept while the page is open, so a regroup keeps it).
+let legendAlphabetical = false;
 
 /**
  * series: from buildOriginsSeries (or buildSurnameRiver). options: {title, placeWord: "birth"|"death",
@@ -143,6 +145,7 @@ export function showOriginsPopup(series, options = {}) {
               })
             : ""
         }
+        ${chartSwitchHtml({ act: "sort", label: "A–Z", on: legendAlphabetical, title: "The key below the chart in alphabetical order (Off: largest first)" })}
         <span class="wbe-chart-spacer"></span>
         <span style="opacity:.65">Oldest generation on the left · hover a band for its numbers</span>
       </div>
@@ -255,10 +258,17 @@ export function showOriginsPopup(series, options = {}) {
     return `<div style="margin-top:4px">${shown.map(([name, n]) => escapeText(n > 1 ? `${name} (${n})` : name)).join(", ")}</div>${all ? "" : tipMoreHint(gen.otherNames.length - shown.length)}`;
   }
 
-  // The spellings a grouped band holds.
-  function spellingsHtml(key) {
+  // The spellings a grouped band holds; once pinned, each with a × to take it out of the group (2026-10-16).
+  function spellingsHtml(key, pinnedTip = false) {
     const list = series.variants?.[key];
-    return list ? `<div style="margin-top:2px;opacity:.8">${series.yours?.includes(key) ? "Your grouping" : "Spellings"}: ${escapeText(spellingsText(list))}</div>` : "";
+    if (!list) return "";
+    const heading = series.yours?.includes(key) ? "Your grouping" : "Spellings";
+    if (!pinnedTip || !options.onRegroup) return `<div style="margin-top:2px;opacity:.8">${heading}: ${escapeText(spellingsText(list))}</div>`;
+    const items = list.map(
+      ([name, count]) =>
+        `<span style="white-space:nowrap">${escapeText(spellingsText([[name, count]]))}<button type="button" data-act="takeout" data-key="${escapeText(key)}" data-name="${escapeText(name)}" title="Count ${escapeText(name)} on its own in all your charts" aria-label="Take ${escapeText(name)} out of this group" style="border:0;background:none;padding:0 4px;margin:0;cursor:pointer;color:#a33;font-size:14px;line-height:1">×</button></span>`
+    );
+    return `<div style="margin-top:2px">${heading}: ${items.join(" ")}</div>`;
   }
 
   function pinTip(event, key) {
@@ -268,7 +278,7 @@ export function showOriginsPopup(series, options = {}) {
     pinned = true;
     tip.classList.add("wbe-chart-tip-pinned");
     tip.style.pointerEvents = "auto";
-    tip.innerHTML = `<b>${escapeText(key)}</b><div>${overall} ${overall === 1 ? "ancestor" : "ancestors"}</div>${spellingsHtml(key)}${otherNamesHtml(gen, key, true)}${peopleHtml(gen, key, true)}
+    tip.innerHTML = `<b>${escapeText(key)}</b><div>${overall} ${overall === 1 ? "ancestor" : "ancestors"}</div>${spellingsHtml(key, true)}${otherNamesHtml(gen, key, true)}${peopleHtml(gen, key, true)}
       ${series.variants?.[key] && options.onRegroup ? `<button type="button" class="small" data-act="ungroup" data-key="${escapeText(key)}" title="Count each spelling on its own in all your charts" style="margin-top:6px">Ungroup</button>${series.variants[key]
               .slice(1)
               .map(([name]) => ` <button type="button" class="small" data-act="main" data-name="${escapeText(name)}" title="Show this surname as ${escapeText(name)} in all your charts">Show as ${escapeText(name)}</button>`)
@@ -278,6 +288,21 @@ export function showOriginsPopup(series, options = {}) {
     tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 290)}px`;
     tip.style.top = `${Math.max(4, Math.min(event.clientY - rect.top + 14, rect.height * 0.3))}px`;
     tip.style.opacity = 1;
+  }
+
+  // The card for a band picked in the key: beside the band where it's thickest.
+  function pinTipAtBand(key) {
+    const layer = drawn?.layers.find((candidate) => candidate.key === key);
+    if (!layer) return;
+    let best = layer[0];
+    layer.forEach((point) => {
+      if (point[1] - point[0] > best[1] - best[0]) best = point;
+    });
+    const matrix = svg.node().getScreenCTM();
+    if (!matrix) return;
+    const clientX = matrix.a * x(best.data.generation) + matrix.e;
+    const clientY = matrix.d * ((drawn.y(best[0]) + drawn.y(best[1])) / 2) + matrix.f;
+    pinTip({ clientX, clientY }, key);
   }
 
   function unpinTip() {
@@ -531,7 +556,7 @@ export function showOriginsPopup(series, options = {}) {
       const bottom = monotoneAt(columnX, layer.map((point) => drawn.y(point[0])), px);
       if (bottom - top > 0.5 && py >= top - 0.5 && py <= bottom + 0.5 && (!best || bottom - top > best.size)) best = { key: layer.key, size: bottom - top };
     });
-    return best?.key ?? fallback;
+    return best?.key ?? null;
   }
 
   function render({ reveal = true } = {}) {
@@ -547,10 +572,12 @@ export function showOriginsPopup(series, options = {}) {
       .attr("stroke-width", 0.6)
       .on("mousemove", function (event, layer) {
         if (pinned) return;
+        // (null: only the hairline of a band that's empty here, so nothing to describe)
         const key = bandUnder(event, layer.key);
         state.highlight = key;
         applyHighlight();
-        showTip(event, key);
+        if (key) showTip(event, key);
+        else hideTip();
       })
       .on("mouseleave", () => {
         if (pinned) return;
@@ -564,7 +591,8 @@ export function showOriginsPopup(series, options = {}) {
         const key = bandUnder(event, layer.key);
         state.highlight = key;
         applyHighlight();
-        pinTip(event, key);
+        if (key) pinTip(event, key);
+        else hideTip();
       });
     if (reveal) {
       paths.attr("d", shape);
@@ -590,7 +618,11 @@ export function showOriginsPopup(series, options = {}) {
     // (A surname for every band can mean dozens of entries: scroll rather than squeeze the chart.)
     legend.style.maxHeight = "92px";
     legend.style.overflowY = "auto";
-    keys.forEach((key) => {
+    const label = (key) => series.variants?.[key]?.[0]?.[0] || key;
+    const order = legendAlphabetical
+      ? [...keys].sort((a, b) => (a === OTHER) - (b === OTHER) || label(a).localeCompare(label(b), undefined, { sensitivity: "base" }))
+      : keys;
+    order.forEach((key) => {
       const count =
         key === OTHER
           ? series.totals.slice(keys.length - 1).reduce((sum, [, n]) => sum + n, 0)
@@ -627,6 +659,7 @@ export function showOriginsPopup(series, options = {}) {
         });
         span.addEventListener("click", (event) => {
           if (!event.shiftKey) return;
+          event.stopPropagation();
           if (state.picked && state.picked !== key) {
             mergeNames("surname", key, state.picked).then(() => options.onRegroup());
             return;
@@ -636,11 +669,27 @@ export function showOriginsPopup(series, options = {}) {
           if (state.picked) span.style.outline = "2px solid currentColor";
         });
       }
+      // A click shows the band's card, as clicking the band does (2026-10-16).
+      span.addEventListener("click", (event) => {
+        if (event.shiftKey) return;
+        if (pinned && state.highlight === key) {
+          unpinTip();
+          state.highlight = null;
+          applyHighlight();
+          return;
+        }
+        unpinTip();
+        state.highlight = key;
+        applyHighlight();
+        pinTipAtBand(key);
+      });
       span.addEventListener("mouseenter", () => {
+        if (pinned) return;
         state.highlight = key;
         applyHighlight();
       });
       span.addEventListener("mouseleave", () => {
+        if (pinned) return;
         state.highlight = null;
         applyHighlight();
       });
@@ -658,8 +707,14 @@ export function showOriginsPopup(series, options = {}) {
       state.mode = button.dataset.mode;
       render({ reveal: false });
     } else if (button.dataset.act === "replay") render({ reveal: true });
-    else if (button.dataset.act === "variants" && options.onGroupVariants) options.onGroupVariants(!series.grouped);
-    else if (button.dataset.act === "main" && options.onRegroup && button.dataset.name) setMainName("surname", button.dataset.name).then(() => options.onRegroup());
+    else if (button.dataset.act === "sort") {
+      legendAlphabetical = !legendAlphabetical;
+      button.setAttribute("aria-checked", String(legendAlphabetical));
+      drawFooter();
+    } else if (button.dataset.act === "variants" && options.onGroupVariants) options.onGroupVariants(!series.grouped);
+    else if (button.dataset.act === "takeout" && options.onRegroup && series.variants?.[button.dataset.key]) {
+      takeOutName("surname", button.dataset.name, series.variants[button.dataset.key].map(([name]) => name)).then(() => options.onRegroup());
+    } else if (button.dataset.act === "main" && options.onRegroup && button.dataset.name) setMainName("surname", button.dataset.name).then(() => options.onRegroup());
     else if (button.dataset.act === "ungroup" && options.onRegroup && series.variants?.[button.dataset.key]) {
       ungroupNames("surname", series.variants[button.dataset.key].map(([name]) => name)).then(() => options.onRegroup());
     }

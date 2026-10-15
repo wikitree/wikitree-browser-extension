@@ -154,6 +154,21 @@ export async function ungroupNames(kind, names) {
 }
 
 /**
+ * Take one spelling out of the group it's shown in (the × in a chart's card, 2026-10-16): drops your merges of it,
+ * then splits it from its study or accent group if it's still with any of the others.
+ */
+export async function takeOutName(kind, name, others = []) {
+  const entry = custom[kind];
+  const lower = lowerName(name);
+  entry.merges = entry.merges.filter(([a, b]) => a !== foldName(name) && b !== foldName(name));
+  entry.mains = entry.mains.filter((main) => main !== lower);
+  const keyOf = nameKeyFor(kind);
+  const stillGrouped = others.some((other) => lowerName(other) !== lower && keyOf(other) === keyOf(name));
+  if (stillGrouped && !entry.splits.includes(lower)) entry.splits.push(lower);
+  await saveCustom();
+}
+
+/**
  * names: every name as found (repeats count). Returns {labelOf(name), spellings}: labelOf
  * gives the group's commonest spelling (or the one you chose, when kind is given); spellings
  * maps that label to [[spelling, count]], the label first, then commonest first, for the
@@ -239,7 +254,8 @@ export function parseNameGroupingPrompt(prompt) {
       const names = re === MERGE_PATTERNS[2] ? [a, match[3]] : [a, b];
       const kind = kindOf(re === MERGE_PATTERNS[2] ? b : kindWord);
       const cleaned = names.filter(Boolean).map((name) => name.trim());
-      if (action === "merge" && (cleaned.length !== 2 || foldName(cleaned[0]) === foldName(cleaned[1]))) return null;
+      // (Spellings that differ only by accents are allowed: that's how you join one back after taking it out.)
+      if (action === "merge" && (cleaned.length !== 2 || cleaned[0].toLowerCase() === cleaned[1].toLowerCase())) return null;
       // Names look like names ("count births as deaths" isn't one), unless the prompt says "name".
       const nameLike = (name) => /^\p{Lu}/u.test(name) || /^(?:(?:van|von|de|du|da|di|le|la|der|den|ter|ten)\s+)+\p{Lu}/u.test(name);
       if (!/name/i.test(text) && !cleaned.every(nameLike)) return null;
