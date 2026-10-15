@@ -101,7 +101,6 @@ export function showOriginsPopup(series, options = {}) {
   // kind "surname": the surname river (keys are surnames at birth, not countries).
   const surnames = options.kind === "surname";
   const OTHER = series.otherKey || OTHER_COUNTRIES;
-  const withWord = surnames ? "with a surname recorded" : `with a ${placeWord}place`;
   const withoutWord = surnames ? "have no surname recorded" : `have no ${placeWord}place`;
   const state = { mode: "stream", highlight: null, picked: null };
   // Oldest generation on the left, so the stream flows towards the present.
@@ -215,9 +214,11 @@ export function showOriginsPopup(series, options = {}) {
     return { layers, y, shape };
   }
 
-  function nearestGeneration(px) {
-    let best = generations[0];
-    generations.forEach((gen) => {
+  function nearestGeneration(px, key = null) {
+    const inBand = key ? generations.filter((gen) => gen.counts[key]) : [];
+    const candidates = inBand.length ? inBand : generations;
+    let best = candidates[0];
+    candidates.forEach((gen) => {
       if (Math.abs(x(gen.generation) - px) < Math.abs(x(best.generation) - px)) best = gen;
     });
     return best;
@@ -290,7 +291,9 @@ export function showOriginsPopup(series, options = {}) {
   function showTip(event, key) {
     if (pinned) return;
     const [px] = pointer(event, svg.node());
-    const gen = nearestGeneration(px);
+    // A band tapers to nothing between generations, so pointing at its thin end would describe a generation it
+    // isn't in ("0 of 4"): use the nearest generation it is in.
+    const gen = nearestGeneration(px, key);
     const count = gen.counts[key] || 0;
     const percent = gen.total ? Math.round((count / gen.total) * 100) : 0;
     const overall = series.totals.find(([country]) => country === key)?.[1];
@@ -298,11 +301,11 @@ export function showOriginsPopup(series, options = {}) {
     tip.innerHTML = `<div class="wbe-chart-tip-rel">${escapeText(gen.name)}${gen.meanYear ? ` · born about ${gen.meanYear}` : ""}</div>
       <b>${escapeText(key)}</b>
       ${spellingsHtml(key)}
-      <div>${count} of ${gen.total} ${withWord} (${percent}%)</div>
+      <div>${count} of ${gen.total} ${escapeText(gen.name.toLowerCase())} (${percent}%)</div>
       ${gen.unknown ? `<div style="opacity:.75">${gen.unknown} more ${withoutWord}</div>` : ""}
       ${otherNamesHtml(gen, key, false)}
       ${peopleHtml(gen, key, false)}
-      <div class="wbe-chart-tip-hint">All generations: ${overallCount}</div>`;
+      <div class="wbe-chart-tip-hint">${overallCount} ${overallCount === 1 ? "ancestor" : "ancestors"} in all generations</div>`;
     const rect = stage.getBoundingClientRect();
     tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 290)}px`;
     tip.style.top = `${Math.min(event.clientY - rect.top + 14, rect.height - 120)}px`;
@@ -516,8 +519,24 @@ export function showOriginsPopup(series, options = {}) {
       .text("Average birth year of each generation (oldest on the left)");
   }
 
+  // Bands that are empty in a generation still draw a hairline there (their outline), and the pointer can land on
+  // one of those: the band really under the pointer is the one whose drawn edges are either side of it.
+  let drawn = null;
+  function bandUnder(event, fallback) {
+    if (!drawn) return fallback;
+    const [px, py] = pointer(event, svg.node());
+    let best = null;
+    drawn.layers.forEach((layer) => {
+      const top = monotoneAt(columnX, layer.map((point) => drawn.y(point[1])), px);
+      const bottom = monotoneAt(columnX, layer.map((point) => drawn.y(point[0])), px);
+      if (bottom - top > 0.5 && py >= top - 0.5 && py <= bottom + 0.5 && (!best || bottom - top > best.size)) best = { key: layer.key, size: bottom - top };
+    });
+    return best?.key ?? fallback;
+  }
+
   function render({ reveal = true } = {}) {
     const { layers, y, shape } = layout();
+    drawn = { layers, y };
     const paths = bandsLayer
       .selectAll("path")
       .data(layers, (layer) => layer.key)
@@ -528,9 +547,10 @@ export function showOriginsPopup(series, options = {}) {
       .attr("stroke-width", 0.6)
       .on("mousemove", function (event, layer) {
         if (pinned) return;
-        state.highlight = layer.key;
+        const key = bandUnder(event, layer.key);
+        state.highlight = key;
         applyHighlight();
-        showTip(event, layer.key);
+        showTip(event, key);
       })
       .on("mouseleave", () => {
         if (pinned) return;
@@ -541,9 +561,10 @@ export function showOriginsPopup(series, options = {}) {
       .on("click", (event, layer) => {
         event.stopPropagation();
         pinned = false;
-        state.highlight = layer.key;
+        const key = bandUnder(event, layer.key);
+        state.highlight = key;
         applyHighlight();
-        pinTip(event, layer.key);
+        pinTip(event, key);
       });
     if (reveal) {
       paths.attr("d", shape);
