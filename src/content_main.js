@@ -147,6 +147,7 @@ import "./features/auto_bio/auto_bio";
 import "./features/custom_change_summary_options/custom_change_summary_options";
 import "./features/date_fixer/date_fixer";
 import "./features/family_status_sync/family_status_sync";
+import "./features/find_and_replace/find_and_replace";
 import "./features/language_setting/language_setting";
 import "./features/locationsHelper/locationsHelper";
 import "./features/make_radio_buttons_deselectable/make_radio_buttons_deselectable";

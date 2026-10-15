@@ -3,6 +3,7 @@ Created By: Aleš Trtnik (Trtnik-2)
 */
 import { wtPlus } from "../../features/wtPlus/wtPlus";
 import { createWikitableWizard } from "../../features/wikitable_wizard/wikitable_wizard_loader";
+import { openFindAndReplace } from "../../features/find_and_replace/find_and_replace_loader";
 import { editToolbarApp, editToolbarWiki } from "./editToolbar";
 
 async function generateBio(params) {
@@ -186,6 +187,13 @@ export default [
         hint: "Create and/or edit wikitables",
         title: "Wikitable Wizard",
         call: createWikitableWizard,
+        params: {},
+      },
+      {
+        featureid: "findAndReplace",
+        hint: "Find and replace text, with wildcards or regular expressions",
+        title: "Find and Replace",
+        call: openFindAndReplace,
         params: {},
       },
     ],

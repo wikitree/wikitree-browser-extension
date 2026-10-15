@@ -1,0 +1,304 @@
+/* Styles for findAndReplace feature */
+
+#findReplaceButton {
+  display: inline-block;
+  width: 27px !important;
+  height: 28px !important;
+  border: 1px solid grey;
+  position: relative;
+  border-radius: 3px;
+  background-color: #eee;
+  margin-left: 3px;
+  cursor: pointer;
+}
+
+#wbeFindReplace {
+  --fr-accent: #25422d;
+  --fr-line: #d5ddd5;
+  --fr-muted: #5b625c;
+  --fr-bg: white;
+  --fr-field: white;
+  --fr-button: #f3f5f3;
+  --fr-code: #eef1ee;
+  --fr-error: #b00020;
+
+  position: fixed;
+  top: 120px;
+  right: 24px;
+  z-index: 100000;
+  width: 31em;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 0 0.75em 0.6em;
+  border: 2px solid forestgreen;
+  border-radius: 0.6em;
+  box-shadow: 0 0.4em 1.5em rgba(0, 0, 0, 0.25);
+  background: var(--fr-bg);
+  color: #222;
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: left;
+}
+
+#wbeFindReplace .wbe-fr-title {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  margin: 0 -0.75em 0.55em;
+  padding: 0.4em 0.5em 0.4em 0.75em;
+  border-bottom: 1px solid var(--fr-line);
+  font-weight: bold;
+  cursor: move;
+}
+
+#wbeFindReplace .wbe-fr-title span {
+  flex: 1;
+}
+
+#wbeFindReplace .wbe-fr-title button {
+  width: 1.7em;
+  height: 1.7em;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: 1em;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#wbeFindReplace .wbe-fr-title button:hover {
+  background: var(--fr-code);
+}
+
+#wbeFindReplace .wbe-fr-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  margin-bottom: 0.4em;
+}
+
+#wbeFindReplace input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0.3em 0.45em;
+  border: 1px solid #a7aea8;
+  border-radius: 4px;
+  background: var(--fr-field);
+  color: inherit;
+  font: 14px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+#wbeFindReplace input[type="text"]:focus {
+  outline: 2px solid forestgreen;
+  outline-offset: -1px;
+}
+
+#wbeFindReplace .wbe-fr-count {
+  min-width: 5.5em;
+  color: var(--fr-muted);
+  font-size: 0.9em;
+  text-align: right;
+  white-space: nowrap;
+}
+
+#wbeFindReplace .wbe-fr-count.wbe-fr-none {
+  color: var(--fr-error);
+}
+
+#wbeFindReplace .wbe-fr-row button,
+#wbeFindReplace .wbe-fr-undo {
+  margin: 0;
+  padding: 0.3em 0.6em;
+  border: 1px solid #a7aea8;
+  border-radius: 4px;
+  background: var(--fr-button);
+  color: inherit;
+  font-size: 0.9em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+#wbeFindReplace .wbe-fr-row button:hover:not(:disabled),
+#wbeFindReplace .wbe-fr-undo:hover {
+  border-color: var(--fr-accent);
+}
+
+#wbeFindReplace .wbe-fr-row button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+#wbeFindReplace .wbe-fr-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35em 1em;
+  font-size: 0.9em;
+}
+
+#wbeFindReplace .wbe-fr-options label {
+  margin: 0;
+  font-weight: normal;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+#wbeFindReplace .wbe-fr-modes {
+  display: inline-flex;
+  border: 1px solid #a7aea8;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#wbeFindReplace .wbe-fr-modes label {
+  position: relative;
+  padding: 0.2em 0.65em;
+}
+
+#wbeFindReplace .wbe-fr-modes label + label {
+  border-left: 1px solid #a7aea8;
+}
+
+/* The radio buttons are the segments themselves */
+#wbeFindReplace .wbe-fr-modes input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+#wbeFindReplace .wbe-fr-modes label:has(input:checked) {
+  background: var(--fr-accent);
+  color: white;
+}
+
+#wbeFindReplace .wbe-fr-modes label:has(input:focus-visible) {
+  outline: 2px solid forestgreen;
+  outline-offset: -2px;
+}
+
+#wbeFindReplace .wbe-fr-preview {
+  margin-top: 0.5em;
+  color: var(--fr-muted);
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+#wbeFindReplace .wbe-fr-preview:empty,
+#wbeFindReplace .wbe-fr-message:empty {
+  display: none;
+}
+
+#wbeFindReplace .wbe-fr-before,
+#wbeFindReplace .wbe-fr-after {
+  padding: 0 0.2em;
+  border-radius: 3px;
+  color: #222;
+}
+
+#wbeFindReplace .wbe-fr-before {
+  background: rgba(255, 140, 0, 0.3);
+}
+
+#wbeFindReplace .wbe-fr-after {
+  background: rgba(60, 170, 75, 0.25);
+}
+
+#wbeFindReplace .wbe-fr-message {
+  margin-top: 0.45em;
+  font-size: 0.9em;
+}
+
+#wbeFindReplace .wbe-fr-message.wbe-fr-error {
+  color: var(--fr-error);
+}
+
+#wbeFindReplace .wbe-fr-help {
+  max-height: 40vh;
+  margin-top: 0.55em;
+  padding-top: 0.2em;
+  border-top: 1px solid var(--fr-line);
+  overflow: auto;
+  font-size: 0.88em;
+}
+
+#wbeFindReplace .wbe-fr-help p {
+  margin: 0.45em 0;
+}
+
+#wbeFindReplace .wbe-fr-help table {
+  border-collapse: collapse;
+}
+
+#wbeFindReplace .wbe-fr-help td {
+  padding: 0.15em 0.5em 0.15em 0;
+  border: none;
+  vertical-align: top;
+}
+
+#wbeFindReplace .wbe-fr-help code {
+  padding: 0 0.25em;
+  border-radius: 3px;
+  background: var(--fr-code);
+  white-space: nowrap;
+}
+
+/* The matches in the enhanced editor (CodeMirror marks), over its own token colours */
+.CodeMirror span.wbe-fr-match {
+  background-color: rgba(255, 213, 0, 0.45) !important;
+}
+
+.CodeMirror span.wbe-fr-current {
+  background-color: rgba(255, 140, 0, 0.65) !important;
+  outline: 1px solid #c45a00;
+}
+
+/* The matches in the plain textarea: a copy of its text laid over it */
+.wbe-fr-layer {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.wbe-fr-mirror {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  border: 0;
+  color: transparent;
+}
+
+.wbe-fr-mirror mark {
+  margin: 0;
+  padding: 0;
+  border-radius: 2px;
+  background-color: rgba(255, 213, 0, 0.45);
+  color: transparent;
+}
+
+.wbe-fr-mirror mark.wbe-fr-current {
+  background-color: rgba(255, 140, 0, 0.65);
+  outline: 1px solid #c45a00;
+}
+
+body.darkMode #wbeFindReplace {
+  --fr-accent: #3f7a4f;
+  --fr-line: #444;
+  --fr-muted: #b5bdb6;
+  --fr-bg: #222;
+  --fr-field: #2d2d2d;
+  --fr-button: #333;
+  --fr-code: #383838;
+  --fr-error: #ff7b7b;
+  color: #eee;
+}
+
+body.darkMode #wbeFindReplace .wbe-fr-before,
+body.darkMode #wbeFindReplace .wbe-fr-after {
+  color: #eee;
+}

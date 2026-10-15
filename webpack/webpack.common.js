@@ -90,6 +90,11 @@ module.exports = (env) => ({
           to: "../core/cm_text.js",
           context: "src",
         },
+        {
+          from: "features/find_and_replace/find_and_replace_page.js",
+          to: "../features/find_and_replace/find_and_replace_page.js",
+          context: "src",
+        },
       ],
     }),
     new webpack.DefinePlugin({
