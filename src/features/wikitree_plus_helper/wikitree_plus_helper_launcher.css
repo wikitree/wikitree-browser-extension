@@ -1,0 +1,19 @@
+/* Launcher buttons for the WT+ Query Builder; the rest of its styles load with the panel */
+
+#wbe-wtplus-orqb-fab {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 999998;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  border: 2px solid #25422d;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+#wbe-wtplus-orqb-plus-button {
+  margin-bottom: 0.4em;
+}

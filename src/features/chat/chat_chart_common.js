@@ -6,6 +6,7 @@ import { color as d3color } from "d3-color";
 import { mainDomain } from "../../core/pageType";
 import { escapeText, fullName, personNameText, yearOf } from "./chat_text_utils";
 import { CHART_MENU_GROUPS, CHART_SHORTCUTS } from "./chat_chart_shortcuts";
+import { isTourRunning } from "./chat_tour_ui";
 
 export { escapeText, fullName, personNameText, yearOf };
 
@@ -65,7 +66,9 @@ function raisePopupNow(popup) {
 /**
  * Full screen for a chart popup: it fills the window (which always works), and asks the
  * browser for real full screen too (which some pages and frames refuse). Esc or the
- * button again leaves either.
+ * button again leaves either. Genie's tour only fills the window: real full screen would take
+ * over the viewer's screen unasked (Chrome lets the extension do it without a click), and Esc
+ * would then be the browser's, not the tour's.
  */
 export function toggleChartFullScreen(popup) {
   const leave = () => {
@@ -88,6 +91,7 @@ export function toggleChartFullScreen(popup) {
   popup._wbeLeaveFullScreen = leave;
   document.addEventListener("keydown", onKey, true);
   document.addEventListener("fullscreenchange", onChange);
+  if (isTourRunning()) return;
   try {
     popup.requestFullscreen?.()?.catch(() => {});
   } catch (error) {

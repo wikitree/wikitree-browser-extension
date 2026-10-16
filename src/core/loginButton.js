@@ -59,6 +59,15 @@ function goToAppsLogin(appId, returnURL = currentHrefWithoutAuthcode()) {
 }
 
 /**
+ * Off to api.wikitree.com to log out of the apps server (its session data there is removed), coming back to
+ * returnURL (by default this page). WikiTree itself stays signed in. See the API's authentication.md (doLogout=1).
+ */
+export function goToAppsLogout(returnURL = currentHrefWithoutAuthcode()) {
+  WikiTreeAPI.clearCachedApiLoginStatus(getUserNumId());
+  window.location = `https://api.wikitree.com/api.php?action=clientLogin&doLogout=1&returnURL=${returnURL}`;
+}
+
+/**
  * A working Apps Login pill to put anywhere, such as in a Chat message, for when the one on the page is out of sight
  * or not there at all. It has no id, so there can be more than one.
  * @param {string} appId - The application ID to use in the call to the WikiTree Apps server.

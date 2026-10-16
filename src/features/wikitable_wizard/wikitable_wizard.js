@@ -3,8 +3,6 @@ import "jquery-ui/ui/widgets/draggable";
 import "jquery-ui/ui/widgets/sortable";
 import "jquery-ui/ui/widgets/droppable";
 import "./wikitable_wizard.css";
-import * as XLSX from "xlsx";
-import JSZip from "jszip";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { analyzeColumns } from "../auto_bio/columnAnalysisUtils";
 import { stateInfo } from "./us_states.js"; // Import the state information
@@ -725,7 +723,7 @@ function handleFile(file) {
 
     // Handle different file types
     if (fileName.endsWith(".xlsx")) {
-      processXlsxFile(fileData); // XLSX handler
+      processXlsxFile(fileData).catch((err) => console.error("Error reading XLSX file:", err)); // XLSX handler
     } else if (fileName.endsWith(".ods")) {
       processOdsFile(fileData); // ODS handler
     } else if (fileName.endsWith(".csv") || fileName.endsWith(".txt")) {
@@ -750,9 +748,19 @@ function processCsvOrTxtFile(fileData) {
   renderTableFromData(parsedData); // Render the parsed data into your table
 }
 
+// xlsx and jszip are big, so they load only when a spreadsheet is opened (the "sheets" cache group in webpack.common.js)
+function loadXlsx() {
+  return import("xlsx");
+}
+
+function loadJSZip() {
+  return import("jszip").then((module) => module.default);
+}
+
 // XLSX handler
-function processXlsxFile(fileData) {
+async function processXlsxFile(fileData) {
   // Use xlsx.js to process XLSX and pass data to renderTableFromData
+  const XLSX = await loadXlsx();
   const workbook = XLSX.read(fileData, { type: "array" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const parsedData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
@@ -761,9 +769,8 @@ function processXlsxFile(fileData) {
 }
 
 function processOdsFile(fileData) {
-  const zip = new JSZip();
-  zip
-    .loadAsync(fileData)
+  loadJSZip()
+    .then((JSZip) => new JSZip().loadAsync(fileData))
     .then(function (zip) {
       zip
         .file("content.xml")
@@ -2101,8 +2108,10 @@ function includesAtLeastN(arr1, arr2, n) {
   return commonElements.length >= n;
 }
 
+// Only the wizard's own handler is removed: a bare .off("contextmenu") would also drop other features' handlers
+// (My Menu's Random Profile one, for example).
 $(document)
-  .off("contextmenu")
+  .off("contextmenu", "#wikitableWizardTable td input[type=text]")
   .on("contextmenu", "#wikitableWizardTable td input[type=text]", function (e) {
     e.preventDefault();
 

@@ -6,7 +6,7 @@ import { countries } from "./countries.js";
 import { needsCategories } from "./needs.js";
 import { occupationCategories } from "./occupations.js";
 import { unsourcedCategories } from "./unsourced_categories.js";
-import { firstNameVariants } from "./first_name_variants.js";
+import { firstNameVariants, loadFirstNameVariants } from "./first_name_variants_loader.js";
 import { ageAtDeath, familyArray, hasDiedYoungSticker, isOK } from "../../core/common";
 import { addLoginButton } from "../../core/loginButton";
 import { titleCase } from "../familyTimeline/familyTimeline";
@@ -81,7 +81,7 @@ import {
 } from "./nameUtils.js";
 import { sortPeopleByBirthDate } from "./peopleSortUtils.js";
 import { findBestMatch, searchName, topOfLineOnlyCondition } from "./onsUtils.js";
-import { addAutoBioUI, addErrorMessage, checkForAutoBioMarker, migrateAutoBioAiModelOptions } from "./autoBioUI.js";
+import { addAutoBioUI, addErrorMessage, migrateAutoBioAiModelOptions } from "./autoBioUI.js";
 import { WBE_AUTO_BIO_APP_ID } from "./autoBioConstants.js";
 import { buildFamilyForPrivateProfiles, getBiographySpouseParents } from "./privateFamilyUtils.js";
 import {
@@ -5532,6 +5532,7 @@ export async function generateBio() {
   window.autoBio_originalBio = getBioText(); // Capture original text before any changes
   window.autoBio_originalFields = captureAutoBioFormState();
   await loadUSStates();
+  await loadFirstNameVariants();
   templatesObject = await getTemplates();
 
   try {
@@ -6715,15 +6716,6 @@ $(function () {
   window.autoBio_cachedBaseBio = null;
 });
 
-// Initialize on load and on input/blur
-$(function () {
-  if ($("#wpTextbox1").length) {
-    setTimeout(() => {
-      checkForAutoBioMarker();
-    }, 3000); // Delay to ensure the textarea is ready
-  }
-});
-
 // Re-export utility functions for backwards compatibility
 export {
   convertDate,
@@ -6743,6 +6735,8 @@ export { capitalizeFirstLetter } from "./textUtils.js";
 export { assignPersonNames, setOrderBirthDate } from "./auto_bio_person.js";
 // Find a Grave citation utilities removed from exports
 export { WBE_AUTO_BIO_APP_ID } from "./autoBioConstants.js";
+// (auto_bio_bootstrap.js runs the marker check on edit pages)
+export { checkForAutoBioMarker } from "./autoBioUI.js";
 export { buildFamilyForPrivateProfiles, getBiographySpouseParents } from "./privateFamilyUtils.js";
 export { getLocationCategoriesForSourcePlaces, getLocationCategory } from "./locationCategoryUtils.js";
 export { getNameVariants } from "./familyMatchUtils.js";

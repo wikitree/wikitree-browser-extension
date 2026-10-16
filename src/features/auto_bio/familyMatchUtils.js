@@ -5,7 +5,7 @@
 import { parseCensusWikitable } from "./censusTableUtils.js";
 import { parseFamilyDataLines } from "./columnAnalysisUtils.js";
 import { getAgeAtCensus, isWithinX } from "./dateUtils.js";
-import { firstNameVariants } from "./first_name_variants.js";
+import { firstNameVariants } from "./first_name_variants_loader.js";
 import { getNameVariantsAll, getSimilarity, isSameName, withoutGenerationalSuffix } from "./nameUtils.js";
 
 export function isObject(thing) {

@@ -12,7 +12,7 @@ import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { createProfileSearchHandler } from "./chat_profile_search";
 import { ChatIntent, routeChatPrompt } from "./chat_router";
 import { classifyWtPrompt } from "./chat_search_mode";
-import { NO_AI_EXAMPLE_SECTIONS, allNoAiExamples, isHelpPrompt, noAiExamplesHtml, noAiExamplesWikiText } from "./chat_no_ai_examples";
+import { NO_AI_EXAMPLE_SECTIONS, allNoAiExamples, isAppsSignOutPrompt, isHelpPrompt, noAiExamplesHtml, noAiExamplesWikiText } from "./chat_no_ai_examples";
 import { parseSearchSpecPrompt } from "./chat_spec_parser";
 import { parseColumnRequest } from "./chat_requested_columns";
 import { parseExportResultPrompt } from "./chat_router";
@@ -86,7 +86,7 @@ const WTPLUS_QUERIES = {
   "Who was born in Devon in 1820?": "BirthLocation=Devon B1820",
   "Who else died in Motueka in 1898?": "DeathLocation=Motueka D1898",
   "How many profiles have the surname Alley?": "AllLastNames=Alley",
-  "How many people were born in Kent in 1820?": "BirthLocation=Kent B1820",
+  "How many people were born in Rutland in 1820?": "BirthLocation=Rutland B1820",
   "people with the surname Alley born in Nelson": "AllLastNames=Alley BirthLocation=Nelson",
   "How many profiles have I created?": "Created=Creator_User-1",
   "profiles I created in 2023": "Created=Created_2023 Created=Creator_User-1",
@@ -238,4 +238,11 @@ test.each(["help", "Help", "?", "What can I type?", "what can I ask here", "what
 });
 test.each(["Help profiles", "profiles with last name Help", "Help-1", "help me find my grandfather", "Help:WikiTree_Plus", "what can I do about brick walls?"])("not a help prompt: %s", (prompt) => {
   expect(isHelpPrompt(prompt)).toBe(false);
+});
+
+test.each(["Sign out of Apps", "sign out of the apps server", "Log out of WikiTree Apps.", "logout of apps", "sign off apps please", "Log out from the Apps login"])("apps sign-out prompt: %s", (prompt) => {
+  expect(isAppsSignOutPrompt(prompt)).toBe(true);
+});
+test.each(["Sign out", "sign out of WikiTree", "apps", "how do I sign out of apps?", "Who signed out of apps"])("not an apps sign-out prompt: %s", (prompt) => {
+  expect(isAppsSignOutPrompt(prompt)).toBe(false);
 });

@@ -14,7 +14,7 @@ import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 
-const CryptoJS = require("crypto-js");
+const MD5 = require("crypto-js/md5");
 
 const ONE_HOUR = 60 * 60 * 1000; // ms
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
@@ -384,7 +384,7 @@ function getFullWatchlist() {
     return ids;
   }
   const ewd = localStorage.getItem(WATCHLIST_DATA) || JSON.stringify([]);
-  md5AtLoad = CryptoJS.MD5(ewd).toString();
+  md5AtLoad = MD5(ewd).toString();
   ewData = JSON.parse(ewd);
   loadedEwDataVersion = newVersion;
   if (DEBUG_LOGGING) console.log(`Loaded ewData: v:${loadedEwDataVersion}, count=${ids.length}, size=${ewd.length}`);
@@ -426,7 +426,7 @@ function saveWatchList(ids) {
     ewData = [];
   }
   const jsonData = JSON.stringify(ewData);
-  const newMd5 = CryptoJS.MD5(jsonData).toString();
+  const newMd5 = MD5(jsonData).toString();
   if (newMd5 === md5AtLoad && idString == dataIdsString) {
     // No changes, so no need to change anything
     if (DEBUG_LOGGING) console.log("No need to save");

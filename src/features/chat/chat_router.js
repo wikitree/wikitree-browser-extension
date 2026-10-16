@@ -1298,9 +1298,11 @@ export function parseAgeAtDeathSuffix(text) {
 }
 
 function parseAncestorListPrompt(prompt) {
+  // "…, and where were they born?": the list has each one's birth date and place (AI tour, 2026-10-16)
   const normalized = String(prompt || "")
     .trim()
     .replace(/[.!?]+$/g, "")
+    .replace(/,?\s+and\s+(?:where|when)\s+were\s+they\s+born$/i, "")
     .trim();
   const defaultAncestorGeneration = DEFAULT_ANCESTOR_GENERATIONS;
 
@@ -1541,12 +1543,15 @@ function parseAncestorListPrompt(prompt) {
   }
 
   // N1 (live, 2026-10-03): "who were her great-grandparents?" went to WT+ and was declined.
-  if (
-    !/(?:\blist\b|\bwho\s+are\b|\bshow\b)/i.test(normalized) &&
-    !/^\s*(?:who\s+were\s+)?(?:my|his|her|their)\s+(?:\d+(?:st|nd|rd|th)?\s+|\d+\s*x\s*)?(?:great\s*-?\s*)+grand\s*-?\s*parents\??\s*$/i.test(normalized)
-  ) {
+  // So did "who were Johannes's great-grandparents?" (a name or ID, with AI on: AI tour, 2026-10-16).
+  const greatGrandparentsOf = normalized.match(
+    /^\s*(?:who\s+were\s+)?(?:my|his|her|their|(\p{Lu}[\p{L}\p{M}.-]*(?:\s+\p{Lu}[\p{L}\p{M}.-]*){0,3}|[\p{L}][\p{L}\p{M}'_ -]*-\d+)['’]s)\s+(?:\d+(?:st|nd|rd|th)?\s+|\d+\s*x\s*)?(?:great\s*-?\s*)+grand\s*-?\s*parents\??\s*$/iu
+  );
+  if (!/(?:\blist\b|\bwho\s+are\b|\bshow\b)/i.test(normalized) && !greatGrandparentsOf) {
     return null;
   }
+  // (whose, for the handler: the name alone, as the prompt can go on "…, and where were they born")
+  const named = greatGrandparentsOf?.[1] ? { subjectText: `${greatGrandparentsOf[1]}'s ancestors` } : {};
   if (!/(?:grand\s*-?\s*parents?|g\s*grand\s*-?\s*parents?|great\s*-?\s*grand\s*-?\s*parents?)/i.test(normalized)) {
     return null;
   }
@@ -1558,6 +1563,7 @@ function parseAncestorListPrompt(prompt) {
       return {
         generation: greatCount + 2,
         relationshipLabel: `${ordinal(greatCount)} great-grandparents`,
+        ...named,
       };
     }
   }
@@ -1569,6 +1575,7 @@ function parseAncestorListPrompt(prompt) {
       return {
         generation: greatCount + 2,
         relationshipLabel: `${greatCount}x great-grandparents`,
+        ...named,
       };
     }
   }
@@ -1580,6 +1587,7 @@ function parseAncestorListPrompt(prompt) {
     return {
       generation: greats + 2,
       relationshipLabel: greats === 1 ? "great-grandparents" : `${greats}x great-grandparents`,
+      ...named,
     };
   }
 

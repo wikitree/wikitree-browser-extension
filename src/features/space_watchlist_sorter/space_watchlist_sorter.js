@@ -11,7 +11,7 @@ import { getUserWtId, getUserNumId, setHighestZIndex } from "../../core/common";
 import { goAndLogIn } from "../randomProfile/randomProfile";
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 
-const CryptoJS = require("crypto-js");
+const MD5 = require("crypto-js/md5");
 
 const WBE_SS_APP_ID = "WBE_space_sorter";
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
@@ -496,7 +496,7 @@ async function saveWatchlistToDB(folders = []) {
 
 function md5Of(obj) {
   const str = JSON.stringify(obj);
-  return CryptoJS.MD5(str).toString();
+  return MD5(str).toString();
 }
 
 // Add Button listener to Page.

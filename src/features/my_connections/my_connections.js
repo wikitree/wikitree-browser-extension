@@ -16,7 +16,7 @@ import { addFiltersToWikitables } from "../table_filters/table_filters";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
-import { firstNameVariants } from "../auto_bio/first_name_variants.js";
+import { firstNameVariants, loadFirstNameVariants } from "../auto_bio/first_name_variants_loader.js";
 import { getNameVariantsAll } from "../auto_bio/nameUtils.js";
 
 const WBE_MYC_APP_ID = "WBE_my_connections";
@@ -2019,7 +2019,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     $("h2").eq(0).append(nameFilterButton);
   }
   if (firstTime == true) {
-    $("#nameFilter").on("click", function (e) {
+    $("#nameFilter").on("click", async function (e) {
       e.preventDefault();
       let LNAB;
       let firstName;
@@ -2038,8 +2038,14 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
           LNC = dPerson.attr("data-lnc");
           firstName = dPerson.attr("data-firstname");
         }
+        // No person to compare with (My Connections tables have no tr.main row)
+        if (!LNAB) {
+          return;
+        }
+        await loadFirstNameVariants().catch((error) => console.error("wbe: couldn't load first-name variants", error));
         let ofirstNames = [];
-        if (!window.excludeValues.includes(firstName)) {
+        // (window.excludeValues is set by Change Family Lists, which doesn't run on this page)
+        if (!["", null, "null", "unknown", "undefined", undefined].includes(firstName)) {
           ofirstNames = getNameVariantsAll(firstName, firstNameVariants);
         }
         const rows = aTable.find("tbody tr");
@@ -2049,7 +2055,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
           let smFirstName = $(this).attr("data-firstname");
           let filterOut = true;
           let c1 = false;
-          let smFirstNames = firstNameVariants(smFirstName);
+          let smFirstNames = getNameVariantsAll(smFirstName, firstNameVariants);
           smFirstNames.forEach(function (asmfn) {
             ofirstNames.forEach(function (afn) {
               if (asmfn.toLowerCase() == afn.toLowerCase()) {
@@ -2070,7 +2076,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
           }
 
           let c5 = smLNC == LNAB;
-          let c6 = smLNAB.toLowerCase() == "unknown";
+          let c6 = (smLNAB || "").toLowerCase() == "unknown";
           let c7 = LNAB.toLowerCase() == "unknown";
 
           if (c1 && (c2 || c3 || c4 || c5 || c6 || c7)) {

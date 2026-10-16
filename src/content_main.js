@@ -91,7 +91,7 @@ import "./features/akaNameLinks/akaNameLinks";
 import "./features/anniversaries_table/anniversaries_table";
 import "./features/categoryDisplay/categoryDisplay";
 import "./features/categoryFinderPins/categoryFinderPins";
-import "./features/change_family_lists/change_family_lists";
+import "./features/change_family_lists/change_family_lists_bootstrap";
 import "./features/chat/chat_bootstrap";
 import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/collapsible_descendants/collapsible_descendants";
@@ -108,7 +108,7 @@ import "./features/extra_watchlist/extra_watchlist";
 import "./features/family_dropdown/family_dropdown";
 import "./features/familyGroup/familyGroup";
 import "./features/familyTimeline/familyTimeline";
-import "./features/feed_helper/feed_helper";
+import "./features/feed_helper/feed_helper_bootstrap";
 import "./features/find_a_grave_memorial_extractor/find_a_grave_memorial_extractor";
 import "./features/find_matches_scores/find_matches_scores";
 import "./features/g2g/g2g";
@@ -138,12 +138,12 @@ import "./features/table_filters/table_filters";
 import "./features/unconnected_branch_table/unconnected_branch_table";
 import "./features/usability_tweaks/usability_tweaks";
 import "./features/watchlistFilter/watchlistFilter";
-import "./features/wikitree_plus_helper/wikitree_plus_helper";
+import "./features/wikitree_plus_helper/wikitree_plus_helper_launcher";
 import "./features/wills/wills";
 
 // Edit mode addons are towards the end
 import "./features/agc/agc_content";
-import "./features/auto_bio/auto_bio";
+import "./features/auto_bio/auto_bio_bootstrap";
 import "./features/custom_change_summary_options/custom_change_summary_options";
 import "./features/date_fixer/date_fixer";
 import "./features/family_status_sync/family_status_sync";
@@ -155,7 +155,7 @@ import "./features/migration_category_helper/migration_category_helper";
 import "./features/remove_from_watchlist/remove_from_watchlist";
 import "./features/save_buttons_style_options/save_buttons_style_options"; // Disabled for now
 import "./features/sticky_toolbar/sticky_toolbar";
-import "./features/wikitable_wizard/wikitable_wizard";
+import "./features/wikitable_wizard/wikitable_wizard_bootstrap";
 import "./features/wtPlus/wtPlus";
 
 // BioCheck needs to load later than custom_change_summary_options
@@ -178,9 +178,9 @@ import "./features/draftList/draftList";
 import "./features/edit_family_data/edit_family_data";
 import "./features/edit_profile_redesign/edit_profile_redesign";
 import "./features/editor_expander/editor_expander";
-import "./features/image_table/image_table";
+import "./features/image_table/image_table_bootstrap";
 import "./features/randomProfile/randomProfile";
-import "./features/space_watchlist_sorter/space_watchlist_sorter";
+import "./features/space_watchlist_sorter/space_watchlist_sorter_bootstrap";
 import "./features/text_expander/text_expander";
 import "./features/what_links_here/what_links_here";
 

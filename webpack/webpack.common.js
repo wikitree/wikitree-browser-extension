@@ -4,10 +4,20 @@ const CopyPlugin = require("copy-webpack-plugin");
 const WebExtension = require("webpack-target-webextension");
 const srcDir = path.join(__dirname, "..", "src");
 const buildInfo = { buildDate: new Date(Date.now()).toISOString() };
-// Chunks kept out of the vendor split so they stay self-contained.
-// The per-feature entries that used to appear here are now imported statically from
-// src/content.js, so those chunks are no longer emitted.
-const lazyFeatureChunks = new Set(["auto-categories", "family-lists", "muse-world"]);
+// Chunks kept out of the vendor split so they stay self-contained: the npm packages only they use go in the chunk,
+// not in the every-page vendor.js. The feature chunks are loaded by the *_bootstrap.js files that content_main.js
+// imports.
+const lazyFeatureChunks = new Set([
+  "auto-categories",
+  "family-lists",
+  "muse-world",
+  "auto-bio",
+  "feed-helper",
+  "wikitable-wizard",
+  "change-family-lists",
+  "image-table",
+  "space-watchlist-sorter",
+]);
 
 try {
   const gitOutput = require("child_process").execSync('git log -1 --pretty="%h %H"').toString();
@@ -51,6 +61,25 @@ module.exports = (env) => ({
           chunks: "async",
           priority: 20,
           enforce: true,
+        },
+        // xlsx and jszip (~590 KB) are loaded on demand by the Wikitable Wizard's spreadsheet import and by Genie.
+        // Without this group the vendor split would put them back into the every-page vendor.js.
+        sheets: {
+          test: /[\\/]node_modules[\\/](xlsx|jszip)[\\/]/,
+          name: "sheets",
+          chunks: "async",
+          priority: 20,
+          enforce: true,
+        },
+        // Code that only lazily loaded chunks share (Genie and the WT+ Query Builder both use the suggestions list,
+        // for example) goes into a shared lazy chunk instead of the every-page vendor.js.
+        lazyShared: {
+          chunks: "async",
+          minChunks: 2,
+          // Unnamed (numbered) chunks. `name: false` would fall back to the top-level "vendor" name.
+          name: () => undefined,
+          priority: -5,
+          reuseExistingChunk: true,
         },
       },
     },

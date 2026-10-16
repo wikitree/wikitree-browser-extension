@@ -10,6 +10,7 @@ import { isIansProfile } from "../../core/pageType";
 import { addWorking, getBioText, removeWorking, removeWorkingNote, setBioText, showWorkingNote } from "./editorUtils.js";
 import { listenForSlowAi } from "../../core/ai_slow_notice";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
+import { AUTO_BIO_MARKER } from "./autoBioConstants.js";
 
 // (Ollama on this computer can take minutes to improve a bio)
 listenForSlowAi({ show: showWorkingNote, hide: removeWorkingNote });
@@ -124,8 +125,6 @@ export function addErrorMessage() {
     $(".privateMessageLink")[0].click();
   }
 }
-
-export const AUTO_BIO_MARKER = "WikiTree Browser Extension Auto Bio";
 
 export function addAutoBioUI() {
   removeAutoBioUI(); // Clean up first

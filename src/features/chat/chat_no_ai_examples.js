@@ -19,7 +19,7 @@ export const NO_AI_EXAMPLE_SECTIONS = [
       { pattern: "Who was born / died in [place] in [year]?", examples: ["Who was born in Devon in 1820?", "Who else died in Motueka in 1898?"] },
       {
         pattern: "how many [search]?",
-        examples: ["How many profiles have the surname Alley?", "How many people were born in Kent in 1820?"],
+        examples: ["How many profiles have the surname Alley?", "How many people were born in Rutland in 1820?"],
         note: "The search runs and says how many profiles it found.",
       },
       { pattern: "born / died before or after [year] in [place]", examples: ["born before 1750 in Devon", "died after 1900 in Liverpool"] },
@@ -293,6 +293,11 @@ export function allNoAiExamples() {
 /** "help", "what can I type?", "what can Genie do?": open the examples panel. */
 export function isHelpPrompt(text) {
   return /^\s*(?:help|\?|what\s+can\s+i\s+(?:type|ask|say)(?:\s+here)?|what\s+can\s+(?:you|genie)\s+do)\s*[?.!]*\s*$/i.test(String(text || ""));
+}
+
+/** "Sign out of Apps", "log out of the apps server": leave the apps server (WikiTree itself stays signed in). */
+export function isAppsSignOutPrompt(text) {
+  return /^\s*(?:please\s+)?(?:sign|log)\s*(?:out|off)\s+(?:of\s+|from\s+)?(?:the\s+)?(?:wikitree\s+)?apps?(?:\s+server)?(?:\s+login)?\s*(?:please\s*)?[.!]*\s*$/i.test(String(text || ""));
 }
 
 /** The "What can I type?" panel inside Genie: a collapsible section per topic; examples are buttons. */

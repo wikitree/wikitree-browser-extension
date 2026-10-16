@@ -198,6 +198,20 @@ describe("N1 great-grandparents without list/show", () => {
   test("plain grandparents keep the relation route", () => {
     expect(routeChatPrompt("who were her grandparents?").intent).toBe(ChatIntent.RELATION_COUNT);
   });
+  // (AI tour, 2026-10-16: with AI on, these went to WT+ and were declined)
+  test.each([
+    ["Who were Johannes's great-grandparents?", 3, "Johannes's ancestors"],
+    ["Who were Johannes's great-grandparents, and where were they born?", 3, "Johannes's ancestors"],
+    ["who were Benadie-76's great great grandparents?", 4, "Benadie-76's ancestors"],
+    ["Who were John Smith's 2nd great-grandparents?", 4, "John Smith's ancestors"],
+  ])("%s: a name or ID", (prompt, generation, subjectText) => {
+    const routed = routeChatPrompt(prompt);
+    expect(routed.intent).toBe(ChatIntent.ANCESTOR_LIST);
+    expect(routed.params).toEqual(expect.objectContaining({ generation, subjectText }));
+  });
+  test("a pronoun has no subjectText (the handler finds the profile person)", () => {
+    expect(routeChatPrompt("who were her great-grandparents, and where were they born?").params.subjectText).toBeUndefined();
+  });
 });
 
 describe("O10 ancestors born/died in a place", () => {

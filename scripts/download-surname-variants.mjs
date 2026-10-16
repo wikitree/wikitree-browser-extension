@@ -56,11 +56,14 @@ function parseCsv(text) {
   return rows;
 }
 
+// Surname particles: "Van Vliet" and "De Bliere" are one name, not a list.
+const PARTICLES = new Set(["al", "da", "de", "del", "della", "der", "di", "du", "la", "le", "lo", "san", "st", "ten", "ter", "van", "vander", "von"]);
+
 // "Wiberg Wieberg Weberg" (spaces where commas were meant): every word capitalised and
-// starting with the same letter. "Deblois Gregoire" and "van Blois" stay whole.
+// starting with the same letter. "Deblois Gregoire", "van Blois" and "Van Vliet" stay whole.
 function splitSpacedList(piece) {
   const words = piece.split(/\s+/);
-  if (words.length < 2) return [piece];
+  if (words.length < 2 || PARTICLES.has(foldName(words[0]))) return [piece];
   const sameStart = words.every((word) => /^\p{Lu}/u.test(word) && foldName(word)[0] === foldName(words[0])[0]);
   return sameStart ? words : [piece];
 }

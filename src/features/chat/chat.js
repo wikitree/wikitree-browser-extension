@@ -70,14 +70,16 @@ import { createProfileSearchHandler } from "./chat_profile_search";
 import { createChatAiHelpers, isAiPaused, setAiPaused } from "./chat_ai";
 import { aiKeyHelpHtml } from "./chat_ai_key_help";
 import { dnaReferenceForAi } from "./chat_relationship_data";
-import { isHelpPrompt, noAiExamplesHtml } from "./chat_no_ai_examples";
+import { isAppsSignOutPrompt, isHelpPrompt, noAiExamplesHtml } from "./chat_no_ai_examples";
+import { SHOW_ME_AROUND, tourFor, TOURS, tourSubject } from "./chat_tour";
+import { startTour } from "./chat_tour_ui";
 import { createChatCcHandlers } from "./chat_cc";
 import { createLastResultOperationHandler } from "./chat_last_result";
 import { createChatRelationHandlers } from "./chat_relations";
 import { createChatPeopleHandlers } from "./chat_people";
 import { createChatBioHandlers } from "./chat_bio";
 import { createChatHistoryHandlers } from "./chat_history";
-import { createAppsLoginButton, redeemAuthcode } from "../../core/loginButton";
+import { createAppsLoginButton, goToAppsLogout, redeemAuthcode } from "../../core/loginButton";
 import { createChatAiPlannerHandlers } from "./chat_planner";
 import { mergeFollowupWithUnanswered } from "./chat_followup_merge";
 import {
@@ -3272,6 +3274,19 @@ async function sendChatPrompt() {
     showNoAiExamples();
     return;
   }
+  // "sign out of Apps": the apps server only (the header's "Sign out" does the same).
+  if (isAppsSignOutPrompt(rawPrompt)) {
+    $input.val("");
+    await signOutOfApps(rawPrompt);
+    return;
+  }
+  // "show me around" (or "show me around the Surname River"): Genie plays its own demo (chat_tour.js).
+  const tour = tourFor(rawPrompt);
+  if (tour) {
+    $input.val("");
+    showMeAround(tour);
+    return;
+  }
   // On the edit page, "what's missing?": the Gold Standard checklist on the unsaved form.
   if (isMissingCheckPrompt(rawPrompt, { onEditPage: isProfileEdit })) {
     $input.val("");
@@ -3873,6 +3888,16 @@ async function sendChatPrompt() {
         profileKey = pageRoot?.wtId || pageRoot?.key || null;
         if (profileKey) {
           pronounHintText = `Pronouns: "he", "she", "his", "her", "they" or "their", and "this profile/person/page", in the current request, when it names no one, mean the profile person ${profileKey} (shown below) unless the recent conversation names someone the pronoun fits. Don't ask which person is meant.`;
+        }
+      }
+      // 6) Names no one at all ("What big events would the family have lived through?"): the person Genie is
+      // about (the page's profile, or the one picked), with their dates and places. Without it the AI had only
+      // the page text and said it had no birth or death years (AI tour, 2026-10-16).
+      if (!profileKey) {
+        const pageRoot = getProfileSubjectRoot();
+        profileKey = pageRoot?.wtId || pageRoot?.key || null;
+        if (profileKey) {
+          pronounHintText = `The user is asking about ${profileKey} (shown below): a request that names no one, or says "the family", is about ${profileKey} and their family unless the recent conversation names someone else. If it is plainly about something else (a place, a term, WikiTree itself), answer that and ignore the profile.`;
         }
       }
       contextProfileKey = profileKey || "";
@@ -4691,8 +4716,29 @@ function renderAppsStatus(loggedOut) {
   } else {
     $status
       .attr("title", "Logged in to the apps server: answers include the private profiles you can see")
-      .append($("<span>").addClass("chat-apps-status-text").text("Apps ✓"));
+      .append(
+        $("<span>").addClass("chat-apps-status-text").text("Apps ✓"),
+        $("<button>")
+          .attr({ type: "button", title: "Log out of the apps server (you stay signed in to WikiTree)" })
+          .addClass("chat-apps-sign-out")
+          .text("Sign out")
+          .on("click", (event) => {
+            event.preventDefault();
+            goToAppsLogout();
+          })
+      );
   }
+}
+
+/** Typed "sign out of Apps": off to the API's logout and back here; or why there's nothing to sign out of. */
+async function signOutOfApps(prompt) {
+  appendMessage("user", prompt);
+  if (!getUserNumId() || (await isLoggedOutOfAppsServer())) {
+    appendMessage("assistant", "You're not logged in to the apps server, so there's nothing to sign out of.", { shouldPersist: false });
+    return;
+  }
+  appendMessage("assistant", "Signing you out of the apps server. You stay signed in to WikiTree.", { shouldPersist: false });
+  goToAppsLogout();
 }
 
 /**
@@ -5159,6 +5205,16 @@ function appendWelcomeChips() {
   // On a Space, Help, Project or Category page, questions about the page come first.
   const pageChips = profile ? [] : currentPageChipPrompts(getCurrentPageInfo(), { ai: aiAvailable !== false });
   const prompts = [...pageChips, ...welcomeChipPrompts(profileFirstName, { ai: aiAvailable !== false })];
+  // "Show me around" first, on its own (not one of the examples counted for "More…").
+  if (currentPickerPerson()) {
+    $("<button>")
+      .attr("type", "button")
+      .attr("title", "Genie shows you what it can do, step by step (Esc stops it)")
+      .addClass("chat-message-action chat-tour-chip")
+      .text(SHOW_ME_AROUND)
+      .on("click", () => showMeAround())
+      .appendTo($chips);
+  }
   prompts.forEach((prompt, index) => {
     $("<button>")
       .attr("type", "button")
@@ -5191,6 +5247,59 @@ function appendWelcomeChips() {
       .appendTo($chips);
   }
   $messages.append($chips);
+}
+
+// "Show me around" (2026-10-16): a demo about the person Genie is set to (chat_tour.js): the
+// profile, someone picked above the box, or you. It types each question, sends it and waits.
+// name: a tour in TOURS ("first", or a short one: "river", "explorer", "search", "edit", "ai", "picker").
+async function showMeAround(name = "first") {
+  const tour = TOURS[name] || TOURS.first;
+  if (tour.editPage && !isProfileEdit) {
+    appendMessage("assistant", "That tour is for a profile's edit page: open one (Edit, at the top of a profile), then ask again.", { shouldPersist: false });
+    return;
+  }
+  // (getChatAiConfig has no key while AI is switched off)
+  if (tour.ai && !(await getChatAiConfig())?.key) {
+    appendMessage(
+      "assistant",
+      aiSwitchedOff
+        ? "That tour shows what AI adds: switch AI on at the top, then ask again."
+        : 'That tour shows what AI adds, so it needs an AI API key. Without one, try "Show me around" or "Show me around searching".',
+      { shouldPersist: false, actions: aiSwitchedOff ? [] : needsAiKeyMessage().actions }
+    );
+    return;
+  }
+  const person = currentPickerPerson();
+  const subject = tourSubject(person, { onPageProfile: !chosenPerson && person?.note === "this profile" });
+  if (tour.person && !subject) {
+    appendMessage("assistant", "Open a profile (or sign in to WikiTree) and I'll show you around, with that family.", { shouldPersist: false });
+    return;
+  }
+  $(`#${CHAT_MESSAGES_ID}`).find(".chat-welcome-chips").remove();
+  // (the picker tour picks other people: whoever was chosen comes back after it)
+  const chosenBefore = chosenPerson;
+  void startTour({
+    steps: tour.steps(subject),
+    chatPopup: () => document.getElementById(CHAT_POPUP_ID),
+    input: () => document.getElementById(CHAT_INPUT_ID),
+    // (each question is new, unless the step is a follow-up to the one before)
+    send: (prompt, { followUp = false } = {}) => {
+      $(`input[name="wbe-chat-context"][value="${followUp ? "followup" : "new"}"]`).prop("checked", true);
+      $(`#${CHAT_INPUT_ID}`).val(prompt);
+      return sendChatPrompt();
+    },
+    lastAnswer: () => $(`#${CHAT_MESSAGES_ID} .chat-message-assistant .chat-message-body`).last().text(),
+    // (the end points at "What can I type?" among them, or "Change explanation" on the edit page)
+    welcome: () => {
+      appendEditChips();
+      appendWelcomeChips();
+    },
+    // ("Add siblings" waits for Enter to insert its list: not after the tour)
+    ended: () => {
+      pendingEditInsert = null;
+      if (chosenPerson !== chosenBefore) choosePickerPerson(chosenBefore ? { ...chosenBefore } : null);
+    },
+  });
 }
 
 function openPopup() {
@@ -5240,6 +5349,8 @@ function openPopup() {
       clearHistory();
       // ("profiles I manage with no sources" after Clear was added onto the cleared Devon search; live, 2026-10-10)
       profileSearchHandlers.resetLastExecutedWtPlusQuery?.();
+      // (on the edit page, its own buttons first, as when Genie opens there)
+      appendEditChips();
       appendWelcomeChips();
     });
     $popup.find(`#${CHAT_SEND_ID}`).on("click", sendChatPrompt);
