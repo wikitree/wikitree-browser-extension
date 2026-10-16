@@ -100,6 +100,15 @@ export function createFieldDefs(magicWordsList, buildSuggestionsOptions, getUser
       group: "Names",
     },
     { id: "FirstName", label: "FirstName", kind: "index", input: "text", placeholder: "e.g. John", group: "Names" },
+    // (WT+ news, 2026-08-30) LNAB without spaces and punctuation, open profiles only
+    {
+      id: "surname",
+      label: "surname (open profiles, no spaces)",
+      kind: "index",
+      input: "text",
+      placeholder: "e.g. OBRIAN or vanderheyden",
+      group: "Names",
+    },
 
     // Locations (simple index=value form)
     {

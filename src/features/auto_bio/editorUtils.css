@@ -1,5 +1,22 @@
 /* Centred on the viewport and fixed, so the tree stays in sight however far down the edit
 page is scrolled and however long the biography takes to build. */
+#autoBioWorkingNote {
+  position: fixed;
+  top: calc(50% + 52px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000000;
+  max-width: 320px;
+  padding: 8px 12px;
+  border: 2px solid forestgreen;
+  border-radius: 8px;
+  background: #fffbe6;
+  color: #222;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+
 #working.autoBioWorking {
   position: fixed;
   top: 50%;

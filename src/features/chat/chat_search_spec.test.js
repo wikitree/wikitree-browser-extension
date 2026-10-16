@@ -226,3 +226,57 @@ describe("creator", () => {
     expect(compileSearchSpec({ creator: "me" }).errors).toContain('bad creator: "me"');
   });
 });
+
+describe("WT+ news terms (2026-08-30, 2026-09-20)", () => {
+  test("contentRank: one rank, or one search per rank", () => {
+    expect(compileSearchSpec({ names: { anyLastName: "Whitten" }, contentRank: 1 }).query).toBe("AllLastNames=Whitten rank=1");
+    expect(compileSearchSpec({ names: { anyLastName: "Whitten" }, contentRank: { max: 2 } }).query).toBe(
+      "AllLastNames=Whitten rank=1 OR AllLastNames=Whitten rank=2"
+    );
+    expect(compileSearchSpec({ contentRank: 11 }).errors).toEqual(["bad contentRank: 11"]);
+    expect(compileSearchSpec({ contentRank: { max: 2 }, anyOf: [{ gender: "male" }] }).errors[0]).toMatch(/anyOf/);
+  });
+  test("NotableProfile and surnameKey", () => {
+    expect(compileSearchSpec({ places: [{ text: "Shropshire" }], flags: ["NotableProfile"] }).query).toBe("Location=Shropshire NotableProfile");
+    expect(compileSearchSpec({ names: { surnameKey: "OBRIAN" } }).query).toBe("surname=OBRIAN");
+  });
+});
+
+// WT video (2026-10-16): "descendants who are members of a Notables category" on a profile page
+// searched the viewer's descendants.
+test("the AI is told an unowned relation word means the viewed profile", () => {
+  const { buildSearchSpecInstructions } = require("./chat_search_spec");
+  const text = buildSearchSpecInstructions({ userWtId: "Maloney-2332", currentProfileWtId: "Olivier-123" });
+  expect(text).toMatch(/with no owner .* tree root "current"/);
+  expect(buildSearchSpecInstructions({ userWtId: "Maloney-2332" })).not.toMatch(/with no owner/);
+});
+
+// "relatives" = blood relatives within CC7 (2026-10-16; live: Darwin-15 908 of 7,759)
+describe("relativesOf", () => {
+  const { bloodRelativesTerm } = require("./chat_search_spec");
+  const chain = "WikiTreeID=Darwin-15 " + Array(7).fill("relation=addparents").join(" ") + " " + Array(7).fill("relation=addchildren").join(" ") + " CC7=Darwin-15";
+  test("the chain comes first, the filters after it", () => {
+    expect(bloodRelativesTerm("Darwin-15")).toBe(chain);
+    expect(
+      compileSearchSpec(
+        { tree: { relativesOf: "current" }, places: [{ text: "United States", event: "death" }], notPlaces: [{ text: "United States", event: "birth" }] },
+        { currentProfileWtId: "Darwin-15" }
+      ).query
+    ).toBe(`${chain} DeathLocation="United States" NOT BirthLocation="United States"`);
+    expect(compileSearchSpec({ tree: { relativesOf: "me" }, flags: ["Notables"] }, { userWtId: "Darwin-15" }).query).toBe(`${chain} Notables`);
+  });
+  test("an unknown root is an error", () => {
+    expect(compileSearchSpec({ tree: { relativesOf: "me" } }, {}).errors).toContain("unknown tree root: me");
+  });
+  test("Include in-laws: the chain becomes the whole CC7, filters kept", () => {
+    const { withInLawsQuery } = require("./chat_search_spec");
+    expect(withInLawsQuery(`${chain} Notables`)).toBe("CC7=Darwin-15 Notables");
+    expect(withInLawsQuery(`${chain.replace(/relation=/g, "Relation=")} BirthLocation=Kent`)).toBe("CC7=Darwin-15 BirthLocation=Kent");
+    expect(withInLawsQuery("CC7=Darwin-15 Notables")).toBeNull();
+  });
+  test("a name of the profile being viewed means them; another name is an error", () => {
+    const context = { currentProfileWtId: "Darwin-15", currentProfileName: "Charles Robert Darwin" };
+    expect(compileSearchSpec({ tree: { relativesOf: "Charles" } }, context).query).toBe(chain);
+    expect(compileSearchSpec({ tree: { relativesOf: "Fred" } }, context).errors).toContain("unknown tree root: Fred");
+  });
+});

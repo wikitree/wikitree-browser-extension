@@ -429,3 +429,54 @@ test("WikiTree (or WT) is never a name or a place", () => {
   expect(parseSearchSpecPrompt("Owner of WikiTree")).toBeNull();
   expect(parseSearchSpecPrompt("founder of WT")).toBeNull();
 });
+
+// WT+ news (2026-08-30, 2026-09-20): Content Rank 1-10 and NotableProfile
+describe("content rank and notable templates", () => {
+  const spec = (prompt) => parseSearchSpecPrompt(prompt)?.spec;
+  test("content rank", () => {
+    expect(spec("profiles with the surname Whitten content rank 1")).toEqual({ names: { anyLastName: "Whitten" }, contentRank: 1 });
+    expect(spec("Devon births with a content rank of 10")).toEqual({ places: [{ text: "Devon", event: "birth" }], contentRank: 10 });
+    expect(spec("Whitten born in Kent content rank below 4")).toEqual({
+      names: { anyLastName: "Whitten" },
+      places: [{ text: "Kent", event: "birth" }],
+      contentRank: { max: 3 },
+    });
+    expect(spec("surname Whitten with a low content rank")).toEqual({ names: { anyLastName: "Whitten" }, contentRank: { max: 3 } });
+    expect(parseSearchSpecPrompt("surname Whitten low content rank").understood).toBe("Whitten, low content rank (1–3)");
+    expect(spec("Devon births content rank below 1")).toBeUndefined();
+    // (a bare word and a status could be a place or a surname, as for "Whitten unsourced")
+    expect(spec("Whitten content rank 1")).toBeUndefined();
+  });
+  test("notable templates", () => {
+    expect(spec("Shropshire births with a notable template")).toEqual({
+      places: [{ text: "Shropshire", event: "birth" }],
+      flags: ["NotableProfile"],
+    });
+  });
+
+  // (WT video, 2026-10-16)
+  describe("relatives", () => {
+    test("the demo questions", () => {
+      expect(spec("Which of my relatives is a member of a notable category?")).toEqual({ tree: { relativesOf: "me" }, flags: ["Notables"] });
+      expect(spec("Which of Joseph's relatives emigrated to the USA?")).toEqual({
+        tree: { relativesOf: "Joseph" },
+        places: [{ text: "United States", event: "death" }],
+        notPlaces: [{ text: "United States", event: "birth" }],
+      });
+    });
+    test("no owner, or his/her, means the profile being viewed", () => {
+      expect(spec("relatives who died in Australia")).toEqual({ tree: { relativesOf: "current" }, places: [{ text: "Australia", event: "death" }] });
+      expect(spec("his relatives born in Kent").tree).toEqual({ relativesOf: "current" });
+      expect(spec("notable relatives")).toEqual({ tree: { relativesOf: "current" }, flags: ["Notables"] });
+    });
+    test("an ID owner", () => {
+      expect(spec("Darwin-15's relatives born in Kent").tree).toEqual({ relativesOf: "Darwin-15" });
+    });
+    test("the Notables Project is still a manager, not the flag", () => {
+      expect(spec("profiles managed by the Notables Project")).toEqual({ manager: "WikiTree-11" });
+    });
+    test("the label says who and what relatives means", () => {
+      expect(parseSearchSpecPrompt("my relatives born in Kent").understood).toMatch(/^your blood relatives \(within 7 degrees, not in-laws\)/);
+    });
+  });
+});

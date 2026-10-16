@@ -16,6 +16,8 @@
     "https://api.x.ai/*",
     "https://raw.githubusercontent.com/*"
   ],
+  "optional_host_permissions": ["https://ollama.com/*", "http://localhost/*", "http://127.0.0.1/*"],
+  "optional_permissions": ["declarativeNetRequestWithHostAccess"],
   "content_scripts": [
     {
       "matches": ["https://*.wikitree.com/*", "*://*.findagrave.com/*"],

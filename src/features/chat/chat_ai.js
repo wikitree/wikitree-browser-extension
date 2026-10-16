@@ -1,4 +1,4 @@
-import { SHARED_AI_DEFAULT_MODELS, effectiveAiProvider } from "../../core/options/shared_ai_options";
+import { aiConfigFor } from "../../core/options/shared_ai_options";
 import { plainMoreText } from "./chat_more_text";
 
 // "AI on / AI off" in Genie's header: with a key, AI off answers as if there
@@ -73,29 +73,8 @@ export function createChatAiHelpers({
   // { ignorePause: true } reads the real key (for showing the AI on/off button).
   async function getChatAiConfig({ ignorePause = false } = {}) {
     const options = (await getChatOptions?.()) || {};
-    const provider = effectiveAiProvider(options);
-    let key = "";
-    let model = options.aiModel || "";
-
     // (fallback models are the shared defaults, the same ones Auto Bio uses)
-    if (provider === "openai") {
-      key = options.openAIKey || "";
-      model = model || options.openAIModel || SHARED_AI_DEFAULT_MODELS.openai;
-    } else if (provider === "gemini") {
-      key = options.geminiKey || "";
-      model = model || options.geminiModel || SHARED_AI_DEFAULT_MODELS.gemini;
-    } else if (provider === "claude") {
-      key = options.claudeKey || "";
-      model = model || options.claudeModel || SHARED_AI_DEFAULT_MODELS.claude;
-    } else if (provider === "perplexity") {
-      key = options.perplexityKey || "";
-      model = model || options.perplexityModel || SHARED_AI_DEFAULT_MODELS.perplexity;
-    } else if (provider === "xai") {
-      key = options.xaiKey || "";
-      model = model || options.xaiModel || SHARED_AI_DEFAULT_MODELS.xai;
-    }
-
-    key = String(key).trim(); // a pasted key can carry a space or line break
+    const { provider, key, model } = aiConfigFor(options);
     if (!ignorePause && key && isAiPaused()) return { provider, key: "", model, paused: true };
     return { provider, key, model };
   }

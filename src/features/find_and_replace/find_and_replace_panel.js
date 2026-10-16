@@ -15,6 +15,21 @@ import "./find_and_replace.css";
 import { compileSearch, findMatches, replaceMatches, escapeRegExp, escapeWildcards, MAX_MATCHES } from "./find_and_replace_engine";
 import { connectEditor } from "./find_and_replace_editor";
 import { isMac } from "./find_and_replace_loader";
+import {
+  READY_MADE,
+  cleanSearch,
+  freeName,
+  hasSearch,
+  loadSavedSearches,
+  renamedSearch,
+  sameSearch,
+  sortedSearches,
+  storeSavedSearches,
+  withSearch,
+  withoutSearch,
+} from "./find_and_replace_saved";
+import { askGenie, canAskGenie } from "./find_and_replace_ai";
+import { listenForSlowAi } from "../../core/ai_slow_notice";
 
 const PREFS_KEY = "wbeFindAndReplace";
 const MOD_KEY = isMac ? "⌘" : "Ctrl";
@@ -27,6 +42,8 @@ let followEditor = true; // the panel keeps itself above the edit box until the 
 let placeFrame = 0;
 let resizeObserver = null;
 let observedBox = null;
+let suggestedName = null; // { name, find }: the name to save with, while Find still holds that search
+let renaming = null; // the saved search's name, while the Rename row is open
 
 const GAP = 6;
 const REVEAL_MARGIN = 40;
@@ -58,6 +75,10 @@ const HELP_HTML = `
     <code>^</code> and <code>$</code> match at the start and end of each line.
     In the replacement, <code>$1</code> (or <code>\\1</code>) puts back the first group, <code>$&amp;</code> the whole match,
     and <code>\\n</code> starts a new line.</p>
+  <p><b>Saved</b> keeps a search to use again (Save this search, then Rename if you like), and has ready-made
+    ones, such as for turning text from an AI chat into WikiTree markup.</p>
+  <p><b>Ask Genie</b> (when you've set an AI key for Genie) writes the search for you: say what you want
+    changed, then check the matches it finds before you replace them.</p>
   <p>Replacements can be undone with ${MOD_KEY}+Z in the edit box.</p>
 `;
 
@@ -82,8 +103,16 @@ function buildPanel() {
     <div id="wbeFindReplace" class="wbe-popup" role="dialog" aria-label="Find and Replace">
       <div class="wbe-fr-title">
         <span>Find and Replace</span>
+        <button type="button" class="wbe-fr-title-text wbe-fr-ask-button" title="Say what you want changed, and Genie writes the search" aria-expanded="false" hidden>Ask Genie</button>
+        <button type="button" class="wbe-fr-title-text wbe-fr-saved-button" title="Saved and ready-made searches" aria-expanded="false">Saved ▾</button>
         <button type="button" class="wbe-fr-help-button" title="How to search" aria-expanded="false">?</button>
         <button type="button" class="wbe-fr-close close-popup" title="Close (Esc)" aria-label="Close">×</button>
+      </div>
+      <div class="wbe-fr-menu" role="group" aria-label="Saved searches" hidden></div>
+      <div class="wbe-fr-row wbe-fr-ask-row" hidden>
+        <input type="text" class="wbe-fr-ask" placeholder="Say what to change, e.g. *text* to ''text''" aria-label="What should Genie's search change?" autocomplete="off">
+        <button type="button" class="wbe-fr-ask-go">Ask</button>
+        <img class="wbe-fr-ask-tree" src="${chrome.runtime.getURL("images/tree.gif")}" alt="" hidden>
       </div>
       <div class="wbe-fr-row">
         <input type="text" class="wbe-fr-find" placeholder="Find" aria-label="Find" spellcheck="false" autocomplete="off">
@@ -104,6 +133,12 @@ function buildPanel() {
         </span>
         <label><input type="checkbox" class="wbe-fr-case"> Match case</label>
         <label><input type="checkbox" class="wbe-fr-word"> Whole words</label>
+      </div>
+      <div class="wbe-fr-row wbe-fr-save-row" hidden>
+        <span class="wbe-fr-save-label" aria-hidden="true">Rename to</span>
+        <input type="text" class="wbe-fr-save-name" placeholder="Name for this search" aria-label="Name for this search" autocomplete="off">
+        <button type="button" class="wbe-fr-save-confirm">Save</button>
+        <button type="button" class="wbe-fr-save-cancel">Cancel</button>
       </div>
       <div class="wbe-fr-preview"></div>
       <div class="wbe-fr-message"></div>
@@ -139,6 +174,11 @@ function buildPanel() {
     help.prop("hidden", !help.prop("hidden"));
     $(this).attr("aria-expanded", String(!help.prop("hidden")));
   });
+  panel.find(".wbe-fr-ask-button").on("click", () => showAskRow(panel.find(".wbe-fr-ask-row").prop("hidden")));
+  panel.find(".wbe-fr-ask-go").on("click", runAsk);
+  panel.find(".wbe-fr-saved-button").on("click", () => (menuOpen() ? closeMenu() : openMenu()));
+  panel.find(".wbe-fr-save-confirm").on("click", confirmRename);
+  panel.find(".wbe-fr-save-cancel").on("click", hideSaveRow);
   panel.find(".wbe-fr-prev").on("click", () => step(-1));
   panel.find(".wbe-fr-next").on("click", () => step(1));
   panel.find(".wbe-fr-replace-one").on("click", replaceOne);
@@ -155,14 +195,26 @@ function buildPanel() {
   panel.find(".wbe-fr-replace").on("input", updateStatus);
 
   panel.on("keydown", (event) => {
+    const target = $(event.target);
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation(); // or the page's Esc handler closes the next popup too
-      close();
+      // The menu or the Rename row first, then the panel
+      if (menuOpen()) closeMenu({ focus: true });
+      else if (target.closest(".wbe-fr-save-row").length) hideSaveRow();
+      else close();
       return;
     }
-    if (event.key !== "Enter" || !$(event.target).is("input[type='text']")) return;
+    if (event.key !== "Enter" || !target.is("input[type='text']")) return;
     event.preventDefault();
+    if (target.is(".wbe-fr-save-name")) {
+      confirmRename();
+      return;
+    }
+    if (target.is(".wbe-fr-ask")) {
+      runAsk();
+      return;
+    }
     if (event.ctrlKey || event.metaKey) {
       replaceAll();
     } else if ($(event.target).is(".wbe-fr-replace") && !event.shiftKey) {
@@ -274,9 +326,13 @@ function options() {
 
 const replaceValue = () => panel.find(".wbe-fr-replace").val();
 
-function showMessage(text, { error = false, undo = false } = {}) {
+// action: { label, run } adds a button after the text
+function showMessage(text, { error = false, undo = false, action = null } = {}) {
   const message = panel.find(".wbe-fr-message");
   message.toggleClass("wbe-fr-error", error).text(text || "");
+  if (action) {
+    $("<button type='button' class='wbe-fr-action'>").text(action.label).on("click", action.run).appendTo(message);
+  }
   if (undo) {
     $("<button type='button' class='wbe-fr-undo'>Undo</button>")
       .on("click", () => {
@@ -428,9 +484,253 @@ function replaceAll() {
   showMessage(`Replaced ${count.toLocaleString()} ${count === 1 ? "match" : "matches"}${more} `, { undo: true });
 }
 
+/* Saved searches */
+
+const MODE_NAMES = { text: "Text", wildcards: "Wildcards", regex: "Regex" };
+
+function describeSearch(search) {
+  const extras = [search.matchCase && "match case", search.wholeWord && "whole words"].filter(Boolean);
+  return `${MODE_NAMES[search.mode]}${extras.length ? ` (${extras.join(", ")})` : ""}: ${search.find} → ${search.replace || "(nothing)"}`;
+}
+
+const menuOpen = () => Boolean(panel) && !panel.find(".wbe-fr-menu").prop("hidden");
+
+function onMouseDownOutsideMenu(event) {
+  if (!$(event.target).closest(".wbe-fr-menu, .wbe-fr-saved-button").length) closeMenu();
+}
+
+function closeMenu({ focus = false } = {}) {
+  if (!panel) return;
+  panel.find(".wbe-fr-menu").prop("hidden", true);
+  panel.find(".wbe-fr-saved-button").attr("aria-expanded", "false");
+  document.removeEventListener("mousedown", onMouseDownOutsideMenu, true);
+  if (focus) panel.find(".wbe-fr-saved-button").trigger("focus");
+}
+
+// The menu under the Saved button: Save this search, the user's own searches, and the ready-made ones
+async function openMenu() {
+  const saved = sortedSearches(await loadSavedSearches());
+  const menu = panel.find(".wbe-fr-menu").empty();
+  const loadButton = (search) =>
+    $("<button type='button' class='wbe-fr-menu-load'>")
+      .text(search.name)
+      .attr("title", describeSearch(search))
+      .on("click", () => {
+        closeMenu();
+        useSearch(search);
+      });
+
+  $("<button type='button' class='wbe-fr-menu-save'>Save this search</button>")
+    .prop("disabled", !options().find)
+    .attr("title", options().find ? "Keep what's in Find and Replace with, to use again" : "Fill in Find first")
+    .on("click", saveSearch)
+    .appendTo(menu);
+  menu.append("<div class='wbe-fr-menu-heading'>Your searches</div>");
+  if (!saved.length) menu.append("<div class='wbe-fr-menu-empty'>None yet</div>");
+  saved.forEach((search) => {
+    $("<div class='wbe-fr-menu-item'>")
+      .append(
+        loadButton(search),
+        $("<button type='button' class='wbe-fr-menu-delete'>×</button>")
+          .attr({ title: `Delete “${search.name}”`, "aria-label": `Delete “${search.name}”` })
+          .on("click", () => deleteSearch(search))
+      )
+      .appendTo(menu);
+  });
+  READY_MADE.forEach(({ group, searches }) => {
+    $("<div class='wbe-fr-menu-heading'>").text(group).appendTo(menu);
+    searches.forEach((search) => menu.append(loadButton(search)));
+  });
+
+  menu.prop("hidden", false);
+  panel.find(".wbe-fr-saved-button").attr("aria-expanded", "true");
+  document.addEventListener("mousedown", onMouseDownOutsideMenu, true);
+  menu.find("button:enabled").first().trigger("focus");
+}
+
+// Puts a search in the panel and shows its matches. Nothing is replaced until the user says so.
+function fillSearch(search) {
+  panel.find(".wbe-fr-find").val(search.find);
+  panel.find(".wbe-fr-replace").val(search.replace);
+  panel.find(`input[name='wbeFrMode'][value='${search.mode}']`).prop("checked", true);
+  panel.find(".wbe-fr-case").prop("checked", search.matchCase);
+  panel.find(".wbe-fr-word").prop("checked", search.wholeWord);
+  savePrefs();
+  refresh();
+}
+
+function useSearch(search) {
+  fillSearch(search);
+  suggestedName = { name: search.name, find: search.find };
+  if (!state.search?.error) {
+    const next = state.matches.length
+      ? `Check the matches, then Replace or Replace all.${search.note ? ` ${search.note}` : ""}`
+      : "There's nothing for it to change here.";
+    showMessage(`“${search.name}”: ${next}`);
+  }
+  panel.find(".wbe-fr-find").trigger("focus");
+}
+
+const showSaved = (text, name) => showMessage(text, { action: { label: "Rename", run: () => startRename(name) } });
+
+// Saves straight away, named after the ready-made search or the request to Genie it came from, or else
+// after what it finds. The message after it has a Rename button.
+async function saveSearch() {
+  closeMenu();
+  const { find } = options();
+  const search = cleanSearch({
+    ...options(),
+    replace: replaceValue(),
+    name: suggestedName?.find === find ? suggestedName.name : find.slice(0, 60),
+  });
+  if (!search) return;
+  try {
+    const list = await loadSavedSearches();
+    const same = sameSearch(list, search);
+    if (same) {
+      showSaved(`It's already saved, as “${same.name}”.`, same.name);
+      return;
+    }
+    const name = freeName(list, search.name);
+    await storeSavedSearches(withSearch(list, { ...search, name }));
+    suggestedName = { name, find };
+    showSaved(`Saved as “${name}”. It's in the Saved list.`, name);
+  } catch (error) {
+    showMessage(error.message, { error: true });
+  }
+}
+
+function startRename(name) {
+  renaming = name;
+  panel.find(".wbe-fr-save-row").prop("hidden", false);
+  panel.find(".wbe-fr-save-name").val(name).trigger("focus").trigger("select");
+  showMessage("Type a new name, then click Save.");
+}
+
+function hideSaveRow() {
+  renaming = null;
+  panel.find(".wbe-fr-save-row").prop("hidden", true);
+  panel.find(".wbe-fr-find").trigger("focus");
+  showMessage("");
+}
+
+async function confirmRename() {
+  const from = renaming;
+  const name = panel.find(".wbe-fr-save-name").val().trim();
+  if (!name || !from) {
+    panel.find(".wbe-fr-save-name").trigger("focus");
+    return;
+  }
+  try {
+    const list = await loadSavedSearches();
+    // (deleted from the Saved list in the meantime: then it's saved again, from the panel)
+    const next = hasSearch(list, from)
+      ? renamedSearch(list, from, name)
+      : withSearch(list, { ...options(), replace: replaceValue(), name });
+    const replacing = hasSearch(withoutSearch(list, from), name);
+    await storeSavedSearches(next);
+    if (suggestedName?.name === from) suggestedName = { ...suggestedName, name };
+    hideSaveRow();
+    if (!replacing) {
+      showSaved(`Renamed to “${name}”.`, name);
+      return;
+    }
+    // Typing the name of another search puts this one in its place, which can be put back
+    const putBack = async () => {
+      try {
+        await storeSavedSearches(list);
+        showMessage("Put back as it was.");
+      } catch (error) {
+        showMessage(error.message, { error: true });
+      }
+    };
+    showMessage(`Renamed to “${name}”, in place of the search that had that name.`, { action: { label: "Put back", run: putBack } });
+  } catch (error) {
+    showMessage(error.message, { error: true });
+  }
+}
+
+async function deleteSearch(search) {
+  try {
+    await storeSavedSearches(withoutSearch(await loadSavedSearches(), search.name));
+  } catch (error) {
+    showMessage(error.message, { error: true });
+    return;
+  }
+  await openMenu();
+  const restore = async () => {
+    try {
+      await storeSavedSearches(withSearch(await loadSavedSearches(), search));
+      showMessage(`Put back “${search.name}”.`);
+    } catch (error) {
+      showMessage(error.message, { error: true });
+    }
+  };
+  showMessage(`Deleted “${search.name}”.`, { action: { label: "Put back", run: restore } });
+}
+
+/* Ask Genie */
+
+let asking = false;
+const ASKING_MESSAGE = "Genie is writing the search…";
+
+// "Still working" while a slow AI reply is awaited (Ollama on this computer can take minutes, 2026-10-16)
+listenForSlowAi({
+  show: (text) => asking && panel && showMessage(`${ASKING_MESSAGE} ${text}`),
+  hide: () => asking && panel && showMessage(ASKING_MESSAGE),
+});
+
+function showAskRow(shown) {
+  panel.find(".wbe-fr-ask-row").prop("hidden", !shown);
+  panel.find(".wbe-fr-ask-button").attr("aria-expanded", String(shown));
+  panel.find(shown ? ".wbe-fr-ask" : ".wbe-fr-find").trigger("focus");
+}
+
+// Asks the AI for a search that does what the user said, and puts it in the panel to be checked
+async function runAsk() {
+  const request = panel.find(".wbe-fr-ask").val().trim();
+  if (!request || asking) return;
+  asking = true;
+  const go = panel.find(".wbe-fr-ask-go").prop("disabled", true).text("Asking…");
+  const tree = panel.find(".wbe-fr-ask-tree").prop("hidden", false);
+  showMessage(ASKING_MESSAGE);
+  try {
+    // An example the user has selected, and the search already in the panel, which they may want changed
+    const now = editor.read();
+    const selected = now && !now.unavailable ? now.text.slice(now.from, now.to) : "";
+    const current = { ...options(), replace: replaceValue() };
+    const answer = await askGenie({ request, selected, current: current.find ? current : null });
+    if (!panel.is(":visible")) return;
+    if (!answer.search.find) {
+      showMessage(answer.explanation || "Genie couldn't write a search for that. Try saying it another way.", { error: true });
+      return;
+    }
+    // (leaving the panel's own search as it was)
+    const broken = compileSearch(answer.search)?.error;
+    if (broken) {
+      showMessage(`Genie's search doesn't work (${broken}). Try asking again.`, { error: true });
+      return;
+    }
+    fillSearch(answer.search);
+    suggestedName = { name: request.slice(0, 60), find: answer.search.find };
+    const next = state.matches.length ? "Check the matches, then Replace or Replace all." : "It finds nothing in this text.";
+    const warning = answer.problems.length ? " Genie's search may not be quite right, so look at each match carefully." : "";
+    showMessage(`${answer.explanation ? `${answer.explanation} ` : ""}${next}${warning}`);
+  } catch (error) {
+    showMessage(error.message, { error: true });
+  } finally {
+    asking = false;
+    go.prop("disabled", false).text("Ask");
+    tree.prop("hidden", true);
+  }
+}
+
 function close() {
   if (!panel) return;
   clearTimeout(findTimer);
+  closeMenu();
+  renaming = null;
+  panel.find(".wbe-fr-save-row").prop("hidden", true);
   const match = state.matches[state.current];
   editor.clear();
   panel.hide();
@@ -461,6 +761,11 @@ export async function openFindAndReplace() {
   followEditor = true;
   panel.show();
   place();
+  // Ask Genie only with an AI to ask, which can change while the page is open
+  canAskGenie().then((can) => {
+    panel.find(".wbe-fr-ask-button").prop("hidden", !can);
+    if (!can) panel.find(".wbe-fr-ask-row").prop("hidden", true);
+  });
   panel.find(".wbe-fr-find").trigger("focus").trigger("select");
   state.text = null;
   refresh();

@@ -19,6 +19,7 @@ import { rewriteOfRelationChain } from "./chat_relation_chain_text";
 import { groupKinListResult } from "./chat_group_rows";
 import { WIKITREE_GLOSSARY_FOR_AI } from "./chat_wikitree_glossary";
 import { answerWikiTreeHelpQuestion, namesWikiTree, withoutOnWikiTree } from "./chat_wikitree_help";
+import { surnameReportAnswer } from "./chat_surname_report";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import "../../core/userTimingCompat";
 import $ from "jquery";
@@ -51,6 +52,7 @@ import { installChatDebugConsole } from "./chat_debug_console";
 import { findAmbiguousCenturyDecade, rewriteExplicitCenturyDecadeWording } from "./chat_century_decade";
 import { createChatConnectionHandlers } from "./chat_connections";
 import { AI_CHAT_CLAIM_RULES, handleExplicitSearchMode, looksLikeQuestion } from "./chat_search_mode";
+import { tryInsteadPrompts } from "./chat_try_instead";
 import {
   AI_ANSWER_FORMAT_RULES,
   clearUnanswered,
@@ -131,6 +133,8 @@ import {
   getPopupResizeLimits as uiGetPopupResizeLimits,
   showChatShaky,
   hideChatShaky,
+  showChatShakyNote,
+  hideChatShakyNote,
   resetChatShakyCancel,
   isChatShakyCancelled,
   showConnectionsPopup,
@@ -141,6 +145,7 @@ import {
   closeBioPopup,
   addBioButton,
 } from "./ui";
+import { listenForSlowAi } from "../../core/ai_slow_notice";
 import { buildResultsTableHtml } from "./tables";
 import { relationSelector } from "./chat_relative_fact";
 import { buildCurrentPageContextForAi, currentPageChipPrompts, extractDnaConnectionsText, getCurrentPageInfo, isCurrentPagePrompt, isDnaPrompt } from "./chat_page_context";
@@ -2915,8 +2920,11 @@ async function showNeedsAiKey(prompt) {
   const withForm = !looksLikeQuestion(prompt);
   // ("Owner of WikiTree" isn't shaped like a question, but it names WikiTree: live, 2026-10-14)
   const help = withForm && !namesWikiTree(withoutOnWikiTree(prompt)) ? null : await findWikiTreeHelp(prompt);
-  const needsKey = needsAiKeyMessage({ withForm, switchedOff: aiSwitchedOff });
+  // ("Are there any Beacalls born in Shropshire in the 1820s that married twice?": the part it can read)
+  const tries = tryInsteadPrompts(prompt);
+  const needsKey = needsAiKeyMessage({ withForm: withForm && !tries.length, switchedOff: aiSwitchedOff, hasTries: tries.length > 0 });
   const actions = [
+    ...tries.map((text) => ({ label: `Search: ${text}`, onClick: () => sendClarifiedPrompt(text, { newSearch: true }) })),
     { label: WHAT_CAN_I_TYPE, onClick: () => showNoAiExamples() },
     ...needsKey.actions.map((action) => ({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") })),
   ];
@@ -2925,7 +2933,7 @@ async function showNeedsAiKey(prompt) {
     appendMessage("assistant", help.text, { actions: help.source === "search" || help.source === "faq-list" ? actions : [] });
     return;
   }
-  appendMessage("assistant", needsKey.text, { actions, searchForm: withForm ? prefillSearchForm(prompt) : null });
+  appendMessage("assistant", needsKey.text, { actions, searchForm: withForm && !tries.length ? prefillSearchForm(prompt) : null });
 }
 
 async function findWikiTreeHelp(prompt) {
@@ -4108,6 +4116,11 @@ async function executeRoutedIntent(routed, prompt) {
   }
   if (routed.intent === ChatIntent.NAME_CLOUD) {
     return await tryHandleNameCloudPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.SURNAME_REPORT) {
+    const answer = surnameReportAnswer(routed.params.surname);
+    answer.actions = answer.actions.map((action) => ({ ...action, onClick: () => window.open(action.url, "_blank", "noopener,noreferrer") }));
+    return answer;
   }
   if (routed.intent === ChatIntent.LIFESPANS) {
     return await tryHandleLifespansPrompt(routed.params, prompt);
@@ -5481,7 +5494,7 @@ function showPlaceholder() {
   if (!hasTypedBefore()) {
     const examples = aiAvailable === false ? PLACEHOLDER_EXAMPLES : AI_PLACEHOLDER_EXAMPLES;
     const example = examples[placeholderIndex % examples.length];
-    $input.attr("placeholder", aiAvailable === false ? `Search, or type a chart for anyone, like "${example}"` : `Ask about anyone, like "${example}"`);
+    $input.attr("placeholder", aiAvailable === false ? `Short searches and charts, like "${example}"` : `Ask about anyone, like "${example}"`);
     if (!placeholderTimer) {
       placeholderTimer = setInterval(() => {
         placeholderIndex += 1;
@@ -5494,8 +5507,8 @@ function showPlaceholder() {
     "placeholder",
     aiAvailable === false
       ? isAiPaused()
-        ? "Search WikiTree, or pick a chart (AI is off)"
-        : "Search WikiTree, or pick a chart (add an AI key in Options to ask questions)"
+        ? 'Short searches, like "Devon 1820s" (AI is off: no questions)'
+        : 'Short searches, like "Devon 1820s" (questions need an AI key)'
       : "Search WikiTree, or ask a question"
   );
 }
@@ -5503,6 +5516,8 @@ function showPlaceholder() {
 function init() {
   syncChatVisibilityToKeys();
   bindOutsideClickToCloseChat();
+  // ("Still working" while a slow AI reply is awaited: Ollama on this computer, 2026-10-16)
+  listenForSlowAi({ show: showChatShakyNote, hide: hideChatShakyNote });
 
   // Restore persisted chat state (history, last structured/table, last bio)
   try {

@@ -367,13 +367,11 @@
         "DBE_456",
         "DBE_457",
         "DBE_458",
-        "DBE_459",
         "DBE_460",
         "DBE_461",
         "DBE_462",
         "DBE_463",
         "DBE_464",
-        "DBE_465",
         "DBE_466",
         "DBE_467",
         "DBE_468",
@@ -932,17 +930,6 @@
       "description": "Birth location status is not set where there is a location shown.",
       "videos": []
     },
-    "DBE_459": {
-      "id": "DBE_459",
-      "code": 459,
-      "title": "Profile completeness - Birth location Country not recognised",
-      "type": "Warning",
-      "difficulty": "Easy",
-      "group_key": "profile_completeness",
-      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_459",
-      "description": "Country in the birth location field isn't recognized (possible typo).",
-      "videos": []
-    },
     "DBE_460": {
       "id": "DBE_460",
       "code": 460,
@@ -996,17 +983,6 @@
       "group_key": "profile_completeness",
       "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_464",
       "description": "Death location status is not set where there is a date in the field.",
-      "videos": []
-    },
-    "DBE_465": {
-      "id": "DBE_465",
-      "code": 465,
-      "title": "Profile completeness - Death location Country not recognised",
-      "type": "Warning",
-      "difficulty": "Easy",
-      "group_key": "profile_completeness",
-      "suggestion_page": "https://www.wikitree.com/wiki/Space:DBE_465",
-      "description": "Country in the death location field isn't recognized (possible typo).",
       "videos": []
     },
     "DBE_466": {

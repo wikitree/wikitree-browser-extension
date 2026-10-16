@@ -958,7 +958,9 @@ export async function classifyWtPrompt({ prompt, getChatAiConfig, buildRecentUse
   const question = looksLikeQuestion(normalizedPrompt);
   // "profiles I manage with no parents" names no person: it's the member's own profiles (live, 2026-10-10)
   const managedByMe = parseSearchSpecPrompt(normalizedPrompt)?.spec?.manager === "me";
-  if (personCentric && !question && !managedByMe) {
+  // "my relatives born in Kent" is a search of the family, not one person (2026-10-16)
+  const relativesSearch = Boolean(parseSearchSpecPrompt(normalizedPrompt)?.spec?.tree?.relativesOf);
+  if (personCentric && !question && !managedByMe && !relativesSearch) {
     return "wt";
   }
 
@@ -990,7 +992,7 @@ export async function classifyWtPrompt({ prompt, getChatAiConfig, buildRecentUse
     const readerSpec = parseSearchSpecPrompt(normalizedPrompt)?.spec;
     if (readerSpec && (readerSpec.categories?.length || readerSpec.anyOf?.length)) return "wtplus";
     // "profiles I manage with no father": the family word made it nobody's, and it went to "We need AI"
-    if (managedByMe) return "wtplus";
+    if (managedByMe || relativesSearch) return "wtplus";
     // A bare name ("Martha Teece") is the person search's to run; WT+'s parser read it
     // as LastNameAtBirth=Martha Location=Teece (live, 2026-10-04).
     // ...but "the Smiths" and "Smith family" are a family, which the reader took as a surname (2026-10-12)

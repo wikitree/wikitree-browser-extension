@@ -1533,7 +1533,24 @@ export function showChatShaky(label = "Finding connection...", position = "cente
   }
 }
 
+// "Still working" under the label while a slow AI reply is awaited (src/core/ai_slow_notice.js).
+export function showChatShakyNote(text) {
+  const $el = $("#wbeShakyTree");
+  if (!$el.length || !$el.is(":visible")) return;
+  let $note = $el.find(".wbe-shaky-note");
+  if (!$note.length) {
+    $note = $('<div class="wbe-shaky-note" role="status"></div>');
+    $el.find(".wbe-shaky-messages").append($note);
+  }
+  $note.text(text);
+}
+
+export function hideChatShakyNote() {
+  $("#wbeShakyTree .wbe-shaky-note").remove();
+}
+
 export function hideChatShaky() {
+  hideChatShakyNote();
   const $el = $("#wbeShakyTree");
   if ($el.length) {
     $el.stop(true, true).fadeOut(150, function () {

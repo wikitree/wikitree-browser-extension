@@ -51,7 +51,34 @@ const STATUS_FLAGS = [
   ["ResearchReview", /\b(?:with\s+)?sources\s+to\s+review\b/i, "sources to review"],
   ["ResearchUnfinished", /\b(?:research\s+status\s+)?unfinished\b/i, "research unfinished"],
   ["ResearchUnset", /\b(?:with\s+)?(?:no|without)\s+(?:an?\s+)?research\s+status(?:\s+set)?\b/i, "no research status"],
+  // WT+ NotableProfile (news, 2026-09-20): any notable template on the profile
+  ["NotableProfile", /\b(?:with\s+)?(?:an?\s+|any\s+)?notables?\s+templates?\b/i, "with a notable template"],
+  // "who are notables", "a member of a notable category" (WT video, 2026-10-16); not the Notables Project or Sticker
+  [
+    "Notables",
+    /\b(?:(?:is|are|was|were)\s+)?(?:(?:an?\s+)?members?\s+of\s+|in\s+)?(?:an?\s+|the\s+)?(?:notables?|famous)(?:\s+(?:category|categories|people|persons|profiles))?\b(?!\s+(?:project|sticker))/i,
+    "notables",
+  ],
 ];
+
+// "my relatives", "which of Joseph's relatives", "his relatives who …", "relatives born in Kent": blood
+// relatives within CC7 (chat_search_spec.js bloodRelativesTerm). No owner = the profile being viewed.
+// "notable relatives": the Notables flag too. (WT video, 2026-10-16)
+const RELATIVES =
+  /\b(?:(?:which|who|how\s+many)\s+of\s+|among\s+)?(?:(my|our|his|her|their)\s+|([A-Z][A-Za-z'-]*(?:-\d+)?)['’]s\s+)?(?:(notable|famous|well[- ]known)\s+)?(?:blood\s+)?(?:relatives|relations|kinsfolk|kin)\b(?:\s+(?:who|that))?(?:\s+(?:was|were|is|are|has|have|had))?/i;
+
+// "content rank 1", "with a content rank of 8", "content rank below 4", "low content rank": WT+'s
+// Content Rank, 1 (least content) to 10 (most) (chat_search_spec.js contentRanks).
+const CONTENT_RANK =
+  /\b(?:with\s+)?(?:an?\s+)?(?:(low)\s+content\s+ranks?|content\s+ranks?\s+(?:of\s+)?(?:(below|under|less\s+than|above|over|more\s+than)\s+)?(10|[1-9]))\b/i;
+
+function readContentRank(match) {
+  if (match[1]) return { rank: { max: 3 }, label: "low content rank (1–3)" };
+  const value = Number(match[3]);
+  if (!match[2]) return { rank: value, label: `content rank ${value}` };
+  if (/^(?:below|under|less)/i.test(match[2])) return value > 1 ? { rank: { max: value - 1 }, label: `content rank below ${value}` } : null;
+  return value < 10 ? { rank: { min: value + 1 }, label: `content rank above ${value}` } : null;
+}
 
 // "with no birth date", "missing a death date": WT+'s B0 / D0 (the spec's missingDates). These went to the
 // FindAGrave suggestions instead ("FindAGrave - Empty birth date"): Edwards 7 there, 2,420 with B0 (2026-10-12).
@@ -146,7 +173,9 @@ const EMIGRANT_PATTERN = /\b(?:who\s+)?(emigrated|emigrants|immigrated|immigrant
 // "emigrated to Australia" = died there, not born there; "emigrants from X" the other way round.
 // ("went to", "moved to", "settled in" read as "emigrated to"; "left" as "emigrated from", 2026-10-10)
 const MIGRATION_PATTERN =
-  /\b(?:(?:emigrated|emigrants|immigrated|immigrants)\s+(to|from)|(?:went|moved|sailed|travell?ed|settled)\s+(to|in)|(left))\s+([A-Z][A-Za-z'.-]*(?:\s+(?:(?:of|upon|on)\s+)?[A-Z][A-Za-z'.-]*){0,3})/;
+  /\b(?:(?:emigrated|emigrants|immigrated|immigrants)\s+(to|from)|(?:went|moved|sailed|travell?ed|settled)\s+(to|in)|(left))\s+(?:the\s+)?([A-Z][A-Za-z'.-]*(?:\s+(?:(?:of|upon|on)\s+)?[A-Z][A-Za-z'.-]*){0,3})/;
+// ("the USA": WikiTree writes United States; BirthLocation=USA found none of Darwin-15's relatives, live 2026-10-16)
+const UNITED_STATES = /^(?:USA|U\.S\.A\.?|US|U\.S\.?|United\s+States\s+of\s+America)$/;
 
 const EVENT_WORDS = {
   born: "birth",
@@ -267,13 +296,34 @@ function parseAsciiSearchSpecPrompt(prompt) {
 
   const flags = [];
   const flagLabels = [];
+  let relativesOf = "";
+  const relativesMatch = text.match(RELATIVES);
+  if (relativesMatch) {
+    const [, pronoun, name, notable] = relativesMatch;
+    relativesOf = /^(?:my|our)$/i.test(pronoun || "") ? "me" : name || "current";
+    if (notable) {
+      flags.push("Notables");
+      flagLabels.push("notables");
+    }
+    text = text.replace(relativesMatch[0], " §K ");
+  }
   for (const [flag, pattern, label] of STATUS_FLAGS) {
+    if (flags.includes(flag)) continue;
     const match = text.match(pattern);
     if (match) {
       flags.push(flag);
       flagLabels.push(label);
       text = text.replace(match[0], " §F ");
     }
+  }
+  let contentRank;
+  const rankMatch = text.match(CONTENT_RANK);
+  if (rankMatch) {
+    const read = readContentRank(rankMatch);
+    if (!read) return null;
+    contentRank = read.rank;
+    flagLabels.push(read.label);
+    text = text.replace(rankMatch[0], " §F ");
   }
   const missingDates = [];
   const missingPlaces = [];
@@ -313,7 +363,8 @@ function parseAsciiSearchSpecPrompt(prompt) {
   if (nationality === false) return null;
   let migration = null;
   text = text.replace(MIGRATION_PATTERN, (whole, direction, moved, left, place) => {
-    migration = { direction: direction ? direction.toLowerCase() : moved ? "to" : "from", place: place.trim() };
+    const where = place.trim();
+    migration = { direction: direction ? direction.toLowerCase() : moved ? "to" : "from", place: UNITED_STATES.test(where) ? "United States" : where };
     return " §M ";
   });
   let emigrantCategory = null;
@@ -603,14 +654,20 @@ function parseAsciiSearchSpecPrompt(prompt) {
   if (occupation) spec.anyOf = occupation.names.map((name) => ({ categories: [{ name, match: "word" }] }));
   if (gender) spec.gender = gender;
   if (flags.length) spec.flags = flags;
+  if (contentRank !== undefined) {
+    // (a rank range is one search per rank, which can't be combined with the occupations' anyOf)
+    if (typeof contentRank === "object" && spec.anyOf) return null;
+    spec.contentRank = contentRank;
+  }
   if (missingDates.length) spec.missingDates = [...new Set(missingDates)];
   if (missingPlaces.length) spec.missingPlaces = [...new Set(missingPlaces)];
+  if (relativesOf) spec.tree = { relativesOf };
   if (managedByMe) spec.manager = "me";
   else if (manager) spec.manager = manager.id;
   if (creator) spec.creator = creator;
   if (!Object.keys(spec).length) return null;
   // Something to search on besides a gender or a status word alone (the profiles you manage or created are enough).
-  if (!spec.names && !spec.places && !spec.dates && !occupation && !emigrantCategory && !managedByMe && !manager && !creator) return null;
+  if (!spec.names && !spec.places && !spec.dates && !occupation && !emigrantCategory && !managedByMe && !manager && !creator && !relativesOf) return null;
   // a nationality on its own ("Irish") says too little
   if (nationality && !occupation && !migration && !emigrantCategory && !spec.dates && !spec.flags && !spec.missingDates && !spec.missingPlaces && !spec.gender && !spec.names && spec.places.length < 2) return null;
 
@@ -620,6 +677,11 @@ function parseAsciiSearchSpecPrompt(prompt) {
 function describeSpec(spec, flagLabels, createdLabel = "", { migration, occupation, nationality, emigrantCategory, manager } = {}) {
   const span = ({ from, to }) => (from !== undefined && to !== undefined ? (from === to ? `${from}` : `${from}–${to}`) : from !== undefined ? `${from} or later` : `${to} or earlier`);
   const parts = [];
+  const relativesOf = spec.tree?.relativesOf;
+  if (relativesOf) {
+    const whose = relativesOf === "me" ? "your" : relativesOf === "current" ? "this person's" : `${relativesOf}'s`;
+    parts.push(`${whose} blood relatives (within 7 degrees, not in-laws)`);
+  }
   const name = [spec.names?.firstName, spec.names?.anyLastName || spec.names?.lastNameAtBirth].filter(Boolean).join(" ");
   if (name) parts.push(name);
   if (spec.gender) parts.push(spec.gender === "female" ? "women" : "men");

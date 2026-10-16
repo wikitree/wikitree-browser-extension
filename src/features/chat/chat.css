@@ -1502,6 +1502,19 @@ div.chat-results-popup table.dataTable td.nowrap-cell {
   text-overflow: ellipsis;
 }
 
+.wbe-shaky-tree .wbe-shaky-note {
+  background: #fffbe6;
+  color: #222;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 6px 10px;
+  border-radius: 8px;
+  max-width: 300px;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
 .wbe-shaky-tree .wbe-shaky-progress {
   width: 220px;
   max-width: 90%;

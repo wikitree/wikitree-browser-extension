@@ -32,6 +32,7 @@ import {
   compileTreeRoot,
   pickCemeteryCategories,
   readSearchSpecReply,
+  withInLawsQuery,
 } from "./chat_search_spec";
 import { parseStatusPlaceDecadePrompt } from "./chat_status_place_decade_parser";
 import { STATUS_FLAG_TAILS, nationalityCountry, parseSearchSpecPrompt } from "./chat_spec_parser";
@@ -4452,6 +4453,18 @@ export function createProfileSearchHandler({
     return { wtId, displayName };
   }
 
+  // Whose tree "me", "current" and a first name mean in a search spec (compileTreeRoot), for the AI's
+  // searches and the no-AI reader's. userIfNoProfile: with no profile open, "relatives" alone is the user's.
+  function searchSpecContext({ userIfNoProfile = false } = {}) {
+    const profile = getCurrentProfileWtPlusRoot();
+    const userWtId = String(getUserWtId() || "").trim();
+    return {
+      userWtId,
+      currentProfileWtId: profile?.wtId || (userIfNoProfile ? userWtId : ""),
+      currentProfileName: profile?.displayName && profile.displayName !== profile.wtId ? profile.displayName : "",
+    };
+  }
+
   function getDefaultWtPlusRoot() {
     const profileRoot = getCurrentProfileWtPlusRoot();
     if (profileRoot?.wtId) {
@@ -5000,7 +5013,8 @@ export function createProfileSearchHandler({
       const managedByMe = specParsed.spec.manager === "me";
       if (specManager) specParsed.spec.manager = specManager;
       if (specCreator) specParsed.spec.creator = specCreator;
-      const compiledSpec = compileSearchSpec(specParsed.spec, {});
+      // ("my relatives", "Joseph's relatives": whose tree, 2026-10-16)
+      const compiledSpec = compileSearchSpec(specParsed.spec, searchSpecContext({ userIfNoProfile: true }));
       if (compiledSpec.query && !compiledSpec.errors.length && !compiledSpec.routePrompt) {
         return {
           query: compiledSpec.query,
@@ -5634,11 +5648,8 @@ export function createProfileSearchHandler({
       if (!key) return null;
 
       const normalizedRawQuery = normalizeWtPlusStatusAliases(rawQuery);
-      const currentProfile = getCurrentProfileWtPlusRoot();
-      const specContext = {
-        userWtId: String(getUserWtId() || "").trim(),
-        currentProfileWtId: currentProfile?.wtId || "",
-      };
+      // (with the profile's name, so "Joseph" from the AI resolves too)
+      const specContext = searchSpecContext();
       const system = buildSearchSpecInstructions({
         ...specContext,
         today: new Date().toISOString().slice(0, 10),
@@ -7428,6 +7439,9 @@ export function createProfileSearchHandler({
         surname: locationAsSurname,
       });
       actions.push(...scopeRefinementActions);
+      // "my relatives …" searched blood relatives only; one click widens it to the whole CC7 (2026-10-16)
+      const inLawsQuery = withInLawsQuery(canonicalQuery);
+      if (inLawsQuery) actions.push(wtPlusRerunAction("Include in-laws (whole CC7)", inLawsQuery, { suggestionId, suggestionOptions }));
       const scopeNote = [
         scopeRefinementActions.length ? "This matched a birth, marriage or death place. Use the buttons to narrow it." : "",
         surnameReadingNote(locationAsSurname),

@@ -112,5 +112,57 @@
       "value": "grok-4.20-multi-agent-0309",
       "text": "Grok 4.20 Multi-Agent"
     }
+  ],
+  "ollama": [
+    {
+      "value": "gemma4:e4b",
+      "text": "Gemma 4 E4B (small and fast)"
+    },
+    {
+      "value": "gemma4:12b",
+      "text": "Gemma 4 12B"
+    },
+    {
+      "value": "qwen3:8b",
+      "text": "Qwen 3 8B"
+    },
+    {
+      "value": "llama3.1:8b",
+      "text": "Llama 3.1 8B"
+    },
+    {
+      "value": "gpt-oss:20b",
+      "text": "GPT-OSS 20B (about 14 GB)"
+    },
+    {
+      "value": "qwen3.8:27b",
+      "text": "Qwen 3.8 27B (needs a powerful computer)"
+    }
+  ],
+  "ollamaCloud": [
+    {
+      "value": "gpt-oss:120b",
+      "text": "GPT-OSS 120B (recommended)"
+    },
+    {
+      "value": "deepseek-v4.1-flash",
+      "text": "DeepSeek V4.1 Flash"
+    },
+    {
+      "value": "gemma4:31b",
+      "text": "Gemma 4 31B"
+    },
+    {
+      "value": "glm-5.3",
+      "text": "GLM 5.3"
+    },
+    {
+      "value": "mistral-large-4",
+      "text": "Mistral Large 4"
+    },
+    {
+      "value": "gpt-oss:20b",
+      "text": "GPT-OSS 20B"
+    }
   ]
 }

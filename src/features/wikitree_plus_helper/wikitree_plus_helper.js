@@ -76,7 +76,18 @@ function buildMagicWords() {
     { value: "Unsourced", label: "Unsourced", description: "Profiles with Unsourced status" },
     { value: "Orphan", label: "Orphan", description: "Profiles with no manager" },
     { value: "Notables", label: "Notables", description: "Profiles marked as Notable" },
+    // (WT+ news, 2026-09-20)
+    { value: "NotableProfile", label: "NotableProfile", description: "Profiles with any notable template" },
   ]);
+
+  // WT+ Content Rank (WT+ news, 2026-08-30; "Content Rank" on the surname report).
+  // 1 = least content, 10 = most (every Gold Standard profile is rank 10; live, 2026-10-16).
+  const ranks = [];
+  for (let r = 1; r <= 10; r += 1) {
+    const desc = r === 1 ? "Content Rank 1: profiles with the least content" : r === 10 ? "Content Rank 10: profiles with the most content" : `Content Rank ${r}`;
+    ranks.push({ value: `rank=${r}`, label: `rank=${r}`, description: desc });
+  }
+  addGroup("Content Rank", ranks);
 
   addGroup("Gender", [
     { value: "male", label: "male", description: "Male profiles" },

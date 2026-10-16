@@ -56,6 +56,14 @@ const PROVIDERS = [
       PASTE_STEP,
     ],
   },
+  {
+    name: "Ollama (cloud, or free on your own computer)",
+    note: "On your own computer it's free and private, but smaller models are slower and make more mistakes, especially in Genie's searches.",
+    steps: [
+      `<b>Ollama Cloud:</b> sign in at ${link("https://ollama.com/")}, open ${link("https://ollama.com/settings/keys")} and click <b>Add API Key</b>. Copy the key. ${SAVE_NOTE} In WBE's settings choose <b>Ollama</b>, set <b>Run Ollama on</b> to <b>Ollama Cloud</b> and paste the key.`,
+      `<b>On your own computer:</b> install the Ollama app from ${link("https://ollama.com/download")} and download a model (for example <code>ollama pull gpt-oss:20b</code>). In WBE's settings choose <b>Ollama</b>, set <b>Run Ollama on</b> to <b>This computer</b> and choose that model (or type its name in the Custom Model Override). No key is needed. Allow the extension when the browser asks.`,
+    ],
+  },
 ];
 
 export function aiKeyHelpHtml() {

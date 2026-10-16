@@ -38,9 +38,10 @@ describe("AI answers in words", () => {
 describe("needsAiKeyMessage", () => {
   test("says the question needs a key and links to where to get one", () => {
     const { text, actions } = needsAiKeyMessage();
-    expect(text.split("\n")[0]).toBe("We need AI to respond to this. Add an AI API key in Genie's options. The link below shows how to get one and where to put it.");
+    expect(text.split("\n")[0]).toBe("Without AI, Genie understands short searches, not questions. To ask in your own words, add an AI API key: the link below shows how.");
     expect(needsAiKeyMessage({ withForm: true }).text).toMatch(/Fill in the boxes below/);
-    expect(text).toMatch(/short searches like "Devon 1820s"/);
+    expect(needsAiKeyMessage({ withForm: true, hasTries: true }).text).toMatch(/press the search below/);
+    expect(text).toMatch(/short search like "Devon 1820s"/);
     expect(text).toMatch(/What can I type\?/);
     expect(actions).toEqual([
       { label: "How to get and add an AI API key", actionType: "external-link", url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#How_to_Set_an_AI_API_Key" },
@@ -48,7 +49,7 @@ describe("needsAiKeyMessage", () => {
   });
   test("with a key and AI switched off: switch it on, no how-to link", () => {
     const { text, actions } = needsAiKeyMessage({ switchedOff: true });
-    expect(text.split("\n")[0]).toBe("We need AI to respond to this, and it's switched off. Switch it on with the AI switch at the top.");
+    expect(text.split("\n")[0]).toBe("Without AI, Genie understands short searches, not questions. AI is switched off: switch it on at the top to ask this.");
     expect(text).not.toMatch(/API key/);
     expect(actions).toEqual([]);
   });

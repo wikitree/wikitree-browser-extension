@@ -5,19 +5,17 @@
 import $ from "jquery";
 import * as Diff from "diff";
 import { getFeatureOptions } from "../../core/options/options_storage";
-import { effectiveAiProvider } from "../../core/options/shared_ai_options";
+import { SHARED_AI_KEY_IDS, SHARED_AI_MODEL_CONFIG, aiConfigFor } from "../../core/options/shared_ai_options";
 import { isIansProfile } from "../../core/pageType";
-import { addWorking, getBioText, removeWorking, setBioText } from "./editorUtils.js";
+import { addWorking, getBioText, removeWorking, removeWorkingNote, setBioText, showWorkingNote } from "./editorUtils.js";
+import { listenForSlowAi } from "../../core/ai_slow_notice";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
-import aiModels from "./ai_models.json";
 
-const AUTO_BIO_AI_MODEL_CONFIG = {
-  openai: { optionId: "openAIModel", defaultModel: "gpt-5.6-terra", models: aiModels.openai },
-  gemini: { optionId: "geminiModel", defaultModel: "gemini-3.5-flash", models: aiModels.gemini },
-  claude: { optionId: "claudeModel", defaultModel: "claude-sonnet-5", models: aiModels.claude },
-  perplexity: { optionId: "perplexityModel", defaultModel: "sonar", models: aiModels.perplexity },
-  xai: { optionId: "xaiModel", defaultModel: "grok-4.3", models: aiModels.xai },
-};
+// (Ollama on this computer can take minutes to improve a bio)
+listenForSlowAi({ show: showWorkingNote, hide: removeWorkingNote });
+
+// (the shared table: a provider added there can't be missing here, as Ollama was; 2026-10-16)
+const AUTO_BIO_AI_MODEL_CONFIG = SHARED_AI_MODEL_CONFIG;
 
 export async function migrateAutoBioAiModelOptions(options) {
   const normalized = { ...(options || {}) };
@@ -149,13 +147,10 @@ export function addAutoBioUI() {
       "<div id='autoBioButtonBox' style='display: inline-flex; gap: 2px; align-items: center; margin-left: 2px; position: relative;'></div>"
     );
 
-    const hasAIKey = [
-      window.autoBioOptions?.openAIKey,
-      window.autoBioOptions?.geminiKey,
-      window.autoBioOptions?.claudeKey,
-      window.autoBioOptions?.perplexityKey,
-      window.autoBioOptions?.xaiKey,
-    ].some((key) => typeof key === "string" && key.trim() !== "");
+    // (Ollama on this computer counts: it needs no key)
+    const hasAIKey =
+      SHARED_AI_KEY_IDS.some((keyId) => String(window.autoBioOptions?.[keyId] || "").trim() !== "") ||
+      Boolean(aiConfigFor(window.autoBioOptions || {}).key);
 
     if (hasAIKey) {
       // AI BUTTON
@@ -316,28 +311,7 @@ async function improveBioWithAI(e) {
       return;
     }
 
-    const provider = effectiveAiProvider(window.autoBioOptions || {});
-    let selectedKey = "";
-    let selectedModel = window.autoBioOptions?.aiModel || "";
-
-    if (provider === "openai") {
-      selectedKey = window.autoBioOptions?.openAIKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.openAIModel || "gpt-5.6-terra";
-    } else if (provider === "gemini") {
-      selectedKey = window.autoBioOptions?.geminiKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.geminiModel || "gemini-3.5-flash";
-    } else if (provider === "claude") {
-      selectedKey = window.autoBioOptions?.claudeKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.claudeModel || "claude-sonnet-5";
-    } else if (provider === "perplexity") {
-      selectedKey = window.autoBioOptions?.perplexityKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.perplexityModel || "sonar";
-    } else if (provider === "xai") {
-      selectedKey = window.autoBioOptions?.xaiKey;
-      if (!selectedModel) selectedModel = window.autoBioOptions?.xaiModel || "grok-4.3";
-    }
-
-    selectedKey = String(selectedKey || "").trim();
+    const { provider, key: selectedKey, model: selectedModel } = aiConfigFor(window.autoBioOptions || {});
     const requestPayload = {
       action: "improveBioWithAI", // FIXED: Matches background.js listener
       oldBio: oldBio,

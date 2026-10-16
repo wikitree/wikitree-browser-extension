@@ -72,6 +72,132 @@
   background: var(--fr-code);
 }
 
+/* .wbe-fr-row and the rest set display, which would otherwise show them */
+#wbeFindReplace [hidden] {
+  display: none !important;
+}
+
+#wbeFindReplace .wbe-fr-title .wbe-fr-title-text {
+  width: auto;
+  padding: 0 0.55em;
+  border: 1px solid var(--fr-line);
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+#wbeFindReplace .wbe-fr-title .wbe-fr-title-text[aria-expanded="true"] {
+  border-color: var(--fr-accent);
+  background: var(--fr-code);
+}
+
+/* The Saved menu, inside the panel so WBE's popup stacking can't put it underneath */
+#wbeFindReplace .wbe-fr-menu {
+  position: absolute;
+  top: 2.5em;
+  right: 0.5em;
+  z-index: 1;
+  width: 23em;
+  max-width: calc(100% - 1em);
+  max-height: 60vh;
+  box-sizing: border-box;
+  padding: 0.3em 0;
+  overflow-y: auto;
+  border: 1px solid #a7aea8;
+  border-radius: 6px;
+  box-shadow: 0 0.3em 1em rgba(0, 0, 0, 0.25);
+  background: var(--fr-bg);
+}
+
+#wbeFindReplace .wbe-fr-menu button {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.3em 0.8em;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 0.9em;
+  text-align: left;
+  cursor: pointer;
+}
+
+#wbeFindReplace .wbe-fr-menu button:hover:not(:disabled),
+#wbeFindReplace .wbe-fr-menu button:focus-visible {
+  outline: none;
+  background: var(--fr-code);
+}
+
+#wbeFindReplace .wbe-fr-menu button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+#wbeFindReplace .wbe-fr-menu-heading {
+  margin: 0.4em 0.8em 0.15em;
+  padding-top: 0.4em;
+  border-top: 1px solid var(--fr-line);
+  color: var(--fr-muted);
+  font-size: 0.8em;
+  font-weight: bold;
+}
+
+#wbeFindReplace .wbe-fr-menu-empty {
+  padding: 0.15em 0.8em;
+  color: var(--fr-muted);
+  font-size: 0.85em;
+  font-style: italic;
+}
+
+#wbeFindReplace .wbe-fr-menu-item {
+  display: flex;
+}
+
+#wbeFindReplace .wbe-fr-menu-item .wbe-fr-menu-load {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#wbeFindReplace .wbe-fr-menu .wbe-fr-menu-delete {
+  width: auto;
+  padding: 0.3em 0.75em;
+  color: var(--fr-muted);
+}
+
+#wbeFindReplace .wbe-fr-menu .wbe-fr-menu-delete:hover {
+  color: var(--fr-error);
+}
+
+#wbeFindReplace .wbe-fr-save-row {
+  margin: 0.5em 0 0;
+}
+
+#wbeFindReplace .wbe-fr-save-label {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* The shaking tree while Genie writes the search, small and round as elsewhere in WBE */
+#wbeFindReplace .wbe-fr-ask-tree {
+  flex: none;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid forestgreen;
+  object-fit: cover;
+}
+
+/* Words rather than a pattern */
+#wbeFindReplace input[type="text"].wbe-fr-save-name,
+#wbeFindReplace input[type="text"].wbe-fr-ask {
+  font-family: inherit;
+}
+
 #wbeFindReplace .wbe-fr-row {
   display: flex;
   align-items: center;
@@ -109,7 +235,8 @@
 }
 
 #wbeFindReplace .wbe-fr-row button,
-#wbeFindReplace .wbe-fr-undo {
+#wbeFindReplace .wbe-fr-undo,
+#wbeFindReplace .wbe-fr-action {
   margin: 0;
   padding: 0.3em 0.6em;
   border: 1px solid #a7aea8;
@@ -122,8 +249,13 @@
 }
 
 #wbeFindReplace .wbe-fr-row button:hover:not(:disabled),
-#wbeFindReplace .wbe-fr-undo:hover {
+#wbeFindReplace .wbe-fr-undo:hover,
+#wbeFindReplace .wbe-fr-action:hover {
   border-color: var(--fr-accent);
+}
+
+#wbeFindReplace .wbe-fr-action {
+  margin-left: 0.4em;
 }
 
 #wbeFindReplace .wbe-fr-row button:disabled {

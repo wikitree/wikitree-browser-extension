@@ -71,6 +71,9 @@ const WT_PLUS_ALLOWED_FIELDS = [
   // (WT+ help, 2026-10-10: bioCheck=bioCheckUnsourced, research=ResearchUnset)
   "bioCheck",
   "Research",
+  // (WT+ news, 2026-08-30: rank=1 Content Rank, surname=OBRIAN LNAB without spaces)
+  "rank",
+  "surname",
   "sql",
 ];
 
@@ -121,6 +124,7 @@ const WT_PLUS_RAW_TOKEN_CANONICAL = new Map([
   ["unconnected", "Unconnected"],
   ["orphan", "Orphan"],
   ["notables", "Notables"],
+  ["notableprofile", "NotableProfile"],
   ["connected", "connected"],
   ["unlinked", "unlinked"],
   ["publictree", "PublicTree"],

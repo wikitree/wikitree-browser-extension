@@ -1,7 +1,14 @@
 import $ from "jquery";
 
 import { features, OptionType } from "./core/options/options_registry";
-import { SHARED_AI_FEATURES, SHARED_AI_KEY_IDS, SHARED_AI_OPTIONS_KEY, SHARED_AI_OPTION_IDS, effectiveAiProvider } from "./core/options/shared_ai_options";
+import {
+  OLLAMA_ORIGINS,
+  SHARED_AI_FEATURES,
+  SHARED_AI_KEY_IDS,
+  SHARED_AI_OPTIONS_KEY,
+  SHARED_AI_OPTION_IDS,
+  effectiveAiProvider,
+} from "./core/options/shared_ai_options";
 import { categorize } from "./features/register_categories";
 import "./features/register_feature_options";
 import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink, recordBackupMade } from "./core/common";
@@ -107,6 +114,31 @@ function selectProviderWithOnlyKey(featureId, changedElement) {
   });
   const provider = effectiveAiProvider(options);
   if (provider !== select.value) select.value = provider;
+}
+
+// Ollama (2026-10-16): ollama.com and this computer's Ollama are optional permissions, so adding
+// them didn't ask every member to accept new sites on update. Ask when Ollama is picked (the
+// browser only allows the request during the click or change itself).
+function requestOllamaAccessIfChosen(featureId, changedElement) {
+  const changedId = String(changedElement?.id || "").replace(`${featureId}_`, "");
+  if (!["aiProvider", "ollamaWhere", "ollamaKey"].includes(changedId)) return;
+  if (document.getElementById(`${featureId}_aiProvider`)?.value !== "ollama") return;
+  // (declarativeNetRequestWithHostAccess: Ollama refuses extension origins with a 403, so background.js
+  // removes the Origin header from its own requests to localhost:11434; live, Ollama 0.40.5, 2026-10-16)
+  const ask = (request, retry) => {
+    try {
+      chrome.permissions.request(request, (granted) => {
+        if (chrome.runtime.lastError && retry) return ask(retry, null);
+        if (chrome.runtime.lastError || !granted) {
+          console.warn("wbe: Ollama access not granted", chrome.runtime.lastError?.message || "");
+        }
+      });
+    } catch (error) {
+      if (retry) return ask(retry, null);
+      console.warn("wbe: Ollama access request failed", error);
+    }
+  };
+  ask({ permissions: ["declarativeNetRequestWithHostAccess"], origins: OLLAMA_ORIGINS }, { origins: OLLAMA_ORIGINS });
 }
 
 function getSharedAiOptionStorageKeys() {
@@ -432,7 +464,10 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
   }
 
   function onChange(event) {
-    if (isSharedAiFeature(featureId)) selectProviderWithOnlyKey(featureId, event?.target);
+    if (isSharedAiFeature(featureId)) {
+      selectProviderWithOnlyKey(featureId, event?.target);
+      requestOllamaAccessIfChosen(featureId, event?.target);
+    }
     saveFeatureOptions(featureData);
     updateDependentOptions();
   }

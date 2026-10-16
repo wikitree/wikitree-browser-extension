@@ -388,12 +388,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === "improveBioWithAI") {
-    handleAIRequest(message, sendResponse);
+    handleAIRequest(message, sendResponse, sender);
     return true; // Keep channel open for async response
   }
 
   if (message.action === "chatWithAI") {
-    handleChatWithAIRequest(message, sendResponse);
+    handleChatWithAIRequest(message, sendResponse, sender);
     return true; // Keep channel open for async response
   }
 
@@ -967,7 +967,7 @@ function redactSecret(message, secret) {
   return message.split(secret).join("[REDACTED]");
 }
 
-async function handleAIRequest(request, sendResponse) {
+async function handleAIRequest(request, sendResponse, sender) {
   const {
     oldBio,
     newBio,
@@ -1128,20 +1128,7 @@ ${newBio}
 ${dataPayload}`;
 
   try {
-    let resultBio = "";
-    if (provider === "openai") {
-      resultBio = await callOpenAI(key, model || "gpt-5.6-terra", systemRole, prompt);
-    } else if (provider === "gemini") {
-      resultBio = await callGemini(key, model || "gemini-3.5-flash", systemRole, prompt);
-    } else if (provider === "claude") {
-      resultBio = await callClaude(key, model || "claude-sonnet-5", systemRole, prompt);
-    } else if (provider === "perplexity") {
-      resultBio = await callPerplexity(key, model || "sonar", systemRole, prompt);
-    } else if (provider === "xai") {
-      resultBio = await callXAI(key, model || "grok-4.3", systemRole, prompt);
-    } else {
-      throw new Error("Unknown provider: " + provider);
-    }
+    let resultBio = await callAiProvider(provider, key, model, systemRole, prompt, sender?.tab?.id);
 
     // --- PROGRAMMATIC CLEANING : CATEGORIES ---
     // The AI sometimes ignores instructions and adds categories like [[Category: 1917 Births]].
@@ -1197,7 +1184,7 @@ ${dataPayload}`;
 // handling belongs here), so it sends { action: "chatWithAI", provider, key,
 // model, prompt } and expects { success, response }. Without this handler every
 // Genie AI call silently fails and the chat falls back to deterministic parsing.
-async function handleChatWithAIRequest(message, sendResponse) {
+async function handleChatWithAIRequest(message, sendResponse, sender) {
   try {
     const provider = message.provider || "openai";
     const key = message.key;
@@ -1218,26 +1205,73 @@ async function handleChatWithAIRequest(message, sendResponse) {
       "Follow the user's instructions precisely. When the instructions ask for JSON, " +
       "reply with strict JSON only and no surrounding prose or code fences.";
 
-    let response = "";
-    if (provider === "openai") {
-      response = await callOpenAI(key, model || "gpt-5-mini", system, prompt);
-    } else if (provider === "gemini") {
-      response = await callGemini(key, model || "gemini-3-flash-preview", system, prompt);
-    } else if (provider === "claude") {
-      response = await callClaude(key, model || "claude-sonnet-4-5", system, prompt);
-    } else if (provider === "perplexity") {
-      response = await callPerplexity(key, model || "sonar", system, prompt);
-    } else if (provider === "xai") {
-      response = await callXAI(key, model || "grok-4.3", system, prompt);
-    } else {
-      sendResponse({ success: false, error: "Unknown provider: " + provider });
-      return;
-    }
+    const response = await callAiProvider(provider, key, model, system, prompt, sender?.tab?.id);
 
     sendResponse({ success: true, response });
   } catch (error) {
     console.error("chatWithAI request failed:", error);
     sendResponse({ success: false, error: error?.message || String(error) });
+  }
+}
+
+// Auto Bio and Genie both call through this (2026-10-16: each had its own copy, and Genie's
+// fallback models had gone stale). The pages always send a model; the default is a fallback,
+// the same as SHARED_AI_DEFAULT_MODELS in src/core/options/shared_ai_options.js.
+const AI_PROVIDERS = {
+  openai: { call: (...args) => callOpenAI(...args), defaultModel: "gpt-5.6-terra" },
+  gemini: { call: (...args) => callGemini(...args), defaultModel: "gemini-3.5-flash" },
+  claude: { call: (...args) => callClaude(...args), defaultModel: "claude-sonnet-5" },
+  perplexity: { call: (...args) => callPerplexity(...args), defaultModel: "sonar" },
+  xai: { call: (...args) => callXAI(...args), defaultModel: "grok-4.3" },
+  ollama: { call: (...args) => callOllama(...args), defaultModel: "gpt-oss:120b" },
+};
+
+// A slow reply looks like nothing is happening (the user, 2026-10-16: Auto Bio with Ollama on this
+// computer took minutes). After a while the page is told, so it can say it's still working; and
+// told again when the reply comes. People start to wonder at about 10 seconds; cloud replies
+// usually come well before 20. (src/core/ai_slow_notice.js shows it.)
+const AI_SLOW_AFTER_MS = { local: 10000, other: 20000 };
+// ...and a reply that never comes mustn't leave them waiting for ever: Chrome stops the background
+// worker after about 5 minutes on one request (with an unhelpful error), and Firefox never does.
+const AI_GIVE_UP_AFTER_MS = 270000;
+
+async function callAiProvider(provider, key, model, system, prompt, tabId) {
+  const entry = AI_PROVIDERS[provider];
+  if (!entry) throw new Error("Unknown provider: " + provider);
+  const local = provider === "ollama" && key === "ollama-local";
+  const tell = (action) => {
+    if (tabId === undefined || tabId < 0) return;
+    try {
+      Promise.resolve(chrome.tabs.sendMessage(tabId, { action, local, provider })).catch(() => {});
+    } catch (error) {
+      // (the tab may have closed; the note is only a courtesy)
+    }
+  };
+  let slow = false;
+  const timer = setTimeout(() => {
+    slow = true;
+    tell("wbeAiSlow");
+  }, local ? AI_SLOW_AFTER_MS.local : AI_SLOW_AFTER_MS.other);
+  let giveUp;
+  const tooLong = new Promise((resolve, reject) => {
+    giveUp = setTimeout(
+      () =>
+        reject(
+          new Error(
+            local
+              ? "Ollama on your computer didn't answer within 4½ minutes, so WBE stopped waiting. Try a smaller model, or choose Ollama Cloud or another AI provider in WBE's settings."
+              : "The AI didn't answer within 4½ minutes, so WBE stopped waiting. Please try again later."
+          )
+        ),
+      AI_GIVE_UP_AFTER_MS
+    );
+  });
+  try {
+    return await Promise.race([entry.call(key, model || entry.defaultModel, system, prompt), tooLong]);
+  } finally {
+    clearTimeout(timer);
+    clearTimeout(giveUp);
+    if (slow) tell("wbeAiDone");
   }
 }
 
@@ -1382,6 +1416,83 @@ async function callPerplexity(apiKey, model, system, userPrompt) {
 
   const data = await response.json();
   return data.choices?.[0]?.message?.content || "";
+}
+
+// Ollama (2026-10-16, docs.ollama.com/api): with a key, Ollama Cloud; with "ollama-local"
+// (OLLAMA_LOCAL_KEY in shared_ai_options.js: the member left the key blank), the Ollama app on
+// this computer, which needs no key. Same /api/chat either way.
+// Ollama answers 403 to chrome-extension:// and moz-extension:// origins unless OLLAMA_ORIGINS is set
+// (live, Ollama 0.40.5, 2026-10-16), so drop the Origin header from the extension's own requests to it.
+// Needs the optional declarativeNetRequestWithHostAccess permission, asked for when Ollama is chosen.
+const OLLAMA_ORIGIN_RULE_ID = 41134;
+async function allowLocalOllama() {
+  try {
+    if (!chrome.declarativeNetRequest?.updateSessionRules) return;
+    await chrome.declarativeNetRequest.updateSessionRules({
+      removeRuleIds: [OLLAMA_ORIGIN_RULE_ID],
+      addRules: [
+        {
+          id: OLLAMA_ORIGIN_RULE_ID,
+          priority: 1,
+          action: { type: "modifyHeaders", requestHeaders: [{ header: "origin", operation: "remove" }] },
+          condition: { urlFilter: "|http://localhost:11434/", tabIds: [-1], resourceTypes: ["xmlhttprequest", "other"] },
+        },
+      ],
+    });
+  } catch (error) {
+    console.warn("wbe: couldn't set the Ollama header rule", error);
+  }
+}
+
+async function callOllama(apiKey, model, system, userPrompt) {
+  // (the pages send "ollama-local" for "Run Ollama on: This computer"; a saved key alone never means local)
+  const local = apiKey === "ollama-local";
+  if (!local && !apiKey) {
+    throw new Error("Ollama Cloud needs an Ollama API key. Add one in WBE's settings, or set \"Run Ollama on\" to This computer.");
+  }
+  const base = local ? "http://localhost:11434" : "https://ollama.com";
+  if (local) await allowLocalOllama();
+  let response;
+  try {
+    response = await fetch(`${base}/api/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(local ? {} : { Authorization: `Bearer ${apiKey}` }),
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: userPrompt },
+        ],
+        stream: false,
+        options: { temperature: 0.2 },
+      }),
+    });
+  } catch (error) {
+    throw new Error(
+      local
+        ? "Couldn't reach Ollama on this computer (localhost:11434). Is the Ollama app running? (To use Ollama Cloud instead, set \"Run Ollama on\" to Ollama Cloud in WBE's settings.)"
+        : "Couldn't reach Ollama Cloud: " + (error?.message || error)
+    );
+  }
+
+  if (!response.ok) {
+    const err = await response.text();
+    if (local && response.status === 403) {
+      throw new Error(
+        "Ollama on this computer refused the request (403). In WBE's settings choose another AI provider and then Ollama again, and allow access when the browser asks. If that doesn't help, set OLLAMA_ORIGINS to chrome-extension://*,moz-extension://* and restart Ollama."
+      );
+    }
+    if (response.status === 404) {
+      throw new Error(`Ollama doesn't have the model "${model}"${local ? ` (pull it first: ollama pull ${model})` : ""}. ` + err);
+    }
+    throw new Error("Ollama API Error: " + response.status + " " + err);
+  }
+
+  const data = await response.json();
+  return data.message?.content || "";
 }
 
 async function callXAI(apiKey, model, system, userPrompt) {

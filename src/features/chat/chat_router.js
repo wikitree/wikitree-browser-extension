@@ -33,6 +33,7 @@ import { parseFamilySizePrompt } from "./chat_family_size_data";
 import { parseHistoryPrompt } from "./chat_world_events_data";
 import { parseNameCloudPrompt } from "./chat_name_cloud_data";
 import { parseNameGroupingPrompt } from "./chat_name_variants";
+import { parseSurnameReportPrompt } from "./chat_surname_report";
 import { parseProfileSourcesPrompt } from "./chat_sources";
 import { parseMarriagePrompt } from "./chat_marriage";
 import { parseRelativeAgePrompt, parseRelativeFactPrompt } from "./chat_relative_fact";
@@ -73,6 +74,7 @@ export const ChatIntent = {
   MIGRATION_MAP: "migrationMap",
   LIFESPANS: "lifespans",
   NAME_CLOUD: "nameCloud",
+  SURNAME_REPORT: "surnameReport",
   FAMILY_CALENDAR: "familyCalendar",
   AGES_CHART: "agesChart",
   TREE_OVERVIEW: "treeOverview",
@@ -2879,6 +2881,9 @@ function routeAsciiChatPrompt(prompt, options = {}) {
   // Your own name groupings (2026-10-15): "count Smith as Smit", "ungroup Smith".
   const nameGrouping = parseNameGroupingPrompt(prompt);
   if (nameGrouping) return { intent: ChatIntent.NAME_CLOUD, params: { grouping: nameGrouping } };
+  // WT+'s surname improvements report (2026-10-16): "surname improvements for Whitten"
+  const surnameReport = parseSurnameReportPrompt(prompt);
+  if (surnameReport) return { intent: ChatIntent.SURNAME_REPORT, params: surnameReport };
   const familyWorld = parseFamilyWorldPrompt(prompt);
   if (familyWorld) return { intent: ChatIntent.FAMILY_WORLD, params: familyWorld };
   const fractalTree = parseFractalTreePrompt(prompt);

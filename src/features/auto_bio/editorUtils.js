@@ -10,6 +10,18 @@ export function addWorking() {
 
 export function removeWorking() {
   $("#working").remove();
+  $("#autoBioWorkingNote").remove();
+}
+
+// "Still working" under the spinner while a slow AI reply is awaited (src/core/ai_slow_notice.js).
+export function showWorkingNote(text) {
+  if (!$("#working.autoBioWorking").length) return;
+  $("#autoBioWorkingNote").remove();
+  $("<div id='autoBioWorkingNote' role='status'></div>").text(text).insertAfter("#working.autoBioWorking");
+}
+
+export function removeWorkingNote() {
+  $("#autoBioWorkingNote").remove();
 }
 
 export function setBioText(text, position = "top") {

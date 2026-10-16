@@ -112,6 +112,12 @@ const WTPLUS_QUERIES = {
   "Category: Pennsylvania Quakers and its subcategories": 'SubCat9="Pennsylvania Quakers"',
   "category word Huguenot": "CategoryWord=Huguenot",
   "gold standard profiles in Devon": "Location=Devon ResearchGold",
+  "Devon births with a content rank of 1": "BirthLocation=Devon rank=1",
+  "Whitten born in Kent with a low content rank": "AllLastNames=Whitten BirthLocation=Kent rank=1 OR AllLastNames=Whitten BirthLocation=Kent rank=2",
+  "Shropshire births with a notable template": "BirthLocation=Shropshire NotableProfile",
+  "Which of my relatives is a member of a notable category?": "WikiTreeID=User-1 " + "Relation=addparents ".repeat(7) + "Relation=addchildren ".repeat(7) + "CC7=User-1 Notables",
+  "my relatives born in Kent": "WikiTreeID=User-1 " + "Relation=addparents ".repeat(7) + "Relation=addchildren ".repeat(7) + "CC7=User-1 BirthLocation=Kent",
+  "relatives who emigrated to the USA": "WikiTreeID=User-1 " + "Relation=addparents ".repeat(7) + "Relation=addchildren ".repeat(7) + 'CC7=User-1 DeathLocation="United States" NOT BirthLocation="United States"',
   "profiles I manage with sources to review": "ResearchReview Manager=User-1",
   "profiles I manage with style issues": "bioCheckStyleIssues Manager=User-1",
   "Beacall emigrants to Australia": "DeathLocation=Australia NOT BirthLocation=Australia",
@@ -167,6 +173,14 @@ describe("no-AI examples", () => {
   test.each(bySection("search"))("search: %s", async (prompt) => {
     expect(WTPLUS_QUERIES[prompt]).toBeTruthy();
     expect(await wtPlusQuery(prompt)).toContain(WTPLUS_QUERIES[prompt]);
+  });
+
+  test("relatives results offer the whole CC7, in-laws too", async () => {
+    jest.clearAllMocks();
+    wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "Result: 1\r\n" } });
+    const result = await makeHandler().tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "my relatives born in Kent");
+    const button = (result?.actions || []).find((action) => action.label === "Include in-laws (whole CC7)");
+    expect(button?.wtPlusQuery).toBe("CC7=User-1 BirthLocation=Kent");
   });
 
   test("columns", () => {

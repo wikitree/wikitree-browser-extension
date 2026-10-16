@@ -44,6 +44,8 @@ export const SEARCH_SPEC_FLAGS = {
   MtDNA: { term: "mtDNA", meaning: "has an mtDNA test connection" },
   AuDNA: { term: "auDNA", meaning: "has an autosomal DNA test connection" },
   Notables: { term: "Notables", meaning: "notable / famous people (Notables Project)" },
+  // WT+ news, 2026-09-20: any notable template (Notables 5,000+, Shropshire 207; live, 2026-10-16)
+  NotableProfile: { term: "NotableProfile", meaning: "has any notable template on the profile" },
   Open: { term: "Open", meaning: "open privacy" },
   NeverEdited: { term: "NeverEdited", meaning: "never edited since creation" },
   GedcomJunk: { term: "GEDCOMJunk", meaning: "GEDCOM import leftovers in the bio" },
@@ -55,6 +57,9 @@ export const SEARCH_SPEC_FLAGS = {
 
 const NAME_FIELDS = {
   lastNameAtBirth: "LastNameAtBirth",
+  // WT+ news, 2026-08-30: the LNAB with spaces and punctuation removed, open profiles
+  // only (surname=OBRIAN 398, surname=vanderheyden 295; live, 2026-10-16)
+  surnameKey: "surname",
   currentLastName: "CurrentLastName",
   anyLastName: "AllLastNames",
   firstName: "FirstName",
@@ -176,11 +181,36 @@ function compileSpecialRoute(special, scopeText, errors) {
   }
 }
 
+// "relatives" = blood relatives within CC7, not in-laws (2026-10-16). WT+ has no index for it,
+// so: the person, their ancestors 7 generations up, all their descendants 7 down, kept only if
+// in the person's CC7. Other terms go AFTER it (WT+ ANDs what follows the last relation=; what's
+// before it is the relation's input). Live: Darwin-15 908 of 7,759 in CC7 (his wife, a first
+// cousin, is in; her mother isn't), Cook-8721 141 of 13,850 (no spouses), Smit-641 5,312 (18s).
+export function bloodRelativesTerm(root) {
+  const steps = (relation) => Array(7).fill(`relation=${relation}`).join(" ");
+  return `WikiTreeID=${root} ${steps("addparents")} ${steps("addchildren")} CC7=${root}`;
+}
+
+// The same search over the whole CC7, in-laws too: the "Include in-laws" button (2026-10-16).
+// Null when the query isn't a blood-relatives one.
+export function withInLawsQuery(query) {
+  const text = String(query || "");
+  const match = text.match(/WikiTreeID=(\S+)(?:\s+relation=addparents){7}(?:\s+relation=addchildren){7}\s+CC7=\1(?=\s|$)/i);
+  return match ? text.replace(match[0], `CC7=${match[1]}`) : null;
+}
+
 export function compileTreeRoot(value, context) {
   const text = String(value || "").trim();
   if (/^(?:me|user|myself)$/i.test(text)) return context.userWtId || "";
   if (/^(?:current|this|profile|current\s*profile)$/i.test(text)) return context.currentProfileWtId || "";
-  return /^[A-Za-z' -]+-\d+$/.test(text) ? text.replace(/\s+/g, "_") : "";
+  if (/^[A-Za-z' -]+-\d+$/.test(text)) return text.replace(/\s+/g, "_");
+  // "Joseph's relatives" while Joseph's profile is open (WT video, 2026-10-16): any of the viewed
+  // person's names means them; another name can't be looked up, so it fails rather than guess.
+  const names = String(context.currentProfileName || "")
+    .toLowerCase()
+    .split(/[\s()"]+/)
+    .filter(Boolean);
+  return text && context.currentProfileWtId && names.includes(text.toLowerCase()) ? context.currentProfileWtId : "";
 }
 
 // An alternative adds to the shared spec: lists are appended, objects merged.
@@ -243,7 +273,29 @@ export function createdYears(created, now = new Date()) {
   return years.length && years.length <= MAX_CREATED_YEARS ? years : null;
 }
 
+// WT+ Content Rank (news, 2026-08-30): 1 = least content … 10 = most (every Gold
+// Standard profile is 10; Shropshire 1: 2,186, 10: 10,102; live, 2026-10-16).
+// WT+ only has rank=N, so a range becomes one search per rank.
+export function contentRanks(value) {
+  if (Number.isInteger(value)) return value >= 1 && value <= 10 ? [value] : null;
+  if (!value || typeof value !== "object") return null;
+  const min = value.min ?? 1;
+  const max = value.max ?? 10;
+  if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max > 10 || min > max) return null;
+  return Array.from({ length: max - min + 1 }, (_, index) => min + index);
+}
+
 export function compileSearchSpec(search = {}, context = {}) {
+  if (search?.contentRank !== undefined) {
+    const { contentRank, ...others } = search;
+    const ranks = contentRanks(contentRank);
+    if (!ranks) return { query: "", routePrompt: "", errors: [`bad contentRank: ${JSON.stringify(contentRank)}`] };
+    if (ranks.length === 1) return compileSearchSpec({ ...others, contentRankValue: ranks[0] }, context);
+    if (others.anyOf?.length) {
+      return { query: "", routePrompt: "", errors: ["a contentRank range can't be combined with anyOf"] };
+    }
+    return compileSearchSpec({ ...others, anyOf: ranks.map((rank) => ({ contentRankValue: rank })) }, context);
+  }
   const { anyOf, created, ...rest } = search || {};
   if (created !== undefined) {
     const years = createdYears(created);
@@ -358,6 +410,7 @@ function compileSingleSearchSpec(search, context) {
     terms.push(`${field}=${quoteWtPlusSpecValue(category.name)}`);
   }
   if (search.createdYear) terms.push(`Created=Created_${search.createdYear}`);
+  if (Number.isInteger(search.contentRankValue)) terms.push(`rank=${search.contentRankValue}`);
   // ("profiles I created": the caller puts in the user's ID for "me", 2026-10-14)
   if (search.creator) {
     if (/^[A-Za-z][A-Za-z0-9_'-]*-\d+$/.test(String(search.creator))) terms.push(`Created=Creator_${search.creator}`);
@@ -391,8 +444,14 @@ function compileSingleSearchSpec(search, context) {
     if (root) terms.push(`${field}=${root}`);
     else errors.push(`unknown tree root: ${search.tree[key]}`);
   }
+  let relatives = "";
+  if (search.tree?.relativesOf) {
+    const root = compileTreeRoot(search.tree.relativesOf, context);
+    if (root) relatives = bloodRelativesTerm(root);
+    else errors.push(`unknown tree root: ${search.tree.relativesOf}`);
+  }
 
-  const scopeQuery = [...terms.filter(Boolean), ...(sql.length ? [sqlTerm(sql)] : [])].join(" ");
+  const scopeQuery = [relatives, ...terms.filter(Boolean), ...(sql.length ? [sqlTerm(sql)] : [])].filter(Boolean).join(" ");
   if (search.special) {
     // The routes parse "<place> <from>-<to> …", so give them that scope text.
     const place = (search.places || [])[0]?.text || "";
@@ -429,6 +488,20 @@ const SPEC_EXAMPLES = [
         names: { anyLastName: "Beacall" },
         places: [{ text: "Australia", event: "death" }],
         notPlaces: [{ text: "Australia", event: "birth" }],
+      },
+    },
+  ],
+  // WT video (2026-10-16)
+  [
+    "Which of my relatives emigrated to the USA?",
+    {
+      action: "search",
+      understood: "Your blood relatives (within 7 degrees) who died in the United States but were not born there",
+      assumptions: ["Relatives = blood relatives within 7 degrees, not in-laws", "Emigrated = died in the United States, born elsewhere"],
+      search: {
+        tree: { relativesOf: "me" },
+        places: [{ text: "United States", event: "death" }],
+        notPlaces: [{ text: "United States", event: "birth" }],
       },
     },
   ],
@@ -559,6 +632,7 @@ export function buildSearchSpecInstructions({
   today = "",
   userWtId = "",
   currentProfileWtId = "",
+  currentProfileName = "",
   suggestionCatalog = "",
 } = {}) {
   return [
@@ -572,7 +646,8 @@ export function buildSearchSpecInstructions({
     '{"action":"unsupported","understood":"...","reason":"one sentence the user will read"}',
     "",
     "search fields (all optional; everything inside one search must ALL be true):",
-    '- names: {"lastNameAtBirth","currentLastName","anyLastName","firstName"}. Use anyLastName for a plain surname.',
+    '- names: {"lastNameAtBirth","currentLastName","anyLastName","firstName","surnameKey"}. Use anyLastName for a plain surname. surnameKey = the surname at birth written without spaces or punctuation ("OBRIAN" for O\'Brian, "vanderheyden" for van der Heyden); it only finds OPEN profiles, so use it only when the user asks for every way a spaced or apostrophe surname is written, and say so in assumptions.',
+    '- contentRank: N (1-10) or {"min":N,"max":N} — WikiTree+ Content Rank: 1 = least content on the profile, 10 = most. "profiles that need the most work" / "thin profiles" / "least content" = {"max":3}; "rank 1" = 1.',
     '- places: [{"text":"Place, Country","event":"birth|death|marriage|any"}]. "born in X" / "X births" = birth; "died in X" / "X deaths" = death; "married in X" / "X marriages" = marriage; a bare place = any.',
     '- notPlaces: same shape as places; the place must NOT match. "emigrated to X" / "immigrants to X" = places [{X, death}] + notPlaces [{X, birth}]; "emigrated from X" = places [{X, birth}] + notPlaces [{X, death}]. Say in assumptions that people with no birth (or death) place are included.',
     '- dates: [{"event":"birth|death|marriage","from":YEAR,"to":YEAR}] — whole years, both inclusive, either may be left out.',
@@ -594,7 +669,7 @@ export function buildSearchSpecInstructions({
     `- groupBy: one of ${Object.keys(GROUP_BY_FIELDS).join(", ")} — code runs the search, then counts the results in groups. "most common surnames in X" = groupBy lnab; "X births by decade" = groupBy birthDecade; "how many per country" = groupBy country. Never reply unsupported just because a request counts, ranks or groups results.`,
     `- columns: [keys] — extra columns for the results table ("include a column with gender", "show their privacy level"). How results are shown (columns, a table, a list) is never a condition and never unsupported. Keys: ${describeRequestedColumns()}.`,
     '- sameCemeteryAs: "me" | "current" | a WikiTree ID — buried in the same cemetery as that person (code looks up the cemetery).',
-    '- tree: {"ancestorsOf"|"descendantsOf"|"cc7Of": "me" | "current" | a WikiTree ID like "Darwin-15"}.',
+    '- tree: {"ancestorsOf"|"descendantsOf"|"relativesOf"|"cc7Of": "me" | "current" | a WikiTree ID like "Darwin-15"}. relativesOf = blood relatives within 7 degrees (ancestors, descendants, cousins, aunts, uncles; no in-laws): use it for "relatives", "kin", "family members", "related to". cc7Of = everyone within 7 degrees, in-laws too: only for "CC7", "connections" or "including in-laws". Say in assumptions which one you used.',
     '- special: one of {"type":"spousalAgeGap","minYears":N} | {"type":"parentAgeAtBirth","underAge":N,"overAge":N} | {"type":"siblingBirthGap","maxMonths":N} | {"type":"marriedNoChildren"} | {"type":"diedInChildbirth"} (mothers who died within weeks of a child’s birth; the place is the child’s birth place) | {"type":"createdRecently","days":N}. Put the place and birth years in places/dates as usual.',
     '- anyOf: [ {partial search}, ... ] — for "X or Y": each alternative is added to the rest of the search.',
     "",
@@ -626,7 +701,14 @@ export function buildSearchSpecInstructions({
     "Context:",
     today ? `- Today is ${today}.` : "",
     userWtId ? `- The user is ${userWtId} ("me", "my").` : "- The user is not logged in.",
-    currentProfileWtId ? `- The profile being viewed is ${currentProfileWtId} ("this person", "current").` : "",
+    currentProfileWtId
+      ? `- The profile being viewed is ${currentProfileWtId}${currentProfileName ? `, ${currentProfileName}` : ""} ("this person", "current"; their first name alone, as in "Joseph's relatives", means them too).`
+      : "",
+    // WT video (2026-10-16): "descendants who are members of a Notables category" on Françoise
+    // Olivier's profile became the viewer's own descendants.
+    currentProfileWtId
+      ? '- Ancestors, descendants, relatives, family or CC7 with no owner ("descendants who …", "which relatives …") are the viewed profile\'s: tree root "current". Use "me" only when the user says my, I, me, our or we.'
+      : "",
     "",
     "Examples (request => reply):",
     ...SPEC_EXAMPLES.map(([request, reply]) => `${request} => ${JSON.stringify(reply)}`),

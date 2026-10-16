@@ -146,15 +146,19 @@ export const AI_KEY_HELP_URL = "https://www.wikitree.com/wiki/Space:WikiTree_Bro
  * and AI switched off (`switchedOff`), it says to switch it on instead, with no how-to link (user, 2026-10-13:
  * "It shouldn't tell me how to add one when I have one").
  */
-export function needsAiKeyMessage({ withForm = false, switchedOff = false } = {}) {
+// Lead with what works without AI: people type questions anyway (the user, 2026-10-16).
+// hasTries: chat_try_instead found shorter wordings it can run, shown as buttons.
+export function needsAiKeyMessage({ withForm = false, switchedOff = false, hasTries = false } = {}) {
   return {
     text: [
       switchedOff
-        ? "We need AI to respond to this, and it's switched off. Switch it on with the AI switch at the top."
-        : "We need AI to respond to this. Add an AI API key in Genie's options. The link below shows how to get one and where to put it.",
-      withForm
-        ? 'Without one, Genie reads short searches like "Devon 1820s" or "Garver profiles". Fill in the boxes below, pick a chart at the top, or press "What can I type?" to see what it understands.'
-        : 'Without one, Genie still understands short searches like "Devon 1820s", "Garver profiles" or "my 3rd cousins", and shows the charts at the top. Press "What can I type?" to see the patterns.',
+        ? "Without AI, Genie understands short searches, not questions. AI is switched off: switch it on at the top to ask this."
+        : "Without AI, Genie understands short searches, not questions. To ask in your own words, add an AI API key: the link below shows how.",
+      hasTries
+        ? "Genie can run part of it without AI: press the search below."
+        : withForm
+          ? 'Fill in the boxes below, pick a chart at the top, or press "What can I type?".'
+          : 'Try a short search like "Devon 1820s", "Garver profiles" or "my 3rd cousins", or press "What can I type?" for more.',
     ].join("\n"),
     actions: switchedOff ? [] : [{ label: "How to get and add an AI API key", actionType: "external-link", url: AI_KEY_HELP_URL }],
   };

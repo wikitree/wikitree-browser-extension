@@ -53,6 +53,20 @@ export const NO_AI_EXAMPLE_SECTIONS = [
         note: "The Research Status members set at the top of a profile.",
       },
       {
+        pattern: "[search] content rank [1-10] / content rank below [N] / low content rank",
+        examples: ["Devon births with a content rank of 1", "Whitten born in Kent with a low content rank"],
+        note: "WikiTree+'s Content Rank: 1 is the least content on a profile, 10 the most. Low is 1 to 3.",
+      },
+      {
+        pattern: "my relatives / [first name]'s relatives / relatives [search]",
+        examples: ["Which of my relatives is a member of a notable category?", "my relatives born in Kent", "relatives who emigrated to the USA"],
+        note: "Blood relatives within 7 degrees: CC7 without the in-laws. With no owner, or a first name, it means the profile you're viewing.",
+      },
+      {
+        pattern: "[search] with a notable template",
+        examples: ["Shropshire births with a notable template"],
+      },
+      {
         pattern: "[search] with style issues",
         examples: ["profiles I manage with style issues"],
         note: "Biographies that WikiTree's Bio Check finds style problems in. \"No sources\" uses Bio Check too.",
