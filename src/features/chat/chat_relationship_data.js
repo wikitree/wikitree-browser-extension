@@ -48,6 +48,41 @@ export function relationshipName(gens1, gens2, { half = false, gender1 = "" } = 
   return `${ordinal(degree)} ${pre}cousin${removed ? ` ${removedWord(removed)} removed` : ""}`;
 }
 
+/**
+ * What the last person on a connection path is to the first, when the path is a blood line (the user,
+ * 2026-10-17: the connections chart should say so): up through parents (or to a sibling at the top)
+ * and down through children. {phrase: "6th great-grandmother", kind: "ancestor"|"descendant"|"relative",
+ * viaCommonAncestor} or null (a marriage on the way, or down before up).
+ */
+export function pathRelationship(path) {
+  const steps = Array.isArray(path) ? path : [];
+  if (steps.length < 2) return null;
+  // (getConnections says parent/child/sibling; "father", "daughter"… mean the same)
+  const KIND = { father: "parent", mother: "parent", son: "child", daughter: "child", brother: "sibling", sister: "sibling" };
+  const types = steps.slice(1).map((person) => {
+    const kind = connectionStepKind(person?.pathType);
+    return KIND[kind] || kind;
+  });
+  let up = 0;
+  let down = 0;
+  let sibling = false;
+  for (const type of types) {
+    if (type === "parent" && !down && !sibling) up += 1;
+    else if (type === "sibling" && !down && !sibling) sibling = true;
+    else if (type === "child") down += 1;
+    else return null;
+  }
+  if (sibling) {
+    up += 1;
+    down += 1;
+  }
+  const g = String(shownGender(steps[steps.length - 1]) || "").toLowerCase();
+  const pick = (male, female, neutral) => (g === "male" ? male : g === "female" ? female : neutral);
+  if (!down) return { phrase: ancestorWord(up, pick("father", "mother", "parent")), kind: "ancestor", viaCommonAncestor: false };
+  if (!up) return { phrase: ancestorWord(down, pick("son", "daughter", "child")), kind: "descendant", viaCommonAncestor: false };
+  return { phrase: relationshipName(down, up, { gender1: g }), kind: "relative", viaCommonAncestor: true };
+}
+
 // The chance that relatives share any DNA a test would detect, by meioses between them.
 // AncestryDNA's published odds ("Should other family members get tested?"): 3rd cousins
 // (8) 98%, 4th (10) 71%, 5th (12) 32%, 6th (14) 11%, 8th (18) under 1%; the removed

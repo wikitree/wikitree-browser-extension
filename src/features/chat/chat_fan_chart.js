@@ -14,8 +14,8 @@ import { easeCubicOut, easeBackOut } from "d3-ease";
 import { hsl } from "d3-color";
 import { birthYearColouring, topValueColouring } from "./chat_chart_colours";
 import { generationOfSlot, fanBirthParentChoices, fanChartStats, fanChartCountries, fanChartRepeats, fanChartSurnames, isBirthParentSlot } from "./chat_fan_chart_data";
-import { buildOriginsSeries } from "./chat_origins_data";
-import { showOriginsPopup } from "./chat_origins_chart";
+import { originsSeriesFromSlots } from "./chat_origins_data";
+import { showOriginsChart } from "./chat_origins_chart";
 import { buildMigration } from "./chat_migration_data";
 import { showMigrationMapPopup } from "./chat_migration_map";
 import { PARENT_STATUSES, autosomalShare, dnaLineAncestors, dnaLineCarrierNote, dnaLineOf, lineTestSummary, parentLinkStatus, parentStatusCounts, percentText, xDnaShares } from "./chat_dna_data";
@@ -408,7 +408,7 @@ export function showFanChartPopup(slots, options = {}) {
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>
       <div class="chat-popup-controls">
-        <button type="button" class="small" data-act="back" title="Back to the previous person" hidden>Back</button>
+        <button type="button" class="small" data-act="back" title="Back to the previous person" hidden>Previous person</button>
         <button type="button" class="small" data-act="shape" title="Switch between a half-fan and a full circle">Circle</button>
         <button type="button" class="small" data-act="origins" title="Birth countries by generation, as a streamgraph">Origins</button>
         <button type="button" class="small" data-act="map" title="These ancestors' moves on a world map">Map</button>
@@ -1038,18 +1038,7 @@ export function showFanChartPopup(slots, options = {}) {
       render();
     } else if (button.dataset.act === "origins") {
       popup._wbeLeaveFullScreen?.(); // (a full-screen chart would hide the new one)
-      const rows = state.slots
-        .map((person, slot) => (person && slot > 1 ? { degrees: generationOfSlot(slot), birthLocation: person.birthLocation, birth: person.birth } : null))
-        .filter(Boolean);
-      const series = buildOriginsSeries(rows);
-      if (series) {
-        showOriginsPopup(series, {
-          title: `Ancestral origins: ${personNameText(state.slots[1])} (${state.slots[1]?.wtid || ""})`,
-          fileBase: fileBase().replace(/^fan-chart/, "origins"),
-          rootKey: state.slots[1]?.wtid,
-          links: options.links,
-        });
-      } else button.title = "No birthplaces recorded in this chart";
+      if (!openOrigins(state.slots)) button.title = "No birthplaces recorded in this chart";
     } else if (button.dataset.act === "map") {
       popup._wbeLeaveFullScreen?.();
       const migration = buildMigration(state.slots);
@@ -1069,6 +1058,26 @@ export function showFanChartPopup(slots, options = {}) {
 
   // − / +: the same person with a generation fewer (no fetch: the slots are cut)
   // or more (fetched), keeping the zoom.
+  // The origins chart for these ancestors, with − / + generations.
+  function openOrigins(slots) {
+    const series = originsSeriesFromSlots(slots, { nameOf: personNameText });
+    if (!series) return false;
+    const wtid = slots[1]?.wtid;
+    showOriginsChart(series, {
+      title: `Ancestral origins: ${personNameText(slots[1])} (${wtid || ""})`,
+      fileBase: fileBase().replace(/^fan-chart/, "origins"),
+      rootKey: wtid,
+      links: options.links,
+      generations: generationOfSlot(slots.length - 1),
+      minGenerations: FAN_GENERATIONS_MIN,
+      maxGenerations: FAN_GENERATIONS_MAX,
+      ...(typeof options.onRecenter === "function" && wtid
+        ? { loadSeries: async (wanted) => originsSeriesFromSlots((await options.onRecenter(wtid, wanted, recenterOptions()))?.slots, { nameOf: personNameText }) }
+        : {}),
+    });
+    return true;
+  }
+
   async function changeGenerations(step) {
     const current = generationOfSlot(state.slots.length - 1);
     const wanted = Math.min(FAN_GENERATIONS_MAX, Math.max(FAN_GENERATIONS_MIN, current + step));

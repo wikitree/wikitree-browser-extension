@@ -4,7 +4,7 @@
 // reader's spec is checked here on the watchlist data; a part only WT+ can check (no sources, categories)
 // leaves it to WT+.
 
-import { PersonName } from "../auto_bio/person_name";
+import { personNameParts } from "./chat_person_name_parts";
 import { loadStoredWatchlist, saveStoredWatchlist } from "./chat_watchlist_store";
 import { yearOf } from "./chat_text_utils";
 
@@ -227,15 +227,8 @@ export function watchlistAgeNote(userNumId, now = Date.now()) {
  */
 export function watchlistDisplayName(person) {
   if (person?.FirstName && (person.LastNameAtBirth || person.LastNameCurrent)) {
-    try {
-      // (PersonName writes "(Smith) null" when one surname is missing: fill it from the other.)
-      const lnab = person.LastNameAtBirth || person.LastNameCurrent;
-      const current = person.LastNameCurrent || person.LastNameAtBirth;
-      const name = new PersonName({ ...person, LastNameAtBirth: lnab, LastNameCurrent: current }).withParts(["FullName"]);
-      if (typeof name === "string" && name.trim() && !name.startsWith("Invalid name part")) return name.replace(/\s+/g, " ").trim();
-    } catch (error) {
-      // (the plainer names below)
-    }
+    const name = personNameParts(person, ["FullName"]);
+    if (name) return name;
   }
   return (
     person?.ShortName ||

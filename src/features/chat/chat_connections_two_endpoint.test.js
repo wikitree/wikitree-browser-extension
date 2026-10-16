@@ -22,6 +22,7 @@ jest.mock("../../core/common", () => ({
 jest.mock("./ui", () => ({
   hideChatShaky: jest.fn(),
   showConnectionsPopup: jest.fn(),
+  setConnectionsRelationshipFinder: jest.fn(),
 }));
 
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";

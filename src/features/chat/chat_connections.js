@@ -11,6 +11,7 @@ import {
   directLineDown,
   directXDnaSentence,
   relationshipLead,
+  pathRelationship,
   xDnaPath,
   xDnaSentence,
 } from "./chat_relationship_data";
@@ -38,7 +39,7 @@ import {
 } from "./chat_router";
 import { describeConnectionPath } from "./chat_relation_chain_text";
 import { shownGender } from "./chat_gender_display";
-import { hideChatShaky, showConnectionsPopup } from "./ui";
+import { hideChatShaky, setConnectionsRelationshipFinder, showConnectionsPopup } from "./ui";
 import { PERSON_MEMORY_ALIAS_STOPWORDS, normalizePersonMemoryToken } from "./chat_person_memory";
 import { parseConnectionTargetHints, withTypedTargetHints } from "./chat_connection_target_hints";
 
@@ -87,7 +88,11 @@ function parseLegacyRelationshipLabel(legacy) {
 }
 
 // "Relationship: No relationship found." read badly (live corpus B8, 2026-10-02).
-function formatRelationshipSuffix(relationshipText) {
+// A blood line on the path says it plainly, the right way round (the user, 2026-10-17: "Tabitha … Relationship:
+// Sixth great grandson" was the user's relationship to her): "Tabitha (Parker-40845) is your 6th great-grandmother."
+function formatRelationshipSuffix(relationshipText, { path = null, targetLabel = "", sourceLabel = "you" } = {}) {
+  const blood = targetLabel ? pathRelationship(path) : null;
+  if (blood) return ` ${targetLabel} is ${sourceLabel === "you" ? "your" : `${sourceLabel}'s`} ${blood.phrase}.`;
   if (!relationshipText) {
     return "";
   }
@@ -1775,6 +1780,24 @@ export function createChatConnectionHandlers({
     }
   }
 
+  // The Connections Path popup's Relationship button (the user, 2026-10-17): the Relationship Finder for
+  // the path's two ends, with the relationship chart when they share ancestors.
+  setConnectionsRelationshipFinder(async (sourcePerson, targetPerson) => {
+    const sourceWtId = sourcePerson?.Name;
+    const targetWtId = targetPerson?.Name;
+    const sourceName = fullWikiTreeName(sourcePerson) || sourceWtId;
+    const targetName = fullWikiTreeName(targetPerson) || targetWtId;
+    const legacy = await getRelationJSON("Chat", sourceWtId, targetWtId);
+    const relationship = analyseRelationship(legacy);
+    if (!relationship || relationship.kind === "none") return `WikiTree's Relationship Finder found no blood relationship between ${sourceName} and ${targetName}.`;
+    const details = describeRelationship(relationship, sourceName, targetName, { gender1: shownGender(sourcePerson) });
+    if (relationship.kind !== "common") return details;
+    const label = parseLegacyRelationshipLabel(legacy);
+    openRelationshipChart(sourceWtId, targetWtId, relationship, label, targetName);
+    const lead = relationshipLead(label, targetName, sourceName);
+    return [lead, details].filter(Boolean).join("\n");
+  });
+
   async function getConnectionDataWithFallback(sourceKey, targetWtId) {
     const attempts = [0, 11, 1];
     let lastData = null;
@@ -1863,7 +1886,7 @@ export function createChatConnectionHandlers({
     if (/^\d+$/.test(relationshipText)) {
       relationshipText = "";
     }
-    const relationshipSuffix = formatRelationshipSuffix(relationshipText);
+    const relationshipSuffix = formatRelationshipSuffix(relationshipText, { path: data?.path, targetLabel: `${displayName} (${targetWtId})`, sourceLabel: lastConnectionContext.sourceLabel });
     return `Trying another match: ${displayName} (${targetWtId}) is ${distance} step${
       distance === 1 ? "" : "s"
     } away from ${lastConnectionContext.sourceLabel}.${relationshipSuffix}`;
@@ -2055,7 +2078,11 @@ export function createChatConnectionHandlers({
       if (/^\d+$/.test(relationshipText)) {
         relationshipText = "";
       }
-      const relationshipSuffix = formatRelationshipSuffix(relationshipText);
+      const relationshipSuffix = formatRelationshipSuffix(relationshipText, {
+        path: data?.path,
+        targetLabel: `${displayName} (${targetWtId})`,
+        sourceLabel: sourceRoot.subjectType === "user" ? "you" : `${sourceRoot.displayName} (${sourceRoot.wtId})`,
+      });
 
       setLastConnectionContext({
         sourceKey,

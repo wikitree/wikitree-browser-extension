@@ -15,6 +15,19 @@ function fold(text) {
     .toLowerCase();
 }
 
+/**
+ * The full name for a picker row (the user, 2026-10-17: "Eliza", not "Eliza Shields"): a first name
+ * alone gets the surname from the WikiTree ID, which is the surname at birth.
+ */
+export function pickerFullName(name, wtId) {
+  const text = String(name || "").trim();
+  const id = String(wtId || "").trim();
+  const surname = id.replace(/-\d+$/, "").replace(/_/g, " ");
+  if (!text || text === id) return text || id;
+  if (!surname || surname === id || fold(text).includes(fold(surname))) return text;
+  return `${text} ${surname}`;
+}
+
 /** "1850–1912", "b. 1850", "d. 1912" or "". */
 export function lifeYearsText(birthDate, deathDate) {
   const born = yearOf(birthDate);

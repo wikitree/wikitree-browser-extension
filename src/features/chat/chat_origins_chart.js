@@ -102,6 +102,8 @@ export function showOriginsPopup(series, options = {}) {
   const placeWord = options.placeWord === "death" ? "death" : "birth";
   // kind "surname": the surname river (keys are surnames at birth, not countries).
   const surnames = options.kind === "surname";
+  // A dot for each ancestor when the series says who they are.
+  const hasPeople = series.generations.some((gen) => Object.keys(gen.people || {}).length);
   const OTHER = series.otherKey || OTHER_COUNTRIES;
   const withoutWord = surnames ? "have no surname recorded" : `have no ${placeWord}place`;
   const state = { mode: "stream", highlight: null, picked: null };
@@ -178,7 +180,7 @@ export function showOriginsPopup(series, options = {}) {
     .attr("height", HEIGHT)
     .attr("width", WIDTH);
   const bandsLayer = root.append("g").attr("clip-path", `url(#${uid}-clip)`);
-  // A dot for each ancestor, in their band at their generation (the surname river).
+  // A dot for each ancestor, in their band at their generation.
   const dotsLayer = root.append("g");
   const labelsLayer = root.append("g").attr("pointer-events", "none");
   const axisLayer = root.append("g");
@@ -232,7 +234,8 @@ export function showOriginsPopup(series, options = {}) {
   let pinned = false;
   const personLink = (person, key) => {
     const spelling = person.lnab && series.variants?.[key] && !String(person.name).includes(person.lnab) ? ` · ${person.lnab}` : "";
-    const label = `${person.name}${spelling}${person.year ? ` (b. ${person.year})` : ""}`;
+    const place = !surnames && person.place ? ` · ${person.place}` : "";
+    const label = `${person.name}${spelling}${person.year ? ` (b. ${person.year})` : ""}${place}`;
     return person.wtid
       ? `<a href="/wiki/${encodeURIComponent(person.wtid)}" target="_blank" rel="noopener" title="Open ${escapeText(person.wtid)} in a new tab">${escapeText(label)}</a>`
       : escapeText(label);
@@ -243,7 +246,7 @@ export function showOriginsPopup(series, options = {}) {
       if (!people.length) return "";
       const shown = people.slice(0, 6);
       return `<div style="margin-top:4px">${shown.map((person) => `<div>${personLink(person, key)}</div>`).join("")}</div>
-        ${people.length > shown.length ? tipMoreHint(people.length - shown.length) : `<div class="wbe-chart-tip-hint">Click to list everyone with this name</div>`}`;
+        ${people.length > shown.length ? tipMoreHint(people.length - shown.length) : `<div class="wbe-chart-tip-hint">${surnames ? "Click to list everyone with this name" : "Click to list them all"}</div>`}`;
     }
     const groups = generations
       .filter((g) => g.people?.[key]?.length)
@@ -376,8 +379,8 @@ export function showOriginsPopup(series, options = {}) {
         const mid = (point) => (y(point[0]) + y(point[1])) / 2;
         const size = (thickness) => Math.min(15, Math.min(thickness - 1, 9 + thickness / 10));
         const label = { key: layer.key, x: x(best.point.data.generation), y: mid(best.point), size: size(best.thickness) };
-        if (!surnames) return label;
-        // The generation columns hold the dots, so a surname's name goes halfway to
+        if (!hasPeople) return label;
+        // The generation columns hold the dots, so a band's name goes halfway to
         // its thicker neighbour; a one-generation band gets it beside the dots.
         const index = layer.indexOf(best.point);
         const neighbour = [layer[index - 1], layer[index + 1]]
@@ -443,7 +446,7 @@ export function showOriginsPopup(series, options = {}) {
   }
 
   function drawDots(layers, y, delay, morph) {
-    if (!surnames) return;
+    if (!hasPeople) return;
     const dots = [];
     layers.forEach((layer) => {
       const lows = layer.map((point) => y(point[0]));
@@ -483,7 +486,8 @@ export function showOriginsPopup(series, options = {}) {
         tip.innerHTML = `<div class="wbe-chart-tip-rel">${escapeText(d.gen.name)}</div>
           <b>${escapeText(d.person.name)}</b>
           ${d.person.year ? `<div>Born ${d.person.year}</div>` : ""}
-          <div class="wbe-chart-tip-hint">${escapeText(d.key)} at birth${d.person.wtid ? " · click to open the profile" : ""}</div>`;
+          ${!surnames && d.person.place ? `<div>${escapeText(d.person.place)}</div>` : ""}
+          <div class="wbe-chart-tip-hint">${surnames ? `${escapeText(d.key)} at birth` : escapeText(d.key)}${d.person.wtid ? " · click to open the profile" : ""}</div>`;
         const rect = stage.getBoundingClientRect();
         tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 290)}px`;
         tip.style.top = `${Math.min(event.clientY - rect.top + 14, rect.height - 120)}px`;
@@ -743,4 +747,27 @@ export function showOriginsPopup(series, options = {}) {
   drawFooter();
   render({ reveal: true });
   return popup;
+}
+
+/**
+ * The origins chart with − / + generations (the user, 2026-10-17). loadSeries(wanted) gives the series
+ * for that many generations (null when there's nothing to draw); the chart redraws itself with it.
+ */
+export function showOriginsChart(series, { generations, loadSeries, minGenerations = 2, maxGenerations = 10, ...options }) {
+  const reloadable = generations && typeof loadSeries === "function";
+  return showOriginsPopup(series, {
+    ...options,
+    ...(reloadable
+      ? {
+          generations,
+          minGenerations,
+          maxGenerations,
+          onGenerations: async (wanted) => {
+            const next = await loadSeries(wanted);
+            if (!next) throw new Error(`no ${options.placeWord === "death" ? "death" : "birth"}places`);
+            showOriginsChart(next, { generations: wanted, loadSeries, minGenerations, maxGenerations, ...options });
+          },
+        }
+      : {}),
+  });
 }

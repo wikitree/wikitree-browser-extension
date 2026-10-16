@@ -2,11 +2,12 @@ import $ from "jquery";
 import { formatDate, getRelationColour, getYearColour, familyColours } from "../../core/formatting";
 import { escapeHtml } from "../../core/lib/diff_utils";
 import { setHighestZIndex } from "../../core/common";
-import { PersonName } from "../auto_bio/person_name";
+import { personNameParts } from "./chat_person_name_parts";
 import { profileLinkHtml } from "./chat_profile_link";
 import { shownGender } from "./chat_gender_display";
 import { connectionStepKind, connectionStepLabel } from "./chat_connection_common";
-import { installHeaderDoubleClick, toggleChartFullScreen } from "./chat_chart_common";
+import { pathRelationship } from "./chat_relationship_data";
+import { closeChartPopup, installHeaderDoubleClick, joinChartHistory, toggleChartFullScreen } from "./chat_chart_common";
 
 /**
  * Normalize simple text for comparisons.
@@ -29,15 +30,8 @@ function formatConnectionPersonName(person) {
   ).trim();
   const isPrivatePlaceholder = Number(person?.Id) < 0 && !String(person?.Name || "").trim();
 
-  try {
-    const personName = new PersonName(person || {});
-    const pedigreeName = personName.withParts(["PedigreeName"]);
-    if (typeof pedigreeName === "string" && pedigreeName.trim() && !pedigreeName.startsWith("Invalid name part")) {
-      return pedigreeName.trim();
-    }
-  } catch (error) {
-    // Ignore formatting errors and use a simple fallback
-  }
+  const pedigreeName = personNameParts(person, ["PedigreeName"]);
+  if (pedigreeName) return pedigreeName;
 
   const fallbackName = `${person?.FirstName || ""} ${person?.LastNameCurrent || person?.LastNameAtBirth || ""}`.trim();
   return (
@@ -969,6 +963,20 @@ function getConnectionDirectionArrow(pathType) {
  * Show a connections popup for a getConnections-style result.
  * This function is UI-only and does not mutate external module state.
  */
+// The Relationship button's work (chat_connections.js): WikiTree's Relationship Finder for the path's two
+// ends, opening the relationship chart when they share ancestors. Resolves to a sentence for the popup.
+let connectionsRelationshipFinder = null;
+export function setConnectionsRelationshipFinder(finder) {
+  connectionsRelationshipFinder = finder;
+}
+
+/** "Tabitha (Parker) Dixon is Ian Beacall's 6th great-grandmother.", when the path is a blood line; else "". */
+export function connectionsPathRelationshipText(path) {
+  const blood = pathRelationship(path);
+  if (!blood) return "";
+  return `${formatConnectionPersonName(path[path.length - 1])} is ${formatConnectionPersonName(path[0])}'s ${blood.phrase}.`;
+}
+
 export function showConnectionsPopup(connectionsResult) {
   if (!Array.isArray(connectionsResult) || !connectionsResult.length) return;
   const conn = connectionsResult[0];
@@ -999,9 +1007,7 @@ export function showConnectionsPopup(connectionsResult) {
     return getConnectionDirectionArrow(pathType);
   }
 
-  // Remove any existing popup before showing a new one
-  $("#wbe-connections-popup").remove();
-
+  // (an earlier Connections Path, or a chart, closes or waits behind Back: joinChartHistory below)
   const popup = document.createElement("div");
   popup.className = "wbe-popup chat-popup ui-draggable chat-connections-popup";
   popup.id = "wbe-connections-popup";
@@ -1064,6 +1070,8 @@ export function showConnectionsPopup(connectionsResult) {
     return `${sourceName} to ${targetName}`;
   })();
 
+  // A blood line says so above the table and the chart (the user, 2026-10-17).
+  const pathRelationshipText = connectionsPathRelationshipText(path);
   popup.innerHTML = `
     <div class="chat-popup-header ui-draggable-handle">
       <strong>Connections Path</strong>
@@ -1076,11 +1084,15 @@ export function showConnectionsPopup(connectionsResult) {
         <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-replay" title="Draw the path again, step by step" hidden>Replay</button>
         <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-open" title="Open the full chart in a new tab" hidden>Open</button>
         <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-pdf" title="Open print dialog for PDF export" hidden>PDF</button>
+        <button type="button" class="small" id="wbe-conn-relationship" title="How they're related: WikiTree's Relationship Finder, and the relationship chart when they share ancestors"${
+          connectionsRelationshipFinder && path[0]?.Name && path[path.length - 1]?.Name && path.length > 1 ? "" : " hidden"
+        }>Relationship</button>
         <button type="button" class="small" id="wbe-conn-full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
         <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
       </div>
     </div>
     <div class="chat-popup-body">
+      <div class="connections-relationship" aria-live="polite"${pathRelationshipText ? "" : " hidden"}>${escapeHtml(pathRelationshipText)}</div>
       <div id="wbe-conn-table-view">
         <table class="connections-table">
           <thead>
@@ -1283,11 +1295,14 @@ export function showConnectionsPopup(connectionsResult) {
     }
   }
 
-  popup.querySelector(".close-popup")?.addEventListener("click", () => {
+  // In the charts' Back/Forward history (the user, 2026-10-17: "I came here from the connections chart").
+  popup._wbeCloseChart = () => {
     stopFollowing();
     popup._wbeLeaveFullScreen?.();
-    popup.remove();
-  });
+    $(popup).remove();
+  };
+  joinChartHistory(popup);
+  popup.querySelector(".close-popup")?.addEventListener("click", () => closeChartPopup(popup));
   // Full screen (the table too): the diagram re-fits to the new space unless it was zoomed by hand.
   const refitAfterResize = () =>
     setTimeout(() => {
@@ -1300,6 +1315,21 @@ export function showConnectionsPopup(connectionsResult) {
     if (event.target.closest("button")) event.preventDefault();
   });
   installHeaderDoubleClick();
+  popup.querySelector("#wbe-conn-relationship")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const line = popup.querySelector(".connections-relationship");
+    button.disabled = true;
+    line.hidden = false;
+    line.textContent = "Asking WikiTree's Relationship Finder…";
+    try {
+      const text = await connectionsRelationshipFinder(path[0], path[path.length - 1]);
+      line.textContent = text || pathRelationshipText || "WikiTree's Relationship Finder didn't answer.";
+    } catch (error) {
+      line.textContent = `The Relationship Finder didn't answer (${error?.message || error}).`;
+    } finally {
+      button.disabled = false;
+    }
+  });
   popup.querySelector("#wbe-conn-full")?.addEventListener("click", () => {
     toggleChartFullScreen(popup);
     refitAfterResize();

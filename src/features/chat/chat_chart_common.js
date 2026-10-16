@@ -222,13 +222,38 @@ export function chartLinkClick(popup, button, links, key) {
  * time, choosing a chart uses the same window). Any other chart closes; the new one opens
  * where it was, at its size (and smaller-window setting), or centred when none was open.
  */
-export function placeNewChart(popup) {
-  const others = [...document.querySelectorAll(".wbe-chart-popup")].filter((other) => other !== popup);
+// Every window in the Back/Forward history: the charts, and the Connections Path (ui.js).
+const CHART_WINDOW_SELECTOR = ".wbe-chart-popup, .wbe-chart-window";
+
+/**
+ * The windows already open close, except the newest, which waits behind a Back button (the user,
+ * 2026-10-17), unless it's the same chart redrawn (more generations, another person). Returns it.
+ */
+function replaceOpenCharts(popup) {
+  const others = [...document.querySelectorAll(CHART_WINDOW_SELECTOR)].filter((other) => other !== popup);
   const previous = others[others.length - 1];
+  others.forEach((other) => (other === previous && other.id !== popup.id && other._wbeCloseChart ? stashChart(other) : closeOnly(other)));
+  return previous;
+}
+
+/**
+ * A window that isn't made by createChartPopup (the Connections Path) joins Back/Forward: it needs
+ * `_wbeCloseChart`, and the class, and a `.chat-popup-header` for the buttons. Its × should call closeChartPopup.
+ */
+export function joinChartHistory(popup) {
+  injectChartStyles();
+  popup.classList.add("wbe-chart-window");
+  replaceOpenCharts(popup);
+  updateChartNav(popup);
+}
+
+export function placeNewChart(popup) {
+  // (where a chart was, a chart goes, its style kept though it's closed or set aside; the Connections Path keeps its own size)
+  const last = replaceOpenCharts(popup);
+  const previous = last?.classList.contains("wbe-chart-popup") ? last : null;
   const place = previous
     ? { left: previous.style.left, top: previous.style.top, width: previous.style.width, height: previous.style.height, small: previous.classList.contains("wbe-chart-small") }
     : null;
-  others.forEach((other) => closeChartPopup(other));
   if (place?.small) popup.classList.add("wbe-chart-small");
   centrePopup(popup);
   // (centred again once drawn, in mountChartPopup, since drawing can change its size)
@@ -246,6 +271,22 @@ export function centrePopup(popup) {
   const rect = popup.getBoundingClientRect();
   popup.style.left = `${Math.max(8, Math.round((window.innerWidth - rect.width) / 2))}px`;
   popup.style.top = `${Math.max(8, Math.round((window.innerHeight - rect.height) / 2))}px`;
+}
+
+/**
+ * Shortens an SVG text (with "…") until it is no wider than maxWidth, measured as drawn: a count of
+ * characters can't tell "Wm" from "il" (the user, 2026-10-17: a panel heading ran out of its box).
+ */
+export function fitSvgText(selection, maxWidth) {
+  const node = selection?.node?.();
+  if (!node?.getComputedTextLength) return selection;
+  const full = String(node.textContent || "");
+  let keep = full.length;
+  while (keep > 1 && node.getComputedTextLength() > maxWidth) {
+    keep -= 1;
+    node.textContent = `${full.slice(0, keep).trimEnd()}…`;
+  }
+  return selection;
 }
 
 export function truncate(text, maxChars) {
@@ -363,6 +404,8 @@ const CHART_CSS = `
   .wbe-chart-popup:fullscreen, .wbe-chart-popup.wbe-chart-full { left: 0 !important; top: 0 !important; width: 100vw !important; height: 100vh !important; max-width: none !important; max-height: none !important; border-radius: 0 !important; background: #fff; }
   /* Room for the size, full screen and × icons (absolute, at the right). */
   .wbe-chart-popup .chat-popup-header { position: relative; padding-right: 116px; }
+  .wbe-chart-popup .chat-popup-header .wbe-chart-nav, .wbe-chart-window .chat-popup-header .wbe-chart-nav { display: inline-flex; gap: 4px; margin-right: 8px; flex: 0 0 auto; white-space: nowrap; }
+  .wbe-chart-popup .chat-popup-header .wbe-chart-nav[hidden], .wbe-chart-popup .chat-popup-header .wbe-chart-nav button[hidden], .wbe-chart-window .chat-popup-header .wbe-chart-nav[hidden], .wbe-chart-window .chat-popup-header .wbe-chart-nav button[hidden] { display: none; }
   .wbe-chart-popup .chat-popup-header .close-popup { position: absolute; top: 6px; right: 8px; width: 30px; height: 30px; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: none; color: #555; font-size: 0; cursor: pointer; }
   .wbe-chart-popup .chat-popup-header .close-popup::before, .wbe-chart-popup .chat-popup-header .close-popup::after { content: ""; position: absolute; left: 50%; top: 50%; width: 16px; height: 2px; border-radius: 1px; background: currentColor; transform: translate(-50%, -50%) rotate(45deg); }
   .wbe-chart-popup .chat-popup-header .close-popup::after { transform: translate(-50%, -50%) rotate(-45deg); }
@@ -414,7 +457,11 @@ const CHART_CSS = `
   .wbe-chart-tip .wbe-chart-tip-quality { color: #2f6b3a; margin-top: 4px; }
   .wbe-chart-tip .wbe-chart-tip-history { color: #8a5a00; margin-top: 4px; }
   .wbe-chart-stats .wbe-chart-repeats { white-space: normal; font-size: 11px; color: #c2185b; margin-top: 2px; max-width: 220px; }
-  .wbe-chart-footer { display: flex; gap: 14px; align-items: flex-start; padding: 6px 10px 8px; border-top: 1px solid rgba(0,0,0,.08); font-size: 12px; }
+  .wbe-chart-footer { display: flex; gap: 14px; align-items: flex-start; padding: 6px 10px 8px; border-top: 1px solid rgba(0,0,0,.08); font-size: 12px; position: relative; }
+  .wbe-chart-footer-grip { position: absolute; left: 0; right: 0; top: -5px; height: 10px; cursor: ns-resize; touch-action: none; z-index: 2; }
+  .wbe-chart-footer-grip::after { content: ""; position: absolute; left: 50%; top: 3px; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: rgba(0,0,0,.18); }
+  .wbe-chart-footer-grip:hover::after, .wbe-chart-footer-grip.dragging::after { background: #2f6fb3; }
+  .wbe-chart-popup[data-legend-height] .wbe-chart-legend { max-height: var(--wbe-legend-max) !important; overflow-y: auto; }
   .wbe-chart-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; flex: 1; }
   .wbe-chart-legend span { display: inline-flex; align-items: center; gap: 5px; cursor: default; padding: 1px 4px; border-radius: 4px; }
   .wbe-chart-legend span:hover { background: rgba(0,0,0,.06); }
@@ -698,12 +745,155 @@ export function handleChartPopupButton(popup, button, { svg, fileBase, links, ro
 }
 
 /** Close and replacement share cleanup, including document fullscreen listeners. */
-export function closeChartPopup(popup) {
+function closeOnly(popup) {
   if (popup._wbeCloseChart) popup._wbeCloseChart();
   else {
     popup._wbeLeaveFullScreen?.();
     $(popup).remove(); // (jQuery's, so draggable's data goes too)
   }
+}
+
+/** The × on a chart: it closes, and so do the charts waiting behind its Back and Forward buttons. */
+export function closeChartPopup(popup) {
+  closeOnly(popup);
+  clearChartHistory();
+}
+
+// Back and Forward (the user, 2026-10-17: "I came here from the fan chart"): a chart you leave waits,
+// whole (zoom, person, pinned cards), off the page, until Back or Forward brings it back. Opening a
+// new chart clears Forward, as in a browser.
+const chartBackStack = [];
+const chartForwardStack = [];
+const CHART_HISTORY_LIMIT = 5;
+
+function chartTitleText(popup) {
+  return String(popup.querySelector(".wbe-chart-title, .chat-popup-header strong")?.textContent || "").replace(/\s+/g, " ").trim();
+}
+
+function setAside(popup, stack) {
+  popup._wbeLeaveFullScreen?.();
+  popup._wbeNavTitle = chartTitleText(popup);
+  popup.remove(); // (not closed: its listeners and drawing stay; a running animation waits for wbe-chart-resume)
+  stack.push(popup);
+  while (stack.length > CHART_HISTORY_LIMIT) closeOnly(stack.shift());
+}
+
+function stashChart(popup) {
+  setAside(popup, chartBackStack);
+  while (chartForwardStack.length) closeOnly(chartForwardStack.pop());
+}
+
+export function clearChartHistory() {
+  [chartBackStack, chartForwardStack].forEach((stack) => {
+    while (stack.length) closeOnly(stack.pop());
+  });
+}
+
+/** ← Back and Forward → at the left of a chart's title bar, shown when there's a chart to go to. */
+function updateChartNav(popup) {
+  const header = popup.querySelector(".chat-popup-header");
+  if (!header) return;
+  let nav = header.querySelector(".wbe-chart-nav");
+  if (!nav) {
+    nav = document.createElement("span");
+    nav.className = "wbe-chart-nav";
+    nav.innerHTML = `<button type="button" class="small" data-nav="back">← Back</button><button type="button" class="small" data-nav="forward">Forward →</button>`;
+    nav.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-nav]");
+      if (!button) return;
+      event.stopPropagation();
+      moveThroughCharts(popup, button.dataset.nav === "back" ? chartBackStack : chartForwardStack, button.dataset.nav === "back" ? chartForwardStack : chartBackStack);
+    });
+    header.prepend(nav);
+  }
+  // Named by the chart they go to ("← Fan chart"): the fan chart has its own Back, to the previous person.
+  [
+    ["back", chartBackStack, "Back to", (name) => `← ${name || "Back"}`],
+    ["forward", chartForwardStack, "Forward to", (name) => `${name || "Forward"} →`],
+  ].forEach(([which, stack, words, label]) => {
+    const button = nav.querySelector(`[data-nav="${which}"]`);
+    const target = stack[stack.length - 1];
+    button.hidden = !target;
+    button.textContent = label(truncate(String(target?._wbeNavTitle || "").split(":")[0].trim(), 24));
+    button.title = target?._wbeNavTitle ? `${words} ${target._wbeNavTitle}` : "";
+  });
+  nav.hidden = !chartBackStack.length && !chartForwardStack.length;
+}
+
+function moveThroughCharts(popup, from, to) {
+  const next = from.pop();
+  if (!next) return;
+  setAside(popup, to);
+  document.body.appendChild(next);
+  updateChartNav(next);
+  raiseAboveOtherPopups(next);
+  next.dispatchEvent(new CustomEvent(CHART_RESUME_EVENT, { bubbles: true }));
+}
+
+const CHART_RESUME_EVENT = "wbe-chart-resume";
+
+/** For a view with its own animation loop: callback when the chart holding `element` comes back. Returns the remover. */
+export function onChartResume(element, callback) {
+  const listener = (event) => {
+    if (event.target instanceof Node && event.target.contains(element)) callback();
+  };
+  document.addEventListener(CHART_RESUME_EVENT, listener);
+  return () => document.removeEventListener(CHART_RESUME_EVENT, listener);
+}
+
+// The key's height, once dragged: the next chart opens with it too (this page only).
+let draggedLegendHeight = 0;
+
+function setLegendHeight(popup, height) {
+  if (height > 0) {
+    popup.style.setProperty("--wbe-legend-max", `${Math.round(height)}px`);
+    popup.dataset.legendHeight = "";
+  } else {
+    popup.style.removeProperty("--wbe-legend-max");
+    delete popup.dataset.legendHeight;
+  }
+}
+
+/**
+ * A grip on the key's top edge (the user, 2026-10-17: "I'd like to just be able to make the key section
+ * taller"): drag up for more of the key and less chart; double-click for the chart's own height again.
+ */
+export function installLegendGrip(popup) {
+  const footer = popup.querySelector(".wbe-chart-footer");
+  if (!footer?.querySelector(".wbe-chart-legend") || footer.querySelector(".wbe-chart-footer-grip")) return;
+  const grip = document.createElement("div");
+  grip.className = "wbe-chart-footer-grip";
+  grip.title = "Drag to make the key taller or shorter · double-click to reset";
+  footer.prepend(grip);
+  if (draggedLegendHeight) setLegendHeight(popup, draggedLegendHeight);
+  grip.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const legend = footer.querySelector(".wbe-chart-legend");
+    const startY = event.clientY;
+    const startHeight = legend.getBoundingClientRect().height;
+    grip.classList.add("dragging");
+    grip.setPointerCapture?.(event.pointerId);
+    const move = (moveEvent) => {
+      const most = Math.max(60, popup.clientHeight * 0.7);
+      draggedLegendHeight = Math.min(most, Math.max(30, startHeight + startY - moveEvent.clientY));
+      setLegendHeight(popup, draggedLegendHeight);
+    };
+    const end = () => {
+      grip.classList.remove("dragging");
+      grip.removeEventListener("pointermove", move);
+      grip.removeEventListener("pointerup", end);
+      grip.removeEventListener("pointercancel", end);
+    };
+    grip.addEventListener("pointermove", move);
+    grip.addEventListener("pointerup", end);
+    grip.addEventListener("pointercancel", end);
+  });
+  grip.addEventListener("dblclick", () => {
+    draggedLegendHeight = 0;
+    setLegendHeight(popup, 0);
+  });
 }
 
 /** Create one chart of this kind, releasing the previous instance first. */
@@ -718,6 +908,8 @@ export function createChartPopup({ id, html, keepFullScreen = false }) {
     previous._wbeChartCleanup = null;
     previous._wbeSignal = new AbortController();
     previous.innerHTML = html;
+    updateChartNav(previous);
+    installLegendGrip(previous);
     return previous;
   }
   // (the previous one closes in placeNewChart, which opens this one where it was)
@@ -742,6 +934,8 @@ export function createChartPopup({ id, html, keepFullScreen = false }) {
   };
   document.body.appendChild(popup);
   placeNewChart(popup);
+  updateChartNav(popup);
+  installLegendGrip(popup);
   return popup;
 }
 

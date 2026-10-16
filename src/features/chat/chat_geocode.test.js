@@ -1,4 +1,4 @@
-import { cachedPoint, distanceKm, geocodeLocations, geocodeQueries, isGeocodable, locationKey, namesMatch, parentCountyName, pendingLookups, pickParentCounty, pickPhotonCounty, pickPhotonTown, pickTown, setCachedPoint } from "./chat_geocode";
+import { cachedPoint, distanceKm, geocodeLocations, geocodeQueries, isGeocodable, locationKey, namesMatch, parentCountyName, pendingLookups, pickParentCounty, pickPhotonCounty, pickPhotonTown, pickTown, pickWholeCounty, setCachedPoint } from "./chat_geocode";
 import { buildMigration, placeOf } from "./chat_migration_data";
 
 describe("town lookups for the migration map", () => {
@@ -130,7 +130,7 @@ describe("a town that can't be found goes to its county", () => {
       await fast;
       expect(cachedPoint(location)).toMatchObject({ name: "Cumberland", point: [-3.3, 54.68] });
       expect(pendingLookups([location])).toBe(1);
-      expect(urls.filter((url) => /photon/.test(url)).map((url) => decodeURIComponent(url.split("q=")[1]))).toEqual([location.toLowerCase(), location.toLowerCase(), "cumberland, england"]);
+      expect(urls.filter((url) => /photon/.test(url)).map((url) => decodeURIComponent(url.split("q=")[1]))).toEqual(["cumberland, england", location.toLowerCase()]);
       await jest.advanceTimersByTimeAsync(10000);
       await done;
       expect(pendingLookups([location])).toBe(0);
@@ -139,5 +139,23 @@ describe("a town that can't be found goes to its county", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+// User, 2026-10-17, Tabitha (Parker) Dixon's descendants' map: "IS that Cumberland?" (a dot by Nottingham).
+describe("Cumberland is Cumberland", () => {
+  // (Photon's answers, 2026-10-17)
+  test("a county alone is the county, not a namesake locality", () => {
+    const counties = [{ name: "Cumberland", country: "United Kingdom", point: [-3.304, 54.6784] }];
+    expect(pickWholeCounty(counties, "Cumberland, England")).toEqual({ name: "Cumberland", area: "county", country: "United Kingdom", point: [-3.304, 54.6784] });
+    expect(pickWholeCounty(counties, "Wem, England")).toBeNull();
+  });
+
+  test("a town is the one near its county", () => {
+    const hits = [
+      { name: "Dacre", settlement: true, point: [-1.708, 54.0435] },
+      { name: "Dacre", settlement: true, point: [-2.8394, 54.6311] },
+    ];
+    expect(pickPhotonTown(hits, "Dacre, Cumberland, England", [-3.304, 54.6784]).point).toEqual([-2.8394, 54.6311]);
   });
 });

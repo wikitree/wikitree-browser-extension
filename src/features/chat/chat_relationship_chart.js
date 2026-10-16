@@ -13,7 +13,7 @@ import { area, curveMonotoneY } from "d3-shape";
 import { easeCubicOut } from "d3-ease";
 import { zoom as d3zoom, zoomIdentity } from "d3-zoom";
 import { LINK_STATUS } from "./chat_relationship_data";
-import { chartPopupControls, chartLinkButtons, chartZoomControls, escapeText, photoUrl, profileUrl, truncate, createChartPopup, mountChartPopup, handleChartPopupButton } from "./chat_chart_common";
+import { chartPopupControls, chartLinkButtons, chartZoomControls, escapeText, photoUrl, profileUrl, truncate, fitSvgText, createChartPopup, mountChartPopup, handleChartPopupButton } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 const WIDTH = 960;
@@ -415,16 +415,17 @@ export function showRelationshipPopup(lines, options = {}) {
       .concat(xDnaSources.length ? [`X-DNA: ${xDnaSources.join(" or ")}'s can come down both lines`] : [])
       .filter(Boolean);
   function panelHeight() {
-    return 34 + 2 * 44 + 26 + 2 * 17 + dnaLines().length * 17 + 14;
+    return 34 + 2 * 44 + 42 + 2 * 17 + dnaLines().length * 17 + 14;
   }
   function drawPanel(x, y, row) {
     const g = viewport.append("g").attr("transform", `translate(${x},${y})`).attr("data-row", row).attr("opacity", 0);
     g.append("rect").attr("width", PANEL_W).attr("height", panelHeight()).attr("rx", 12).attr("fill", "#fbfaff").attr("stroke", "#d9d0ee");
     g.append("text").attr("x", 14).attr("y", 24).attr("font-size", 12.5).attr("font-weight", 800).attr("fill", "#1d2a36").text("How sure is each line?");
+    const textW = PANEL_W - 28;
     let yy = 34;
     [lines.line1, lines.line2].forEach((line) => {
       const counts = statusOrder.map((status) => ({ status, n: line.filter((p) => (LINK_STATUS[p.status] ? p.status : 0) === status).length })).filter((c) => c.n);
-      g.append("text").attr("x", 14).attr("y", yy + 12).attr("font-size", 11).attr("fill", "#55606b").text(`${lineName(line)}: ${line.length} ${line.length === 1 ? "link" : "links"}`);
+      fitSvgText(g.append("text").attr("x", 14).attr("y", yy + 12).attr("font-size", 11).attr("fill", "#55606b").text(`${lineName(line)}: ${line.length} ${line.length === 1 ? "link" : "links"}`), textW);
       const barW = PANEL_W - 28;
       let bx = 14;
       counts.forEach((c) => {
@@ -432,18 +433,25 @@ export function showRelationshipPopup(lines, options = {}) {
         g.append("rect").attr("x", bx).attr("y", yy + 18).attr("width", Math.max(0, w - 2)).attr("height", 10).attr("rx", 3).attr("fill", linkStyle(c.status).colour);
         bx += w;
       });
-      g.append("text")
-        .attr("x", 14)
-        .attr("y", yy + 40)
-        .attr("font-size", 10)
-        .attr("fill", "#8a96a3")
-        .text(counts.map((c) => `${c.n} ${(LINK_STATUS[c.status] || "not marked").replace(/^(?!DNA)\w/, (ch) => ch.toLowerCase())}`).join(" · "));
+      fitSvgText(
+        g
+          .append("text")
+          .attr("x", 14)
+          .attr("y", yy + 40)
+          .attr("font-size", 10)
+          .attr("fill", "#8a96a3")
+          .text(counts.map((c) => `${c.n} ${(LINK_STATUS[c.status] || "not marked").replace(/^(?!DNA)\w/, (ch) => ch.toLowerCase())}`).join(" · ")),
+        textW
+      );
       yy += 44;
     });
-    g.append("text").attr("x", 14).attr("y", yy + 18).attr("font-size", 12.5).attr("font-weight", 800).attr("fill", "#1d2a36").text(truncate(`What came down from ${ancestorNames}`, 36));
-    yy += 26;
+    // (two lines: the names don't fit after "What came down from" in the panel's width)
+    ["What came down", `from ${ancestorNames}`].forEach((text, index) => {
+      fitSvgText(g.append("text").attr("x", 14).attr("y", yy + 18 + index * 16).attr("font-size", 12.5).attr("font-weight", 800).attr("fill", "#1d2a36").text(text), textW);
+    });
+    yy += 42;
     [...endLines(), ...dnaLines()].forEach((text) => {
-      g.append("text").attr("x", 14).attr("y", yy + 12).attr("font-size", 10.5).attr("fill", DNA).text(truncate(text, 44));
+      fitSvgText(g.append("text").attr("x", 14).attr("y", yy + 12).attr("font-size", 10.5).attr("fill", DNA).text(text), textW);
       yy += 17;
     });
   }

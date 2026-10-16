@@ -44,10 +44,12 @@ export function buildOriginsSeries(rows, { field = "birthLocation", top = ORIGIN
       return;
     }
     bucket.counts.set(country, (bucket.counts.get(country) || 0) + 1);
-    // Who they are, when the rows say (the surname river's do).
-    if (row.name || row.wtid) {
+    // Who they are, when the rows say: dots in the band (the surname river's, and the origins chart's since 2026-10-17).
+    const name = row.name || row.displayName || row.wtid;
+    if (name) {
       if (!bucket.people.has(country)) bucket.people.set(country, []);
-      bucket.people.get(country).push({ name: row.name || row.wtid, wtid: row.wtid || "", year: year || null, ...(row.lnab ? { lnab: row.lnab } : {}) });
+      const place = keyOf ? "" : String(row[field] || "").trim();
+      bucket.people.get(country).push({ name, wtid: row.wtid || "", year: year || null, ...(row.lnab ? { lnab: row.lnab } : {}), ...(place ? { place } : {}) });
     }
     totals.set(country, (totals.get(country) || 0) + 1);
   });
@@ -77,6 +79,30 @@ export function buildOriginsSeries(rows, { field = "birthLocation", top = ORIGIN
     return { generation, name: generationName(generation), meanYear, total, unknown: bucket.unknown, counts, otherNames, people };
   });
   return { keys, generations, totals: sortedTotals, unknown, known: sortedTotals.reduce((sum, [, count]) => sum + count, 0), otherKey: OTHER };
+}
+
+/**
+ * Origins rows from fan chart slots: each ancestor once per generation (pedigree collapse), with
+ * their name and ID for the dots.
+ */
+export function originsRowsFromSlots(slots, nameOf = (person) => person.fullName || person.name || person.wtid) {
+  const seen = new Set();
+  const rows = [];
+  (slots || []).forEach((person, slot) => {
+    if (!person || slot < 2) return;
+    const degrees = Math.floor(Math.log2(slot));
+    const id = `${degrees}:${person.id || person.wtid}`;
+    if (seen.has(id)) return;
+    seen.add(id);
+    rows.push({ degrees, birthLocation: person.birthLocation, deathLocation: person.deathLocation, birth: person.birth, lnab: person.lnab, name: nameOf(person), wtid: person.wtid });
+  });
+  return rows;
+}
+
+/** The origins series for fan chart slots, or null when fewer than two generations have places. */
+export function originsSeriesFromSlots(slots, { field = "birthLocation", nameOf } = {}) {
+  const series = buildOriginsSeries(originsRowsFromSlots(slots, nameOf), { field });
+  return series && series.generations.length >= 2 ? series : null;
 }
 
 /**
@@ -111,16 +137,7 @@ export const OTHER_SURNAMES = "Rarer surnames";
  * yours (the labels of groups you made; see chat_name_variants.js).
  */
 export function buildSurnameRiver(slots, { top = SURNAME_RIVER_TOP, groupVariants = true } = {}) {
-  const seen = new Set();
-  const rows = [];
-  (slots || []).forEach((person, slot) => {
-    if (!person || slot < 2) return;
-    const degrees = Math.floor(Math.log2(slot));
-    const id = `${degrees}:${person.id || person.wtid}`;
-    if (seen.has(id)) return;
-    seen.add(id);
-    rows.push({ degrees, birth: person.birth, lnab: person.lnab, name: person.fullName || person.name, wtid: person.wtid });
-  });
+  const rows = originsRowsFromSlots(slots);
   const surnameOf = (row) => {
     const name = String(row.lnab || "").trim();
     return name && !/^unknown$/i.test(name) ? name : "";

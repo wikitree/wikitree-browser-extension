@@ -79,3 +79,17 @@ describe("who picker list (user, 2026-10-11)", () => {
     expect($root.find(".chat-who-menu").prop("hidden")).toBe(true);
   });
 });
+
+describe("pickerFullName", () => {
+  const { pickerFullName } = require("./chat_who_picker");
+  test.each([
+    ["Eliza", "Shields-3749", "Eliza Shields"],
+    ["Mary Ann", "Mc_Donald-12", "Mary Ann Mc Donald"],
+    ["Marie Bernadette (McKelvey) Beacall", "McKelvey-563", "Marie Bernadette (McKelvey) Beacall"],
+    ["Ronald McKelvey", "McKelvey-564", "Ronald McKelvey"],
+    ["Beacall-6", "Beacall-6", "Beacall-6"],
+    ["", "Rice-11692", "Rice-11692"],
+  ])("%s, %s → %s", (name, wtId, expected) => {
+    expect(pickerFullName(name, wtId)).toBe(expected);
+  });
+});

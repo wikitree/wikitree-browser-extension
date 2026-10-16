@@ -26,7 +26,7 @@ describe("biological parents in connections", () => {
 
   test("a connection in words", () => {
     const path = [TERRY, { ...PATTY, pathType: "bioparent", pathStatus: 30 }, { ...RILEY, pathType: "bioparent", pathStatus: 30 }];
-    expect(describeConnectionPath(path, "Terry (Rockstrom-4)", "Riley (Luker-574)")).toBe("Riley (Luker-574) is Terry (Rockstrom-4)'s biological mother's biological father.");
+    expect(describeConnectionPath(path, "Terry (Rockstrom-4)", "Riley (Luker-574)")).toBe("Riley (Luker-574) is Terry (Rockstrom-4)'s grandfather (his biological mother's biological father).");
     expect(describeConnectionPath([PATTY, { ...JOHN, pathType: "parent", pathStatus: 5 }], "Patty (Luker-573)", "John (Simon-2960)")).toBe("John (Simon-2960) is Patty (Luker-573)'s father.");
   });
 

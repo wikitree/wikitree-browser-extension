@@ -840,7 +840,7 @@ export function createChatHistoryHandlers({
       if (hydratedActions.length) {
         opts.actions = hydratedActions;
       }
-      // ("Press Enter to insert it" only works straight after "add birth": not on a restored message)
+      // (messages saved before 2026-10-16 end "Press Enter to insert it", which no longer applies)
       const isEditText = actionEntries.some((entry) => entry?.actionType === "edit-text");
       const text = isEditText ? String(message.text || "").replace(/\n+Press Enter to insert it at the cursor\.\s*$/, "") : message.text;
       appendMessage(message.role, text, opts);

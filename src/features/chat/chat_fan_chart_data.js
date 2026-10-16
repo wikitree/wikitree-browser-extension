@@ -7,7 +7,7 @@ import { ancestorGenerationLabel as generationWord } from "./chat_kin_labels";
 import { getCountryFromLocation } from "./chat_place_country";
 import { shownGender } from "./chat_gender_display";
 import { profileQuality } from "./chat_profile_quality_data";
-import { PersonName } from "../auto_bio/person_name";
+import { personNameParts } from "./chat_person_name_parts";
 import { CHART_OWNER as OWNER, CHART_OWNER_AFTER as OWNER_AFTER, canonicalChartOwner as canonicalOwner } from "./chat_chart_owner";
 import { personNameText, cleanDate, yearOf } from "./chat_text_utils";
 
@@ -94,20 +94,7 @@ export function fullWikiTreeName(person) {
   // (a semi-private profile sends no FirstName, only RealName: live, Rockstrom-4 logged out, 2026-10-13)
   const first = person?.FirstName || person?.RealName;
   if (!first || !(person.LastNameAtBirth || person.LastNameCurrent)) return "";
-  try {
-    // (PersonName writes "(Smith) null" when one surname is missing: fill it from the other.)
-    const lnab = person.LastNameAtBirth || person.LastNameCurrent;
-    const current = person.LastNameCurrent || person.LastNameAtBirth;
-    const name = new PersonName({ ...person, FirstName: first, LastNameAtBirth: lnab, LastNameCurrent: current }).withParts([
-      "FirstName",
-      "MiddleNames",
-      "LastNameAtBirth",
-      "LastNameCurrent",
-    ]);
-    return typeof name === "string" && !name.startsWith("Invalid name part") ? name.replace(/\s+/g, " ").trim() : "";
-  } catch (error) {
-    return "";
-  }
+  return personNameParts({ ...person, FirstName: first }, ["FirstName", "MiddleNames", "LastNameAtBirth", "LastNameCurrent"]);
 }
 
 // Biological parents (the user, 2026-10-13): Father and Mother are the parents who raised someone (marked

@@ -2,6 +2,7 @@
 // ways, and the parts of a chain step the relation words alone don't carry.
 
 import { shownGender } from "./chat_gender_display";
+import { pathRelationship } from "./chat_relationship_data";
 
 const RELATION_WORD =
   "(?:fathers?|dads?|mothers?|mums?|moms?|parents?|sons?|daughters?|child(?:ren)?|kids?|wi(?:fe|ves)|husbands?|spouses?|partners?|brothers?|sisters?|siblings?|(?:grand)?(?:aunts?|uncles?)|grand(?:father|mother|parent)s?)";
@@ -141,7 +142,8 @@ export function describeConnectionPath(path, sourceLabel, targetLabel, maxSteps 
   const isYou = sourceLabel === "you";
   const chain = isYou ? `your ${hops.join("'s ")}` : describeRelationChain(sourceLabel, hops);
   // With a relationship name from WikiTree: "…'s grandson (his daughter's son)".
-  const named = String(relationship || "").trim().toLowerCase();
+  // (a blood line names itself from the path: WikiTree's word can be the source's side, "grandson" for a grandmother)
+  const named = (pathRelationship(path)?.phrase || String(relationship || "").trim()).toLowerCase();
   if (named && hops.length > 1 && /^[a-z -]+$/.test(named)) {
     const gender = shownGender(path[0]).toLowerCase();
     const pronoun = isYou ? "your" : gender === "male" ? "his" : gender === "female" ? "her" : "their";

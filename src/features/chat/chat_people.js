@@ -58,9 +58,9 @@ import { buildDescendantTree, buildDescendantChartSummary, DESCENDANT_CHART_DEFA
 import { showDescendantChartPopup } from "./chat_descendant_chart";
 import { tableFromLifespanRows, tableFromPeople, tableFromSlots, tableFromTree } from "./chat_chart_table";
 import { buildFamilyTimelineRows, buildFamilyTimelineSummary, familyLifespanRows } from "./chat_family_timeline_data";
-import { buildOriginsSeries, buildSurnameRiver, describeOriginsShift, describeSurnameRiver } from "./chat_origins_data";
+import { buildOriginsSeries, buildSurnameRiver, describeOriginsShift, describeSurnameRiver, originsSeriesFromSlots } from "./chat_origins_data";
 import { describeCustomNameGroups, loadCustomNameGroups, mergeNames, ungroupNames } from "./chat_name_variants";
-import { showOriginsPopup } from "./chat_origins_chart";
+import { showOriginsChart, showOriginsPopup } from "./chat_origins_chart";
 import { buildMigration, buildMigrationSummary, buildMigrationYearSummary, buildDescendantMigration, buildDescendantMigrationSummary } from "./chat_migration_data";
 import { showMigrationMapPopup } from "./chat_migration_map";
 import { loadGeocodeCache } from "./chat_geocode";
@@ -617,17 +617,21 @@ export function createChatPeopleHandlers({
     const placeWord = field === "deathLocation" ? "death" : "birth";
     const showChart = series && series.generations.length >= 2;
     const shift = showChart ? describeOriginsShift(series) : "";
+    const key = rootPerson?.wtId || rootPerson?.key;
     const openOrigins = () =>
-      showOriginsPopup(series, {
+      showOriginsChart(series, {
         title: `${placeWord === "death" ? "Where they died" : "Ancestral origins"}: ${rootPerson.displayName}`,
         placeWord,
-        fileBase: `origins-${String(rootPerson.wtId || rootPerson.key || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
-        rootKey: rootPerson.wtId || rootPerson.key,
+        fileBase: `origins-${String(key || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
+        rootKey: key,
         links: chartLinks("fan", "names", "lifespans", "explorer"),
+        // − / + generations: the ancestors again, as the fan chart loads them.
+        generations: Math.max(0, ...rows.map((row) => Number(row.degrees) || 0)) || Number(params?.generation) || 0,
+        maxGenerations: FAN_CHART_MAX_GENERATIONS,
+        ...(key ? { loadSeries: async (wanted) => originsSeriesFromSlots(await loadFanSlots(key, wanted), { field, nameOf: personNameText }) } : {}),
       });
     // Where they came from is the origins chart's question: it opens, with the map beside it.
     if (showChart) setTimeout(openOrigins, 0);
-    const key = rootPerson?.wtId || rootPerson?.key;
     return {
       message: `${Owner} ${rows.length} ${label} ${verb} in: ${list}${unknown ? `; ${unknown} unknown` : ""}.${shift ? ` ${shift}` : ""}`,
       table: makeAncestorProfileTable(tableTitle(`by ${placeWord} country`), rows, [[0, "asc"]]),

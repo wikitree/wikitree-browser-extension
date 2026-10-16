@@ -31,3 +31,11 @@ describe("chart tables", () => {
     expect(table.rows[0]).toMatchObject({ relation: "Mother", birth: "1850", death: "1900" });
   });
 });
+
+// User, 2026-10-17, Adam Dixon (Dixon-19158): "He has no descendants. We don't need the table."
+test("no table when the chart has only the person themself", () => {
+  const adam = { wtid: "Dixon-19158", name: "Adam Dixon", lnab: "Dixon" };
+  expect(tableFromTree("Adam Dixon's descendants", { person: adam, children: [] })).toBeNull();
+  expect(tableFromSlots("Adam Dixon's ancestors", [null, adam])).toBeNull();
+  expect(tableFromTree("Adam Dixon's descendants", { person: adam, children: [{ person: { wtid: "Dixon-1", name: "Jo Dixon" }, children: [] }] }).rows).toHaveLength(2);
+});

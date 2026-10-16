@@ -12,8 +12,10 @@ import { plainWords } from "./chat_text_utils";
 // county; v2 settlements only; v1 had streets and vice-counties)
 // (v5: names match St/Sainte and plurals, so v4's misses are looked up again; its hits are kept)
 // (v6: a town that can't be found goes to its county, so v5's misses are looked up again)
-const STORAGE_KEY = "museGeocodeCache6";
-const PREVIOUS_KEY = "museGeocodeCache5";
+// (v7: a town must be near the county it's given in, and a county alone is the county; v6 put
+// "Dacre, Cumberland" in Yorkshire and "Cumberland, England" in Lincolnshire, so nothing is kept)
+const STORAGE_KEY = "museGeocodeCache7";
+const PREVIOUS_KEY = "museGeocodeCache6";
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
 const PHOTON = "https://photon.komoot.io/api/";
 // (fair use: a few at a time)
@@ -60,16 +62,10 @@ export function loadGeocodeCache() {
       const area = storage();
       if (!area) return resolve();
       try {
-        area.remove?.(["museGeocodeCache", "museGeocodeCache2", "museGeocodeCache3", "museGeocodeCache4"]);
-        area.get([STORAGE_KEY, PREVIOUS_KEY], (stored) => {
+        area.remove?.(["museGeocodeCache", "museGeocodeCache2", "museGeocodeCache3", "museGeocodeCache4", "museGeocodeCache5", PREVIOUS_KEY]);
+        area.get([STORAGE_KEY], (stored) => {
           const saved = stored?.[STORAGE_KEY];
           if (saved && typeof saved === "object") Object.entries(saved).forEach(([key, value]) => cache.has(key) || cache.set(key, value));
-          const previous = stored?.[PREVIOUS_KEY];
-          if (previous && typeof previous === "object") {
-            Object.entries(previous).forEach(([key, value]) => value?.point && !cache.has(key) && cache.set(key, value));
-            area.remove?.([PREVIOUS_KEY]);
-            saveSoon();
-          }
           resolve();
         });
       } catch (error) {
@@ -168,6 +164,9 @@ const nameWords = (text) =>
     .map((word) => (/^(?:st|ste|saint|sainte|sint|sankt)$/.test(word) ? "st" : word.length > 3 ? word.replace(/s$/, "") : word))
     .join(" ");
 
+// (the whole name, give or take "County": namesMatch would take York County for "New York")
+const countyWords = (text) => nameWords(text).replace(/^county\s+|\s+county$/g, "");
+
 /** Whether a found town is the place asked for: "Shrewsbury" for "Shrewsbury St Mary", not "England Shelve" for "Wrockwardine". */
 export function namesMatch(townName, location) {
   const town = nameWords(townName);
@@ -176,9 +175,12 @@ export function namesMatch(townName, location) {
   return ` ${asked} `.includes(` ${town} `) || ` ${town} `.includes(` ${asked} `);
 }
 
-/** Photon's answer for a location: a town of that name, near the county it also returned. */
-export function pickPhotonTown(hits, location) {
-  const anchor = (hits || []).find((hit) => !hit.settlement)?.point || null;
+/**
+ * Photon's answer for a location: a town of that name, near its county (`anchor`, looked up first,
+ * or the county Photon also returned): "Dacre, Cumberland" is the one near Penrith, not Yorkshire's.
+ */
+export function pickPhotonTown(hits, location, anchor = null) {
+  anchor = anchor || (hits || []).find((hit) => !hit.settlement)?.point || null;
   return pickTown((hits || []).filter((hit) => !hit.settlement || namesMatch(hit.name, location)), anchor);
 }
 
@@ -187,23 +189,33 @@ export function pickPhotonCounty(hits, location) {
   return (hits || []).find((hit) => namesMatch(hit.name, location)) || null;
 }
 
+/**
+ * A place that is a county by its whole name ("Cumberland, England"): the county, before any
+ * namesake hamlet (Photon's first "Cumberland" is a locality in Lincolnshire; the user, 2026-10-17).
+ */
+export function pickWholeCounty(hits, location) {
+  return countyNamed(hits, locationKey(location).split(", ")[0]);
+}
+
+/** The county hit called `name` (give or take "County"), as a place: {name, area: "county", country, point}. */
+function countyNamed(hits, name) {
+  const wanted = countyWords(name);
+  const county = wanted ? (hits || []).find((hit) => countyWords(hit.name) === wanted) : null;
+  return county ? { name: county.name, area: "county", country: county.country, point: county.point } : null;
+}
+
 /** The county a town is given in, when there's a town before it: "Roughton Head, Cumberland, England" → "cumberland". */
 export function parentCountyName(location) {
   const parts = locationKey(location).split(", ").filter(Boolean);
   return parts.length >= 3 ? parts[1] : "";
 }
 
-// (the whole name, give or take "County": namesMatch would take York County for "New York")
-const countyWords = (text) => nameWords(text).replace(/^county\s+|\s+county$/g, "");
-
 /**
  * Where a town that can't be found goes: its county (the user, 2026-10-14: "Roughton Head,
  * Cumberland" and "Honitone Clyst, Devon" stayed on an "England" dot). hits: Photon's county layer.
  */
 export function pickParentCounty(hits, location) {
-  const wanted = countyWords(parentCountyName(location));
-  const county = wanted ? (hits || []).find((hit) => countyWords(hit.name) === wanted) : null;
-  return county ? { name: county.name, area: "county", country: county.country, point: county.point } : null;
+  return countyNamed(hits, parentCountyName(location));
 }
 
 /** Kilometres between two [lon, lat] points. */
@@ -286,14 +298,17 @@ export function geocodeLocations(locations, { onFound = () => {}, isWanted = () 
         if (cache.has(key)) continue;
         let town = null;
         try {
-          town = pickPhotonTown(await photonSearch(key), key);
-          if (!town) town = pickPhotonCounty(await photonSearch(key, ["county", "state"]), key);
-          if (!town && parentCountyName(key)) {
+          if (parentCountyName(key)) {
+            // (the county first: the town must be near it, and is placed there if it can't be found)
             const county = pickParentCounty(await photonSearch(key.split(", ").slice(1).join(", "), ["county"]), key);
-            if (county) {
+            town = pickPhotonTown(await photonSearch(key), key, county?.point);
+            if (!town && county) {
               provisional.set(key, county);
               onFound(done, todo.length);
             }
+          } else {
+            const counties = await photonSearch(key, ["county", "state"]);
+            town = pickWholeCounty(counties, key) || pickPhotonTown(await photonSearch(key), key) || pickPhotonCounty(counties, key);
           }
         } catch (error) {
           // (Photon down or busy: Nominatim gets it)

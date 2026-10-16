@@ -41,7 +41,7 @@ import { bindCardPhoto, cardHeadHtml, familyFactsHtml, familyFetcher, showMoreIn
 import { GALAXY_HUES, branchLabel } from "./chat_family_galaxy_data";
 import { NEARBY, nearbyPlaquesLayout, plaqueNeighbour } from "./chat_family_plaques_data";
 import { easeCubicInOut as ease } from "d3-ease";
-import { addStyleOnce, downloadBlob, escapeText, fullName, lifeYears, photoUrl, siteUrl } from "./chat_chart_common";
+import { addStyleOnce, downloadBlob, escapeText, fullName, lifeYears, onChartResume, photoUrl, siteUrl } from "./chat_chart_common";
 import { reducedMotion } from "./chat_fractal_common";
 
 const STYLE_ID = "wbe-3d-style";
@@ -934,6 +934,11 @@ export function mountFamily3d(host, options) {
   }
 
   function draw(time) {
+    // (waiting behind a chart's Back button: stop until it comes back)
+    if (!root.isConnected) {
+      frame = 0;
+      return;
+    }
     // (measured at mount the stage can still be unsized: see the Galaxy)
     if (Math.abs(root.clientWidth - width) > 1 || Math.abs(root.clientHeight - height) > 1) {
       if (root.clientWidth > 50 && root.clientHeight > 50) measure();
@@ -1205,6 +1210,9 @@ export function mountFamily3d(host, options) {
     requestAnimationFrame(settle);
   }
   frame = requestAnimationFrame(draw);
+  const stopResume = onChartResume(root, () => {
+    if (!destroyed && !frame) frame = requestAnimationFrame(draw);
+  });
   root.focus({ preventScroll: true });
 
   return {
@@ -1226,6 +1234,7 @@ export function mountFamily3d(host, options) {
     destroy() {
       destroyed = true;
       cancelAnimationFrame(frame);
+      stopResume();
       root.remove();
     },
   };

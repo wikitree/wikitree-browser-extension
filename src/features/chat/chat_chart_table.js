@@ -50,7 +50,10 @@ export function makeChartTable(title, rows) {
   return { title, defaultOrder: [[0, "asc"]], columns, rows };
 }
 
-/** Fan chart, migration map, tree overview: Ahnentafel slots (slot 1 is the root). */
+// A table of only "Self" says nothing (the user, 2026-10-17, of a man with no descendants: "We don't need the table").
+const beyondSelf = (title, rows) => (rows.length > 1 ? makeChartTable(title, rows) : null);
+
+/** Fan chart, migration map, tree overview: Ahnentafel slots (slot 1 is the root); null with only the root. */
 export function tableFromSlots(title, slots) {
   const rows = [];
   (slots || []).forEach((person, slot) => {
@@ -58,10 +61,10 @@ export function tableFromSlots(title, slots) {
     const generation = generationOfSlot(slot);
     rows.push(chartPersonRow(person, { ahnen: slot, relation: generation ? ancestorWord(generation, person.gender) : "Self", hidden: Boolean(person.hidden) }));
   });
-  return makeChartTable(title, rows);
+  return beyondSelf(title, rows);
 }
 
-/** Descendant chart, descendant map, fractal tree: {person, children: [...]}. */
+/** Descendant chart, descendant map, fractal tree: {person, children: [...]}; null with only the root. */
 export function tableFromTree(title, tree, which = "descendants") {
   const rows = [];
   const walk = (node, generation) => {
@@ -72,7 +75,7 @@ export function tableFromTree(title, tree, which = "descendants") {
     (node.children || []).forEach((child) => walk(child, generation + 1));
   };
   walk(tree, 0);
-  return makeChartTable(title, rows);
+  return beyondSelf(title, rows);
 }
 
 /** Lifespans (any view): its rows, with the relation or group the chart shows. */

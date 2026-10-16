@@ -39,7 +39,9 @@ import { routeChatPrompt, ChatIntent, pause, parseExportResultPrompt, tidyKinFol
 import { familySurnames, findNameInProfiles, hasFamilySurname, preferBracketedIds } from "./chat_family_circle_lookup";
 import { CHART_BAR_KEYS, CHART_SHORTCUTS, chartButtonPrompt, chartShortcutCanonicalPrompt } from "./chat_chart_shortcuts";
 import { isUnaskedEmptyResultFilter } from "./chat_last_result";
-import { createWhoPicker, lifeYearsText, pickerFirstName, watchlistPickerPeople } from "./chat_who_picker";
+import { createWhoPicker, lifeYearsText, pickerFirstName, pickerFullName, watchlistPickerPeople } from "./chat_who_picker";
+import { caretOnFirstLine, caretOnLastLine, createHistoryStepper, createPromptHistoryStore } from "./chat_prompt_history";
+import { mountRecentList } from "./chat_recent_list";
 import { readMemberWatchlist, watchlistDisplayName } from "./chat_managed_profiles";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
@@ -51,6 +53,7 @@ import { setChartMenuHandler, watchForWikiTreeButtons } from "./chat_chart_commo
 import { installChatDebugConsole } from "./chat_debug_console";
 import { findAmbiguousCenturyDecade, rewriteExplicitCenturyDecadeWording } from "./chat_century_decade";
 import { createChatConnectionHandlers } from "./chat_connections";
+import { fullWikiTreeName } from "./chat_fan_chart_data";
 import { AI_CHAT_CLAIM_RULES, handleExplicitSearchMode, looksLikeQuestion } from "./chat_search_mode";
 import { tryInsteadPrompts } from "./chat_try_instead";
 import {
@@ -510,7 +513,7 @@ function clearResolvedPersonMemory() {
 // incidental: someone merely named in an answer (a connection path lists both
 // Abraham Lincolns). It must not take an alias already held by someone the
 // user asked about, or the next "Abraham Lincoln" finds the grandfather.
-function rememberResolvedPerson({ wtId, displayName, aliases = [], incidental = false }) {
+function rememberResolvedPerson({ wtId, displayName, fullName = "", aliases = [], incidental = false }) {
   ensureResolvedPersonMemoryLoaded();
 
   const normalizedWtId = String(wtId || "").trim();
@@ -535,6 +538,8 @@ function rememberResolvedPerson({ wtId, displayName, aliases = [], incidental = 
   if (!existing.displayName) {
     existing.displayName = normalizedWtId;
   }
+  // The PersonName full name, for the who picker (not for matching: displayName's aliases do that).
+  if (fullName && String(fullName).length > String(existing.fullName || "").length) existing.fullName = String(fullName);
 
   const mergedAliases = new Set(Array.isArray(existing.aliases) ? existing.aliases : []);
   extractAliasCandidates(existing.displayName).forEach((alias) => mergedAliases.add(alias));
@@ -592,6 +597,7 @@ function rememberResolvedPersonFromMatch(person, aliases = []) {
   rememberResolvedPerson({
     wtId,
     displayName,
+    fullName: fullWikiTreeName(person),
     aliases,
   });
 }
@@ -3067,7 +3073,7 @@ async function runEditCommand(command) {
   }
   // (kept in the history, so the text and its buttons are still there after Genie closes)
   const actions = editTextActions(text);
-  appendMessage("assistant", `${command.title}, ready to add:\n\n${text}\n\nPress Enter to insert it at the cursor.`, { actions });
+  appendMessage("assistant", `${command.title}, ready to add:\n\n${text}`, { actions });
   pendingEditInsert = actions[0].onClick;
 }
 
@@ -3121,7 +3127,7 @@ async function answerChangeExplanation() {
     appendMessage("assistant", "Nothing has changed since the page loaded, so there's nothing to explain yet.", { shouldPersist: false });
     return;
   }
-  appendMessage("assistant", `A change explanation for this edit:\n\n${text}\n\nPress Enter to put it in the Change explanation box.`, {
+  appendMessage("assistant", `A change explanation for this edit:\n\n${text}`, {
     shouldPersist: false,
     actions: [
       { label: "Use it", onClick: useIt },
@@ -3268,6 +3274,8 @@ async function sendChatPrompt() {
     if (editInsert) void editInsert();
     return;
   }
+  promptHistory.add(rawPrompt);
+  historyStepper.reset();
   // "help", "what can I type?": the examples panel.
   if (isHelpPrompt(rawPrompt)) {
     $input.val("");
@@ -4798,7 +4806,49 @@ function ensureButtonContainer() {
 }
 
 function closePopup() {
+  recentList?.close({ refocus: false });
+  recentList = null;
   $(`#${CHAT_POPUP_ID}`).remove();
+}
+
+// What you've asked before: ↑/↓ in the box and the Recent list (chat_prompt_history.js).
+const promptHistory = createPromptHistoryStore(getUserWtId);
+const historyStepper = createHistoryStepper(() => promptHistory.list());
+let recentList = null;
+
+function putInBox(text) {
+  const input = document.getElementById(CHAT_INPUT_ID);
+  if (!input) return;
+  input.value = text;
+  input.focus();
+  input.setSelectionRange?.(text.length, text.length);
+}
+
+/** ↑/↓/Escape/Ctrl+R in the box; true when the key was used. */
+function handleHistoryKey(event) {
+  const input = event.currentTarget;
+  if (event.key === "r" && event.ctrlKey && !event.metaKey && !event.altKey) {
+    recentList?.open();
+    return true;
+  }
+  if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return false;
+  const { value, selectionStart: start, selectionEnd: end } = input;
+  if (event.key === "ArrowUp" && caretOnFirstLine(value, start, end)) {
+    const older = historyStepper.older(value);
+    if (older == null) return historyStepper.active;
+    putInBox(older);
+    return true;
+  }
+  if (event.key === "ArrowDown" && historyStepper.active && caretOnLastLine(value, start, end)) {
+    const newer = historyStepper.newer();
+    if (newer != null) putInBox(newer);
+    return true;
+  }
+  if (event.key === "Escape" && historyStepper.active) {
+    putInBox(historyStepper.cancel() || "");
+    return true;
+  }
+  return false;
 }
 
 function bindOutsideClickToCloseChat() {
@@ -4933,7 +4983,7 @@ function defaultPickerPerson() {
   const profile = getPageRootPerson();
   if (profile) return { wtId: profile.wtId, name: profile.displayName, note: "this profile" };
   const me = getUserWtId();
-  return me ? { wtId: me, name: "You", isMe: true } : null;
+  return me ? { wtId: me, name: "Me", isMe: true } : null;
 }
 
 function currentPickerPerson() {
@@ -4955,13 +5005,13 @@ function pickerFixedPeople() {
   const profile = getPageRootPerson();
   if (profile) add({ wtId: profile.wtId, name: profile.displayName, note: "this profile" });
   const me = getUserWtId();
-  if (me) add({ wtId: me, name: "You", isMe: true });
+  if (me) add({ wtId: me, name: "Me", isMe: true });
   if (chosenPerson) add({ wtId: chosenPerson.wtId, name: chosenPerson.name, isMe: chosenPerson.isMe });
   ensureResolvedPersonMemoryLoaded();
   Object.values(resolvedPeopleByWtId)
     .sort((a, b) => Number(b?.seenOrder || 0) - Number(a?.seenOrder || 0))
     .slice(0, 6)
-    .forEach((entry) => add({ wtId: entry.wtId, name: entry.displayName || entry.wtId, note: "in this chat" }));
+    .forEach((entry) => add({ wtId: entry.wtId, name: entry.fullName || pickerFullName(entry.displayName, entry.wtId), note: "in this chat" }));
   return people;
 }
 
@@ -5333,6 +5383,7 @@ function openPopup() {
                 <label class="chat-mode-option"><input type="radio" name="wbe-chat-context" value="new" /><span>New</span></label>
               </div>
               <div class="chat-send-column">
+                <button type="button" class="small chat-recent-button" aria-label="Recent questions" title="Your earlier questions (Ctrl+R)">🕘</button>
                 <button id="${CHAT_SEND_ID}" type="button" class="small">Send</button>
               </div>
             </div>
@@ -5360,7 +5411,13 @@ function openPopup() {
     });
     // (typed by hand: typeIntoBox sets the value, which fires no input event)
     $popup.find(`#${CHAT_INPUT_ID}`).one("input", noteTyped);
+    // (editing a question brought back from the history starts from it next time)
+    $popup.find(`#${CHAT_INPUT_ID}`).on("input", () => historyStepper.reset());
     $popup.find(`#${CHAT_INPUT_ID}`).on("keydown", (event) => {
+      if (handleHistoryKey(event)) {
+        event.preventDefault();
+        return;
+      }
       if (event.key === "Escape") {
         event.preventDefault();
         closePopup();
@@ -5371,6 +5428,20 @@ function openPopup() {
         sendChatPrompt();
       }
     });
+    historyStepper.reset();
+    void promptHistory.load();
+    recentList = mountRecentList({
+      container: $popup.find(".chat-input-row").get(0),
+      store: promptHistory,
+      onChoose: (text) => {
+        historyStepper.reset();
+        putInBox(text);
+      },
+      onClose: ({ refocus }) => {
+        if (refocus) document.getElementById(CHAT_INPUT_ID)?.focus();
+      },
+    });
+    $popup.find(".chat-recent-button").on("click", () => recentList?.toggle());
     renderChartBar($popup);
     loadHistory();
     ensureResolvedPersonMemoryLoaded();
@@ -5596,7 +5667,7 @@ function showPlaceholder() {
     return;
   }
   if (chosenPerson) {
-    const name = chosenPerson.isMe ? "you" : pickerFirstName(chosenPerson) || chosenPerson.name;
+    const name = chosenPerson.isMe ? "yourself" : pickerFirstName(chosenPerson) || chosenPerson.name;
     const gender = String(chosenPerson.subject?.shownGender ?? chosenPerson.subject?.gender ?? "").toLowerCase();
     const pronoun = chosenPerson.isMe ? "my" : gender === "male" ? "his" : gender === "female" ? "her" : "their";
     $input.attr("placeholder", `Ask about ${name}, like "${pronoun} grandparents" or "${pronoun} fan chart"`);

@@ -109,3 +109,39 @@ describe("fullWikiTreeName", () => {
     expect(fullWikiTreeName(person)).toBe(expected);
   });
 });
+
+describe("buildOriginsSeries people (dots on the origins chart)", () => {
+  test("each band knows who was born there, and where", () => {
+    const series = buildOriginsSeries([
+      { degrees: 1, birthLocation: "Leeds, Yorkshire, England", birth: "1890", name: "John Smith", wtid: "Smith-1" },
+      { degrees: 1, birthLocation: "Cardiff, Wales", birth: "1892", displayName: "Mary Jones", wtid: "Jones-2" },
+      { degrees: 1, birthLocation: "" , name: "No Place", wtid: "Place-3" },
+    ]);
+    const [gen] = series.generations;
+    expect(gen.people.England).toEqual([{ name: "John Smith", wtid: "Smith-1", year: 1890, place: "Leeds, Yorkshire, England" }]);
+    expect(gen.people.Wales[0]).toMatchObject({ name: "Mary Jones", place: "Cardiff, Wales" });
+  });
+
+  test("rows without names still draw bands but no dots", () => {
+    const series = buildOriginsSeries([row(1, "Leeds, England"), row(2, "Cardiff, Wales")]);
+    expect(series.generations.every((gen) => !Object.keys(gen.people).length)).toBe(true);
+  });
+});
+
+describe("originsRowsFromSlots / originsSeriesFromSlots", () => {
+  const { originsRowsFromSlots, originsSeriesFromSlots } = require("./chat_origins_data");
+  const person = (id, wtid, birthLocation, extra = {}) => ({ id, wtid, name: wtid, birthLocation, birth: "1800", ...extra });
+  // 1 root; 2–3 parents; 4–7 grandparents, with the same grandmother twice (cousin parents)
+  const slots = [null, person(1, "Root-1", "Leeds, England"), person(2, "Dad-1", "Leeds, England"), person(3, "Mum-1", "Cardiff, Wales"),
+    person(4, "Gpa-1", "York, England"), person(5, "Gma-1", "Cork, Ireland"), person(6, "Gpa-2", "Swansea, Wales"), person(5, "Gma-1", "Cork, Ireland")];
+
+  test("each ancestor once per generation, not the root", () => {
+    const rows = originsRowsFromSlots(slots);
+    expect(rows.map((row) => `${row.degrees}:${row.wtid}`)).toEqual(["1:Dad-1", "1:Mum-1", "2:Gpa-1", "2:Gma-1", "2:Gpa-2"]);
+  });
+
+  test("a series needs two generations with places", () => {
+    expect(originsSeriesFromSlots(slots).generations.map((gen) => gen.generation)).toEqual([1, 2]);
+    expect(originsSeriesFromSlots(slots.slice(0, 4))).toBeNull();
+  });
+});

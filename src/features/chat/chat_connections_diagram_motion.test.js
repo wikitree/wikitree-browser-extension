@@ -86,3 +86,38 @@ describe("shortConnectionPlace", () => {
     expect(shortConnectionPlace(place)).toBe(expected);
   });
 });
+
+describe("connections path relationship", () => {
+  const path = [
+    { Id: 1, Name: "Dixon-1", FirstName: "Tabitha", LastNameAtBirth: "Parker", LastNameCurrent: "Dixon", Gender: "Female" },
+    { Id: 2, Name: "Dixon-2", FirstName: "Tom", LastNameAtBirth: "Dixon", Gender: "Male", pathType: "son" },
+    { Id: 3, Name: "Dixon-3", FirstName: "Jim", LastNameAtBirth: "Dixon", Gender: "Male", pathType: "son" },
+  ];
+
+  test("a blood line says how they're related; a marriage doesn't", async () => {
+    const { connectionsPathRelationshipText } = await import("./ui");
+    const up = [
+      { ...path[2], pathType: undefined },
+      { ...path[1], pathType: "father" },
+      { ...path[0], pathType: "mother" },
+    ];
+    expect(connectionsPathRelationshipText(up)).toMatch(/^Tabitha \(Parker\) Dixon is Jim Dixon's grandmother\.$/);
+    expect(connectionsPathRelationshipText([path[0], { ...path[1], pathType: "spouse" }])).toBe("");
+  });
+
+  test("the Relationship button shows the finder's answer", async () => {
+    const { setConnectionsRelationshipFinder } = await import("./ui");
+    const finder = jest.fn().mockResolvedValue("They share Ann (A-1).");
+    setConnectionsRelationshipFinder(finder);
+    showConnectionsPopup([{ path }]);
+    const popup = document.querySelector("#wbe-conn-relationship").closest("div[id], .chat-popup") || document;
+    const button = document.querySelector("#wbe-conn-relationship");
+    expect(button.hidden).toBe(false);
+    button.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(finder).toHaveBeenCalledWith(path[0], path[2]);
+    expect(popup.querySelector(".connections-relationship").textContent).toBe("They share Ann (A-1).");
+    setConnectionsRelationshipFinder(null);
+  });
+});

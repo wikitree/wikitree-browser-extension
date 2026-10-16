@@ -7,7 +7,7 @@ import { galaxyLayout, galaxyRelation, branchLabel, isStar, GALAXY_HUES } from "
 import { familyLoaded } from "./chat_family_navigator_data";
 import { bindCardPhoto, cardHeadHtml, familyFactsHtml, familyFetcher, showMoreInCard } from "./chat_family_card";
 import { easeCubicInOut as ease } from "d3-ease";
-import { addStyleOnce, escapeText, fullName, lifeYears, photoUrl, siteUrl } from "./chat_chart_common";
+import { addStyleOnce, escapeText, fullName, lifeYears, onChartResume, photoUrl, siteUrl } from "./chat_chart_common";
 import { reducedMotion } from "./chat_fractal_common";
 
 const STYLE_ID = "wbe-galaxy-style";
@@ -366,6 +366,11 @@ export function mountFamilyGalaxy(host, options) {
   }
 
   function draw(time) {
+    // (waiting behind a chart's Back button: stop until it comes back)
+    if (!root.isConnected) {
+      frame = 0;
+      return;
+    }
     // (measured at mount the stage can still be unsized, so it opened as a tiny cluster: live, 2026-10-11)
     if (Math.abs(root.clientWidth - width) > 1 || Math.abs(root.clientHeight - height) > 1) {
       if (root.clientWidth > 50 && root.clientHeight > 50) measure();
@@ -620,6 +625,9 @@ export function mountFamilyGalaxy(host, options) {
     requestAnimationFrame(settle);
   }
   frame = requestAnimationFrame(draw);
+  const stopResume = onChartResume(root, () => {
+    if (!destroyed && !frame) frame = requestAnimationFrame(draw);
+  });
   root.focus({ preventScroll: true });
 
   return {
@@ -637,6 +645,7 @@ export function mountFamilyGalaxy(host, options) {
     destroy() {
       destroyed = true;
       cancelAnimationFrame(frame);
+      stopResume();
       root.remove();
     },
   };
