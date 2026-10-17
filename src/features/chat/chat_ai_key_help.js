@@ -97,8 +97,8 @@ export function aiKeyHelpHtml() {
       <li>Your key stays in your browser and goes only to the company you chose, along with your question and the profile details needed to answer it.</li>
     </ul>
     <div class="chat-ai-help-actions">
-      <button type="button" class="small chat-ai-help-settings">Open WBE settings</button>
-      <button type="button" class="small chat-ai-help-examples">What works without AI</button>
+      <button type="button" class="small btn btn-secondary btn-sm chat-ai-help-settings">Open WBE settings</button>
+      <button type="button" class="small btn btn-secondary btn-sm chat-ai-help-examples">What works without AI</button>
       <a href="${AI_KEY_HELP_URL}" target="_blank" rel="noopener noreferrer">Full instructions on WikiTree</a>
     </div>
   </div>`;

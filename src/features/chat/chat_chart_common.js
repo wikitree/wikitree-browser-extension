@@ -532,7 +532,8 @@ export function installHeaderDoubleClick() {
 // headers of Genie's windows and the chart windows. Not the ×, the AI switch or
 // the "?" help button, which have their own. The links to the other charts
 // get an outline version (injectChartStyles) to set them apart. Popups are watched as they're
-// added to the page, so no window needs its markup changed.
+// added to the page, so no window needs its markup changed. (Buttons outside the headers, such as
+// Send and the results table's Export buttons, have the classes in their markup.)
 const WIKITREE_BUTTON_CLASSES = ["btn", "btn-secondary", "btn-sm"];
 const HEADER_BUTTONS =
   ".chat-popup-header button:not(.close-popup):not(.chat-help-button):not([role='switch']):not(.wbe-chart-size), .chat-results-header button:not(.close-popup)";

@@ -2465,10 +2465,10 @@ function injectResultsExportButtons($popup, tableId, result) {
   const $controls = $(
     '<div class="wbe-chat-export-controls" style="display:inline-flex;align-items:center;gap:6px;margin:0 12px;vertical-align:middle;">' +
       '<span style="font-size:12px;color:#555;">Export:</span>' +
-      '<button type="button" class="small wbe-chat-export-btn" data-format="csv">CSV</button>' +
-      '<button type="button" class="small wbe-chat-export-btn" data-format="xlsx">XLSX</button>' +
-      '<button type="button" class="small wbe-chat-export-btn" data-format="json">JSON</button>' +
-      '<button type="button" class="small wbe-chat-export-btn" data-format="wikitable">Wikitable</button>' +
+      '<button type="button" class="small btn btn-secondary btn-sm wbe-chat-export-btn" data-format="csv">CSV</button>' +
+      '<button type="button" class="small btn btn-secondary btn-sm wbe-chat-export-btn" data-format="xlsx">XLSX</button>' +
+      '<button type="button" class="small btn btn-secondary btn-sm wbe-chat-export-btn" data-format="json">JSON</button>' +
+      '<button type="button" class="small btn btn-secondary btn-sm wbe-chat-export-btn" data-format="wikitable">Wikitable</button>' +
       "</div>"
   );
 
@@ -5383,8 +5383,8 @@ function openPopup() {
                 <label class="chat-mode-option"><input type="radio" name="wbe-chat-context" value="new" /><span>New</span></label>
               </div>
               <div class="chat-send-column">
-                <button type="button" class="small chat-recent-button" aria-label="Recent questions" title="Your earlier questions (Ctrl+R)">🕘</button>
-                <button id="${CHAT_SEND_ID}" type="button" class="small">Send</button>
+                <button type="button" class="small btn btn-secondary btn-sm chat-recent-button" aria-label="Recent questions" title="Your earlier questions (Ctrl+R)">🕘</button>
+                <button id="${CHAT_SEND_ID}" type="button" class="small btn btn-secondary btn-sm">Send</button>
               </div>
             </div>
           </div>
