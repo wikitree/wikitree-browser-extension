@@ -2,7 +2,9 @@ import $ from "jquery";
 
 import { features, OptionType } from "./core/options/options_registry";
 import {
+  OLLAMA_LOCAL_ORIGINS,
   OLLAMA_ORIGINS,
+  OLLAMA_SAFARI_COMMAND,
   SHARED_AI_FEATURES,
   SHARED_AI_KEY_IDS,
   SHARED_AI_OPTIONS_KEY,
@@ -117,29 +119,114 @@ function selectProviderWithOnlyKey(featureId, changedElement) {
 }
 
 // Ollama (2026-10-16): ollama.com and this computer's Ollama are optional permissions, so adding
-// them didn't ask every member to accept new sites on update. Ask when Ollama is picked (the
-// browser only allows the request during the click or change itself).
-function requestOllamaAccessIfChosen(featureId, changedElement) {
-  const changedId = String(changedElement?.id || "").replace(`${featureId}_`, "");
-  if (!["aiProvider", "ollamaWhere", "ollamaKey"].includes(changedId)) return;
-  if (document.getElementById(`${featureId}_aiProvider`)?.value !== "ollama") return;
+// them didn't ask every member to accept new sites on update. The browser only allows the request
+// during the click or change itself. done(granted, message) gets the outcome.
+function requestOllamaAccess(done = () => {}) {
   // (declarativeNetRequestWithHostAccess: Ollama refuses extension origins with a 403, so background.js
-  // removes the Origin header from its own requests to localhost:11434; live, Ollama 0.40.5, 2026-10-16)
+  // removes the Origin header from its own requests to port 11434; live, Ollama 0.40.5, 2026-10-16)
   const ask = (request, retry) => {
     try {
       chrome.permissions.request(request, (granted) => {
-        if (chrome.runtime.lastError && retry) return ask(retry, null);
-        if (chrome.runtime.lastError || !granted) {
-          console.warn("wbe: Ollama access not granted", chrome.runtime.lastError?.message || "");
-        }
+        const error = chrome.runtime.lastError;
+        if (error) console.warn("wbe: Ollama access request failed", error.message);
+        if (error && retry) return ask(retry, null);
+        if (!error && !granted) console.warn("wbe: Ollama access not granted");
+        done(!error && Boolean(granted), error?.message || "");
       });
     } catch (error) {
-      if (retry) return ask(retry, null);
       console.warn("wbe: Ollama access request failed", error);
+      if (retry) return ask(retry, null);
+      done(false, error?.message || String(error));
     }
   };
   ask({ permissions: ["declarativeNetRequestWithHostAccess"], origins: OLLAMA_ORIGINS }, { origins: OLLAMA_ORIGINS });
 }
+
+// Ask when Ollama is picked. Safari (2026-10-17) refuses a request made from a select's change ("Must
+// be called during a user gesture"), and the access alone doesn't get it past Ollama (ollamaSafariRow).
+function requestOllamaAccessIfChosen(featureId, changedElement) {
+  const changedId = String(changedElement?.id || "").replace(`${featureId}_`, "");
+  if (!["aiProvider", "ollamaWhere", "ollamaKey"].includes(changedId)) return;
+  if (document.getElementById(`${featureId}_aiProvider`)?.value !== "ollama") return;
+  if (isSafari) return;
+  requestOllamaAccess(() => updateOllamaAccessRows());
+}
+
+// "Allow access to Ollama", under "Run Ollama on" in each AI settings group, while Ollama on this
+// computer is chosen and the browser hasn't let WBE reach it: Chrome and Firefox don't ask again
+// after a missed or refused prompt. A click is a gesture everywhere.
+function ollamaAccessRow() {
+  const row = document.createElement("div");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "ollama-access-button";
+  button.innerText = "Allow access to Ollama";
+  const note = document.createElement("label");
+  note.className = "option-comment";
+  note.innerText = "WBE needs your permission to reach Ollama on this computer.";
+  button.addEventListener("click", () => {
+    requestOllamaAccess((granted, message) => {
+      if (!granted) note.innerText = `The browser didn't allow it${message ? `: ${message}` : "."}`;
+      updateOllamaAccessRows();
+    });
+  });
+  row.append(button, note);
+  return row;
+}
+
+// Safari gets the Terminal command instead: allowing access there isn't enough, as Safari doesn't
+// apply the header rule (OLLAMA_SAFARI_COMMAND). Nothing here can tell whether it has been run, so it
+// shows whenever Ollama on this computer is chosen.
+function ollamaSafariRow() {
+  const row = document.createElement("div");
+  const intro = document.createElement("label");
+  intro.className = "option-comment";
+  intro.innerText = "In Safari, Ollama has to allow WBE first. Open Terminal (Applications > Utilities) and run:";
+  const command = document.createElement("code");
+  command.className = "ollama-command";
+  command.innerText = OLLAMA_SAFARI_COMMAND;
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "ollama-access-button";
+  copy.innerText = "Copy";
+  copy.addEventListener("click", () => {
+    // (if the copy is refused, select the command for Cmd+C)
+    navigator.clipboard.writeText(OLLAMA_SAFARI_COMMAND).then(
+      () => (copy.innerText = "Copied"),
+      () => window.getSelection()?.selectAllChildren(command)
+    );
+  });
+  const then = document.createElement("label");
+  then.className = "option-comment";
+  then.innerText = "Then quit Ollama (its icon in the menu bar > Quit Ollama) and open it again. Run the command again after restarting your Mac.";
+  row.append(intro, command, copy, then);
+  return row;
+}
+
+function updateOllamaAccessRows() {
+  if (!chrome.permissions?.contains && !isSafari) return;
+  SHARED_AI_FEATURES.forEach((featureId) => {
+    const where = document.getElementById(`${featureId}_ollamaWhere`);
+    if (!where) return;
+    let row = document.getElementById(`${featureId}_ollamaAccess`);
+    if (!row) {
+      row = isSafari ? ollamaSafariRow() : ollamaAccessRow();
+      row.id = `${featureId}_ollamaAccess`;
+      where.closest("div").after(row);
+    }
+    const wanted = document.getElementById(`${featureId}_aiProvider`)?.value === "ollama" && where.value !== "cloud";
+    if (!wanted || isSafari) {
+      $(row).toggle(wanted);
+      return;
+    }
+    chrome.permissions.contains({ origins: OLLAMA_LOCAL_ORIGINS }, (granted) => {
+      // (if the browser can't say, no button: better than one that never goes away)
+      $(row).toggle(!chrome.runtime.lastError && !granted);
+    });
+  });
+}
+chrome.permissions?.onAdded?.addListener(updateOllamaAccessRows);
+chrome.permissions?.onRemoved?.addListener(updateOllamaAccessRows);
 
 function getSharedAiOptionStorageKeys() {
   return SHARED_AI_FEATURES.map((featureId) => `${featureId}_options`);
@@ -374,6 +461,7 @@ function restore_options() {
     });
     restore_settings(items);
     updateDependentOptions();
+    updateOllamaAccessRows();
   });
 }
 
@@ -470,6 +558,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
     }
     saveFeatureOptions(featureData);
     updateDependentOptions();
+    updateOllamaAccessRows();
   }
 
   function createTextElementForLabel(option, addSpaceBefore, addColonAfter) {

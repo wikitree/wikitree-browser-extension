@@ -1421,27 +1421,53 @@ async function callPerplexity(apiKey, model, system, userPrompt) {
 // Ollama (2026-10-16, docs.ollama.com/api): with a key, Ollama Cloud; with "ollama-local"
 // (OLLAMA_LOCAL_KEY in shared_ai_options.js: the member left the key blank), the Ollama app on
 // this computer, which needs no key. Same /api/chat either way.
-// Ollama answers 403 to chrome-extension:// and moz-extension:// origins unless OLLAMA_ORIGINS is set
+// Ollama answers 403 to chrome-extension://, moz-extension:// and safari-web-extension:// origins unless OLLAMA_ORIGINS is set
 // (live, Ollama 0.40.5, 2026-10-16), so drop the Origin header from the extension's own requests to it.
 // Needs the optional declarativeNetRequestWithHostAccess permission, asked for when Ollama is chosen.
+// Ollama listens on 127.0.0.1 by default, so ask there first. "localhost" can reach something else
+// first: a member's Mac (2026-10-17) had a Docker port forward on ::1 that accepted and then reset, and
+// Chromium never went on to 127.0.0.1. localhost is the fallback for an Ollama listening only on ::1.
+const OLLAMA_LOCAL_BASES = ["http://127.0.0.1:11434", "http://localhost:11434"];
+// (OLLAMA_LOCAL_ORIGINS in shared_ai_options.js, the optional host permissions for those)
+const OLLAMA_LOCAL_ORIGINS = ["http://localhost/*", "http://127.0.0.1/*"];
+const OLLAMA_ORIGINS_ADVICE = "set OLLAMA_ORIGINS to chrome-extension://*,moz-extension://*,safari-web-extension://* and restart Ollama";
+// Safari (2026-10-17) grants the header permission and keeps the rules, but doesn't apply them to the
+// extension's own requests, so only Ollama allowing Safari extensions works there (live, Ollama 0.40.5).
+// (OLLAMA_SAFARI_COMMAND in shared_ai_options.js, shown under "Run Ollama on" in Safari)
+const OLLAMA_SAFARI_COMMAND = 'launchctl setenv OLLAMA_ORIGINS "safari-web-extension://*"';
+// (the command last, so no words run on after it when it's copied out of the message)
+const OLLAMA_SAFARI_ADVICE = `Safari can only reach Ollama once Ollama allows it, which takes one Terminal command (again after each restart of your Mac). Quit Ollama (its icon in the menu bar > Quit Ollama), run this in Terminal, then open Ollama again: ${OLLAMA_SAFARI_COMMAND}`;
+const inSafari = () => chrome.runtime.getURL("").startsWith("safari-web-extension:");
 const OLLAMA_ORIGIN_RULE_ID = 41134;
 async function allowLocalOllama() {
   try {
     if (!chrome.declarativeNetRequest?.updateSessionRules) return;
+    const rules = OLLAMA_LOCAL_BASES.map((base, index) => ({
+      id: OLLAMA_ORIGIN_RULE_ID + index,
+      priority: 1,
+      action: { type: "modifyHeaders", requestHeaders: [{ header: "origin", operation: "remove" }] },
+      condition: { urlFilter: `|${base}/`, tabIds: [-1], resourceTypes: ["xmlhttprequest", "other"] },
+    }));
     await chrome.declarativeNetRequest.updateSessionRules({
-      removeRuleIds: [OLLAMA_ORIGIN_RULE_ID],
-      addRules: [
-        {
-          id: OLLAMA_ORIGIN_RULE_ID,
-          priority: 1,
-          action: { type: "modifyHeaders", requestHeaders: [{ header: "origin", operation: "remove" }] },
-          condition: { urlFilter: "|http://localhost:11434/", tabIds: [-1], resourceTypes: ["xmlhttprequest", "other"] },
-        },
-      ],
+      removeRuleIds: rules.map((rule) => rule.id),
+      addRules: rules,
     });
   } catch (error) {
     console.warn("wbe: couldn't set the Ollama header rule", error);
   }
+}
+
+// Without access to this computer's Ollama, the browser first sends a CORS check, Ollama refuses it
+// (403, live 2026-10-17), and fetch fails just as if Ollama weren't running. A missed or refused
+// prompt isn't asked again (options.js), so say which it is. (If the browser can't tell, assume access.)
+function hasLocalOllamaAccess() {
+  return new Promise((resolve) => {
+    try {
+      chrome.permissions.contains({ origins: OLLAMA_LOCAL_ORIGINS }, (granted) => resolve(chrome.runtime.lastError ? true : Boolean(granted)));
+    } catch (error) {
+      resolve(true);
+    }
+  });
 }
 
 async function callOllama(apiKey, model, system, userPrompt) {
@@ -1450,39 +1476,59 @@ async function callOllama(apiKey, model, system, userPrompt) {
   if (!local && !apiKey) {
     throw new Error("Ollama Cloud needs an Ollama API key. Add one in WBE's settings, or set \"Run Ollama on\" to This computer.");
   }
-  const base = local ? "http://localhost:11434" : "https://ollama.com";
+  const bases = local ? OLLAMA_LOCAL_BASES : ["https://ollama.com"];
   if (local) await allowLocalOllama();
+  const request = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(local ? {} : { Authorization: `Bearer ${apiKey}` }),
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: userPrompt },
+      ],
+      stream: false,
+      options: { temperature: 0.2 },
+    }),
+  };
+  // (only an unreachable address moves on to the next; any answer from Ollama, even an error, is final)
   let response;
-  try {
-    response = await fetch(`${base}/api/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(local ? {} : { Authorization: `Bearer ${apiKey}` }),
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: userPrompt },
-        ],
-        stream: false,
-        options: { temperature: 0.2 },
-      }),
+  let failure;
+  for (const base of bases) {
+    response = await fetch(`${base}/api/chat`, request).catch((error) => {
+      failure = error;
+      return null;
     });
-  } catch (error) {
+    if (response) break;
+  }
+  if (!response) {
+    // (Safari can't tell its own CORS refusal from Ollama not running, so it gets both)
+    if (local && inSafari()) {
+      throw new Error(`Couldn't reach Ollama on this computer (port 11434). Is the Ollama app running? ${OLLAMA_SAFARI_ADVICE}`);
+    }
+    if (local && !(await hasLocalOllamaAccess())) {
+      throw new Error(
+        `WBE isn't allowed to reach Ollama on this computer yet. In WBE's settings, click "Allow access to Ollama" (under "Run Ollama on"), then try again. If the browser won't allow it, ${OLLAMA_ORIGINS_ADVICE}.`
+      );
+    }
     throw new Error(
       local
-        ? "Couldn't reach Ollama on this computer (localhost:11434). Is the Ollama app running? (To use Ollama Cloud instead, set \"Run Ollama on\" to Ollama Cloud in WBE's settings.)"
-        : "Couldn't reach Ollama Cloud: " + (error?.message || error)
+        ? "Couldn't reach Ollama on this computer (port 11434). Is the Ollama app running? (To use Ollama Cloud instead, set \"Run Ollama on\" to Ollama Cloud in WBE's settings.)"
+        : "Couldn't reach Ollama Cloud: " + (failure?.message || failure)
     );
   }
 
   if (!response.ok) {
     const err = await response.text();
+    if (local && response.status === 403 && inSafari()) {
+      throw new Error(`Ollama on this computer refused the request (403). ${OLLAMA_SAFARI_ADVICE}`);
+    }
     if (local && response.status === 403) {
       throw new Error(
-        "Ollama on this computer refused the request (403). In WBE's settings choose another AI provider and then Ollama again, and allow access when the browser asks. If that doesn't help, set OLLAMA_ORIGINS to chrome-extension://*,moz-extension://* and restart Ollama."
+        `Ollama on this computer refused the request (403). In WBE's settings choose another AI provider and then Ollama again, and allow access when the browser asks. If that doesn't help, ${OLLAMA_ORIGINS_ADVICE}.`
       );
     }
     if (response.status === 404) {

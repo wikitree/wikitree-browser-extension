@@ -114,6 +114,34 @@ div.feature-options {
   display: inline-block;
 }
 
+/* "Allow access to Ollama" (options.js updateOllamaAccessRows), the same pill as the other buttons */
+.ollama-access-button {
+  background-color: #ddd;
+  color: #000;
+  border: 0;
+  border-radius: 34px;
+  font-size: 14px;
+  padding: 6px 17px;
+  margin: 4px 0 4px 20px;
+  cursor: pointer;
+}
+.ollama-access-button:hover {
+  background-color: #8fc641;
+}
+/* Safari's OLLAMA_ORIGINS command (options.js ollamaSafariRow), selected whole with one click */
+.ollama-command {
+  display: inline-block;
+  margin: 4px 0 4px 20px;
+  padding: 4px 8px;
+  background-color: #f2f2f2;
+  border-radius: 4px;
+  font-family: Menlo, Monaco, monospace;
+  font-size: 12px;
+  user-select: all;
+  -webkit-user-select: all;
+  overflow-wrap: anywhere;
+}
+
 /* Options that only apply while a parent option is turned on */
 .option-dependent {
   margin-left: 22px;

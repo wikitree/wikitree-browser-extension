@@ -25,9 +25,15 @@ export const SHARED_AI_DEFAULT_MODELS = {
 // Ollama (2026-10-16) runs where the member says (ollamaWhere): on their own computer, which needs no
 // key, or Ollama Cloud (ollama.com) with their key. A saved key doesn't decide it (the user: keep the
 // key but use the desktop one). On this computer OLLAMA_LOCAL_KEY stands in for the key, so "is
-// there AI?" works as for the others; background.js sends it to localhost:11434 and never as a key.
+// there AI?" works as for the others; background.js sends it to port 11434 and never as a key.
 export const OLLAMA_LOCAL_KEY = "ollama-local";
-export const OLLAMA_ORIGINS = ["https://ollama.com/*", "http://localhost/*", "http://127.0.0.1/*"];
+// (this computer's are what the "Allow access to Ollama" button in options.js checks for)
+export const OLLAMA_LOCAL_ORIGINS = ["http://localhost/*", "http://127.0.0.1/*"];
+export const OLLAMA_ORIGINS = ["https://ollama.com/*", ...OLLAMA_LOCAL_ORIGINS];
+// Safari (2026-10-17) doesn't apply the header rule background.js uses to get past Ollama's 403 to
+// extension origins, so there Ollama itself has to allow Safari extensions. launchctl is how the Mac
+// app takes settings (docs.ollama.com/faq); it lasts until the Mac restarts. (Copied in background.js.)
+export const OLLAMA_SAFARI_COMMAND = 'launchctl setenv OLLAMA_ORIGINS "safari-web-extension://*"';
 
 const PROVIDERS = [
   { value: "openai", text: "OpenAI", keyId: "openAIKey", keyLabel: "OpenAI API Key", modelId: "openAIModel", modelLabel: "OpenAI Model" },

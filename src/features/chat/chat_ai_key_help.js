@@ -61,7 +61,7 @@ const PROVIDERS = [
     note: "On your own computer it's free and private, but smaller models are slower and make more mistakes, especially in Genie's searches.",
     steps: [
       `<b>Ollama Cloud:</b> sign in at ${link("https://ollama.com/")}, open ${link("https://ollama.com/settings/keys")} and click <b>Add API Key</b>. Copy the key. ${SAVE_NOTE} In WBE's settings choose <b>Ollama</b>, set <b>Run Ollama on</b> to <b>Ollama Cloud</b> and paste the key.`,
-      `<b>On your own computer:</b> install the Ollama app from ${link("https://ollama.com/download")} and download a model (for example <code>ollama pull gpt-oss:20b</code>). In WBE's settings choose <b>Ollama</b>, set <b>Run Ollama on</b> to <b>This computer</b> and choose that model (or type its name in the Custom Model Override). No key is needed. Allow the extension when the browser asks.`,
+      `<b>On your own computer:</b> install the Ollama app from ${link("https://ollama.com/download")} and download a model (for example <code>ollama pull gpt-oss:20b</code>). In WBE's settings choose <b>Ollama</b>, set <b>Run Ollama on</b> to <b>This computer</b> and choose that model (or type its name in the Custom Model Override). No key is needed. Allow the extension when the browser asks, or click <b>Allow access to Ollama</b> there if it shows. In Safari, run the Terminal command shown there instead, then quit and reopen Ollama.`,
     ],
   },
 ];
