@@ -1,4 +1,5 @@
 import { parseSearchSpecPrompt } from "./chat_spec_parser";
+import { isRouterCanonicalSearch } from "./chat_router_canonical";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { WIKITREE_GLOSSARY_FOR_AI } from "./chat_wikitree_glossary";
 import { namesWikiTree, withoutOnWikiTree } from "./chat_wikitree_help";
@@ -1370,6 +1371,7 @@ export async function handleExplicitSearchMode({
         ChatIntent?.PROFILE_DUPLICATES,
         ChatIntent?.PERSON_BURIAL,
         ChatIntent?.FIND_BIO_RELATIVES,
+        ChatIntent?.IN_LAW_CHECK,
         ChatIntent?.PROFILE_FACT,
         ChatIntent?.DNA,
         ChatIntent?.FAN_CHART,
@@ -1408,7 +1410,7 @@ export async function handleExplicitSearchMode({
 
       // The router's canonical "notables in my CC7" (from "am I related to
       // anyone famous?") is a WT+ search; run that form, not the raw prompt.
-      if (routed?.intent === ChatIntent?.PROFILE_SEARCH && /^(?:notables|dna-confirmed) in /i.test(routed?.params?.query || "")) {
+      if (routed?.intent === ChatIntent?.PROFILE_SEARCH && isRouterCanonicalSearch(routed?.params?.query)) {
         const notablesResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, routed.params.query);
         if (notablesResult) {
           await handleChatResult(typeof notablesResult === "string" ? { message: notablesResult } : notablesResult);

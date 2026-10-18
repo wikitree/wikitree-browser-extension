@@ -1,6 +1,6 @@
 jest.mock("../../core/common", () => ({ getProfilePersonInfo: jest.fn(() => ({ Name: "Cook-8721" })) }));
 
-import { buildBurialAnswer, buildOthersBuriedSearch, findGraveLinks, parseBurialPrompt } from "./chat_burial";
+import { buildBaptismAnswer, buildBurialAnswer, buildOthersBuriedSearch, findGraveLinks, parseBaptismPrompt, parseBurialPrompt } from "./chat_burial";
 import { ChatIntent, routeChatPrompt } from "./chat_router";
 
 describe("parseBurialPrompt", () => {
@@ -100,5 +100,37 @@ describe("who else is buried in this cemetery?", () => {
     expect(out.query).toBeUndefined();
     expect(out.message).toContain("has no cemetery category on WikiTree, so I can't search for others buried there");
     expect(out.message).toContain("Find a Grave memorial 123");
+  });
+});
+
+// (imagined AA2, 2026-10-18)
+describe("baptism and christening, from the biography", () => {
+  test.each([
+    ["when was she baptised?", ""],
+    ["where was he christened", ""],
+    ["was Cook-8721 baptized", "Cook-8721"],
+    ["when was her baptism", ""],
+    ["her christening date", ""],
+    ["baptism of Cook-8721", "Cook-8721"],
+  ])("%s", (prompt, target) => {
+    expect(parseBaptismPrompt(prompt)).toEqual({ target, baptism: true });
+    expect(routeChatPrompt(prompt)).toEqual({ intent: ChatIntent.PERSON_BURIAL, params: { target, baptism: true } });
+  });
+
+  const person = {
+    Name: "Cook-8721",
+    RealName: "Ellen",
+    BirthDate: "1832-00-00",
+    BirthLocation: "Wem, Shropshire",
+    bio: "== Biography ==\n{{Died Young}}\n'''Ellen''' was born in 1832. She was baptised at [[Space:Wem|St Peter's, Wem]] on 4 May 1832.<ref>Wem parish register, christening of Ellen Cook.</ref> She married in 1855.\n\n== Sources ==\n<references />\n* England, Births and Christenings, 1538-1975\n* 1841 census",
+  };
+  test("the sentences and sources that mention it", () => {
+    const answer = buildBaptismAnswer(person);
+    expect(answer).toMatch(/biography says:\n- She was baptised at St Peter's, Wem on 4 May 1832\./);
+    expect(answer).not.toMatch(/married in 1855/);
+    expect(answer).toMatch(/Sources that mention a baptism or christening:\n- Wem parish register, christening of Ellen Cook\.\n- England, Births and Christenings, 1538-1975/);
+  });
+  test("none: says so, with the birth", () => {
+    expect(buildBaptismAnswer({ ...person, bio: "Born 1832." })).toMatch(/doesn't mention a baptism or christening\. Born 1832 in Wem, Shropshire\./);
   });
 });

@@ -37,6 +37,10 @@ const PATTERNS = [
   { fact: "categories", re: new RegExp(String.raw`^(?:what|which)\s+categor(?:y|ies)\s+(?:does|do)\s+${OWNER}\s+(?:have|belong\s+to)$`, "i") },
   { fact: "categories", re: new RegExp(String.raw`^(?:is|does)\s+${OWNER}\s+(?:in|have)\s+any\s+categor(?:y|ies)$`, "i") },
   { fact: "categories", re: new RegExp(String.raw`^(?:what\s+are|list|show(?:\s+me)?)\s+${OWNER}\s+categories$`, "i") },
+  // "is Cook-8721 in the Methodists category?" (imagined AD6, 2026-10-18): yes or no, from the same list.
+  { fact: "categories", re: new RegExp(String.raw`^(?:is|was)\s+${OWNER}\s+in\s+(?:the\s+|a\s+)?(?:\[\[)?category\s*[:=]?\s*([^\]]+?)(?:\]\])?$`, "i") },
+  { fact: "categories", re: new RegExp(String.raw`^(?:is|was)\s+${OWNER}\s+in\s+(?:the\s+|a\s+)?(.+?)\s+category$`, "i") },
+  { fact: "categories", re: new RegExp(String.raw`^(?:does|did)\s+${OWNER}\s+belong\s+to\s+(?:the\s+)?(.+?)\s+category$`, "i") },
   { fact: "researchNotes", re: new RegExp(String.raw`^(?:does|do)\s+${OWNER}\s+have\s+(?:any\s+)?research\s+notes?$`, "i") },
   { fact: "researchNotes", re: new RegExp(String.raw`^(?:are|is)\s+there\s+(?:any\s+)?research\s+notes?\s+(?:on|in|for)\s+${OWNER}$`, "i") },
   { fact: "researchNotes", re: new RegExp(String.raw`^(?:what\s+(?:do|does)\s+|show(?:\s+me)?\s+|what\s+are\s+)?${OWNER}\s+research\s+notes?(?:\s+says?)?$`, "i") },
@@ -59,9 +63,29 @@ export function parseProfileFactPrompt(prompt) {
     .replace(/[.!?]+$/g, "");
   for (const { fact, re } of PATTERNS) {
     const match = text.match(re);
-    if (match) return { owner: ownerKey(match[1]), fact };
+    if (match) return match[2] ? { owner: ownerKey(match[1]), fact, category: match[2].trim() } : { owner: ownerKey(match[1]), fact };
   }
   return null;
+}
+
+const categoryKey = (name) => String(name || "").replace(/_/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+
+/** "Yes, … is in Category: Methodists." or no, with the categories that have the words in them. */
+function categoryMembershipAnswer(categories, category, label) {
+  const wanted = categoryKey(category);
+  const names = categories.map((name) => String(name).replace(/_/g, " "));
+  const exact = names.find((name) => categoryKey(name) === wanted);
+  if (exact) return `Yes, ${label} is in Category: ${exact}.`;
+  const near = names.filter((name) => categoryKey(name).includes(wanted));
+  if (near.length) {
+    return `${label} isn't in Category: ${category} itself, but is in:\n${linesWithMore(near.map((name) => `- ${name}`), 20, { after: "" })}`;
+  }
+  if (!names.length) return `No, ${label} isn't in any categories.`;
+  return `No, ${label} isn't in Category: ${category}. ${label} is in ${names.length} categor${names.length === 1 ? "y" : "ies"}:\n${linesWithMore(
+    names.map((name) => `- ${name}`),
+    20,
+    { after: "" }
+  )}`;
 }
 
 const MAX_NOTES_CHARS = 700;
@@ -96,9 +120,10 @@ function formatTouched(value) {
  * profile: getProfile's profile object; label: "Ellen (Cook-8721)"; creatorLabel: the Creator's name, if looked up;
  * categories: getCategories' titles (null if it failed). researchNotes needs the profile's wikitext Bio.
  */
-export function buildProfileFactAnswer(profile, fact, label, { creatorLabel = "", categories = null } = {}) {
+export function buildProfileFactAnswer(profile, fact, label, { creatorLabel = "", categories = null, category = "" } = {}) {
   if (fact === "categories") {
     if (!Array.isArray(categories)) return `I couldn't read the categories for ${label}.`;
+    if (category) return categoryMembershipAnswer(categories, category, label);
     if (!categories.length) return `${label} isn't in any categories.`;
     const names = categories.map((name) => `- ${String(name).replace(/_/g, " ")}`);
     return `${label} is in ${names.length} categor${names.length === 1 ? "y" : "ies"}:\n${linesWithMore(names, 20, { after: "" })}`;
@@ -163,4 +188,4 @@ export function buildProfileFactAnswer(profile, fact, label, { creatorLabel = ""
   return null;
 }
 
-export const PROFILE_FACT_FIELDS = "Id,Name,RealName,Manager,Managers,Touched,Created,Creator,Photo,Templates,Privacy,Connected,NoChildren,IsMember,EditCount";
+export const PROFILE_FACT_FIELDS = "Id,Name,RealName,LastNameAtBirth,Manager,Managers,Touched,Created,Creator,Photo,Templates,Privacy,Connected,NoChildren,IsMember,EditCount";

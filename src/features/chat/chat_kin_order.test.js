@@ -1,6 +1,6 @@
 jest.mock("../../core/common", () => ({ getProfilePersonInfo: jest.fn(() => ({ Name: "Cook-8721" })) }));
 
-import { sortByBirth, splitKinOrderClause } from "./chat_kin_order";
+import { pickByBirth, sortByBirth, splitKinOrderClause } from "./chat_kin_order";
 import { ChatIntent, routeChatPrompt } from "./chat_router";
 
 describe("splitKinOrderClause", () => {
@@ -69,5 +69,36 @@ describe("J9 death order and J4 parents' other children", () => {
     const routed = routeChatPrompt("who were her parents' other children?");
     expect(routed.params.relationRaw).toBe("siblings");
     expect(routeChatPrompt("her parents' other daughters").params.relationRaw).toBe("sisters");
+  });
+});
+
+// (imagined AA3/AA4, 2026-10-18)
+describe("eldest brother, youngest sister; who she married second", () => {
+  test.each([
+    ["who was her eldest brother", "brothers", "birth", "eldest brother"],
+    ["my youngest sister", "sisters", "birthDesc", "youngest sister"],
+    ["who is Cook-8721's oldest sibling?", "siblings", "birth", "oldest sibling"],
+  ])("%s", (prompt, relationRaw, order, pick) => {
+    const routed = routeChatPrompt(prompt);
+    expect(routed.intent).toBe(ChatIntent.RELATION_COUNT);
+    expect(routed.params).toMatchObject({ mode: "list", relationRaw, order, pick });
+  });
+  test("the first with a birth date", () => {
+    const rows = [{ birth: "1863" }, { birth: "" }, { birth: "1851-03-17" }];
+    expect(pickByBirth(rows, "birth")).toEqual({ picked: { birth: "1851-03-17" }, undated: 1 });
+    expect(pickByBirth(rows, "birthDesc").picked).toEqual({ birth: "1863" });
+    expect(pickByBirth([{ birth: "" }], "birth")).toEqual({ picked: null, undated: 1 });
+  });
+  test.each([
+    ["who did she marry second", { gender: "Male", ordinal: 2 }],
+    ["who did he marry", { gender: "Female" }],
+    ["who did Cook-8721 marry first?", { target: "Cook-8721", ordinal: 1 }],
+  ])("%s", (prompt, params) => {
+    const routed = routeChatPrompt(prompt);
+    expect(routed.intent).toBe(ChatIntent.SPOUSE_LIST);
+    expect(routed.params).toMatchObject(params);
+  });
+  test("who did I marry is left alone", () => {
+    expect(routeChatPrompt("who did I marry").intent).not.toBe(ChatIntent.SPOUSE_LIST);
   });
 });

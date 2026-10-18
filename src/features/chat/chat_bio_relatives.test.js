@@ -1,4 +1,5 @@
 import {
+  readRecordTables,
   buildFindRelativesAnswer,
   buildRelativesAiPrompt,
   parseFindRelativesPrompt,
@@ -11,6 +12,8 @@ import {
   searchCounty,
   expectedParentsFor,
   expectedPartnerFor,
+  censusKinBeyond,
+  furtherAttached,
 } from "./chat_bio_relatives";
 
 // Trimmed from Densham-156 (2026-10-07), the profile in the member's question.
@@ -189,8 +192,8 @@ describe("reading the biography without AI", () => {
     expect(siblings[0].birthYear).toBe(1833);
   });
 
-  test("servants and employers are not relatives", () => {
-    expect(relatives.some((r) => r.given.includes("Leander"))).toBe(false);
+  test("servants and employers are not relatives, but are searched for as people named", () => {
+    expect(relatives.filter((r) => r.given.includes("Leander")).map((r) => r.role)).toEqual(["other"]);
   });
 });
 
@@ -330,6 +333,13 @@ describe("searchRelatives and the answer", () => {
     const { message } = buildFindRelativesAnswer({ subjectLabel: "Edward (Rowland-18000)", results, readBy: "read by AI" });
     expect(message).toContain(
       "- Wife Ellen Maria (Watkins) Rowland, b. about 1867 (searched for Ellen Watkins and Ellen Rowland, born 1862–1872)"
+    );
+
+    // AI read Densham-156's mother as given ["Mary", "Singleton"]: "Mary Singleton (Singleton) Densham" (2026-10-18)
+    const mary = { role: "mother", given: ["Mary", "Singleton"], firstNames: ["Mary"], surnames: ["Singleton", "Densham"], birthSurname: "Singleton", gender: "Female" };
+    const maryResults = await searchRelatives({ subject: edward, relatives: [mary], searchPerson, getPeople: async () => [] });
+    expect(buildFindRelativesAnswer({ subjectLabel: "Albert (Densham-156)", results: maryResults, readBy: "read by AI" }).message).toContain(
+      "- Mother Mary (Singleton) Densham ("
     );
   });
 });
@@ -481,9 +491,12 @@ test("a child's marriage and a second household in the census are not the subjec
     "| Mildred P Schmitzer || F || 19 || Never married || Daughter",
     "|}",
   ].join("\n");
-  const names = readRelativesFromBio(bio, { FirstName: "Frank", LastNameAtBirth: "Schmitzer", Gender: "Male" }).map((r) => r.firstNames[0]);
+  const read = readRelativesFromBio(bio, { FirstName: "Frank", LastNameAtBirth: "Schmitzer", Gender: "Male" });
+  const names = read.filter((r) => r.role !== "other").map((r) => r.firstNames[0]);
   expect(names).toEqual(expect.arrayContaining(["Ignatus", "Catherine", "Katherine", "Mildred"]));
   expect(names.filter((name) => ["Wayne", "Joseph", "Madge", "Virginia"].includes(name))).toEqual([]);
+  // The Amatos are named, so they're searched for, but not as Frank's family.
+  expect(read.filter((r) => r.role === "other").map((r) => r.firstNames[0]).sort()).toEqual(["Joseph", "Madge", "Virginia"]);
 });
 
 test("a father's wife on WikiTree must have the bio mother's maiden name (Black-4008)", () => {
@@ -628,4 +641,335 @@ test("relatives whose father is another profile of the same name point to a poss
   expect(robert?.reasons || []).not.toContain("The biography links to this profile");
   const { message } = buildFindRelativesAnswer({ subjectLabel: "Philip (Beacall-491)", results, readBy: "read from its text" });
   expect(message).toContain("**2 of them are already in the family of Philip Beacall (Beacall-11).** If that's the same person, Beacall-491 may be a duplicate of Beacall-11");
+});
+
+// Rowland-18000 (2026-10-18, filmed test): "the son of Elizabeth A. Rowland" (a widow by her married name) was
+// listed as his father; the 1881 census table has her as the head's "Wife", so she's his mother.
+test("a lone parent with the family surname who is also the census wife is the mother", () => {
+  const edward = { FirstName: "Edward", LastNameAtBirth: "Rowland", BirthDate: "1866-04-11", Gender: "Male" };
+  const bio = [
+    "In the 1881 census, Edward (age 15), School Teacher, was the son of Elizabeth A. Rowland at 11 Heywood Ter, Easton in Gordano.",
+    '{| border="1"',
+    "|-",
+    "| Name || Relation || Status || Sex || Age || Occupation || Birth Place",
+    "|-",
+    "| Elizabeth A. Rowland || Wife || Married || F || 46 || Pilots Wife || Pill, Somerset, England",
+    "|-",
+    "| '''Edward Rowland''' || '''Son''' ||  || '''M''' || '''15''' || '''School Teacher''' || '''Pill, Somerset, England'''",
+    "|}",
+  ].join("\n");
+  const relatives = readRelativesFromBio(bio, edward);
+  expect(relatives.map((r) => [r.role, r.given[0]])).toEqual([["mother", "Elizabeth"]]);
+  // (alone, the family surname still makes a father, as for Perrin Farrar)
+  expect(readRelativesFromBio("He was the son of John Rowland.", edward).map((r) => r.role)).toEqual(["father"]);
+});
+
+// Beacall-282 (the user, 2026-10-18): Check for profiles found only her father and mother; the
+// 1871 table in a <ref> also names her grandmother, uncle and cousin.
+describe("a granddaughter in the census (Ann Beacall, Beacall-282)", () => {
+  const ANN = { Id: 282, Name: "Beacall-282", FirstName: "Ann", LastNameAtBirth: "Beacall", Gender: "Female", BirthDate: "1863-00-00" };
+  const ANN_BIO = `== Biography ==
+Ann, daughter of Thomas Beacall & Mary Teece, was born in 1863.
+
+In 1871 Ann was living with her grandmother.<ref>1871 England Census:
+{| border="1"
+|-
+| Name || Relation || Status || Sex || Age || Birth Place
+|-
+| Harriet Teece || Head || Widow || F || 67 || Wem, Shropshire, England
+|-
+| Samuel Teece || Son || Unmarried || M || 16 || Wem, Shropshire, England
+|-
+| Charles Teece || Grandson ||  || M || 20 || Wem, Shropshire, England
+|-
+| '''Ann Beacall''' || '''Granddaughter''' ||  || '''F''' || '''8''' || '''Wem, Shropshire, England'''
+|}
+</ref>
+
+In the 1881 census, Ann was a servant in Shrewsbury.
+{| border="1"
+|-
+| Name || Relation || Status || Sex || Age || Birth Place
+|-
+| Arthur T. Field || Head || Married || M || 40 || Shrewsbury, Shropshire, England
+|-
+| Jane Field || Wife || Married || F || 38 || Shrewsbury, Shropshire, England
+|-
+| Arthur M.C. Field || Son ||  || M || 9 || Shrewsbury, Shropshire, England
+|-
+| Anie Cook || Servant || Single || F || 22 || Wem, Shropshire, England
+|-
+| '''Ann Beacall''' || '''Servant''' || '''Single''' || '''F''' || '''18''' || '''Wem, Shropshire, England'''
+|}`;
+  const relatives = readRelativesFromBio(ANN_BIO, ANN);
+  const who = (role) => relatives.filter((r) => r.role === role).map((r) => `${r.given.join(" ")} ${r.surname}`);
+
+  test("the grandmother, the uncle and the cousin from the 1871 table; no family from the 1881 one", () => {
+    expect(who("father")).toEqual(["Thomas Beacall"]);
+    expect(who("mother")).toEqual(["Mary Teece"]);
+    expect(who("grandparent")).toEqual(["Harriet Teece"]);
+    expect(who("parentSibling")).toEqual(["Samuel Teece"]);
+    expect(who("cousin")).toEqual(["Charles Teece"]);
+    expect(relatives.filter((r) => ["Field", "Cook"].includes(r.surname)).every((r) => r.role === "other")).toBe(true);
+    const harriet = relatives.find((r) => r.role === "grandparent");
+    expect(harriet).toMatchObject({ gender: "Female", birthYear: 1804, surnames: ["Teece"], evidence: ["1871 census"] });
+  });
+
+  // "I want to check for all the names in the profile" (the user, 2026-10-18).
+  test("the household she served in is searched for, by name, year and place, but not as family", () => {
+    const servantOnly = ANN_BIO.slice(ANN_BIO.indexOf("In the 1881"));
+    const named = readRelativesFromBio(servantOnly, ANN);
+    expect(named.map((r) => `${r.role} ${r.given.join(" ")} ${r.surname} ${r.birthYear}`)).toEqual([
+      "other Arthur T Field 1841",
+      "other Jane Field 1843",
+      "other Arthur M.C Field 1872",
+      "other Anie Cook 1859",
+    ]);
+    expect(named[3]).toMatchObject({ surnames: ["Cook"], birthPlace: "Wem, Shropshire, England", evidence: ["1881 census"] });
+  });
+
+  test("a grandchild with her surname and an age close to hers is a brother; the grandparents sharing it, nobody", () => {
+    const withBrother = ANN_BIO.replace("| Charles Teece || Grandson ||  || M || 20 |", "| William Beacall || Grandson ||  || M || 10 |");
+    const brother = readRelativesFromBio(withBrother, ANN).filter((r) => r.role === "sibling");
+    expect(brother.map((r) => r.given[0])).toEqual(["William"]);
+    // Grandparents named Beacall: William could be a cousin through one of their sons.
+    const paternal = withBrother.replace(/Teece/g, "Beacall").replace("Mary Beacall", "Mary Teece");
+    expect(readRelativesFromBio(paternal, ANN).filter((r) => r.given[0] === "William").map((r) => r.role)).toEqual(["other"]);
+  });
+
+  test("a son of the household who could be her father is not called her uncle (only someone named)", () => {
+    const olderSon = ANN_BIO.replace("| Samuel Teece || Son || Unmarried || M || 16 |", "| Samuel Beacall || Son || Married || M || 30 |");
+    expect(readRelativesFromBio(olderSon, ANN).filter((r) => r.given[0] === "Samuel").map((r) => r.role)).toEqual(["other"]);
+    // A son-in-law there may be her father too.
+    const sonInLaw = ANN_BIO.replace("| Samuel Teece || Son || Unmarried |", "| Samuel Jones || Son in Law || Married |");
+    expect(readRelativesFromBio(sonInLaw, ANN).filter((r) => r.given[0] === "Samuel").map((r) => r.role)).toEqual(["other"]);
+  });
+
+  test("the uncle's parents are the grandparents; the grandmother is said in the answer", () => {
+    const uncle = relatives.find((r) => r.role === "parentSibling");
+    expect(expectedParentsFor(uncle, ANN, relatives)).toEqual([expect.objectContaining({ role: "mother", given: ["Harriet"] })]);
+    const answer = buildFindRelativesAnswer({
+      subjectLabel: "Ann Beacall (Beacall-282)",
+      readBy: "read from its census tables and text",
+      results: relatives.map((relative) => ({ relative, candidates: [], searched: [] })),
+    });
+    expect(answer.message).toContain("- Grandmother Harriet Teece, b. about 1804");
+    expect(answer.message).toContain("- Uncle Samuel Teece, b. about 1855");
+    expect(answer.message).toContain("- Cousin Charles Teece, b. about 1851");
+    // Father, mother, then the wider family; the Fields and Anie Cook apart, not as family.
+    expect(answer.message.indexOf("Mother Mary")).toBeLessThan(answer.message.indexOf("Grandmother Harriet"));
+    expect(answer.message).toContain("names 5 relatives and 4 other people");
+    expect(answer.message).toContain("**Others named in the biography, not family (4):**\n- Arthur T Field, b. about 1841, Shrewsbury, Shropshire, England (1881 census): no good match");
+    expect(answer.message).toContain("- Anie Cook, b. about 1859, Wem, Shropshire, England (1881 census): no good match");
+  });
+
+  test("with AI, the census grandmother, uncle and cousin are still added", () => {
+    const fromAi = relativesFromAiJson({ relatives: [{ role: "father", name: "Thomas Beacall" }, { role: "mother", name: "Mary Teece" }] }, ANN);
+    const extra = censusKinBeyond(fromAi, ANN_BIO, ANN);
+    expect(extra.map((r) => `${r.role} ${r.given[0]}`)).toEqual([
+      "grandparent Harriet", "parentSibling Samuel", "cousin Charles", "other Arthur", "other Jane", "other Arthur", "other Anie",
+    ]);
+    // Someone the AI already named isn't added twice.
+    const withAnie = relativesFromAiJson({ relatives: [{ role: "other", name: "Anie Cook" }] }, ANN);
+    expect(censusKinBeyond(withAnie, ANN_BIO, ANN).some((r) => r.given[0] === "Anie")).toBe(false);
+  });
+
+  test("a grandmother, uncle and cousin on WikiTree are found through her parents", async () => {
+    const attached = [
+      { role: "father", profile: { Id: 10, Name: "Beacall-10", FirstName: "Thomas" } },
+      { role: "mother", profile: { Id: 11, Name: "Teece-11", FirstName: "Mary" } },
+    ];
+    const getRelatives = jest.fn(async (ids, options) => {
+      if (options.getChildren && !options.getParents) {
+        return [{ person: { Id: 13, Children: { 14: { Id: 14, Name: "Teece-14", FirstName: "Charles", BirthDate: "1851" } } } }];
+      }
+      return [
+        { person: { Id: 10, Parents: {}, Siblings: {} } },
+        {
+          person: {
+            Id: 11,
+            Parents: { 12: { Id: 12, Name: "Teece-12", FirstName: "Harriet", BirthDate: "1804" } },
+            Siblings: { 13: { Id: 13, Name: "Teece-13", FirstName: "Samuel", BirthDate: "1855" } },
+          },
+        },
+      ];
+    });
+    const further = await furtherAttached(attached, relatives, getRelatives);
+    expect(getRelatives.mock.calls).toEqual([
+      [[10, 11], { getParents: 1, getSiblings: 1 }],
+      [[13], { getChildren: 1 }],
+    ]);
+    expect(further.map((entry) => `${entry.role} ${entry.profile.Name}`)).toEqual(["grandparent Teece-12", "parentSibling Teece-13", "cousin Teece-14"]);
+    const searchPerson = jest.fn(async () => []);
+    const family = relatives.filter((r) => r.role !== "other");
+    const results = await searchRelatives({ subject: ANN, relatives: family, attached: [...attached, ...further], searchPerson, getPeople: async () => [] });
+    expect(results.filter((entry) => entry.attached).map((entry) => entry.attached.profile.Name).sort()).toEqual(
+      ["Beacall-10", "Teece-11", "Teece-12", "Teece-13", "Teece-14"]
+    );
+    expect(searchPerson).not.toHaveBeenCalled();
+    // No call at all when the bio names only close family.
+    const none = jest.fn();
+    expect(await furtherAttached(attached, relatives.filter((r) => r.role === "father"), none)).toEqual([]);
+    expect(none).not.toHaveBeenCalled();
+  });
+});
+
+describe("a head of household's wider family in the census", () => {
+  const JOHN = { Id: 5, Name: "Teece-5", FirstName: "John", LastNameAtBirth: "Teece", Gender: "Male" };
+  const MARY = { Id: 6, Name: "Jones-6", FirstName: "Mary", LastNameAtBirth: "Jones", LastNameCurrent: "Teece", Gender: "Female" };
+  const bio = (subjectRow) => `In the 1881 census:
+{| border="1"
+|-
+| Name || Relation || Sex || Age || Birth Place
+|-
+| ${subjectRow === "head" ? "'''John Teece'''" : "John Teece"} || Head || M || 60 || Wem
+|-
+| ${subjectRow === "wife" ? "'''Mary Teece'''" : "Mary Teece"} || Wife || F || 58 || Wem
+|-
+| Richard Lloyd || Son-in-Law || M || 30 || Wem
+|-
+| Sarah Lloyd || Granddaughter || F || 4 || Wem
+|-
+| Ellen Jones || Mother in Law || F || 80 || Wem
+|-
+| Thomas Teece || Nephew || M || 18 || Wem
+|-
+| Eliza Teece || Sister || F || 55 || Wem
+|}`;
+
+  test("as head: son-in-law, granddaughter, mother-in-law, nephew and sister", () => {
+    const roles = readRelativesFromBio(bio("head"), JOHN).map((r) => `${r.role} ${r.given[0]}`);
+    expect(roles).toEqual(["spouse Mary", "childInLaw Richard", "grandchild Sarah", "parentInLaw Ellen", "siblingChild Thomas", "sibling Eliza"]);
+  });
+
+  test("as wife: the head's mother-in-law is her mother; his nephew and sister are not said to be hers", () => {
+    const roles = readRelativesFromBio(bio("wife"), MARY).map((r) => `${r.role} ${r.given[0]}`);
+    expect(roles).toEqual(["spouse John", "childInLaw Richard", "grandchild Sarah", "mother Ellen", "other Thomas", "other Eliza"]);
+  });
+});
+
+test("someone the text links to is searched for as named; a match is listed apart from the family", async () => {
+  const subject = { Id: 282, Name: "Beacall-282", FirstName: "Ann", LastNameAtBirth: "Beacall", Gender: "Female", BirthDate: "1863-00-00" };
+  const bio = "Ann, daughter of Thomas Beacall & Mary Teece, was baptised in 1863; her godmother was [[Field-7|Jane Field]].";
+  const relatives = readRelativesFromBio(bio, subject);
+  const jane = relatives.find((r) => r.role === "other");
+  expect(jane).toMatchObject({ given: ["Jane"], surname: "Field", linkedId: "Field-7" });
+  const searchPerson = jest.fn(async (params) =>
+    params.FirstName === "Jane" ? [{ Id: 7, Name: "Field-7", FirstName: "Jane", LastNameAtBirth: "Field", BirthDate: "1843" }] : []
+  );
+  const results = await searchRelatives({ subject, relatives, searchPerson, getPeople: async () => [] });
+  const { message } = buildFindRelativesAnswer({ subjectLabel: "Ann Beacall (Beacall-282)", results, readBy: "read from its census tables and text" });
+  expect(message).toContain("names 2 relatives and 1 other person");
+  expect(message).toContain("**Others named in the biography, not family (1):**\n- Jane Field: likely Field-7 Jane Field (");
+  expect(message).not.toContain("May already be on WikiTree");
+});
+
+// Philip Beacall (Beacall-11, 2026-10-18): his daughter Ann (Beacall-282) is in "Their children were..." but
+// not connected; the list stopped at the first child (a baptism table in a <ref> after each), the census
+// records' labels were read as people, and "his daughter, Elizabeth Beacall (2)" took his mother's link.
+describe("a father's biography with baptism records (Philip Beacall, Beacall-11)", () => {
+  const PHILIP = { Id: 11, Name: "Beacall-11", FirstName: "Philip", LastNameAtBirth: "Beacall", Gender: "Male", BirthDate: "1823-00-00" };
+  const baptism = (name, gender, date) => `<ref>*Cheshire, England, Parish Registers.
+
+Baptism:
+{| border="1" cellpadding="2"
+|-
+|Name:||${name}
+|-
+|Gender:||${gender}
+|-
+|Record Type:||Christening
+|-
+|Baptism Date:||${date}
+|-
+|Baptism Place:||Birkenhead St Mary, Cheshire, England
+|-
+|Father:||Philip Beacall
+|-
+|Mother:||Martha Beacall
+|-
+|}
+</ref>`;
+  const BIO = `== Biography ==
+Philip Beacall was born in ~1823. His parents were [[Carr-8557|John Carr]] (<1807 - >1823) and [[Beacall-12|Elizabeth Beacall]] (<1798 - >1823).
+
+Philip married [[Teece-118|Martha Teece]] (~1835 - ~1909) on September 3, 1855.<ref>Marriage:
+{| border="1" cellpadding="2"
+|-
+|Marriage Date:||3 Sep 1855
+|-
+|Groom:||Philip Beacall||full age||bachelor
+|-
+|Groom's Father:|| John Carr
+|-
+|Bride:||Martha Teece|| 20 yrs||spinster
+|-
+|Bride's Father:||John Teece||forester
+|-
+|Witnesses: ||Richard Craston & Mary Anne Craston
+|-
+|}</ref>
+
+Their children were...
+#[[Beacall-20|John Fabian (Beacall) Lacon]] (~1856 - >1939)${baptism("John Beacall", "Male", "16 Nov 1856")}
+#[[Beacall-21|Elizabeth (Beacall) Nugent]] (~1859 - >1912)${baptism("Elizabeth Beacall", "Female", "19 Feb 1860")}
+#[[Beacall-10|Philip Beacall]] (1859 - 1915)${baptism("Philip Beacall", "Male", "19 Feb 1860")}
+#[[Beacall-282|Ann Beacall]] (1862 - )${baptism("Ann Beacall", "Female", "9 Mar 1862")}
+#[[Beacall-22|Jane Beacall]] (~1865 - )
+
+In 1861 (aged ~38), Philip was living in Birkenhead with his wife, Martha Beacall (26); his son, John Beacall (4); his daughter, Elizabeth Beacall (2); and Ellen Teece (14).<ref>1861 England Census:
+{| border="1" cellpadding="2"
+|-
+|Name:||Philip Beacall
+|-
+|Estimated Birth Year:||1831
+|-
+|Spouse's Name:||Martha Beacall
+|-
+|Where born:||Worcestershire, England
+|-
+|}
+
+{| border="1" cellpadding="2"
+!Household Members
+|-
+!Name!!Age
+|-
+|Philip Beacall||30
+|-
+|Martha Beacall||26
+|-
+|John Beacall||4
+|-
+|Ellen Teece||14
+|-
+|}</ref>`;
+  const relatives = readRelativesFromBio(BIO, PHILIP);
+  const named = (role) => relatives.filter((r) => r.role === role).map((r) => `${r.given.join(" ")} ${r.surname}${r.linkedId ? ` ${r.linkedId}` : ""}`);
+
+  test("every child in the list, each with its own link", () => {
+    expect(named("child")).toEqual(expect.arrayContaining(["Ann Beacall Beacall-282", "Jane Beacall Beacall-22"]));
+    expect(relatives.find((r) => r.given[0] === "Ann")).toMatchObject({ role: "child", gender: "Female", birthYear: 1862 });
+    // A son named after him, baptised in 1860, is his son: not his own baptism, with himself as his father.
+    expect(relatives.find((r) => r.linkedId === "Beacall-10")).toMatchObject({ role: "child", gender: "Male" });
+    expect(named("father")).toEqual(["John Carr Carr-8557"]);
+    // The census's John Beacall is "John Fabian (Beacall) Lacon" in the list, not someone else.
+    expect(relatives.filter((r) => r.given[0] === "John" && r.role === "other")).toEqual([]);
+    // The daughter named in the 1861 sentence isn't his mother's profile.
+    expect(relatives.filter((r) => r.linkedId === "Beacall-12").map((r) => r.role)).toEqual(["mother"]);
+  });
+
+  test("the record tables' labels aren't people; their witnesses are", () => {
+    const names = relatives.map((r) => `${r.given.join(" ")} ${r.surname}`);
+    expect(names.some((name) => /:|Birth Year|Where born/.test(name))).toBe(false);
+    expect(named("other")).toEqual(expect.arrayContaining(["Richard Craston", "Mary Anne Craston", "Ellen Teece"]));
+    expect(named("spouse")).toEqual(["Martha Teece Teece-118"]);
+  });
+
+  test("a baptism record whose father is the subject gives a child", () => {
+    const records = readRecordTables(BIO);
+    expect(records.map((record) => `${record.year} ${record.kind}`)).toEqual(["1855 marriage", "1856 baptism", "1860 baptism", "1860 baptism", "1862 baptism", "1861 census"]);
+    const onlyRecord = readRelativesFromBio(baptism("Ann Beacall", "Female", "9 Mar 1862"), PHILIP);
+    expect(onlyRecord).toEqual([expect.objectContaining({ role: "child", given: ["Ann"], gender: "Female", birthYear: 1862, evidence: ["1862 baptism"] })]);
+  });
 });

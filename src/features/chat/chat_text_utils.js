@@ -58,9 +58,10 @@ export function escapeText(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 }
 
-/** "Ellen (Cook-8721)" for an API profile: its RealName (else its ID), then its ID. */
+/** "Ellen Cook (Cook-8721)" for an API profile: its RealName and surname at birth when fetched (full names, the
+ * user 2026-10-12), else its ID, then its ID. */
 export function profileLabel(person) {
-  return `${person?.RealName || person?.Name} (${person?.Name})`;
+  return `${fullName({ name: person?.RealName, lnab: person?.LastNameAtBirth }) || person?.Name} (${person?.Name})`;
 }
 
 /**

@@ -92,6 +92,13 @@ describe("describeRelationship", () => {
         "Relatives this close share about 110 cM of DNA on average, and almost all share some."
     );
   });
+  // (Franklin and Theodore Roosevelt: Rosenvelt-3 by two routes of one length, 2026-10-18)
+  test("an ancestor by two routes is named once", () => {
+    const analysis = analyseRelationship({
+      commonAncestors: [ancestor("Rosenvelt-3", "Nicholas Rosenvelt", "male", 7, 7), ancestor("Rosenvelt-3", "Nicholas Rosenvelt", "male", 7, 7), ancestor("Jans-2148", "Hilletje (Jans) Kunst", "female", 7, 7)],
+    });
+    expect(describeRelationship(analysis, "Franklin", "Theodore")).toMatch(/^The common ancestors are Nicholas Rosenvelt \(Rosenvelt-3\) and Hilletje \(Jans\) Kunst \(Jans-2148\):/);
+  });
   test("other routes, a lone ancestor, Y-DNA", () => {
     const analysis = analyseRelationship({
       commonAncestors: [

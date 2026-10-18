@@ -1,6 +1,10 @@
 import {
   addPromptToHistory,
   caretOnFirstLine,
+  countPromptUse,
+  mostUsedPrompts,
+  pinnedFirst,
+  promptStatsStorageKey,
   caretOnLastLine,
   createHistoryStepper,
   createPromptHistoryStore,
@@ -77,6 +81,28 @@ describe("caret lines", () => {
   });
 });
 
+// "Most used" and pinned favourites (the user, 2026-10-18)
+describe("use counts", () => {
+  test("counts by question, any case or spacing, keeping the latest wording", () => {
+    let uses = countPromptUse({}, "my fan chart", 1);
+    uses = countPromptUse(uses, "My  fan chart", 2);
+    expect(uses["my fan chart"]).toEqual({ text: "My  fan chart", uses: 2, last: 2 });
+  });
+  test("drops the least used past the limit", () => {
+    let uses = {};
+    ["a", "a", "b", "c"].forEach((text, index) => (uses = countPromptUse(uses, text, index, 2)));
+    expect(Object.keys(uses).sort()).toEqual(["a", "c"]);
+  });
+  test("most used first; ties and uncounted ones keep the newest-first order", () => {
+    let uses = {};
+    ["b", "c", "c", "gone", "gone", "gone"].forEach((text, index) => (uses = countPromptUse(uses, text, index)));
+    expect(mostUsedPrompts(["a", "b", "c"], uses)).toEqual(["gone", "c", "a", "b"]);
+  });
+  test("pinned first", () => {
+    expect(pinnedFirst(["a", "b", "c"], ["c", "z"])).toEqual(["c", "z", "a", "b"]);
+  });
+});
+
 describe("createPromptHistoryStore", () => {
   let stored;
   beforeEach(() => {
@@ -119,5 +145,67 @@ describe("createPromptHistoryStore", () => {
     expect(store.list()).toEqual(["b"]);
     store.clear();
     expect(stored[promptHistoryStorageKey("x")]).toEqual([]);
+  });
+});
+
+describe("the store's counts and pins", () => {
+  let stored;
+  beforeEach(() => {
+    stored = {};
+    global.chrome = {
+      runtime: {},
+      storage: {
+        local: {
+          get: jest.fn((keys, callback) => callback(Object.fromEntries(keys.map((key) => [key, stored[key]])))),
+          set: jest.fn((values) => Object.assign(stored, values)),
+        },
+      },
+    };
+  });
+  afterEach(() => {
+    delete global.chrome;
+  });
+
+  test("counts each ask, pins, and keeps pins through Clear", async () => {
+    stored[promptHistoryStorageKey("x")] = ["old one"];
+    const store = createPromptHistoryStore(() => "x");
+    await store.load();
+    store.add("my fan chart");
+    store.add("my watchlist");
+    store.add("my fan chart");
+    expect(store.list()).toEqual(["my fan chart", "my watchlist", "old one"]);
+    expect(store.mostUsed()).toEqual(["my fan chart", "my watchlist", "old one"]);
+    expect(store.uses("my fan chart")).toBe(2);
+    expect(store.uses("old one")).toBe(1);
+    store.togglePin("old one");
+    expect(store.isPinned("Old One")).toBe(true);
+    expect(stored[promptStatsStorageKey("x")].pinned).toEqual(["old one"]);
+    store.clear();
+    expect(store.list()).toEqual([]);
+    expect(store.pinned()).toEqual(["old one"]);
+    store.togglePin("old one");
+    expect(store.pinned()).toEqual([]);
+  });
+
+  test("remove takes the count and the pin too", async () => {
+    const store = createPromptHistoryStore(() => "x");
+    await store.load();
+    store.add("a");
+    store.add("a");
+    store.togglePin("a");
+    store.remove("a");
+    expect(store.list()).toEqual([]);
+    expect(store.pinned()).toEqual([]);
+    expect(stored[promptStatsStorageKey("x")].uses).toEqual({});
+  });
+
+  test("counts and pins saved earlier are loaded, adding to any counted before the read finished", async () => {
+    stored[promptHistoryStorageKey("x")] = ["a"];
+    stored[promptStatsStorageKey("x")] = { uses: { a: { text: "a", uses: 3, last: 1 } }, pinned: ["fav"] };
+    const store = createPromptHistoryStore(() => "x");
+    store.add("a");
+    await store.load();
+    expect(store.uses("a")).toBe(4);
+    expect(store.pinned()).toEqual(["fav"]);
   });
 });

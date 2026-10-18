@@ -220,7 +220,7 @@ export function explorerTourSteps(subject) {
       settle: 1500,
       hold: 1500,
       actions: [
-        { caption: "Branches: each family a branch, with the children budding off it.", click: EXPLORER_VIEW("tree"), hold: 4500 },
+        { caption: "Trees: each family a tree, with the children budding off it.", click: EXPLORER_VIEW("tree"), hold: 4500 },
         { caption: "Colour it by birth country (or birth year, or surname).", click: `${EXPLORER} .wbe-chart-mode[data-mode="country"]`, optional: true, hold: 4500 },
       ],
     },

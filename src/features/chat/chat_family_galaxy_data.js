@@ -14,6 +14,11 @@ export const GALAXY = {
   twist: 0.42, // radians the arms turn each step out (the spiral)
   maxSteps: 7,
   maxPeople: 1500,
+  // The degrees control (user, 2026-10-18: "let people add or remove degrees"): as WikiTree counts them for CC7,
+  // a parent, child, brother, sister, husband or wife one degree.
+  minDegrees: 1,
+  maxDegrees: 5,
+  defaultDegrees: 3,
 };
 
 // Arm colours, bright on the dark sky; the first arms (usually father's and mother's sides) warm and rose.
@@ -46,6 +51,25 @@ function familyLinks(people) {
   return links;
 }
 
+// Everyone's degrees from focusId as WikiTree counts them (a brother or sister is one, not two through a parent).
+function degreesFrom(links, focusId, most) {
+  const degrees = new Map([[focusId, 0]]);
+  const queue = [focusId];
+  for (let at = 0; at < queue.length; at++) {
+    const id = queue[at];
+    const degree = degrees.get(id);
+    if (degree >= most) continue;
+    const near = links.get(id) || [];
+    const siblings = near.filter((link) => link.step === "parent").flatMap((parent) => (links.get(parent.id) || []).filter((link) => link.step === "child"));
+    [...near, ...siblings].forEach(({ id: next }) => {
+      if (degrees.has(next)) return;
+      degrees.set(next, degree + 1);
+      queue.push(next);
+    });
+  }
+  return degrees;
+}
+
 // A small steady wobble per person, so the arms look like star fields rather than ruled lines.
 function wobble(id, salt) {
   const x = Math.sin(id * 12.9898 + salt * 78.233) * 43758.5453;
@@ -58,10 +82,14 @@ function wobble(id, salt) {
  * parentId is the one it was reached from on the shortest way out (its arm), step how they're related.
  */
 export function galaxyLayout(people, focusId, options = {}) {
-  const { ring, layer, twist, maxSteps, maxPeople } = { ...GALAXY, ...options };
+  const { ring, layer, twist, maxPeople, degrees: degreeLimit } = { ...GALAXY, ...options };
   const focus = people.get(focusId);
   if (!focus) return { nodes: [], edges: [], branches: [] };
   const links = familyLinks(people);
+  // (with a degrees limit, only those within it; the rings still go a parent, child, husband or wife at a time, so a
+  // brother or sister is on the second, through a parent)
+  const degrees = degreeLimit ? degreesFrom(links, focusId, degreeLimit) : null;
+  const maxSteps = degreeLimit ? 2 * degreeLimit : options.maxSteps || GALAXY.maxSteps;
 
   // Out from the person a step at a time (the shortest way to each).
   const nodes = new Map();
@@ -75,7 +103,7 @@ export function galaxyLayout(people, focusId, options = {}) {
     const node = queue[at];
     if (node.steps >= maxSteps) continue;
     for (const link of links.get(node.id) || []) {
-      if (nodes.has(link.id) || nodes.size >= maxPeople) continue;
+      if (nodes.has(link.id) || nodes.size >= maxPeople || (degrees && !degrees.has(link.id))) continue;
       const person = people.get(link.id);
       if (person.hidden) continue;
       const gen = node.gen + (link.step === "parent" ? 1 : link.step === "child" ? -1 : 0);

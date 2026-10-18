@@ -1,5 +1,6 @@
 import { extractYearFromDate, isWikiTreeId } from "./chat_router";
 import { choiceButton, linesWithMore } from "./chat_more_text";
+import { fullName } from "./chat_text_utils";
 
 // Shown before "…and N more" opens the rest (every number still works as a reply).
 const SHOWN_CANDIDATES = 20;
@@ -18,7 +19,9 @@ export function shouldOfferDisambiguation(rankedMatches) {
 export function buildDisambiguationMessage(candidates, targetName, options = {}) {
   const lines = candidates.map((c, i) => {
     const wtId = c.Name || "";
-    const displayName = c.RealName || c?.Derived?.ShortName || wtId;
+    // Full names (RealName is the first name only), and something for a private profile sent without one:
+    // "Choose 7." stood alone (2026-10-18)
+    const displayName = c?.Derived?.ShortName || fullName({ name: c.RealName, lnab: c.LastNameAtBirth }) || wtId || "a private profile";
     const birthYear = extractYearFromDate(c.BirthDate);
     const deathYear = extractYearFromDate(c.DeathDate);
     // Living people usually expose only a decade; show it (plus a "living"
@@ -35,7 +38,7 @@ export function buildDisambiguationMessage(candidates, targetName, options = {})
     const deathPart = Number.isFinite(deathYear) ? `d. ${deathYear}` : Number(c.IsLiving) === 1 ? "living" : "";
     const dateParts = [birthPart, deathPart].filter(Boolean);
     const dates = dateParts.length ? ` (${dateParts.join(", ")})` : "";
-    const label = displayName !== wtId ? `${wtId} - ${displayName}` : wtId;
+    const label = wtId && displayName !== wtId ? `${wtId} - ${displayName}` : displayName;
     return `  ${choiceButton(wtId || i + 1)}${i + 1}. ${label}${dates}`;
   });
   return [

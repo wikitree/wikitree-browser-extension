@@ -623,13 +623,15 @@ export function createChatHistoryHandlers({
         wtPlusSearchType: actionEntry.wtPlusSearchType || "text",
         wtPlusSuggestionId: actionEntry.wtPlusSuggestionId || "",
         wtPlusSuggestionOptions: actionEntry.wtPlusSuggestionOptions || {},
+        ...(actionEntry.wtPlusDecadeMeansAlive ? { wtPlusDecadeMeansAlive: true } : {}),
         onClick: async () => {
           if (typeof reRunSavedWtPlusQuery === "function") {
             const result = await reRunSavedWtPlusQuery(
               actionEntry.wtPlusQuery,
               actionEntry.wtPlusSearchType || "text",
               actionEntry.wtPlusSuggestionId || "",
-              actionEntry.wtPlusSuggestionOptions || {}
+              actionEntry.wtPlusSuggestionOptions || {},
+              { decadeMeansAlive: Boolean(actionEntry.wtPlusDecadeMeansAlive) }
             );
             if (typeof handleChatResult === "function") {
               await handleChatResult(typeof result === "string" ? { message: result } : result);

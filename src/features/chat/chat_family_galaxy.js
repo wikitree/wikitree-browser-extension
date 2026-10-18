@@ -1,16 +1,19 @@
 // The Family Explorer's "Galaxy" view (see chat_family_galaxy_data.js for who goes where): the family
 // as stars on a dark sky, turning slowly. Drag to turn it, scroll to zoom, click a star to see who it
-// is; "Centre here" moves the galaxy round them (and fetches their family). One canvas, drawn in 3D by
+// is; "Centre here" moves the galaxy round them (and fetches their family); − / + show fewer or more degrees
+// out (CC1–CC5, a sibling one degree as on WikiTree), fetching further when needed. One canvas, drawn in 3D by
 // hand (no 3D library).
 
-import { galaxyLayout, galaxyRelation, branchLabel, isStar, GALAXY_HUES } from "./chat_family_galaxy_data";
+import { galaxyLayout, galaxyRelation, branchLabel, isStar, GALAXY, GALAXY_HUES } from "./chat_family_galaxy_data";
+import { FAMILY_WORLD_NUCLEAR } from "./chat_family_world_data";
 import { familyLoaded } from "./chat_family_navigator_data";
 import { bindCardPhoto, cardHeadHtml, familyFactsHtml, familyFetcher, showMoreInCard } from "./chat_family_card";
 import { easeCubicInOut as ease } from "d3-ease";
 import { addStyleOnce, escapeText, fullName, lifeYears, onChartResume, photoUrl, siteUrl } from "./chat_chart_common";
-import { reducedMotion } from "./chat_fractal_common";
+import { reducedMotion, remember, remembered } from "./chat_fractal_common";
 
 const STYLE_ID = "wbe-galaxy-style";
+const DEGREES_KEY = "wbe-explorer-galaxy-degrees";
 const MOVE_MS = 1300;
 const ORBIT_SPEED = 0.05; // radians a second
 const LABELS_MAX = 70;
@@ -53,6 +56,11 @@ const GALAXY_CSS = `
   .wbe-galaxy .wbe-galaxy-card button.wbe-galaxy-close:not(#none) { position: absolute; top: 6px; right: 6px; margin: 0; padding: 0 7px; border: 0; border-radius: 999px; font-size: 17px; line-height: 1.3; color: #9aa4d6; background: none; }
   .wbe-galaxy-status { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); padding: 5px 14px; border-radius: 999px; background: rgba(20,26,60,.85); font-size: 12.5px; }
   .wbe-galaxy-status[hidden] { display: none; }
+  .wbe-galaxy-degrees { position: absolute; top: 10px; right: 12px; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(8, 12, 36, 0.72); font-size: 12.5px; z-index: 1; }
+  .wbe-galaxy-degrees span { padding: 0 6px; white-space: nowrap; color: #c9d0f0; }
+  .wbe-galaxy .wbe-galaxy-degrees button:not(#none) { width: 24px; height: 24px; margin: 0; padding: 0; border: 1px solid rgba(160,170,255,.45); border-radius: 50%; background: transparent; color: #e8ecff; font: 600 15px/1 system-ui, sans-serif; cursor: pointer; }
+  .wbe-galaxy .wbe-galaxy-degrees button:not(#none):hover:not(:disabled) { background: rgba(160,170,255,.18); }
+  .wbe-galaxy .wbe-galaxy-degrees button:not(#none):disabled { opacity: .35; cursor: default; }
 `;
 
 
@@ -165,6 +173,10 @@ function planetSprite(colour, variant = 0) {
   return sprite;
 }
 
+function clampDegrees(value) {
+  return Math.max(GALAXY.minDegrees, Math.min(GALAXY.maxDegrees, Math.round(Number(value)) || GALAXY.defaultDegrees));
+}
+
 /**
  * Mounts the view in `host`. options: {world (people, focusId, …), load(id) → Promise, loadNearby(id, steps) →
  * Promise (1: someone's family, for their card), startId, onCentre(person)}.
@@ -181,6 +193,11 @@ export function mountFamilyGalaxy(host, options) {
     <canvas class="wbe-galaxy-canvas" aria-label="The family as a galaxy of stars"></canvas>
     <div class="wbe-galaxy-key"></div>
     <div class="wbe-galaxy-status" hidden></div>
+    <div class="wbe-galaxy-degrees" role="group" aria-label="Degrees" title="How far out to show: a parent, child, brother, sister, husband or wife is a degree">
+      <button type="button" data-degrees="-1" title="Fewer degrees">−</button>
+      <span></span>
+      <button type="button" data-degrees="1" title="More degrees (a parent, child, brother, sister, husband or wife is a degree)">+</button>
+    </div>
     <div class="wbe-galaxy-tip" hidden></div>
     <div class="wbe-galaxy-card" hidden></div>
     <div class="wbe-galaxy-hint">Drag to turn · scroll to zoom · click a star to see who it is · ancestors above, descendants below</div>`;
@@ -191,6 +208,7 @@ export function mountFamilyGalaxy(host, options) {
   const statusEl = root.querySelector(".wbe-galaxy-status");
   const tipEl = root.querySelector(".wbe-galaxy-tip");
   const cardEl = root.querySelector(".wbe-galaxy-card");
+  const degreesEl = root.querySelector(".wbe-galaxy-degrees");
   const sprites = GALAXY_HUES.map(glowSprite);
   const focusSprite = glowSprite("#ffd166");
   // (three planets a colour, so the same arm isn't all one stamp)
@@ -215,6 +233,9 @@ export function mountFamilyGalaxy(host, options) {
   // (the card fetches someone's family when it isn't all here, and shows it when it comes; centre() fetches the middle one's)
   const family = familyFetcher(world, options.loadNearby && ((id) => options.loadNearby(id, 1)), (id) => !destroyed && selected === id && renderCard());
   let loadToken = 0;
+  // (how many degrees out to show, and how far round each person they've been fetched: the Explorer opens with the focus's)
+  let degrees = clampDegrees(remembered(DEGREES_KEY, GALAXY.defaultDegrees));
+  const fetchedTo = new Map([[world.focusId, FAMILY_WORLD_NUCLEAR.start]]);
   let lastTime = 0;
   let idleSince = 0;
   const camera = { yaw: -0.6, pitch: 0.42, distance: 1100, target: { x: 0, y: 0, z: 0 }, fly: null };
@@ -326,7 +347,7 @@ export function mountFamilyGalaxy(host, options) {
   /** Lays the galaxy out round `id` and moves the stars there. */
   function relayout(id) {
     const previous = new Map(shown.map((star) => [star.node.id, star]));
-    layout = galaxyLayout(people, id);
+    layout = galaxyLayout(people, id, { degrees });
     byId = new Map(layout.nodes.map((node) => [node.id, node]));
     // (stars already shown glide from where they are; new ones come out of the one they hang from)
     shown = layout.nodes.map((node) => {
@@ -336,6 +357,40 @@ export function mountFamilyGalaxy(host, options) {
     });
     moveStart = performance.now();
     drawKey();
+    drawDegrees();
+  }
+
+  function drawDegrees() {
+    degreesEl.querySelector("span").textContent = `${degrees} degree${degrees === 1 ? "" : "s"} (CC${degrees})`;
+    degreesEl.querySelector('[data-degrees="-1"]').disabled = degrees <= GALAXY.minDegrees;
+    degreesEl.querySelector('[data-degrees="1"]').disabled = degrees >= GALAXY.maxDegrees;
+  }
+
+  /** Fetches everyone within `degrees` of id when they aren't here yet, then lays the galaxy out again. */
+  async function ensureLoaded(id) {
+    const person = people.get(id);
+    // (up to the Explorer's own reach its family check stands; beyond it, only a fetch that far out counts)
+    const near = degrees <= FAMILY_WORLD_NUCLEAR.expand;
+    if ((fetchedTo.get(id) || 0) >= degrees || (near && familyLoaded(world, id))) {
+      setStatus("");
+      return;
+    }
+    const token = ++loadToken;
+    const name = String(person.name || "").trim() || fullName(person);
+    setStatus(near ? `Finding ${name}'s family…` : `Finding everyone within ${degrees} degrees of ${fullName(person)}…${degrees >= 4 ? " (this can take a minute)" : ""}`);
+    const reach = near ? FAMILY_WORLD_NUCLEAR.expand : degrees;
+    try {
+      await (near ? options.load(id) : options.loadNearby(id, reach));
+      fetchedTo.set(id, Math.max(fetchedTo.get(id) || 0, reach));
+    } catch (error) {
+      if (token === loadToken) setStatus(near ? "WikiTree didn't answer. Try Centre here again." : "WikiTree didn't answer. Change the degrees to try again.");
+      return;
+    }
+    if (token !== loadToken || current !== id || destroyed) return;
+    setStatus("");
+    relayout(id);
+    showCard(selected && byId.has(selected) ? selected : id);
+    options.onCentre?.(person);
   }
 
   async function centre(id) {
@@ -346,23 +401,7 @@ export function mountFamilyGalaxy(host, options) {
     camera.fly = { from: { ...camera.target }, to: { x: 0, y: 0, z: 0 }, start: performance.now() };
     showCard(id);
     options.onCentre?.(person);
-    if (familyLoaded(world, id)) {
-      setStatus("");
-      return;
-    }
-    const token = ++loadToken;
-    setStatus(`Finding ${String(person.name || "").trim() || fullName(person)}'s family…`);
-    try {
-      await options.load(id);
-    } catch (error) {
-      if (token === loadToken) setStatus("WikiTree didn't answer. Try Centre here again.");
-      return;
-    }
-    if (token !== loadToken || current !== id || destroyed) return;
-    setStatus("");
-    relayout(id);
-    showCard(selected && byId.has(selected) ? selected : id);
-    options.onCentre?.(person);
+    await ensureLoaded(id);
   }
 
   function draw(time) {
@@ -587,6 +626,16 @@ export function mountFamilyGalaxy(host, options) {
     const rect = canvas.getBoundingClientRect();
     const hit = starAt(event.clientX - rect.left, event.clientY - rect.top);
     if (hit && hit.star.node.id !== current) centre(hit.star.node.id);
+  });
+  degreesEl.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-degrees]");
+    if (!button || button.disabled || !current) return;
+    const next = clampDegrees(degrees + Number(button.dataset.degrees));
+    if (next === degrees) return;
+    degrees = next;
+    remember(DEGREES_KEY, degrees);
+    relayout(current);
+    ensureLoaded(current);
   });
   cardEl.addEventListener("click", (event) => {
     const button = event.target.closest("button");

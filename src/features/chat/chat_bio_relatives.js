@@ -155,6 +155,8 @@ function samePerson(a, b) {
   // Henry William and Henrietta Ricketts: a father is never his wife.
   if (a.role !== b.role && a.role !== "parent" && b.role !== "parent") return false;
   if (a.gender && b.gender && a.gender !== b.gender) return false;
+  // Two people named only in passing are one only with the same surname too.
+  if (a.role === "other" && fold(a.surname) !== fold(b.surname)) return false;
   const first = (person) => fold(person.given[0]);
   const fa = first(a);
   const fb = first(b);
@@ -193,6 +195,7 @@ export function mergeRelatives(list) {
       continue;
     }
     if (same.role === "parent" && person.role !== "parent") same.role = person.role;
+    if (same.role !== "parent") delete same.likelyFather;
     // Fuller names win: "Edith May" over "Edith M". A different spelling of the
     // first name is kept, so both are searched for.
     const firstNames = [...new Set([...(same.altFirst || [same.given[0]]), person.given[0]].filter(Boolean))];
@@ -212,6 +215,7 @@ export function mergeRelatives(list) {
     for (const item of person.evidence || []) if (!same.evidence.includes(item)) same.evidence.push(item);
   }
   return merged
+    .map(({ likelyFather, ...person }) => (person.role === "parent" && likelyFather ? { ...person, role: "father", gender: person.gender || "Male" } : person))
     .filter((person) => person.role !== "parent") // "son of X" alone: never matched to a father or mother
     .map(({ years, altFirst = [], ...person }) => ({
       ...person,
@@ -261,12 +265,92 @@ export function readCensusTables(bio) {
         return { bold: /'''/.test(line), cells: line.split(/\|\||!!/).map(cleanCell) };
       })
       .filter((row) => row.cells.length > 1);
-    if (rows.length < 2) continue;
+    if (rows.length < 2 || isRecordTable(rows)) continue;
     const header = rows[0].cells.map((cell) => fold(cell));
     if (!header.includes("name")) continue;
     tables.push({ year, header, rows: rows.slice(1) });
   }
   return tables;
+}
+
+/** "Name:||Philip Beacall", "Father:||…": one record's fields, a label to a row (not a household). */
+function isRecordTable(rows) {
+  return rows.filter((row) => /:\s*$/.test(row.cells[0])).length * 2 >= rows.length;
+}
+
+/**
+ * Record tables ({| … |} of "Label:||value" rows: a baptism, a marriage, one census entry) as
+ * {kind, year, fields: Map(label → value)}. The census tables there were read as households, each label a
+ * person: "Estimated Birth Year:", "Spouse's Name:" (Beacall-11, 2026-10-18).
+ */
+export function readRecordTables(bio) {
+  const text = String(bio || "");
+  const records = [];
+  for (const match of text.matchAll(/\{\|[\s\S]*?\n\|\}/g)) {
+    const rows = match[0]
+      .split(/\n\|-[^\n]*/)
+      .slice(1)
+      .map((row) => row.replace(/\n\|\}\s*$/, "").trim().split(/\|\||!!/).map(cleanCell))
+      .filter((cells) => cells.length > 1);
+    if (rows.length < 2 || !isRecordTable(rows.map((cells) => ({ cells })))) continue;
+    const fields = new Map();
+    for (const cells of rows) {
+      const label = fold(cells[0].replace(/:\s*$/, ""));
+      if (label && !fields.has(label)) fields.set(label, cells.slice(1).find((cell) => cell) || "");
+    }
+    // "Baptism:" or "1861 England Census:" on the line before the table; else the record type.
+    // ("… on September 3, 1855.<ref>Marriage:": what follows the tag)
+    const lead = (text.slice(Math.max(0, match.index - 200), match.index).trim().split(/\n|>|\.\s/).pop() || "").replace(/[:\s]+$/, "");
+    const dated = [...fields].find(([label, value]) => /\bdate\b/.test(label) && /\b1[0-9]\d\d\b/.test(value));
+    const census = lead.match(/\b(1[6-9]\d\d)\b.*\bcensus\b/i);
+    const kind = census ? "census" : fold(fields.get("record type") || fields.get("event type") || lead).split(" ")[0] || "record";
+    const year = census ? Number(census[1]) : dated ? Number(dated[1].match(/\b1[0-9]\d\d\b/)[0]) : 0;
+    records.push({ kind: kind === "christening" ? "baptism" : kind, year, fields });
+  }
+  return records;
+}
+
+/** The family a record gives: a baptism whose father or mother is the subject gives a child; the subject's own, parents and a spouse. */
+function relativesFromRecord(record, subject) {
+  const { fields } = record;
+  const get = (...labels) => labels.map((label) => fields.get(label)).find(Boolean) || "";
+  const firstNames = [subject.FirstName, subject.RealName].map(fold).filter(Boolean);
+  const surnames = [subject.LastNameAtBirth, subject.LastNameCurrent].map(fold).filter(Boolean);
+  const isSubject = (value) => {
+    const name = splitName(value);
+    return Boolean(name.given.length) && firstNames.includes(fold(name.given[0])) && surnames.includes(fold(name.surname));
+  };
+  const evidence = [`${record.year ? `${record.year} ` : ""}${record.kind}`];
+  const make = (role, value, extra = {}) => {
+    const name = splitName(value);
+    return name.given.length && name.surname ? [{ role, ...name, birthYear: 0, birthPlace: "", evidence, ...extra }] : [];
+  };
+  const sex = fold(get("gender", "sex"));
+  const gender = sex.startsWith("m") ? "Male" : sex.startsWith("f") ? "Female" : "";
+  const out = [];
+  const groom = get("groom");
+  const bride = get("bride");
+  const parentIsSubject = isSubject(get("father", "father's name")) || isSubject(get("mother", "mother's name"));
+  // Philip Beacall's son Philip, baptised 1860, father Philip Beacall: the record's year says whose it is.
+  const subjectBorn = yearOf(subject.BirthDate);
+  const juniors = parentIsSubject && (!subjectBorn || !record.year || record.year >= subjectBorn + 12);
+  if (groom && bride) {
+    if (isSubject(groom)) out.push(...make("spouse", bride, { gender: "Female" }), ...make("father", get("groom's father", "grooms father"), { gender: "Male" }));
+    if (isSubject(bride)) out.push(...make("spouse", groom, { gender: "Male" }), ...make("father", get("bride's father", "brides father"), { gender: "Male" }));
+  } else if (isSubject(get("name")) && !juniors) {
+    out.push(...make("father", get("father", "father's name"), { gender: "Male" }));
+    out.push(...make("mother", get("mother", "mother's name"), { gender: "Female" }));
+    out.push(...make("spouse", get("spouse's name", "spouse", "spouse name")));
+  } else if (parentIsSubject) {
+    // (a baptism: about the year of birth)
+    const born = record.kind === "baptism" ? record.year : 0;
+    out.push(...make("child", get("name"), { gender, birthYear: born, birthPlace: get("birth place", "where born", "baptism place") }));
+  }
+  // Witnesses and the like are searched for as people named.
+  for (const witnesses of [get("witnesses", "witness")].filter(Boolean)) {
+    for (const one of witnesses.split(/\s*(?:&|\band\b|,)\s*/)) out.push(...make("other", one));
+  }
+  return out;
 }
 
 const RELATION_ROLES = {
@@ -276,7 +360,41 @@ const RELATION_ROLES = {
   son: "son",
   daughter: "daughter",
   child: "child",
+  dau: "daughter",
+  father: "father",
+  mother: "mother",
+  brother: "brother",
+  sister: "sister",
+  grandson: "grandson",
+  granddaughter: "granddaughter",
+  grandchild: "grandchild",
+  granddau: "granddaughter",
+  "son-in-law": "son-in-law",
+  "daughter-in-law": "daughter-in-law",
+  "father-in-law": "father-in-law",
+  "mother-in-law": "mother-in-law",
+  "brother-in-law": "brother-in-law",
+  "sister-in-law": "sister-in-law",
+  nephew: "nephew",
+  niece: "niece",
 };
+// The sex a relation word gives, for a table with no sex column.
+const RELATION_GENDER = {
+  wife: "Female", husband: "Male", son: "Male", daughter: "Female", father: "Male", mother: "Female", brother: "Male", sister: "Female",
+  grandson: "Male", granddaughter: "Female", "son-in-law": "Male", "daughter-in-law": "Female", "father-in-law": "Male",
+  "mother-in-law": "Female", "brother-in-law": "Male", "sister-in-law": "Female", nephew: "Male", niece: "Female",
+};
+
+/** "Son in Law", "Grand Daughter", "Grandau." → the RELATION_ROLES word, or "" (servant, visitor, step-son …). */
+function relationOf(cell) {
+  const text = fold(cell)
+    .replace(/\s*-?\s*in\s*-?\s*law\b/, "-in-law")
+    .replace(/^grand\s+/, "grand");
+  return RELATION_ROLES[text.split(" ")[0]] || "";
+}
+
+const CHILD_RELATIONS = ["son", "daughter", "child"];
+const GRANDCHILD_RELATIONS = ["grandson", "granddaughter", "grandchild"];
 
 function relativesFromCensus(table, subject) {
   const col = (...names) => table.header.findIndex((cell) => names.some((name) => cell === name || cell.startsWith(name)));
@@ -289,13 +407,14 @@ function relativesFromCensus(table, subject) {
     const name = splitName(row.cells[nameCol]);
     const age = ageCol >= 0 ? parseAge(row.cells[ageCol]) : null;
     const sex = fold(sexCol >= 0 ? row.cells[sexCol] : "");
+    const relation = relationOf(relCol >= 0 ? row.cells[relCol] : "");
     return {
       bold: row.bold,
       name,
-      relation: RELATION_ROLES[fold(relCol >= 0 ? row.cells[relCol] : "").split(" ")[0]] || "",
+      relation,
       age,
       birthYear: age != null ? table.year - age : 0,
-      gender: sex.startsWith("m") ? "Male" : sex.startsWith("f") ? "Female" : "",
+      gender: sex.startsWith("m") ? "Male" : sex.startsWith("f") ? "Female" : RELATION_GENDER[relation] || "",
       birthPlace: placeCol >= 0 ? row.cells[placeCol] : "",
     };
   });
@@ -307,7 +426,6 @@ function relativesFromCensus(table, subject) {
       (person) => fold(person.name.given[0]) === subjectFirst && subjectSurnames.includes(fold(person.name.surname))
     );
   }
-  if (!self) return [];
   const evidence = `${table.year} census`;
   const make = (person, role) => ({
     role,
@@ -319,6 +437,21 @@ function relativesFromCensus(table, subject) {
     gender: person.gender || (role === "father" ? "Male" : role === "mother" ? "Female" : ""),
     evidence: [evidence],
   });
+  // "Check for all the names in the profile" (the user, 2026-10-18): everyone else in the table, an
+  // employer or a fellow servant, is searched for too, as someone named, not as family.
+  const out = self ? censusKin(table, self, people, subjectSurnames, relCol >= 0, make) : [];
+  const placed = new Set(out.map((entry) => entry.source));
+  const isSubjectRow = (person) => person === self || (!self && fold(person.name.given[0]) === subjectFirst);
+  for (const person of people) {
+    if (placed.has(person) || isSubjectRow(person) || !person.name.given.length || !person.name.surname) continue;
+    out.push({ ...make(person, "other"), source: person });
+  }
+  return out.map(({ source, ...entry }) => entry);
+}
+
+/** The subject's relatives in one census table, each with its row as `source`. */
+function censusKin(table, self, people, subjectSurnames, hasRelations, makeEntry) {
+  const make = (person, role) => ({ ...makeEntry(person, role), source: person });
   const out = [];
   let others = people.filter((person) => person !== self);
   // Two households in one table (Joseph Amato's and Frank Schmitzer's, 1950): the relations are to
@@ -327,18 +460,10 @@ function relativesFromCensus(table, subject) {
     const family = [...subjectSurnames, fold(self.name.surname)].filter(Boolean);
     others = others.filter((person) => family.includes(fold(person.name.surname)));
   }
-  if (relCol >= 0) {
-    const selfIsChild = ["son", "daughter", "child"].includes(self.relation);
-    const selfIsHeadOrSpouse = ["head", "wife", "husband"].includes(self.relation);
+  if (hasRelations) {
     for (const person of others) {
-      if (selfIsChild) {
-        if (person.relation === "head") out.push(make(person, person.gender === "Female" ? "mother" : "father"));
-        else if (person.relation === "wife") out.push(make(person, "mother"));
-        else if (["son", "daughter", "child"].includes(person.relation)) out.push(make(person, "sibling"));
-      } else if (selfIsHeadOrSpouse) {
-        if (["head", "wife", "husband"].includes(person.relation)) out.push(make(person, "spouse"));
-        else if (["son", "daughter", "child"].includes(person.relation)) out.push(make(person, "child"));
-      }
+      const role = censusRole(self, person, people, subjectSurnames);
+      if (role) out.push(make(person, role));
     }
     return out;
   }
@@ -356,6 +481,73 @@ function relativesFromCensus(table, subject) {
     if (person.age != null && person.age < 30) out.push(make(person, "sibling"));
   }
   return out;
+}
+
+/**
+ * What a household member is to the subject, from both rows' relation to the head; "" when the
+ * table doesn't say for sure (a son-in-law in a grandchild's household may be the parent).
+ */
+function censusRole(self, person, people, subjectSurnames) {
+  const rel = person.relation;
+  const ageGap = (other) => (other.age != null && self.age != null ? other.age - self.age : null);
+  if (CHILD_RELATIONS.includes(self.relation)) {
+    if (rel === "head") return person.gender === "Female" ? "mother" : "father";
+    if (rel === "wife") return "mother";
+    if (CHILD_RELATIONS.includes(rel)) return "sibling";
+    // The head's parents and parents-in-law are the subject's grandparents; the head's brothers and
+    // sisters (or in-law ones) uncles and aunts; the head's nephews and nieces cousins.
+    if (["father", "mother", "father-in-law", "mother-in-law"].includes(rel)) return "grandparent";
+    if (["brother", "sister", "brother-in-law", "sister-in-law"].includes(rel)) return "parentSibling";
+    if (rel === "nephew" || rel === "niece") return "cousin";
+    return "";
+  }
+  if (GRANDCHILD_RELATIONS.includes(self.relation)) {
+    if (rel === "head" || rel === "wife" || rel === "husband") return "grandparent";
+    if (CHILD_RELATIONS.includes(rel)) {
+      // A son or daughter of the subject's surname, old enough, may be the parent: not said.
+      const gap = ageGap(person);
+      const ownSurname = subjectSurnames.includes(fold(person.name.surname));
+      if (ownSurname && (gap == null || gap >= 14)) return "";
+      return "parentSibling";
+    }
+    if (GRANDCHILD_RELATIONS.includes(rel)) {
+      const surname = fold(person.name.surname);
+      if (!surname) return "";
+      const head = people.find((other) => other.relation === "head");
+      const headSurname = fold(head?.name.surname);
+      if (!subjectSurnames.includes(surname)) return "cousin";
+      // The subject's own surname: a brother or sister, unless the grandparents share it too (a cousin
+      // through a son would) or the ages are too far apart.
+      if (headSurname && subjectSurnames.includes(headSurname)) return "";
+      const gap = ageGap(person);
+      return gap != null && Math.abs(gap) <= 20 ? "sibling" : "";
+    }
+    return "";
+  }
+  if (self.relation === "head") {
+    if (["head", "wife", "husband"].includes(rel)) return "spouse";
+    if (CHILD_RELATIONS.includes(rel)) return "child";
+    if (rel === "father") return "father";
+    if (rel === "mother") return "mother";
+    if (rel === "brother" || rel === "sister") return "sibling";
+    if (GRANDCHILD_RELATIONS.includes(rel)) return "grandchild";
+    if (rel === "son-in-law" || rel === "daughter-in-law") return "childInLaw";
+    if (rel === "father-in-law" || rel === "mother-in-law") return "parentInLaw";
+    if (rel === "nephew" || rel === "niece") return "siblingChild";
+    return "";
+  }
+  if (self.relation === "wife" || self.relation === "husband") {
+    // Relations are to the head: the head's mother-in-law is the wife's own mother.
+    if (["head", "wife", "husband"].includes(rel)) return "spouse";
+    if (CHILD_RELATIONS.includes(rel)) return "child";
+    if (rel === "father-in-law") return "father";
+    if (rel === "mother-in-law") return "mother";
+    if (rel === "father" || rel === "mother") return "parentInLaw";
+    if (GRANDCHILD_RELATIONS.includes(rel)) return "grandchild";
+    if (rel === "son-in-law" || rel === "daughter-in-law") return "childInLaw";
+    return "";
+  }
+  return "";
 }
 
 // Name words, or initials with a full stop ("Mary A. Smith"); any other full stop ends the name.
@@ -396,48 +588,73 @@ const KIN_WORD_ROLES = {
   mother: ["mother", "Female"],
 };
 
-function relativesFromText(bio, subject) {
-  // "daughter of [[Farrar-123|Perrin Farrar]]": the biography links straight to the relative's profile.
-  const linked = new Map();
-  for (const match of String(bio || "").matchAll(/\[\[([^|\]:]+-\d+)\|([^\]]+)\]\]/g)) {
-    linked.set(fold(match[2].replace(/\s+/g, " ").trim()), match[1].trim().replace(/ /g, "_"));
-  }
-  const linkedId = (raw) => {
-    const id = linked.get(fold(String(raw).replace(/\s+/g, " ").trim()));
-    return id ? { linkedId: id } : {};
-  };
-  // Sentences only: drop tables and the citations' wiki markup but keep their words.
-  const text = String(bio || "")
+/**
+ * Wikitext as plain sentences, with where each profile link's words now sit: {text, links: [{start, end, id}]}.
+ * Tables and template calls are dropped; the citations' words are kept, unless dropRefs.
+ */
+function plainWithLinks(wikitext, { dropRefs = false } = {}) {
+  let cleaned = String(wikitext || "");
+  if (dropRefs) cleaned = cleaned.replace(/<ref[^>/]*>[\s\S]*?<\/ref>/g, "");
+  cleaned = cleaned
     .replace(/\{\|[\s\S]*?\n\|\}/g, " ")
     .replace(/<ref[^>]*\/>/g, " ")
     .replace(/<\/?ref[^>]*>/g, " ")
     .replace(/\{\{[^{}]*\}\}/g, " ")
-    .replace(/\[\[(?:[^|\]]*\|)?([^\]]*)\]\]/g, "$1")
     .replace(/'''|''/g, "")
     .replace(/<br\s*\/?>/gi, " ");
+  let text = "";
+  let last = 0;
+  const links = [];
+  for (const match of cleaned.matchAll(/\[\[(?:([^|\]]*)\|)?([^\]]*)\]\]/g)) {
+    text += cleaned.slice(last, match.index);
+    const id = String(match[1] || "").trim();
+    if (/^[^:]+-\d+$/.test(id)) links.push({ start: text.length, end: text.length + match[2].length, id: id.replace(/ /g, "_") });
+    text += match[2];
+    last = match.index + match[0].length;
+  }
+  return { text: text + cleaned.slice(last), links };
+}
+
+function relativesFromText(bio, subject) {
+  const linkNames = new Map(); // id → the name as written, for the people linked in passing
+  for (const match of String(bio || "").matchAll(/\[\[([^|\]:]+-\d+)\|([^\]]+)\]\]/g)) {
+    const id = match[1].trim().replace(/ /g, "_");
+    if (!linkNames.has(id)) linkNames.set(id, match[2].replace(/'''|''/g, "").replace(/\s+/g, " ").trim());
+  }
+  // "daughter of [[Farrar-123|Perrin Farrar]]": the biography links straight to the relative's profile. Only a
+  // name that is the link counts: "his daughter, Elizabeth Beacall (2)" took her grandmother's [[Beacall-12|Elizabeth
+  // Beacall]], linked earlier, when links were matched by name (Beacall-11, 2026-10-18).
+  const { text, links } = plainWithLinks(bio);
+  const linkAt = (found, start) => {
+    const link = found.find((span) => start >= span.start && start < span.end);
+    return link ? { linkedId: link.id } : {};
+  };
+  const linkedId = (match, group) => linkAt(links, match.indices[group][0]);
   const out = [];
-  const parents = new RegExp(String.raw`\b(?:son|daughter|child)\s+of\s+(${NAME})\s+(?:&|and)\s+(${NAME})`, "g");
+  const parents = new RegExp(String.raw`\b(?:son|daughter|child)\s+of\s+(${NAME})\s+(?:&|and)\s+(${NAME})`, "gd");
   for (const match of text.matchAll(parents)) {
-    out.push({ role: "father", ...splitName(match[1]), gender: "Male", evidence: ["biography"], ...linkedId(match[1]) });
-    out.push({ role: "mother", ...splitName(match[2]), gender: "Female", evidence: ["biography"], ...linkedId(match[2]) });
+    out.push({ role: "father", ...splitName(match[1]), gender: "Male", evidence: ["biography"], ...linkedId(match, 1) });
+    out.push({ role: "mother", ...splitName(match[2]), gender: "Female", evidence: ["biography"], ...linkedId(match, 2) });
   }
   // "His parents were John Carr (<1807 - >1823) and Elizabeth Beacall (<1798 - >1823)" (Beacall-491).
-  const parentsWere = new RegExp(String.raw`\b[Hh](?:is|er)\s+parents\s+(?:were|are)\s+(${NAME})(?:\s*\([^)]*\))?\s+(?:&|and)\s+(${NAME})`, "g");
+  const parentsWere = new RegExp(String.raw`\b[Hh](?:is|er)\s+parents\s+(?:were|are)\s+(${NAME})(?:\s*\([^)]*\))?\s+(?:&|and)\s+(${NAME})`, "gd");
   for (const match of text.matchAll(parentsWere)) {
     const fatherEnd = match.index + match[0].indexOf(match[1]) + match[1].length;
     const motherEnd = match.index + match[0].length;
-    out.push({ role: "father", ...splitName(match[1]), gender: "Male", birthYear: yearAfter(text, fatherEnd), evidence: ["biography"], ...linkedId(match[1]) });
-    out.push({ role: "mother", ...splitName(match[2]), gender: "Female", birthYear: yearAfter(text, motherEnd), evidence: ["biography"], ...linkedId(match[2]) });
+    out.push({ role: "father", ...splitName(match[1]), gender: "Male", birthYear: yearAfter(text, fatherEnd), evidence: ["biography"], ...linkedId(match, 1) });
+    out.push({ role: "mother", ...splitName(match[2]), gender: "Female", birthYear: yearAfter(text, motherEnd), evidence: ["biography"], ...linkedId(match, 2) });
   }
   // (the lookahead stops "John" alone matching inside "John Densham & Mary …")
-  const oneParent = new RegExp(String.raw`\b(?:son|daughter|child)\s+of\s+(${NAME})(?![A-Za-z'-]|\s+\(?[A-Z]|\s*(?:&|and\b))`, "g");
+  const oneParent = new RegExp(String.raw`\b(?:son|daughter|child)\s+of\s+(${NAME})(?![A-Za-z'-]|\s+\(?[A-Z]|\s*(?:&|and\b))`, "gd");
   for (const match of text.matchAll(oneParent)) {
-    // One parent with the subject's birth surname is the father ("daughter of Perrin Farrar").
+    // One parent with the subject's birth surname is the father ("daughter of Perrin Farrar"), unless the bio
+    // names her as the mother too: "son of Elizabeth A. Rowland" (a widow, by her married name; Rowland-18000,
+    // 2026-10-18) is the 1881 census's "Wife". So it stays a parent until mergeRelatives has seen everyone.
     const name = splitName(match[1]);
-    const isFather = name.surname && fold(name.surname) === fold(subject?.LastNameAtBirth);
-    out.push({ role: isFather ? "father" : "parent", ...name, ...(isFather ? { gender: "Male" } : {}), evidence: ["biography"], ...linkedId(match[1]) });
+    const likelyFather = Boolean(name.surname && fold(name.surname) === fold(subject?.LastNameAtBirth));
+    out.push({ role: "parent", ...(likelyFather ? { likelyFather } : {}), ...name, evidence: ["biography"], ...linkedId(match, 1) });
   }
-  const married = new RegExp(String.raw`\bmarri(?:ed|age\s+(?:of\s+\S+\s+)?to)\s+(?:to\s+)?(${NAME})`, "g");
+  const married = new RegExp(String.raw`\bmarri(?:ed|age\s+(?:of\s+\S+\s+)?to)\s+(?:to\s+)?(${NAME})`, "gd");
   for (const match of text.matchAll(married)) {
     if (marriageIsSomeoneElses(text, match.index, subject)) continue;
     const name = splitName(match[1]);
@@ -448,14 +665,14 @@ function relativesFromText(bio, subject) {
       birthSurname: name.birthSurname || name.surname,
       birthYear: yearAfter(text, match.index + match[0].length),
       evidence: ["biography"],
-      ...linkedId(match[1]),
+      ...linkedId(match, 1),
     });
   }
   // "His wife was Bridget Christine McNulty" (Cassidy-5148): a surname not the subject's is her birth name.
   // "His sister was Hannah Beacall (1819 - )", "his son, John Beacall (4)" (Beacall-491).
   const kin = new RegExp(
     String.raw`\b(?:[Hh]is|[Hh]er)\s+([Ww]ife|[Hh]usband|[Ss]on|[Dd]aughter|[Bb]rother|[Ss]ister|[Ff]ather|[Mm]other)(?:\s+was|\s+is|,)?\s+(${NAME})`,
-    "g"
+    "gd"
   );
   for (const match of text.matchAll(kin)) {
     if (/'s\s+(?:son|daughter|child|brother|sister|father|mother)\b/i.test(text.slice(Math.max(0, match.index - 40), match.index))) continue;
@@ -471,20 +688,33 @@ function relativesFromText(bio, subject) {
       ...(isWife && !own && !name.birthSurname ? { birthSurname: name.surname } : {}),
       birthYear: yearAfter(text, match.index + match[0].length),
       evidence: ["biography"],
-      ...linkedId(match[2]),
+      ...linkedId(match, 2),
     });
   }
-  // "Their children were...", then a list: "# John Fabian (Beacall) Lacon (~1856 - >1939)".
-  const childList = /\b(?:[Tt]heir|[Hh]is|[Hh]er)\s+children\s+(?:were|are|included|was)\b[^\n]*\n+((?:[ \t]*[#*][^\n]*(?:\n|$))+)/g;
-  const listItem = new RegExp(String.raw`^[ \t]*[#*]+\s*(${NAME})`);
-  for (const list of text.matchAll(childList)) {
+  // "Their children were...", then a list: "# John Fabian (Beacall) Lacon (~1856 - >1939)". Read without the
+  // citations: a baptism table in a <ref> after each child ended the list at the first (Beacall-11, 2026-10-18).
+  const listed = plainWithLinks(bio, { dropRefs: true });
+  const childList = /\b(?:[Tt]heir|[Hh]is|[Hh]er)\s+children\s+(?:were|are|included|was)\b[^\n]*\n+((?:[ \t]*[#*][^\n]*(?:\n|$))+)/dg;
+  const listItem = new RegExp(String.raw`^[ \t]*[#*]+\s*(${NAME})`, "d");
+  for (const list of listed.text.matchAll(childList)) {
+    let lineStart = list.indices[1][0];
     for (const line of list[1].split("\n")) {
       const match = line.match(listItem);
+      const at = lineStart;
+      lineStart += line.length + 1;
       if (!match) continue;
       const name = splitName(match[1]);
       if (!name.given.length) continue;
-      out.push({ role: "child", ...name, birthYear: yearAfter(line, match[0].length), evidence: ["biography"], ...linkedId(match[1]) });
+      const link = linkAt(listed.links, at + match.indices[1][0]);
+      out.push({ role: "child", ...name, birthYear: yearAfter(line, match[0].length), evidence: ["biography"], ...link });
     }
+  }
+  // Anyone else the text links to (a godparent, a witness): searched for as named, not as family.
+  const used = new Set(out.map((person) => person.linkedId).filter(Boolean));
+  for (const [id, raw] of linkNames) {
+    if (used.has(id)) continue;
+    const name = splitName(raw);
+    if (name.given.length && name.surname) out.push({ role: "other", ...name, evidence: ["biography"], linkedId: id });
   }
   return out.map((person) => ({ birthYear: 0, birthPlace: "", ...person }));
 }
@@ -493,7 +723,24 @@ function relativesFromText(bio, subject) {
 export function readRelativesFromBio(bio, subject) {
   const fromText = relativesFromText(bio, subject);
   const fromCensus = readCensusTables(bio).flatMap((table) => relativesFromCensus(table, subject));
-  return finishRelatives([...fromText, ...fromCensus], subject);
+  const fromRecords = readRecordTables(bio).flatMap((record) => relativesFromRecord(record, subject));
+  return finishRelatives([...fromText, ...fromCensus, ...fromRecords], subject);
+}
+
+const CLOSE_ROLES = ["father", "mother", "spouse", "child", "sibling", "parent"];
+
+/**
+ * With AI, the close family comes from the AI; the census tables' grandparents, uncles, cousins and
+ * in-laws (which the AI isn't asked for), and anyone else there it missed, are still read by code and
+ * added, minus anyone already listed.
+ */
+export function censusKinBeyond(relatives, bio, subject) {
+  const raw = readCensusTables(bio)
+    .flatMap((table) => relativesFromCensus(table, subject))
+    .filter((person) => !CLOSE_ROLES.includes(person.role));
+  if (!raw.length) return [];
+  const sameName = (a, b) => fold(a.given[0]) === fold(b.given[0]) && fold(a.surname) === fold(b.surname);
+  return finishRelatives(raw, subject).filter((person) => !relatives.some((other) => sameName(other, person)));
 }
 
 /** Family surnames for children and siblings; a wife's birth name kept apart from her married one. */
@@ -502,8 +749,17 @@ function finishRelatives(list, subject) {
   const isSubject = (person) =>
     fold(person.given[0]) === fold(subject.FirstName) &&
     [subject.LastNameAtBirth, subject.LastNameCurrent].map(fold).includes(fold(person.surname));
-  return mergeRelatives(list)
-    .filter((person) => person.given.length)
+  const merged = mergeRelatives(list).filter((person) => person.given.length);
+  // Someone the text names as a parent or sibling isn't also an uncle or cousin from a census table.
+  // Nor is anyone named in passing who is a relative somewhere else, or the subject.
+  const close = merged.filter((person) => CLOSE_ROLES.includes(person.role));
+  const family = merged.filter((person) => person.role !== "other");
+  // ("John Fabian (Beacall) Lacon" in the list is the census's John Beacall: Beacall-11, 2026-10-18)
+  const surnamesOf = (person) => [person.surname, person.birthSurname].map(fold).filter(Boolean);
+  const sameName = (a, b) => fold(a.given[0]) === fold(b.given[0]) && surnamesOf(a).some((name) => surnamesOf(b).includes(name));
+  return merged
+    .filter((person) => CLOSE_ROLES.includes(person.role) || !close.some((other) => sameName(other, person)))
+    .filter((person) => person.role !== "other" || (!family.some((other) => sameName(other, person)) && !isSubject(person)))
     .filter((person) => !(person.role === "spouse" && isSubject(person)))
     .map((person) => {
       const surnames = [];
@@ -538,16 +794,17 @@ export function buildRelativesAiPrompt(bio, subject) {
   return [
     "You read a WikiTree biography and list the subject's close relatives that it names.",
     `The subject is ${label} (${subject.Name}), born ${subject.BirthDate || "unknown"}.`,
-    "Relatives: father, mother, spouse (every marriage), child, sibling (including half-siblings). Nobody else (no servants, in-laws, grandchildren, neighbours).",
+    "Relatives: father, mother, spouse (every marriage), child, sibling (including half-siblings).",
+    'Everyone else the biography names as a person (an employer, a servant, a witness, others in a census household) has role "other". Not the subject, and not people who are only historical background.',
     "Combine every mention of the same person (baptism, census, marriage, will) into one entry with their fullest name.",
-    'Return JSON only: {"relatives":[{"role":"father|mother|spouse|child|sibling","name":"given names and surname","birthSurname":"surname at birth if known, e.g. a wife\'s maiden name","birthYear":1842,"birthPlace":"place","gender":"Male|Female|","evidence":"e.g. 1881 census"}]}',
+    'Return JSON only: {"relatives":[{"role":"father|mother|spouse|child|sibling|other","name":"given names and surname","birthSurname":"surname at birth if known, e.g. a wife\'s maiden name","birthYear":1842,"birthPlace":"place","gender":"Male|Female|","evidence":"e.g. 1881 census"}]}',
     "birthYear: from a stated date, or census year minus age; 0 when unknown. Don't guess names that aren't in the text.",
     "Biography:",
     bioForAi(bio),
   ].join("\n");
 }
 
-const AI_ROLES = new Set(["father", "mother", "spouse", "child", "sibling"]);
+const AI_ROLES = new Set(["father", "mother", "spouse", "child", "sibling", "other"]);
 
 /** Checks the AI's JSON and turns it into the same shape as readRelativesFromBio. */
 export function relativesFromAiJson(parsed, subject) {
@@ -761,7 +1018,8 @@ export function scoreCandidate(
   }
   // With no maiden name in the bio, her surname there is her married one: a woman born with it
   // (Mary Margaret Cassidy, Cassidy-804, daughter of Michael Cassidy) is very likely someone else.
-  const marriedWoman = relative.role === "mother" || (relative.role === "spouse" && relative.gender === "Female");
+  const marriedWoman =
+    relative.role === "mother" || (["spouse", "grandparent", "parentInLaw"].includes(relative.role) && relative.gender === "Female");
   if (marriedWoman && !relative.birthSurname && profile.LastNameAtBirth && surnameFit(relative.surnames.map(fold), { LastNameAtBirth: profile.LastNameAtBirth })) {
     score -= 20;
     conflicts.push(`Surname at birth ${profile.LastNameAtBirth}, which is her married name`);
@@ -902,6 +1160,14 @@ export function expectedPartnerFor(relative, subject, relatives) {
   const find = (role) => relatives.find((person) => person.role === role) || null;
   if (relative.role === "mother") return find("father");
   if (relative.role === "father") return find("mother");
+  // A grandmother at the head's side in the census (Harriet Teece's husband, had he lived): one of the
+  // other sex and surname, only when there's just the one.
+  if (relative.role === "grandparent" && relative.gender) {
+    const partners = relatives.filter(
+      (person) => person.role === "grandparent" && person.gender && person.gender !== relative.gender && fold(person.surname) === fold(relative.surname)
+    );
+    return partners.length === 1 ? partners[0] : null;
+  }
   if (relative.role === "spouse") {
     return {
       given: [subject.FirstName, ...String(subject.MiddleName || "").split(/\s+/)].filter(Boolean),
@@ -932,6 +1198,13 @@ export function expectedParentsFor(relative, subject, relatives) {
   if (relative.role === "sibling") {
     return relatives.filter((person) => person.role === "father" || person.role === "mother");
   }
+  // An uncle or aunt from the grandparents' household (Samuel Teece, son of Harriet): the
+  // grandparents of the same surname are the parents.
+  if (relative.role === "parentSibling") {
+    return relatives
+      .filter((person) => person.role === "grandparent" && person.gender && fold(person.surname) === fold(relative.surname))
+      .map((person) => ({ ...person, role: person.gender === "Female" ? "mother" : "father" }));
+  }
   return [];
 }
 
@@ -946,25 +1219,90 @@ export function findAttached(relative, attached) {
   });
 }
 
+/**
+ * The subject's wider family on WikiTree, for the bio's grandparents, uncles, cousins and in-laws:
+ * a grandparent is looked for among the parents' parents, an uncle among the parents' siblings.
+ * `getRelatives(ids, options)` → [{person}] as WikiTreeAPI.getRelatives returns them. At most two calls,
+ * and none when the bio names no such relatives.
+ */
+export async function furtherAttached(attached, relatives, getRelatives) {
+  const wanted = new Set(relatives.map((relative) => relative.role).filter((role) => !CLOSE_ROLES.includes(role)));
+  if (!wanted.size) return [];
+  const idsOf = (roles) => attached.filter((entry) => roles.includes(entry.role)).map((entry) => Number(entry.profile?.Id)).filter(Boolean);
+  // [their role to the subject, whose relatives, which list]
+  const steps = [
+    ["grandparent", idsOf(["father", "mother"]), "Parents"],
+    ["parentSibling", idsOf(["father", "mother"]), "Siblings"],
+    ["grandchild", idsOf(["child"]), "Children"],
+    ["childInLaw", idsOf(["child"]), "Spouses"],
+    ["parentInLaw", idsOf(["spouse"]), "Parents"],
+    ["siblingChild", idsOf(["sibling"]), "Children"],
+  ].filter(([role, ids]) => ids.length && (wanted.has(role) || (role === "parentSibling" && wanted.has("cousin"))));
+  const listOf = (person, key) => {
+    const value = person?.[key] || {};
+    return Array.isArray(value) ? value : Object.values(value);
+  };
+  const load = async (ids, options) => {
+    try {
+      return new Map(((await getRelatives(ids, options)) || []).map((item) => [Number(item?.person?.Id), item.person]).filter(([id]) => id));
+    } catch (error) {
+      console.warn("wbe: couldn't load the wider family", error);
+      return new Map();
+    }
+  };
+  const OPTION = { Parents: "getParents", Siblings: "getSiblings", Children: "getChildren", Spouses: "getSpouses" };
+  const ids = [...new Set(steps.flatMap(([, stepIds]) => stepIds))];
+  const options = Object.fromEntries(steps.map(([, , key]) => [OPTION[key], 1]));
+  const people = ids.length ? await load(ids, options) : new Map();
+  const out = [];
+  const seen = new Set();
+  const add = (role, profile) => {
+    const key = `${role}|${profile?.Id}`;
+    if (!profile?.Id || seen.has(key)) return;
+    seen.add(key);
+    out.push({ role, profile });
+  };
+  for (const [role, stepIds, key] of steps) {
+    for (const id of stepIds) for (const profile of listOf(people.get(id), key)) add(role, profile);
+  }
+  // Cousins: the uncles' and aunts' children, one more call.
+  const uncles = out.filter((entry) => entry.role === "parentSibling").map((entry) => Number(entry.profile.Id));
+  if (wanted.has("cousin") && uncles.length) {
+    const families = await load([...new Set(uncles)], { getChildren: 1 });
+    for (const id of uncles) for (const profile of listOf(families.get(id), "Children")) add("cousin", profile);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // The answer
 
+const byGender = (female, male, either) => (gender) => (gender === "Female" ? female : gender === "Male" ? male : either);
 const ROLE_WORDS = {
   father: () => "Father",
   mother: () => "Mother",
-  spouse: (gender) => (gender === "Female" ? "Wife" : gender === "Male" ? "Husband" : "Spouse"),
-  child: (gender) => (gender === "Female" ? "Daughter" : gender === "Male" ? "Son" : "Child"),
-  sibling: (gender) => (gender === "Female" ? "Sister" : gender === "Male" ? "Brother" : "Sibling"),
+  spouse: byGender("Wife", "Husband", "Spouse"),
+  child: byGender("Daughter", "Son", "Child"),
+  sibling: byGender("Sister", "Brother", "Sibling"),
+  grandparent: byGender("Grandmother", "Grandfather", "Grandparent"),
+  parentSibling: byGender("Aunt", "Uncle", "Aunt or uncle"),
+  cousin: () => "Cousin",
+  grandchild: byGender("Granddaughter", "Grandson", "Grandchild"),
+  childInLaw: byGender("Daughter-in-law", "Son-in-law", "Child-in-law"),
+  parentInLaw: byGender("Mother-in-law", "Father-in-law", "Parent-in-law"),
+  siblingChild: byGender("Niece", "Nephew", "Niece or nephew"),
+  other: () => "", // someone named in passing: no family word
 };
-const ROLE_ORDER = ["father", "mother", "spouse", "child", "sibling"];
+/** "Grandmother Harriet Teece", or just "Arthur T. Field" for someone who isn't family. */
+const withRole = (relative, text) => [ROLE_WORDS[relative.role](relative.gender), text].filter(Boolean).join(" ");
+const ROLE_ORDER = ["father", "mother", "spouse", "child", "sibling", "grandparent", "parentSibling", "cousin", "grandchild", "childInLaw", "parentInLaw", "siblingChild", "other"];
 
 export function describeRelative(relative) {
-  const role = ROLE_WORDS[relative.role](relative.gender);
   const surname = relative.birthSurname || relative.surnames[0] || relative.surname || "";
   const others = (relative.firstNames || []).slice(1);
   const name = [...relative.given, surname].filter(Boolean).join(" ") + (others.length ? ` (also written ${others.join(", ")})` : "");
   const details = [relative.birthYear ? `b. about ${relative.birthYear}` : "", relative.birthPlace].filter(Boolean).join(", ");
-  return `${role} ${name}${details ? ` (${details})` : ""}`;
+  return `${withRole(relative, name)}${details ? ` (${details})` : ""}`;
 }
 
 const LIKELY = 75;
@@ -973,8 +1311,7 @@ const POSSIBLE = 55;
 /** results: [{relative, attached?, candidates: [{profile, score, reasons, conflicts}]}] */
 /** A relative in a few words: "Daughter Mary, b. about 1924". */
 function relativeShort(relative) {
-  const role = ROLE_WORDS[relative.role](relative.gender);
-  return `${role} ${relative.given[0] || "?"}${relative.birthYear ? `, b. about ${relative.birthYear}` : ""}`;
+  return `${withRole(relative, relative.given[0] || "?")}${relative.birthYear ? `, b. about ${relative.birthYear}` : ""}`;
 }
 
 /** "Ellen Maria (Watkins) Rowland": a wife or mother by her birth and married names, as WikiTree writes them. */
@@ -986,7 +1323,10 @@ function relativeFullName(relative) {
       ? (relative.surnames || []).find((name) => name && fold(name) !== fold(surname)) || ""
       : "";
   const surnames = married && surname ? `(${surname}) ${married}` : surname;
-  return [...relative.given, surnames].filter(Boolean).join(" ") + (others.length ? ` (also ${others.join(", ")})` : "");
+  // AI can put the maiden name in the given names too: "Mary Singleton (Singleton) Densham" (2026-10-18)
+  const given = [...(relative.given || [])];
+  while (given.length > 1 && [surname, married].some((name) => name && fold(name) === fold(given[given.length - 1]))) given.pop();
+  return [...given, surnames].filter(Boolean).join(" ") + (others.length ? ` (also ${others.join(", ")})` : "");
 }
 
 /** "Wife Ellen Maria (Watkins) Rowland, b. about 1867 (searched for Ellen Watkins and Ellen Rowland, born 1862–1872)":
@@ -996,7 +1336,7 @@ function relativeNotFound(entry) {
   const searched = entry.searched || [];
   const names = joinWithAnd(searched);
   const how = names ? ` (searched for ${names}${entry.searchedYears ? `, born ${entry.searchedYears}` : ""})` : "";
-  return `${ROLE_WORDS[relative.role](relative.gender)} ${relativeFullName(relative)}${relative.birthYear ? `, b. about ${relative.birthYear}` : ""}${how}`;
+  return `${withRole(relative, relativeFullName(relative))}${relative.birthYear ? `, b. about ${relative.birthYear}` : ""}${how}`;
 }
 
 /**
@@ -1030,7 +1370,10 @@ export function duplicateLines(duplicates, subjectLabel) {
   return lines;
 }
 
-export function buildFindRelativesAnswer({ subjectLabel, results, readBy, duplicates = null }) {
+export function buildFindRelativesAnswer({ subjectLabel, results: allResults, readBy, duplicates = null }) {
+  // People named in passing (an employer, a fellow servant) are searched for too, but listed apart.
+  const results = allResults.filter((entry) => entry.relative.role !== "other");
+  const named = allResults.filter((entry) => entry.relative.role === "other");
   const sorted = [...results].sort(
     (a, b) => ROLE_ORDER.indexOf(a.relative.role) - ROLE_ORDER.indexOf(b.relative.role) || (a.relative.birthYear || 9999) - (b.relative.birthYear || 9999)
   );
@@ -1038,8 +1381,10 @@ export function buildFindRelativesAnswer({ subjectLabel, results, readBy, duplic
   const attached = sorted.filter((entry) => entry.attached);
   const found = sorted.filter((entry) => !entry.attached && shown(entry).length);
   const missing = sorted.filter((entry) => !entry.attached && !shown(entry).length);
+  const total = allResults.length;
+  const others = named.length ? ` and ${named.length} other ${named.length === 1 ? "person" : "people"}` : "";
   const lines = [
-    `${subjectLabel}'s biography names ${results.length} relative${results.length === 1 ? "" : "s"} (${readBy}). I searched WikiTree for ${results.length === 1 ? "them" : "each one"}.`,
+    `${subjectLabel}'s biography names ${results.length} relative${results.length === 1 ? "" : "s"}${others} (${readBy}). I searched WikiTree for ${total === 1 ? "them" : "each one"}.`,
   ];
   lines.push(...duplicateLines(duplicates, subjectLabel));
   // Beacall-491's family all turned up under Philip Beacall (Beacall-11): this profile may be his duplicate.
@@ -1060,7 +1405,8 @@ export function buildFindRelativesAnswer({ subjectLabel, results, readBy, duplic
     );
   }
   // One or two matches read better in the chat than in a popup table.
-  const matchCount = found.reduce((sum, entry) => sum + shown(entry).length, 0);
+  const namedFound = named.filter((entry) => !entry.attached && shown(entry).length);
+  const matchCount = [...found, ...namedFound].reduce((sum, entry) => sum + shown(entry).length, 0);
   const useTable = matchCount > 2;
   if (found.length) {
     lines.push("", `**May already be on WikiTree (${found.length}):**`);
@@ -1076,7 +1422,7 @@ export function buildFindRelativesAnswer({ subjectLabel, results, readBy, duplic
       // - ✗ No birthplace on WikiTree to compare
       const relative = entry.relative;
       const bioBorn = [relative.birthYear ? `about ${relative.birthYear}` : "", relative.birthPlace].filter(Boolean).join(", ");
-      lines.push("", `**${ROLE_WORDS[relative.role](relative.gender)} ${relativeFullName(relative)}**`);
+      lines.push("", `**${withRole(relative, relativeFullName(relative))}**`);
       if (bioBorn) lines.push(`Biography: born ${bioBorn}`);
       for (const c of shown(entry)) {
         const birth = yearOf(c.profile.BirthDate);
@@ -1096,7 +1442,27 @@ export function buildFindRelativesAnswer({ subjectLabel, results, readBy, duplic
   if (missing.length) {
     lines.push("", `**No good match, so probably not on WikiTree yet (${missing.length}):**`, ...missing.map((entry) => `- ${relativeNotFound(entry)}`));
   }
-  if (found.length) {
+  if (named.length) {
+    // Arthur T. Field, b. about 1841, Shrewsbury (1881 census): Field-123 Arthur Thomas Field (80%)
+    lines.push("", `**Others named in the biography, not family (${named.length}):**`);
+    const byYear = [...named].sort((a, b) => (a.relative.birthYear || 9999) - (b.relative.birthYear || 9999));
+    for (const entry of byYear) {
+      const relative = entry.relative;
+      const about = [relative.birthYear ? `b. about ${relative.birthYear}` : "", relative.birthPlace].filter(Boolean).join(", ");
+      const where = (relative.evidence || []).filter((item) => /census/.test(item)).join(", ");
+      const label = `${relativeFullName(relative)}${about ? `, ${about}` : ""}${where ? ` (${where})` : ""}`;
+      const matches = shown(entry);
+      if (entry.attached) lines.push(`- ${label}: already connected (${entry.attached.profile.Name})`);
+      else if (matches.length) {
+        const list = matches.map((c) => `${c.profile.Name} ${personName(c.profile)} (${c.score}%)`).join(", ");
+        lines.push(`- ${label}: ${matches[0].score >= LIKELY ? "likely" : "possibly"} ${list}`);
+      } else {
+        const names = joinWithAnd(entry.searched || []);
+        lines.push(`- ${label}: no good match${names ? ` (searched for ${names}${entry.searchedYears ? `, born ${entry.searchedYears}` : ""})` : ""}`);
+      }
+    }
+  }
+  if (found.length || namedFound.length) {
     lines.push(
       "",
       `${useTable ? "The table compares each one with the biography. " : ""}These are suggestions from names, dates and places: check the profiles before adding a relationship.`
@@ -1104,10 +1470,10 @@ export function buildFindRelativesAnswer({ subjectLabel, results, readBy, duplic
   }
 
   // Only the possible matches: the point is people who may be on WikiTree but aren't attached.
-  const rows = found.flatMap((entry) => {
+  const rows = [...found, ...namedFound].flatMap((entry) => {
     const relative = entry.relative;
     const base = {
-      relative: `${ROLE_WORDS[relative.role](relative.gender)} ${relativeFullName(relative)}`,
+      relative: relative.role === "other" ? `${relativeFullName(relative)} (named in the biography)` : withRole(relative, relativeFullName(relative)),
       bioBorn: [relative.birthYear ? `about ${relative.birthYear}` : "", relative.birthPlace].filter(Boolean).join(", "),
       gender: relative.gender || "",
     };
@@ -1149,7 +1515,11 @@ export function buildFindRelativesAnswer({ subjectLabel, results, readBy, duplic
 /** When a relative's birth year isn't known: the years they could have been born, from the subject's. */
 export function yearRangeFor(role, subjectYear) {
   if (!subjectYear) return null;
-  const offsets = { spouse: [-15, 20], child: [15, 50], sibling: [-25, 25], father: [-65, -15], mother: [-50, -14] };
+  const offsets = {
+    spouse: [-15, 20], child: [15, 50], sibling: [-25, 25], father: [-65, -15], mother: [-50, -14],
+    grandparent: [-110, -30], parentSibling: [-60, 10], cousin: [-40, 40], grandchild: [30, 100],
+    childInLaw: [0, 60], parentInLaw: [-80, -5], siblingChild: [-10, 60], other: [-70, 50],
+  };
   const [from, to] = offsets[role] || [-30, 30];
   return [subjectYear + from, subjectYear + to];
 }
@@ -1163,6 +1533,21 @@ export function searchCounty(place) {
   const parts = (text.includes(",") ? text.split(",") : text.split(/\s+/)).map((part) => part.trim()).filter(Boolean);
   const local = parts.filter((part) => !COUNTRY_WORDS.has(part.toLowerCase()));
   return local.length ? local[local.length - 1] : "";
+}
+
+/** One profile's check in a line or two, for "check my in-laws": the relatives not attached that may be on
+ * WikiTree ({relative: "Father John Jones", matches: ["Jones-45 John Jones (82%)"]}) and likely duplicates. */
+export function checkLeads({ results = [], duplicates = null } = {}) {
+  const found = results
+    .filter((entry) => !entry.attached)
+    .map((entry) => ({ entry, shown: (entry.candidates || []).filter((c) => c.score >= POSSIBLE).slice(0, 3) }))
+    .filter(({ shown }) => shown.length)
+    .map(({ entry, shown }) => ({
+      relative: `${ROLE_WORDS[entry.relative.role](entry.relative.gender)} ${relativeFullName(entry.relative)}`,
+      matches: shown.map((c) => `${c.profile.Name} ${personName(c.profile)} (${c.score}%)`),
+    }));
+  const likely = (duplicates?.likely || []).map((d) => `${d.wtId} ${d.name}${d.percent === false ? "" : ` (${d.score}%)`}`);
+  return { found, duplicates: likely };
 }
 
 /** Runs promises a few at a time. */

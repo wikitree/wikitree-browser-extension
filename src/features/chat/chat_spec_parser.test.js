@@ -480,3 +480,11 @@ describe("content rank and notable templates", () => {
     });
   });
 });
+
+// Imagined corpus Y4/Z1/Z4 (2026-10-17): they ran Location="my ancestors", Location=my, MarriageLocation=cousin.
+test.each(["Beacalls in my ancestors", "twins in my family", "cousin marriages in my tree", "Smiths born in her family"])(
+  "relatives are never a place: %s",
+  (prompt) => {
+    expect(parseSearchSpecPrompt(prompt)).toBeNull();
+  }
+);

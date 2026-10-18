@@ -1,7 +1,7 @@
 import { getLocationFieldLabel } from "./chat_place_text";
 import { formatPreviewDate } from "./chat_preview_format";
 import { formatKinPlaceDetails } from "./chat_kin_details";
-import { sortByBirth } from "./chat_kin_order";
+import { pickByBirth, sortByBirth } from "./chat_kin_order";
 import { shownSpouses } from "./chat_marriage_display";
 import { shownGender } from "./chat_gender_display";
 import { applyKinFilter, kinFilterPhrase } from "./chat_kin_filter";
@@ -1757,6 +1757,16 @@ export function createChatRelationHandlers({
         return labelIsUser
           ? `I found 0 ${noun} in currently accessible family data.${filterNote}${appsLoginHint}`
           : `I found 0 ${noun} for ${chainLabel} in currently accessible family data.${filterNote}${appsLoginHint}`;
+      }
+
+      // "who was her eldest brother": the first by birth date
+      if (mode === "list" && params?.pick) {
+        const { picked, undated } = pickByBirth(relatives, params.order);
+        const whose = labelIsUser ? "Your" : `${chainLabel}'s`;
+        const unsure = undated ? ` (${undated} of ${count} ${relationSpec.plural} ha${undated === 1 ? "s" : "ve"} no birth date, so this may not be right.)` : "";
+        if (!picked) return `I can't tell: none of ${labelIsUser ? "your" : `${chainLabel}'s`} ${relationSpec.plural} has a birth date on WikiTree.`;
+        const { preview } = buildRelationPreviewAndInlineMore([picked], 1, params?.details || []);
+        return { message: `${whose} ${params.pick}:${unsure}\n${preview}` };
       }
 
       if (mode === "list") {

@@ -36,5 +36,13 @@ describe("page context candidates", () => {
     test.each(["Ellen", "Ellen Cook", "Ellen Alley"])("%s is the profile person", (target) => {
       expect(findPageContextPersonCandidate(target)?.wtId).toBe("Cook-8721");
     });
+    // "how is Roosevelt-1 related to Roosevelt-18" on Roosevelt-1's page: "That's the same person twice" (2026-10-18)
+    test("a typed ID is only that person", () => {
+      document.body.innerHTML = `<div id="content"><a href="/wiki/Cook-8720">James Cook</a></div>`;
+      expect(findPageContextPersonCandidate("Cook-87211")).toBeNull();
+      expect(findPageContextPersonCandidate("Cook-872")).toBeNull();
+      expect(findPageContextPersonCandidate("Cook-8721")?.wtId).toBe("Cook-8721");
+      expect(findPageContextPersonCandidate("cook-8720")?.wtId).toBe("Cook-8720");
+    });
   });
 });

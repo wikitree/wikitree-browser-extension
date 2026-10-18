@@ -154,6 +154,26 @@ describe("categories and research notes", () => {
     expect(buildProfileFactAnswer({}, "categories", "E", { categories: [] })).toBe("E isn't in any categories.");
     expect(buildProfileFactAnswer({}, "categories", "E", { categories: null })).toBe("I couldn't read the categories for E.");
   });
+  // (imagined AD6, 2026-10-18)
+  test.each([
+    ["is Cook-8721 in the Methodists category?", "Cook-8721", "Methodists"],
+    ["is she in Category: Mayflower Passengers", "", "Mayflower Passengers"],
+    ["is she in [[Category:Methodists]]", "", "Methodists"],
+    ["does Cook-8721 belong to the Methodists category", "Cook-8721", "Methodists"],
+  ])("%s", (prompt, owner, category) => {
+    expect(routeChatPrompt(prompt).intent).toBe(ChatIntent.PROFILE_FACT);
+    expect(parseProfileFactPrompt(prompt)).toEqual({ owner, fact: "categories", category });
+  });
+  test("whether someone is in a category", () => {
+    const categories = ["Methodists", "Wem,_Shropshire"];
+    expect(buildProfileFactAnswer({}, "categories", "E", { categories, category: "methodists" })).toBe("Yes, E is in Category: Methodists.");
+    expect(buildProfileFactAnswer({}, "categories", "E", { categories: ["Wesleyan_Methodists"], category: "Methodists" })).toBe(
+      "E isn't in Category: Methodists itself, but is in:\n- Wesleyan Methodists"
+    );
+    expect(buildProfileFactAnswer({}, "categories", "E", { categories, category: "Quakers" })).toBe(
+      "No, E isn't in Category: Quakers. E is in 2 categories:\n- Methodists\n- Wem, Shropshire"
+    );
+  });
   const bio = "== Biography ==\nBorn 1832.\n\n== Research Notes ==\n* Two baptisms fit: see [[Cook-1|her cousin]].\n=== The 1841 census ===\nNot found.\n\n== Sources ==\n<references />";
   test("the text under Research Notes, sub-headings included, up to the next section", () => {
     expect(researchNotesText(bio)).toBe("Two baptisms fit: see her cousin.\n=== The 1841 census ===\nNot found.");
@@ -176,6 +196,8 @@ describe("did any of her children die young / emigrate?", () => {
     ["which of Ellen Cook's children emigrated?", { generation: 1, emigrated: true, subjectText: "Ellen Cook's children" }],
     ["how many of my grandchildren emigrated", { generation: 2, emigrated: true }],
     ["her children who emigrated", { generation: 1, emigrated: true }],
+    ["did any of her children move to Canada", { generation: 1, emigrated: true, emigratedTo: "Canada" }],
+    ["which of her grandchildren emigrated to New Zealand", { generation: 2, emigrated: true, emigratedTo: "New Zealand" }],
     // (subjectText: a named list is that person's, not the page person's)
     ["which of Ellen Cook's children died young?", { generation: 1, ageAtDeath: { max: 15 }, subjectText: "Ellen Cook's children" }],
   ])("%s", (prompt, params) => {
@@ -226,6 +248,11 @@ describe("did any of her children die young / emigrate?", () => {
     delete people[2];
     const none = await handlers.tryHandleDescendantListPrompt({ generation: 1, relationshipLabel: "children", emigrated: true }, "did any of her children emigrate?");
     expect(none).toBe("None of the 2 children for Ellen (Cook-1) were born in one country and died in another (1 has both places recorded).");
+    people[2] = { Id: 2, Name: "Cook-2", BirthLocation: "Wem, Shropshire, England", DeathLocation: "Toronto, Ontario, Canada", Meta: { Degrees: 1 } };
+    const toCanada = await handlers.tryHandleDescendantListPrompt({ generation: 1, relationshipLabel: "children", emigrated: true, emigratedTo: "Canada" }, "did any of her children move to Canada");
+    expect(toCanada.message).toMatch(/born in another country and died in Canada for Ellen \(Cook-1\) \(1 found\)/);
+    const toAmerica = await handlers.tryHandleDescendantListPrompt({ generation: 1, relationshipLabel: "children", emigrated: true, emigratedTo: "America" }, "did any of her children move to America");
+    expect(toAmerica).toMatch(/^None of the 3 children for Ellen \(Cook-1\) were born in another country and died in America/);
   });
 });
 

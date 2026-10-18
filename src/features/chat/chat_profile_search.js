@@ -1,4 +1,7 @@
+import { parseCategoryPeriod } from "./chat_category_period";
+import { wtPlusLogCounts } from "./chat_wtplus_count";
 import { ahnenNumbers, getGenerationFromAhnen } from "./chat_ahnentafel";
+import { parseRouterCanonicalSearch } from "./chat_router_canonical";
 import { joinWithAnd } from "./chat_text_utils";
 import { isHiddenMarriage, shownSpouses } from "./chat_marriage_display";
 import { trimUkCountrySuffix } from "./chat_place_text";
@@ -125,25 +128,11 @@ function getCompactSuggestionCatalog() {
   return _compactSuggestionCatalog;
 }
 
-/**
- * The profile counts in a WT+ searchLog ("Result: 12", "Cached: 12", "Too many profiles!!! 466090"), NaN where
- * absent. count is the one to believe: Result, else Cached, else the too-many total.
- */
-export function wtPlusLogCounts(searchLog) {
-  const text = String(searchLog || "");
-  const number = (re) => {
-    const match = text.match(re);
-    return match?.[1] ? Number.parseInt(match[1], 10) : NaN;
-  };
-  const result = number(/\bResult:\s*(\d+)\b/i);
-  const cached = number(/\bCached:\s*(\d+)\b/i);
-  const tooMany = number(/Too many profiles!!!\s*(\d+)/i);
-  const count = [result, cached, tooMany].find(Number.isFinite);
-  return { result, cached, tooMany, hasTooMany: /Too many profiles!!!/i.test(text), count: count ?? NaN };
-}
+// (wtPlusLogCounts lives in chat_wtplus_count, for the ancestor count too)
+export { wtPlusLogCounts };
 
 /** A button that runs another WT+ query in chat: another reading, scope or surname. */
-export function wtPlusRerunAction(label, wtPlusQuery, { suggestionId = "", suggestionOptions = {} } = {}) {
+export function wtPlusRerunAction(label, wtPlusQuery, { suggestionId = "", suggestionOptions = {}, decadeMeansAlive = false } = {}) {
   return {
     label,
     actionType: "fetch-wtplus-results",
@@ -151,6 +140,8 @@ export function wtPlusRerunAction(label, wtPlusQuery, { suggestionId = "", sugge
     wtPlusSearchType: "text",
     wtPlusSuggestionId: suggestionId || "",
     wtPlusSuggestionOptions: suggestionOptions || {},
+    // "Alive in the 1940s": keep WT+'s own meaning of the decade word instead of adding "born in it" (2026-10-18)
+    ...(decadeMeansAlive ? { wtPlusDecadeMeansAlive: true } : {}),
   };
 }
 
@@ -4689,7 +4680,7 @@ export function createProfileSearchHandler({
   // category starting "Irish_Quakers", and no "unsourced"; sweep 2026-10-12). "Hopkins in the Mayflower Passengers
   // category" isn't a category name either.
   const CATEGORY_LEAD_IN =
-    /^(?:(?:show|find|list|search(?:\s+for)?)\s+(?:me\s+)?|(?:who|which\s+(?:profiles|people)|how\s+many\s+(?:profiles|people))\s+(?:is|are|was|were)\s+|who['’]s\s+)?(?:(?:all\s+)?(?:the\s+)?(?:profiles?|people|members?)\s+)?(?:(?:in|from)\s+)?(?:the\s+)?/i;
+    /^(?:(?:show|find|list|search(?:\s+for)?)\s+(?:me\s+)?|(?:who|which\s+(?:profiles|people)|how\s+many\s+(?:profiles|people))\s+(?:is|are|was|were)\s+|who['’]s\s+)?(?:(?:all\s+)?(?:the\s+)?(?:profiles?|people|members?)\s+)?(?:(?:in|from|of)\s+)?(?:the\s+)?/i;
   function categoryNameFromPrompt(raw) {
     const text = String(raw || "")
       .trim()
@@ -4706,8 +4697,12 @@ export function createProfileSearchHandler({
     const name = stripSurroundingQuotes(match[1].replace(CATEGORY_LEAD_IN, ""));
     // ("profiles in any Huguenot category" searched CategoryWord="any Huguenot", 0: "any" names no one category)
     if (!name || /\b(?:category|in|who|whose|which|my|our|any|profiles?|people)\b/i.test(name)) return null;
+    // ("profiles with category word Huguenot": "with" names nothing)
+    if (/^(?:with|without|by|for|of|and|or|an?)\b/i.test(name)) return null;
     const rest = match[2].trim();
-    return !rest || buildWtPlusCategoryQuery(`${name} ${rest}`)?.category === name ? `${name}${rest ? ` ${rest}` : ""}` : null;
+    // ("" is a category with words after it that aren't read: "Guitarists category 1940s" became
+    // CategoryFull=1940s AllLastNames=Guitarists; 2026-10-17)
+    return !rest || buildWtPlusCategoryQuery(`${name} ${rest}`)?.category === name ? `${name}${rest ? ` ${rest}` : ""}` : "";
   }
 
   // "Category: Rodeo Cowboys with children" (a WT+ user, 2026-10-12): the category is "Rodeo Cowboys" and
@@ -4826,6 +4821,103 @@ export function createProfileSearchHandler({
     return null;
   }
 
+  // "Beacalls in the Methodists category", "Hopkins in Category: Mayflower Passengers" (2026-10-17): one surname,
+  // as typed with its capital; a plural ("Beacalls") is retried as the singular after a zero, as elsewhere.
+  const NOT_A_SURNAME = /^(?:The|All|Anyone|Everyone|People|Persons|Profiles|Members|Those|Who|Which|Ancestors|Descendants|Relatives|Men|Women|Notables|Me|My)$/;
+  function surnameInCategoryQuery(text) {
+    const match = String(text || "").match(
+      /^(?:the\s+)?([A-Z][A-Za-z'’-]+)\s+(?:in|from)\s+(?:the\s+)?(?:[Cc]ategory\s*:?\s*(.+)|(.+?)\s+[Cc]ategory)$/
+    );
+    if (!match || NOT_A_SURNAME.test(match[1])) return null;
+    const category = buildWtPlusCategoryQuery(match[2] || match[3]);
+    const surname = normalizeWtPlusFieldTerm("AllLastNames", match[1]);
+    if (!category || !surname) return null;
+    const query = `${category.query} ${surname}`;
+    return { ...category, query, description: query, title: `${category.title} (surname ${match[1]})` };
+  }
+
+  // Canonical forms from the router (chat_router_canonical.js): "notables in my CC7"
+  // (parseNotableRelativesPrompt), "dna-confirmed in my ancestors" (parseDnaConfirmedPrompt) and
+  // "unsourced category Guitarists in my descendants" (parseRelativesFilterPrompt). "my" is the
+  // signed-in user, not the page.
+  // (before the category readers: they took "category Guitarists in my ancestors" for one category name)
+  // "born before 1900" → sql < 19000000; "between 1800-1850" → In 18000000..18509999 (partial dates count, as for decades).
+  function canonicalDateSqlTerm({ event, direction, value }) {
+    const column = `[Default].[${event === "died" ? "Death" : "Birth"} Date].AsNumber`;
+    const [from, to = from] = String(value).split("-");
+    if (direction === "before") return buildWtPlusSqlTerm(`(${column} < ${from}0000)`);
+    if (direction === "after") return buildWtPlusSqlTerm(`(${column} > ${from}9999)`);
+    return buildWtPlusSqlTerm(`(${column} In ${from}0000..${to}9999)`);
+  }
+
+  // " born in Wales before 1900", " born in Wales, died after 1900", " died 1800–1850"
+  function canonicalEventsPhrase({ birthPlace, deathPlace, date }) {
+    const [from, to] = String(date?.value || "").split("-");
+    const when = !date ? "" : date.direction === "between" ? (to && to !== from ? `${from}–${to}` : `in ${from}`) : `${date.direction} ${from}`;
+    const parts = [birthPlace ? ["born", `in ${birthPlace}`] : null, deathPlace ? ["died", `in ${deathPlace}`] : null].filter(Boolean);
+    const dated = parts.find(([event]) => event === date?.event);
+    if (dated) dated.push(when);
+    else if (date) parts.push([date.event, when]);
+    return parts.length ? ` ${parts.map((part) => part.join(" ")).join(", ")}` : "";
+  }
+
+  function routerCanonicalWtPlusQuery(normalizedText) {
+    const canonical = parseRouterCanonicalSearch(normalizedText);
+    if (canonical) {
+      const userWtId = String(getUserWtId() || "").trim();
+      const root = canonical.mine
+        ? userWtId
+          ? { wtId: userWtId, displayName: "you" }
+          : null
+        : canonical.owner
+        ? resolveWtPlusSubjectRoot(canonical.owner)
+        : getDefaultWtPlusRoot();
+      if (root?.wtId) {
+        const field = canonical.scope;
+        const scope = field === "CC7" ? "CC7 (relatives within 7 degrees)" : field.toLowerCase();
+        const owner = root.displayName === "you" ? "your" : `${root.displayName}'s`;
+        // Status 30 = "Confirmed with DNA" (codes as in change_family_lists.js).
+        const terms = {
+          "dna-confirmed": 'sql="([Default].[Father Status].AsNumber = 30) Or ([Default].[Mother Status].AsNumber = 30)"',
+          notables: "Notables",
+          unsourced: "Unsourced",
+          female: "female",
+          male: "male",
+        };
+        const filter = [
+          ...canonical.filters.map((name) => terms[name]),
+          canonical.firstName ? normalizeWtPlusFieldTerm("AllFirstNames", canonical.firstName) : "",
+          canonical.lastName ? normalizeWtPlusFieldTerm("AllLastNames", canonical.lastName) : "",
+          canonical.category ? normalizeWtPlusFieldTerm("CategoryFull", canonical.category) : "",
+          canonical.birthPlace ? normalizeWtPlusFieldTerm("BirthLocation", canonical.birthPlace) : "",
+          canonical.deathPlace ? normalizeWtPlusFieldTerm("DeathLocation", canonical.deathPlace) : "",
+          canonical.date ? canonicalDateSqlTerm(canonical.date) : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        const adjectives = canonical.filters.filter((name) => name !== "dna-confirmed").map((name) => (name === "notables" ? "notable" : name));
+        const what = [
+          [...adjectives, "profiles"].join(" ").replace(/^./, (c) => c.toUpperCase()),
+          canonical.filters.includes("dna-confirmed") ? " with a DNA-confirmed father or mother" : "",
+          canonical.firstName ? ` named ${canonical.firstName}` : "",
+          canonical.lastName ? ` with the surname ${canonical.lastName}` : "",
+          canonical.category ? ` in the ${canonical.category} category` : "",
+          canonicalEventsPhrase(canonical),
+        ].join("");
+        return {
+          query: `${field}=${quoteWtPlusValue(root.wtId)} ${filter}`,
+          title: `WT+ ${what.toLowerCase()} in ${owner} ${scope}`,
+          description: `${field}=${root.wtId} ${filter}`,
+          understood: `${what} in ${owner} ${scope}`,
+          // The router already read the request; the AI re-reading it asked
+          // "DNA-confirmed parent or DNA test?" (live C32, 2026-10-03).
+          searchType: "routerCanonical",
+        };
+      }
+    }
+    return null;
+  }
+
   function parseNaturalLanguageWtPlusQuery(queryText) {
     const text = normalizeWtPlusStatusAliases(queryText);
     if (!text) return null;
@@ -4841,7 +4933,13 @@ export function createProfileSearchHandler({
     // "Category: Pennsylvania Quakers died before 1800" for a place (sweep, 2026-10-12).
     // A name it reads, with words after it that it can't, is a decline: the readers below put those words in the
     // name, CategoryWord="Ohio, United States Civil War but not its subcategories" (sweep, 2026-10-12).
+    const canonicalQuery = routerCanonicalWtPlusQuery(normalizedText);
+    if (canonicalQuery) return canonicalQuery;
+
+    const surnameCategory = surnameInCategoryQuery(normalizedText);
+    if (surnameCategory) return surnameCategory;
     const namedCategory = categoryNameFromPrompt(normalizedText);
+    if (namedCategory === "") return null;
     if (namedCategory) return buildWtPlusCategoryQuery(namedCategory);
 
     // "profiles in <project> but missing the project box in bio" is a specific
@@ -5488,35 +5586,6 @@ export function createProfileSearchHandler({
           query: `Tree=${quoteWtPlusValue(tree)}`,
           title: `WT+ Tree: ${tree}`,
           description: `Tree=${tree}`,
-        };
-      }
-    }
-
-    // Canonical forms from the router: "notables in my CC7" (parseNotableRelativesPrompt)
-    // and "dna-confirmed in my ancestors" (parseDnaConfirmedPrompt). "my" is the
-    // signed-in user, not the page.
-    match = normalizedText.match(/^(notables|dna-confirmed)\s+in\s+(?:(my)|(.+?)['’]s)\s+(cc7|ancestors)$/i);
-    if (match) {
-      const userWtId = String(getUserWtId() || "").trim();
-      const root = match[2] ? (userWtId ? { wtId: userWtId, displayName: "you" } : null) : resolveWtPlusSubjectRoot(match[3]);
-      if (root?.wtId) {
-        const field = /^cc7$/i.test(match[4]) ? "CC7" : "Ancestors";
-        const scope = field === "CC7" ? "CC7 (relatives within 7 degrees)" : "ancestors";
-        const owner = root.displayName === "you" ? "your" : `${root.displayName}'s`;
-        const dna = /^dna/i.test(match[1]);
-        // Status 30 = "Confirmed with DNA" (codes as in change_family_lists.js).
-        const filter = dna
-          ? 'sql="([Default].[Father Status].AsNumber = 30) Or ([Default].[Mother Status].AsNumber = 30)"'
-          : "Notables";
-        const what = dna ? "Profiles with a DNA-confirmed father or mother" : "Notable profiles";
-        return {
-          query: `${field}=${quoteWtPlusValue(root.wtId)} ${filter}`,
-          title: `WT+ ${what.toLowerCase()} in ${owner} ${scope}`,
-          description: `${field}=${root.wtId} ${filter}`,
-          understood: `${what} in ${owner} ${scope}`,
-          // The router already read the request; the AI re-reading it asked
-          // "DNA-confirmed parent or DNA test?" (live C32, 2026-10-03).
-          searchType: "routerCanonical",
         };
       }
     }
@@ -6180,7 +6249,12 @@ export function createProfileSearchHandler({
   // watchlist alone are not enough (API, 2026-10-03).
   const WT_SEARCH_ANCHOR_PARAMS = ["FirstName", "LastName"];
 
+  // "my paternal line" searched FirstName=my LastName=line, "my mother's mother's mother" FirstName=my
+  // LastName=mother (2026-10-17): words of a sentence about relatives, not a name.
+  const NOT_A_PERSON_NAME = /^(?:my|me|our|his|her|their|your|mother|father|mum|mom|dad|parents?|line|side|family|tree|ancestors?|descendants?|relatives?)$/i;
+
   function hasMeaningfulWtSearchAnchor(searchParams) {
+    if (WT_SEARCH_ANCHOR_PARAMS.some((param) => NOT_A_PERSON_NAME.test(String(searchParams?.[param] || "").trim()))) return false;
     return WT_SEARCH_ANCHOR_PARAMS.some((param) => {
       const value = searchParams?.[param];
       return typeof value === "string" ? value.trim().length > 0 : Boolean(value);
@@ -6251,6 +6325,12 @@ export function createProfileSearchHandler({
     const isPlaceField = (field) => /(?:^|\.)(?:Location|BirthLocation|DeathLocation|MarriageLocation)$/i.test(field);
     const valueOf = (assignment) => stripSurroundingQuotes(String(assignment?.[2] || "")).trim();
     const nameAndPlaceValues = fieldAssignments.filter((a) => isNameField(a[1]) || isPlaceField(a[1])).map(valueOf);
+    // Location=my, Location="my tree", MarriageLocation=cousin ("my ancestors born between 1800 and 1850",
+    // "cousin marriages in my tree"; 2026-10-17): a pronoun or relatives are never a place.
+    const RELATIVES_NOT_A_PLACE = /^(?:(?:my|our|his|her|their|your)\b.*|.*\b(?:ancestors|descendants|relatives|family|tree|cousins?))$/i;
+    if (fieldAssignments.some((a) => isPlaceField(a[1]) && RELATIVES_NOT_A_PLACE.test(valueOf(a)))) {
+      return true;
+    }
     if (
       fieldAssignments.some(
         (a) => isNameField(a[1]) && (!/[A-Za-z\u00C0-\u024F]{2}/.test(valueOf(a)) || /[^\p{L}\s'’.-]/u.test(valueOf(a)))
@@ -6730,7 +6810,7 @@ export function createProfileSearchHandler({
     // The failure message keeps the "couldn't complete the WT+ query" form so
     // callers' existing AI-reparse/deterministic fallbacks still apply.
     // WT+ decade words mean "alive in the decade"; users mean "born in it".
-    canonicalQuery = normalizeWtPlusDateSql(addBirthDecadeSqlToDecadeTokens(canonicalQuery));
+    canonicalQuery = normalizeWtPlusDateSql(runOptions?.decadeMeansAlive ? canonicalQuery : addBirthDecadeSqlToDecadeTokens(canonicalQuery));
     let finalValidation = validateAndRepairWtPlusQuery(canonicalizeWtPlusErrTokenAssignments(canonicalQuery));
     if (!finalValidation?.isValid) {
       // Repair 1 (deterministic): unknown plain words are usually places.
@@ -7472,8 +7552,28 @@ export function createProfileSearchHandler({
       };
     } catch (error) {
       hideChatShaky();
-      return `I couldn't complete the WT+ query "${canonicalQuery}". Error: ${error?.message || error}`;
+      return wtPlusFailureMessage(canonicalQuery, error);
     }
+  }
+
+  // (keeps the "couldn't complete the WT+ query" form: isWtPlusExecutionFailure reads it)
+  function wtPlusFailureMessage(canonicalQuery, error) {
+    const lead = `I couldn't complete the WT+ query "${canonicalQuery}".`;
+    if (error?.blocked) {
+      // Murray, 2026-10-18: a 429 and WT+'s "Blocked request" page; Genie said only "Error:".
+      return (
+        `${lead} WikiTree+ blocked the request: your internet address${error.ip ? ` (${error.ip})` : ""} is in a range ` +
+        "it has blocked because of AI bot traffic. Genie's searches come from your own browser, so they are blocked too. " +
+        "Send Aleš Trtnik (Trtnik-2) a private message on WikiTree with that address and he will unblock you."
+      );
+    }
+    if (error?.status === 429) {
+      return `${lead} WikiTree+ is refusing searches just now (too many requests). Wait a minute and try again.`;
+    }
+    if (!error?.status || error.status >= 500) {
+      return `${lead} WikiTree+ (plus.wikitree.com) isn't responding just now. Try again in a few minutes.`;
+    }
+    return `${lead} Error: ${error?.message || error}`;
   }
 
   // "Profiles I manage [with …]": read from the member's watchlist (private profiles included, and today's
@@ -9416,6 +9516,25 @@ ${note}` };
           explicitWtPlusQuery ||
           parseNaturalLanguageWtPlusQuery(mainQuery) ||
           parseCombinedNaturalLanguageWtPlusQuery(mainQuery);
+        // "Guitarists category 1940s" went on to a person search, FirstName=Guitarists LastName=1940s (2026-10-17)
+        // ("Guitarists category 1940s": born, died or alive then? WT+'s decade word is alive then.)
+        const categoryPeriod = !localWtPlusQuery && parseCategoryPeriod(mainQuery);
+        if (categoryPeriod) {
+          const { category, period, decade } = categoryPeriod;
+          const when = decade ? `in the ${period}` : `in ${period}`;
+          const ask = (label, prompt) => ({ label, actionType: "send-prompt", prompt, newSearch: true });
+          return {
+            message: `"${period}" could mean when they were born, when they died, or when they were alive. Which did you mean?`,
+            actions: [
+              ask(`Born ${when}`, `Category: ${category} born ${when}`),
+              ask(`Died ${when}`, `Category: ${category} died ${when}`),
+              ...(decade ? [wtPlusRerunAction(`Alive ${when}`, `CategoryFull=${toWtPlusCategoryFullValueFromCategoryName(category)} ${period}`, { decadeMeansAlive: true })] : []),
+            ],
+          };
+        }
+        if (!localWtPlusQuery && categoryNameFromPrompt(mainQuery) === "") {
+          return `I can see a category in "${rawQuery}", but not what the other words ask for. Try, for example, "Category: Guitarists born in Liverpool" or "Category: Guitarists born before 1900".`;
+        }
         // "profiles I manage": the watchlist has them all, private ones too (2026-10-10)
         if (localWtPlusQuery?.managedByMe) {
           return annotateAutoRoutedWtPlusResult(await runManagedProfilesSearch(localWtPlusQuery, rawQuery));
@@ -10387,7 +10506,7 @@ ${note}` };
    * Re-run a saved WT+ query directly without re-parsing.
    * Used by "Fetch results again" button to skip AI interpretation step.
    */
-  async function reRunSavedWtPlusQuery(wtPlusQuery, searchType = "text", suggestionId = "", suggestionOptions = {}) {
+  async function reRunSavedWtPlusQuery(wtPlusQuery, searchType = "text", suggestionId = "", suggestionOptions = {}, { decadeMeansAlive = false } = {}) {
     if (!wtPlusQuery) {
       return `No WT+ query available to re-run.`;
     }
@@ -10396,6 +10515,7 @@ ${note}` };
       searchType,
       suggestionId,
       suggestionOptions,
+      decadeMeansAlive,
       // The user reached here by clicking a scope button, so run it directly
       // instead of asking the birth/marriage/death question again.
       fromScopeChoice: true,

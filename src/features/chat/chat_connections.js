@@ -42,6 +42,7 @@ import { shownGender } from "./chat_gender_display";
 import { hideChatShaky, setConnectionsRelationshipFinder, showConnectionsPopup } from "./ui";
 import { PERSON_MEMORY_ALIAS_STOPWORDS, normalizePersonMemoryToken } from "./chat_person_memory";
 import { parseConnectionTargetHints, withTypedTargetHints } from "./chat_connection_target_hints";
+import { fullName } from "./chat_text_utils";
 
 /**
  * Guard for searchPerson lookups: an extracted "name" whose first or last
@@ -550,6 +551,14 @@ function isSparseConnectionMatch(match) {
   return !match?.Name && !match?.RealName && !match?.FirstName && !match?.LastNameAtBirth && !match?.LastNameCurrent;
 }
 
+// WikiTreeAPI.getPerson throws for an ID that doesn't exist ("Rioosevelt-1's fan chart" showed
+// "Cannot read properties of undefined (reading 'Parents')", 2026-10-18): null instead, so "not found" follows.
+function getPersonOrNull(...args) {
+  return Promise.resolve()
+    .then(() => WikiTreeAPI.getPerson(...args))
+    .catch(() => null);
+}
+
 function normalizeResolvedConnectionPerson(person) {
   if (!person) {
     return null;
@@ -733,7 +742,7 @@ export function createChatConnectionHandlers({
       return null;
     }
     const person = normalizeResolvedConnectionPerson(
-      await WikiTreeAPI.getPerson(
+      await getPersonOrNull(
         "Chat",
         wtId,
         "Id,Name,RealName,Derived.ShortName,FirstName,Nicknames,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate"
@@ -788,7 +797,7 @@ export function createChatConnectionHandlers({
     const pageContextCandidate = typedHints ? null : findPageContextPersonCandidate(cleanedTarget);
     if (pageContextCandidate?.wtId && !excludedWtIds.has(pageContextCandidate.wtId)) {
       const contextMatch = normalizeResolvedConnectionPerson(
-        await WikiTreeAPI.getPerson(
+        await getPersonOrNull(
           "Chat",
           pageContextCandidate.wtId,
           "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate"
@@ -814,7 +823,7 @@ export function createChatConnectionHandlers({
 
     if (isWikiTreeId(cleanedTarget)) {
       return normalizeResolvedConnectionPerson(
-        await WikiTreeAPI.getPerson(
+        await getPersonOrNull(
           "Chat",
           cleanedTarget,
           "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender,DataStatus"
@@ -835,7 +844,7 @@ export function createChatConnectionHandlers({
     const rememberedWtId = String(remembered?.wtId || "").trim();
     if (rememberedWtId && isWikiTreeId(rememberedWtId) && !excludedWtIds.has(rememberedWtId)) {
       const rememberedMatch = normalizeResolvedConnectionPerson(
-        await WikiTreeAPI.getPerson(
+        await getPersonOrNull(
           "Chat",
           rememberedWtId,
           "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender,DataStatus"
@@ -886,7 +895,7 @@ export function createChatConnectionHandlers({
 
     if (trustedAliasWtId) {
       return normalizeResolvedConnectionPerson(
-        await WikiTreeAPI.getPerson(
+        await getPersonOrNull(
           "Chat",
           trustedAliasWtId,
           "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender,DataStatus"
@@ -904,7 +913,7 @@ export function createChatConnectionHandlers({
       );
       if (wikidata?.wtId && isWikiTreeId(wikidata.wtId) && !excludedWtIds.has(wikidata.wtId)) {
         const person = normalizeResolvedConnectionPerson(
-          await WikiTreeAPI.getPerson(
+          await getPersonOrNull(
             "Chat",
             wikidata.wtId,
             "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender,DataStatus"
@@ -1712,12 +1721,12 @@ export function createChatConnectionHandlers({
       if (!profileWtId) {
         return null;
       }
-      bestMatch = await WikiTreeAPI.getPerson("Chat", profileWtId, "Id,Name,RealName,LastNameAtBirth,LastNameCurrent");
+      bestMatch = await getPersonOrNull("Chat", profileWtId, "Id,Name,RealName,LastNameAtBirth,LastNameCurrent");
     }
 
     if (!bestMatch?.Name && bestMatch?.Id) {
       return normalizeResolvedConnectionPerson(
-        await WikiTreeAPI.getPerson("Chat", bestMatch.Id, "Id,Name,RealName,LastNameAtBirth,LastNameCurrent")
+        await getPersonOrNull("Chat", bestMatch.Id, "Id,Name,RealName,LastNameAtBirth,LastNameCurrent")
       );
     }
 
@@ -1861,7 +1870,7 @@ export function createChatConnectionHandlers({
     const pathLength = Number(data?.pathLength);
     const hasPath =
       (Number.isFinite(pathLength) && pathLength > 0) || (Array.isArray(data?.path) && data.path.length > 0);
-    const displayName = matchedPerson?.RealName || targetWtId;
+    const displayName = fullName({ name: matchedPerson?.RealName, lnab: matchedPerson?.LastNameAtBirth }) || matchedPerson?.Derived?.ShortName || targetWtId;
 
     setLastConnectionContext({
       ...lastConnectionContext,
@@ -2022,7 +2031,7 @@ export function createChatConnectionHandlers({
       const hasPath =
         (Number.isFinite(pathLength) && pathLength > 0) || (Array.isArray(data?.path) && data.path.length > 0);
 
-      const displayName = matchedPerson?.RealName || targetWtId;
+      const displayName = fullName({ name: matchedPerson?.RealName, lnab: matchedPerson?.LastNameAtBirth }) || matchedPerson?.Derived?.ShortName || targetWtId;
       if (!hasPath) {
         let legacyRelationship = "";
         if (sourceRoot.wtId && targetWtId) {

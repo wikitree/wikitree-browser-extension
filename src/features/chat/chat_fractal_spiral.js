@@ -121,7 +121,7 @@ export function showSpiralTreePopup(tree, options = {}) {
       </div>
     </div>`,
   });
-  popup.querySelector(".wbe-chart-title").textContent = options.title || "Branches";
+  popup.querySelector(".wbe-chart-title").textContent = options.title || "Trees";
 
   const stage = popup.querySelector(".wbe-chart-stage");
   const tip = popup.querySelector(".wbe-chart-tip");

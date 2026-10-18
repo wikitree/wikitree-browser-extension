@@ -3,7 +3,12 @@
 // each row's generation (degrees); this reports how far back it reaches.
 
 import { ancestorGenerationLabel as generationLabel } from "./chat_kin_labels";
+import { fullName } from "./chat_text_utils";
+
+// Full names, not "James (Roosevelt-7)" (the user, 2026-10-12)
+const name = (row) => `${fullName({ name: row.displayName, lnab: row.lnab, wtid: row.wtid }) || row.wtid} (${row.wtid || "private"})`;
 export { ancestorGenerationLabel as generationLabel } from "./chat_kin_labels";
+const capitalise = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 const OWNER = String.raw`(my|our|her|his|their|this\s+profile['’]s|[A-Z][A-Za-z'_ -]*-\d+['’]s)`;
 const SUBJECT = String.raw`(I|we|she|he|they|this\s+person|[A-Z][A-Za-z'_ -]*-\d+)`;
 const PATTERNS = [
@@ -73,6 +78,17 @@ const SUMMARY_OWNER_ID = /\b([A-Z][A-Za-z'_-]*-\d+)\b/;
 const SUMMARY_OWNER_THIRD = /\b(he|him|his|she|her|they|them|their|this\s+person)\b/i;
 const SUMMARY_OWNER_FIRST = /\b(I|me|my|we|us|our)\b/;
 
+/**
+ * "How many ancestors does he have?", "count my ancestors", "his ancestor count": the number alone, which
+ * WikiTree+ gives without loading them (the user, 2026-10-18: "it could be just a number"). Not with the
+ * earliest, the generations or repeats asked too, and not "his ancestor summary".
+ */
+export function asksOnlyAncestorCount(text) {
+  const flat = String(text || "").replace(/[?!.;:,]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!/\bhow\s+many\b[^?]*\bancestors\b|\b(?:count|number)\s+(?:of\s+)?\S+\s+(?:\S+\s+)?ancestors\b|\bancestor\s+(?:count|totals?)\b/i.test(flat)) return false;
+  return !SUMMARY_ASKS.slice(1).some((re) => re.test(flat)) && !asksAboutRepeats(flat) && !asksAboutCousinMarriage(flat);
+}
+
 /** The owner word for an ancestor summary ("his", "my", "Cook-8721's"), or null. */
 export function parseAncestorSummaryOwner(text) {
   const t = String(text || "")
@@ -83,7 +99,10 @@ export function parseAncestorSummaryOwner(text) {
     if (match) return ownerWord(match[1]);
   }
   const flat = t.replace(/[?!.;:,]+/g, " ").replace(/\s+/g, " ").trim();
-  if (!/\bancestors?\b|\bancestry\b|\bpedigree\b/i.test(flat) || SUMMARY_DECLINE.test(flat)) return null;
+  // ("cousin marriages in my tree": the tree is the ancestors, and "cousin" is the question)
+  const cousins = asksAboutCousinMarriage(flat);
+  const ancestorWord = cousins ? /\bancestors?\b|\bancestry\b|\bpedigree\b|\b(?:family\s+)?tree\b/i : /\bancestors?\b|\bancestry\b|\bpedigree\b/i;
+  if (!ancestorWord.test(flat) || SUMMARY_DECLINE.test(cousins ? flat.replace(COUSIN_MARRIAGE_ASK, " ") : flat)) return null;
   if (flat.split(" ").length > 40) return null;
   // One ask is enough when it's "how many ancestors does he have", whatever
   // else the prompt says ("can you see beyond the chart on this page?").
@@ -99,10 +118,87 @@ export function parseAncestorSummaryOwner(text) {
 // places in the pedigree = the sum over their children in it (the root's
 // parents start with one each).
 const REPEATS_ASK = /\b(?:repeats?|repeated|duplicated?|twice|more\s+than\s+once|multiple\s+times|pedigree\s+collapse|implex|cousins?\s+(?:who\s+)?marr(?:y|ied|iages?))\b/i;
+// "did any of my ancestors marry their cousin", "cousin marriages in my tree" (imagined Z4, 2026-10-18)
+const COUSIN_MARRIAGE_ASK =
+  /\bcousins?\s+(?:who\s+)?marr(?:y|ied|iages?)\b|\bmarr(?:y|ied|ying)\s+(?:their|his|her|a|my|our)\s+(?:own\s+)?(?:(?:first|second|third|fourth|1st|2nd|3rd|4th)\s+)?cousins?\b/i;
+// "who married twice", "which of my ancestors remarried": spouses, not repeats
+const MARRIED_AGAIN = /\b(?:married|marry|wed)\s+(?:twice|more\s+than\s+once|multiple\s+times|again)\b|\bremarr(?:y|ied|iage)\w*/gi;
 
 /** The prompt asks about repeated ancestors. */
 export function asksAboutRepeats(text) {
-  return REPEATS_ASK.test(String(text || ""));
+  const t = String(text || "");
+  return COUSIN_MARRIAGE_ASK.test(t) || REPEATS_ASK.test(t.replace(MARRIED_AGAIN, " "));
+}
+
+/** The prompt asks about cousins who married. */
+export function asksAboutCousinMarriage(text) {
+  return COUSIN_MARRIAGE_ASK.test(String(text || ""));
+}
+
+const ORDINALS = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
+const REMOVED = ["", "once removed", "twice removed", "three times removed", "four times removed"];
+
+/** How two people are related through an ancestor up and down from them: "second cousins once removed". */
+export function cousinRelation(up1, up2) {
+  if (up1 === 1 && up2 === 1) return "brother and sister";
+  const degree = Math.min(up1, up2) - 1;
+  const removed = Math.abs(up1 - up2);
+  if (degree < 1) return removed === 1 ? "aunt or uncle and niece or nephew" : "a great-aunt or uncle and grand-niece or nephew";
+  const name = `${ORDINALS[degree - 1] || `${degree}th`} cousins`;
+  return removed ? `${name} ${REMOVED[removed] || `${removed} times removed`}` : name;
+}
+
+/**
+ * The couples in the pedigree who were related: [{father, mother, ancestor, relation, steps}], closest first.
+ * A couple is a row's parents (the root's parents are ahnen 2 and 3); their nearest shared ancestor names it.
+ */
+export function ancestorCousinCouples(rows) {
+  const list = (rows || []).filter((row) => row?.profileId && Number(row?.degrees) >= 1);
+  const byId = new Map(list.map((row) => [row.profileId, row]));
+  const known = (id) => (id && id !== "0" && byId.has(String(id)) ? String(id) : "");
+  const upFrom = (id) => {
+    const steps = new Map();
+    const queue = [[id, 0]];
+    for (let at = 0; at < queue.length; at++) {
+      const [personId, step] = queue[at];
+      const row = byId.get(personId);
+      [known(row?.fatherId), known(row?.motherId)].filter(Boolean).forEach((parentId) => {
+        if (steps.has(parentId)) return;
+        steps.set(parentId, step + 1);
+        queue.push([parentId, step + 1]);
+      });
+    }
+    return steps;
+  };
+  const pairs = list.map((row) => [known(row.fatherId), known(row.motherId)]);
+  const rootFather = list.find((row) => Number(row.ahnen) === 2);
+  const rootMother = list.find((row) => Number(row.ahnen) === 3);
+  if (rootFather && rootMother) pairs.push([rootFather.profileId, rootMother.profileId]);
+  const seen = new Set();
+  const couples = [];
+  pairs.forEach(([fatherId, motherId]) => {
+    if (!fatherId || !motherId || seen.has(`${fatherId}|${motherId}`)) return;
+    seen.add(`${fatherId}|${motherId}`);
+    const mine = upFrom(fatherId);
+    const theirs = upFrom(motherId);
+    let best = null;
+    mine.forEach((up1, id) => {
+      const up2 = theirs.get(id);
+      if (up2 && (!best || up1 + up2 < best.up1 + best.up2)) best = { id, up1, up2 };
+    });
+    if (!best) return;
+    couples.push({
+      father: byId.get(fatherId),
+      mother: byId.get(motherId),
+      ancestor: byId.get(best.id),
+      relation: cousinRelation(best.up1, best.up2),
+      steps: best.up1 + best.up2,
+      // Third cousins or closer, at most once removed: what "married a cousin" usually means. In a tree
+      // 25 generations deep almost every couple is related somewhere (2026-10-18: "13th cousins twice removed").
+      close: Math.min(best.up1, best.up2) <= 4 && Math.abs(best.up1 - best.up2) <= 1,
+    });
+  });
+  return couples.sort((a, b) => a.steps - b.steps || Number(a.father.degrees) - Number(b.father.degrees));
 }
 
 /**
@@ -137,15 +233,63 @@ export function ancestorRepeats(rows) {
 /** One line on the repeats; empty when there are none and none were asked about. */
 export function buildAncestorRepeatsLine(rows, { asked = false } = {}) {
   const { repeated, slots } = ancestorRepeats(rows);
-  if (!repeated.length) return asked ? "None of them is a repeat: no ancestor appears in more than one line." : "";
-  const name = (row) => `${row.displayName || row.wtid} (${row.wtid || "private"})`;
+  if (!repeated.length) return asked ? "None of them is a repeat: no ancestor appears in more than one line, so no two of them who married were cousins." : "";
+  const couples = asked ? ancestorCousinCouples(rows) : [];
+  const coupleLines = couples
+    .slice(0, 5)
+    .map((couple) => `- ${name(couple.father)} and ${name(couple.mother)}, ${couple.relation} (through ${name(couple.ancestor)})`);
+  const more = couples.length > 5 ? `\n- and ${couples.length - 5} more` : "";
+  const married = coupleLines.length
+    ? `\n${couples.length === 1 ? "The couple who were related" : `The ${couples.length} couples who were related`}:\n${coupleLines.join("\n")}${more}`
+    : "";
   const top = repeated[0];
   const unique = (rows || []).filter((row) => row?.profileId && Number(row?.degrees) >= 1).length;
   return (
     `${repeated.length.toLocaleString()} of them ${repeated.length === 1 ? "is a repeat" : "are repeats"}, reached by more than one line (cousins who married), ` +
     `so the ${unique.toLocaleString()} people fill ${slots.toLocaleString()} places in the pedigree. ` +
-    `The most repeated is ${name(top.row)}, in ${top.places.toLocaleString()} places.`
+    `The most repeated is ${name(top.row)}, in ${top.places.toLocaleString()} places.${married}`
   );
+}
+
+/**
+ * "Did any of his ancestors marry their cousin?": the related couples, the nearest generation first (the user,
+ * 2026-10-18: the summary led with counts and a table of every ancestor). Returns {message, couples}.
+ * ownerText: "Your" or "Ted (W-111)'s".
+ */
+export function buildCousinCouplesAnswer(rows, { ownerText, shown = 8 }) {
+  const list = (rows || []).filter((row) => row?.profileId && Number(row?.degrees) >= 1);
+  const couples = ancestorCousinCouples(list).sort(
+    (a, b) => Number(a.father.degrees) - Number(b.father.degrees) || a.steps - b.steps
+  );
+  const owners = ownerText === "Your" ? "your" : ownerText;
+  const known = `${owners} ${list.length.toLocaleString()} known ancestors on WikiTree`;
+  if (!couples.length) {
+    return { couples, message: `No. None of ${known} married a relative: no ancestor appears in more than one line.` };
+  }
+  const line = (couple) =>
+    `- ${capitalise(generationLabel(Number(couple.father.degrees)))}: ${name(couple.father)} and ${name(couple.mother)}, ${couple.relation} (through ${name(couple.ancestor)})`;
+  const close = couples.filter((couple) => couple.close);
+  const distant = couples.filter((couple) => !couple.close);
+  const distantLine = distant.length
+    ? `${close.length ? "Another" : ""} ${distant.length.toLocaleString()} couple${distant.length === 1 ? " was" : "s were"} more distant cousins (fourth cousins or further), which is usual in a tree this deep${
+        close.length ? "." : `. The nearest, by generation:`
+      }`.trim()
+    : "";
+  const message = close.length
+    ? [
+        `Yes. ${close.length === 1 ? "One couple" : `${close.length.toLocaleString()} couples`} among ${known} ${close.length === 1 ? "was" : "were"} close cousins (third cousins or closer).`,
+        close.length > shown ? `The ${shown} nearest, by generation:` : close.length === 1 ? "The couple:" : "By generation:",
+        ...close.slice(0, shown).map(line),
+        ...(distantLine ? [distantLine] : []),
+        ...(couples.length > 1 ? [`All ${couples.length.toLocaleString()} related couples are in the table.`] : []),
+      ]
+    : [
+        `No close cousins: none of the couples among ${known} were third cousins or closer.`,
+        distantLine,
+        ...distant.slice(0, Math.min(shown, 3)).map(line),
+        `All ${distant.length.toLocaleString()} are in the table.`,
+      ];
+  return { couples, message: message.join("\n") };
 }
 
 /**
@@ -172,7 +316,7 @@ export function buildAncestorSummaryMessage(rows, { subject, ownerText, maxGener
     const gen = Number(first.degrees);
     const one = generationLabel(gen).replace(/s$/, "");
     const place = first.birthLocation ? ` in ${first.birthLocation}` : "";
-    earliest = `The earliest born is ${first.displayName || first.wtid} (${first.wtid}), born ${formatDate(first.birth) || first.birth}${place}: ${gen} generation${gen === 1 ? "" : "s"} back (a ${one}).`;
+    earliest = `The earliest born is ${name(first)}, born ${formatDate(first.birth) || first.birth}${place}: ${gen} generation${gen === 1 ? "" : "s"} back (a ${one}).`;
   }
   const repeats = buildAncestorRepeatsLine(list, { asked: askedRepeats });
   return [head, earliest, repeats, ...depth.slice(1)].filter(Boolean).join("\n");

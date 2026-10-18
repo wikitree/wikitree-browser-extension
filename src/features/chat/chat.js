@@ -1,3 +1,5 @@
+import { enableQuickTips } from "./chat_quick_tips";
+import { chipTitle } from "./chat_chip_titles";
 import { createConnectionSourceResolver } from "./chat_connection_source";
 import { REQUESTED_COLUMNS, addRequestedColumns, parseColumnRequest, requestedColumnFields } from "./chat_requested_columns";
 import { joinWithAnd, profileLabel } from "./chat_text_utils";
@@ -177,6 +179,8 @@ import {
 } from "./chat_person_memory";
 
 import { WT_PLUS_BIO_CHECK_WORDS, WT_PLUS_RESEARCH_STATUS_WORDS } from "./wt_plus_query_grammar";
+import { isRouterCanonicalSearch } from "./chat_router_canonical";
+import { bigPullKey, createFetchMemo } from "./chat_fetch_memo";
 
 // Debug: indicate the chat feature script has been loaded
 console.debug("wbe: chat.js loaded");
@@ -1400,6 +1404,7 @@ const {
   tryHandleProfileDuplicatesPrompt,
   tryHandlePersonBurialPrompt,
   tryHandleFindBioRelativesPrompt,
+  tryHandleInLawCheckPrompt,
   tryHandleProfileFactPrompt,
   tryHandleDnaPrompt,
   tryHandleFanChartPrompt,
@@ -1554,6 +1559,8 @@ async function fetchProfilesForIds(ids = [], fields = "Name,Id", opts = {}) {
 window.wbeFetchProfiles = fetchProfilesForIds;
 window.wbeFetchChildren = fetchChildrenIdsForId;
 window.wbeFetchSiblings = fetchSiblingIdsForId;
+const bigPullMemo = createFetchMemo();
+
 // Paged getPeople helper: accumulates pages into a single people map.
 async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
   const limit = Number(options.limit) || 1000;
@@ -1646,11 +1653,18 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
   }
 
   // Fallback: use start/limit paging when no explicit keys array is provided.
+  const memoKey = bigPullKey(appId, rootKey, fields, options);
+  const kept = memoKey ? bigPullMemo.get(memoKey) : null;
+  if (kept) return kept;
+  let cancelled = false;
   let start = Number(options.start) || 0;
   let fetchMore = true;
 
   while (fetchMore) {
-    if (shouldCancel && shouldCancel()) break;
+    if (shouldCancel && shouldCancel()) {
+      cancelled = true;
+      break;
+    }
     const pageOpts = { ...(options || {}), start, limit };
     delete pageOpts.onProgress;
     delete pageOpts.shouldCancel;
@@ -1681,6 +1695,7 @@ async function fetchPeoplePaged(appId, rootKey, fields, options = {}) {
     start += limit;
   }
 
+  if (memoKey && !cancelled) bigPullMemo.set(memoKey, [lastStatus, totalCount, aggregated]);
   return [lastStatus, totalCount, aggregated];
 }
 
@@ -2807,7 +2822,8 @@ async function handleChatResult(result) {
               action.wtPlusQuery,
               action.wtPlusSearchType || "text",
               action.wtPlusSuggestionId || "",
-              action.wtPlusSuggestionOptions || {}
+              action.wtPlusSuggestionOptions || {},
+              { decadeMeansAlive: Boolean(action.wtPlusDecadeMeansAlive) }
             );
             await handleChatResult(typeof result === "string" ? { message: result } : result);
           },
@@ -3699,6 +3715,7 @@ async function sendChatPrompt() {
       ChatIntent.PROFILE_DUPLICATES,
       ChatIntent.PERSON_BURIAL,
       ChatIntent.FIND_BIO_RELATIVES,
+      ChatIntent.IN_LAW_CHECK,
       ChatIntent.PROFILE_FACT,
       ChatIntent.DNA,
       ChatIntent.FAN_CHART,
@@ -4044,6 +4061,8 @@ async function sendChatPrompt() {
       appendMessage("assistant", localFailureForAi || `Error: ${response?.error || "AI request failed."}`);
     }
   } catch (error) {
+    // (the stack, for whoever reports it)
+    console.error("Genie:", error);
     appendMessage("assistant", `Error: ${error?.message || "AI request failed."}`);
   } finally {
     pendingRequestedColumns = null;
@@ -4195,6 +4214,9 @@ async function executeRoutedIntent(routed, prompt) {
   if (routed.intent === ChatIntent.FIND_BIO_RELATIVES) {
     return await tryHandleFindBioRelativesPrompt(routed.params, prompt);
   }
+  if (routed.intent === ChatIntent.IN_LAW_CHECK) {
+    return await tryHandleInLawCheckPrompt(routed.params, prompt);
+  }
   if (routed.intent === ChatIntent.PROFILE_DUPLICATES) {
     return await tryHandleProfileDuplicatesPrompt(routed.params, prompt);
   }
@@ -4215,7 +4237,11 @@ async function executeRoutedIntent(routed, prompt) {
   }
   if (routed.intent === ChatIntent.PROFILE_SEARCH) {
     console.debug("wbe: executeRoutedIntent PROFILE_SEARCH", { prompt: String(prompt).substring(0, 60) });
-    const profileSearchResult = await tryHandleProfileSearchPrompt(routed.params, prompt);
+    // (the router's own reading, "category Guitarists in my ancestors", runs as it is: chat_router_canonical.js)
+    const canonical = isRouterCanonicalSearch(routed.params?.query);
+    const profileSearchResult = canonical
+      ? await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, routed.params.query)
+      : await tryHandleProfileSearchPrompt(routed.params, prompt);
     console.debug("wbe: PROFILE_SEARCH result from main flow", {
       hasResult: Boolean(profileSearchResult),
       switchToMode: profileSearchResult?.switchToMode,
@@ -4464,7 +4490,8 @@ function extractNamedSubjectForCc7Prompt(prompt) {
 
   const possessiveMatch = normalized
     .replace(/^(?:(?:show|list|find)\s+(?:me\s+)?|(?:which|who|how\s+many)\s+of\s+)/i, "")
-    .match(/(.+?)['’]s\s+cc\d+\b/i);
+    // ("Cook-8721's relatives born in Kent" is her CC7: chat_router relativesAsCc7)
+    .match(/(.+?)['’]s\s+(?:cc\d+|relatives|relations|family|kin|extended\s+family)\b/i);
   if (possessiveMatch?.[1]) {
     return possessiveMatch[1].trim();
   }
@@ -5177,7 +5204,7 @@ function renderChartBar($popup) {
   });
   const collapsed = $bar.hasClass("chat-chart-bar--collapsed");
   $("<button>")
-    .attr({ type: "button", "aria-expanded": String(!collapsed) })
+    .attr({ type: "button", "aria-expanded": String(!collapsed), title: collapsed ? "Show all the chart buttons" : "Show only the main charts" })
     .addClass("chat-chart-bar-button chat-chart-bar-more")
     .text(collapsed ? "More charts ▾" : "Fewer ▴")
     .on("click", () => {
@@ -5205,13 +5232,17 @@ let aiSwitchedOff = false;
 export const SEARCH_FORM_CHIP = "Search by name, place or date";
 // Without an AI key, a chip opens the tested list of what works without AI.
 export const WHAT_CAN_I_TYPE = "What can I type?";
+export const CHECK_FOR_PROFILES = "Check for profiles";
 
 // On a profile, the chart bar has the charts, so the chips are questions, about this person,
 // about you and about anyone (the user, 2026-10-11: people clicked charts and never typed).
-export function welcomeChipPrompts(profileFirstName, { ai = true } = {}) {
-  const prompts = profileFirstName
+// onProfile: on a person's profile page, "Check for profiles" (the people in the biography, looked for on WikiTree;
+// the user, 2026-10-18: "I think people won't know about this").
+export function welcomeChipPrompts(profileFirstName, { ai = true, onProfile = false } = {}) {
+  const found = profileFirstName
     ? [ai ? `How am I related to ${profileFirstName}?` : `My connection to ${profileFirstName}`, `Who were ${profileFirstName}'s grandparents?`, "Show my fan chart", "Smiths born in Devon in the 1850s", ...(ai ? ["How am I related to Charles Darwin?"] : []), "On this day in this family", "Tell me about my tree", "What surnames are in my tree?"]
     : ["Tell me about my tree", "Show my fan chart", "Show my Family Explorer", "Map my ancestors", "How complete is my tree?", "How long did my ancestors live?", "What history did my ancestors live through?", "What surnames are in my tree?", "Who could I have inherited X-DNA from?", "On this day in my family", "Show my descendant chart", "Show my family timeline"];
+  const prompts = onProfile ? [found[0], CHECK_FOR_PROFILES, ...found.slice(1)] : found;
   return ai ? prompts : [prompts[0], SEARCH_FORM_CHIP, WHAT_CAN_I_TYPE, ...prompts.slice(1)];
 }
 
@@ -5232,7 +5263,7 @@ function appendEditChips() {
   $("<span>").addClass("chat-message-actions-label").text("For this biography").appendTo($chips);
   chips.forEach((prompt) => {
     $("<button>")
-      .attr("type", "button")
+      .attr({ type: "button", title: chipTitle(prompt) || null })
       .addClass("chat-message-action")
       .text(prompt)
       .on("click", () => typeIntoBox(prompt))
@@ -5254,7 +5285,8 @@ function appendWelcomeChips() {
   // The first few show; "More…" opens the rest (there are a dozen charts now).
   // On a Space, Help, Project or Category page, questions about the page come first.
   const pageChips = profile ? [] : currentPageChipPrompts(getCurrentPageInfo(), { ai: aiAvailable !== false });
-  const prompts = [...pageChips, ...welcomeChipPrompts(profileFirstName, { ai: aiAvailable !== false })];
+  const onProfile = Boolean(profile) && getCurrentPageInfo().isPersonProfile;
+  const prompts = [...pageChips, ...welcomeChipPrompts(profileFirstName, { ai: aiAvailable !== false, onProfile })];
   // "Show me around" first, on its own (not one of the examples counted for "More…").
   if (currentPickerPerson()) {
     $("<button>")
@@ -5267,7 +5299,7 @@ function appendWelcomeChips() {
   }
   prompts.forEach((prompt, index) => {
     $("<button>")
-      .attr("type", "button")
+      .attr({ type: "button", title: chipTitle(prompt) || null })
       .addClass("chat-message-action")
       .toggle(index < WELCOME_CHIPS_SHOWN)
       .text(prompt)
@@ -5288,6 +5320,7 @@ function appendWelcomeChips() {
   if (prompts.length > WELCOME_CHIPS_SHOWN) {
     $("<button>")
       .attr("type", "button")
+      .attr("title", "More things to try")
       .addClass("chat-message-action chat-welcome-more")
       .text("More…")
       .on("click", function () {
@@ -5394,6 +5427,8 @@ function openPopup() {
 
     positionPopupForOpen($popup.get(0));
     $popup.find(".close-popup").on("click", closePopup);
+    // (the yellow WBE tooltips, quicker than the browser's: every title in the popup)
+    enableQuickTips($popup[0]);
     $popup.find("#wbe-genie-ai-toggle").on("click", toggleAiPaused);
     $popup.find(".chat-help-button").on("click", () => showNoAiExamples());
     $popup.find(`#${CHAT_CLEAR_ID}`).on("click", () => {
@@ -5416,6 +5451,8 @@ function openPopup() {
     $popup.find(`#${CHAT_INPUT_ID}`).on("keydown", (event) => {
       if (handleHistoryKey(event)) {
         event.preventDefault();
+        // (Escape out of the history: not WBE's page-wide Escape, which closes Genie)
+        event.stopPropagation();
         return;
       }
       if (event.key === "Escape") {
@@ -5689,8 +5726,9 @@ function showPlaceholder() {
     "placeholder",
     aiAvailable === false
       ? isAiPaused()
-        ? 'Short searches, like "Devon 1820s" (AI is off: no questions)'
-        : 'Short searches, like "Devon 1820s" (questions need an AI key)'
+        ? // Without AI Genie still answers many questions; "no questions" said otherwise (the user, 2026-10-18)
+          "Search, or ask a question (AI is off, so some won't work)"
+        : "Search, or ask a question (some need an AI key)"
       : "Search WikiTree, or ask a question"
   );
 }

@@ -1,3 +1,5 @@
+import { IN_LAW_DEGREES, buildInLawCheckMessage, familyInLaws, inLawsToCheck } from "./chat_inlaw_check";
+import { ancestorsWithTwins, buildAncestorCheckMessage, relativesById, remarriedAncestors } from "./chat_ancestor_family_checks";
 import { buildFamilyMatrix, loadFamilyMatrixPeople } from "./chat_family_matrix_data";
 import { showFamilyMatrixPopup } from "./chat_family_matrix";
 import { descendantWord } from "./chat_kin_labels";
@@ -7,19 +9,25 @@ import { getLocationFieldLabel } from "./chat_place_text";
 import { buildTreeAppRecommendations } from "./chat_tree_apps";
 import { isEmigrantRow, summarizeCountries } from "./chat_place_country";
 import { describeDuplicate, findDuplicates, readDuplicateFinder, runDuplicateCheck } from "./chat_duplicates";
-import { buildBurialAnswer, buildOthersBuriedSearch } from "./chat_burial";
+import { buildBaptismAnswer, buildBurialAnswer, buildOthersBuriedSearch } from "./chat_burial";
+import { makeProfileLink } from "./tables";
 import {
   CANDIDATE_FIELDS,
   RELATIVE_SPOUSE_FIELDS,
   spousesOf,
   buildFindRelativesAnswer,
+  checkLeads,
+  censusKinBeyond,
+  furtherAttached,
   duplicateLines,
+  mapLimited,
   buildRelativesAiPrompt,
   readRelativesFromBio,
   relativesFromAiJson,
   searchRelatives,
 } from "./chat_bio_relatives";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
+import { countWtPlusProfiles } from "./chat_wtplus_count";
 import { birthPlaceFromBio, birthYearFromBio, readPageAttached, readPageBio } from "./chat_bio_page";
 import { buildCompletenessGrid, buildCompletenessSummary, describeBranchCompleteness } from "./chat_completeness_data";
 import { showCompletenessHeatmapPopup } from "./chat_completeness_heatmap";
@@ -102,7 +110,7 @@ import {
   relationSelector,
 } from "./chat_relative_fact";
 import { descendantCountMessage, pickSpouseByOrdinal, relationshipListLead } from "./chat_relation_chain_text";
-import { buildAncestorDepthMessage, buildAncestorSummaryMessage } from "./chat_ancestor_depth";
+import { buildAncestorDepthMessage, buildAncestorSummaryMessage, buildCousinCouplesAnswer } from "./chat_ancestor_depth";
 import { buildTwinsAnswer } from "./chat_twins";
 import { sortByBirth } from "./chat_kin_order";
 import { buildChildrenMarriedAnswer, buildChildrenWithChildrenAnswer } from "./chat_children_with_children";
@@ -427,6 +435,8 @@ export function createChatPeopleHandlers({
   }
 
   function getDateConstraintLabel(dateField = "", dateDirection = "", dateValue = "") {
+    if (dateDirection === "alive") return `alive in ${dateValue}`;
+    if (dateDirection === "missing") return `with no ${dateField === "DeathDate" ? "death" : "birth"} date`;
     const value = String(dateValue || "").trim();
     if (!value) {
       return "";
@@ -439,6 +449,8 @@ export function createChatPeopleHandlers({
     if (direction === "before" || direction === "after") {
       return `${verb} ${direction} ${value}`;
     }
+    const [from, to] = value.split("-");
+    if (direction === "between" && from && to) return from === to ? `${verb} in ${from}` : `${verb} ${from}–${to}`;
 
     return "";
   }
@@ -486,9 +498,12 @@ export function createChatPeopleHandlers({
   }
 
   function matchesDateConstraint(value, dateDirection = "", dateValue = "") {
+    // ("ancestors with no death date": none, or only "0000-00-00")
+    if (dateDirection === "missing") return !expandComparableDateRange(value);
     if (!dateDirection || !dateValue) {
       return true;
     }
+    if (dateDirection === "between") return matchesDateSpan(value, dateValue);
 
     const rowRange = expandComparableDateRange(value);
     const targetRange = expandComparableDateRange(dateValue);
@@ -504,6 +519,20 @@ export function createChatPeopleHandlers({
     }
 
     return true;
+  }
+
+  // "alive in 1800": born by the end of 1800 and died in it or later; both dates known (no guessing at life spans).
+  function matchesAliveIn(row, year) {
+    const born = expandComparableDateRange(row?.birth);
+    const died = expandComparableDateRange(row?.death);
+    return Boolean(born && died && born.start <= `${year}-12-31` && died.end >= `${year}-01-01`);
+  }
+
+  // "between" (dateValue "1800-1850", from chat_kin_date_span): the date lies within those years.
+  function matchesDateSpan(value, dateValue) {
+    const [from, to] = String(dateValue || "").split("-").map((year) => expandComparableDateRange(year));
+    const rowRange = expandComparableDateRange(value);
+    return Boolean(rowRange && from && to && rowRange.start >= from.start && rowRange.end <= to.end);
   }
 
   function filterRowsByLocationAndDate(
@@ -529,6 +558,7 @@ export function createChatPeopleHandlers({
         }
       }
 
+      if (dateDirection === "alive") return matchesAliveIn(row, dateValue);
       if (dateField === "BirthDate") {
         return matchesDateConstraint(row?.birth, dateDirection, dateValue);
       }
@@ -588,23 +618,27 @@ export function createChatPeopleHandlers({
     if (!rows.length) return `I found no ${label} for ${subjectLabel} on WikiTree.`;
     const tableTitle = (what) => relativesTableTitle(`${label} ${what}`, ownerTitle(rootPerson));
     if (params?.emigrated) {
-      const emigrants = rows.filter(isEmigrant).map((row) => ({
+      const to = params.emigratedTo || "";
+      const emigrants = rows.filter((row) => isEmigrant(row, to)).map((row) => ({
         ...row,
         birthCountry: placeCountry(row.birthLocation),
         deathCountry: placeCountry(row.deathLocation),
       }));
       const withBoth = rows.filter(hasBothCountries).length;
+      const rule = to ? `were born in another country and died in ${to}` : "were born in one country and died in another";
       if (!emigrants.length) {
-        return `None of ${owner} ${rows.length} ${label} were born and died in different countries (${withBoth} have both places recorded).`;
+        return to
+          ? `None of ${owner} ${rows.length} ${label} ${rule} (${withBoth} have both places recorded).`
+          : `None of ${owner} ${rows.length} ${label} were born and died in different countries (${withBoth} have both places recorded).`;
       }
       const preview = linesWithMore(
-        emigrants.map((row) => `- ${row.displayName || row.wtid} (${row.wtid}): ${row.birthCountry} → ${row.deathCountry}`),
+        emigrants.map((row) => `- ${rowFullName(row)} (${row.wtid}): ${row.birthCountry} → ${row.deathCountry}`),
         10,
         { after: " in the table" }
       );
       return {
-        message: `${emigrants.length} of ${owner} ${rows.length} ${label} were born in one country and died in another (${withBoth} have both places recorded):\n${preview}`,
-        table: makeAncestorProfileTable(tableTitle("who emigrated"), emigrants, [[0, "asc"]]),
+        message: `${emigrants.length} of ${owner} ${rows.length} ${label} ${rule} (${withBoth} have both places recorded):\n${preview}`,
+        table: makeAncestorProfileTable(tableTitle(to ? `who emigrated to ${to}` : "who emigrated"), emigrants, [[0, "asc"]]),
       };
     }
     const field = params?.placeSummary === "death" ? "deathLocation" : "birthLocation";
@@ -664,12 +698,98 @@ export function createChatPeopleHandlers({
 
   // C9: "most recent" = nearest generation, then latest birth; "earliest" =
   // earliest dated birth, else the most distant generation.
+  async function buildAncestorCheckAnswer(rows, check, { rootPerson, subjectLabel, label }) {
+    const MOST = 1000;
+    const list = rows.filter((row) => Number(row?.profileId) > 0).slice(0, MOST);
+    const twins = check === "twins";
+    const fields = twins ? "Id,Name,Father,Mother,BirthDate,FirstName,RealName,LastNameAtBirth" : "Id,Name";
+    const items = [];
+    for (let at = 0; at < list.length; at += 100) {
+      const ids = list.slice(at, at + 100).map((row) => row.profileId);
+      items.push(...((await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, ids, fields, twins ? { getSiblings: 1 } : { getSpouses: 1 })) || []));
+    }
+    const people = relativesById(items);
+    const found = twins ? ancestorsWithTwins(list, people) : remarriedAncestors(list, people);
+    const isUser = rootPerson?.subjectType === "user";
+    const message = buildAncestorCheckMessage(check, found, {
+      whose: isUser ? "your" : `${subjectLabel}'s`,
+      total: list.length,
+      label,
+      capped: Math.max(0, rows.length - list.length),
+    });
+    if (!found.length) return message;
+    return {
+      message,
+      table: makeAncestorProfileTable(
+        `${isUser ? "Your" : `${subjectLabel}'s`} ancestors ${twins ? "who had a twin" : "who married more than once"}`,
+        found.map((entry) => entry.row),
+        [[0, "asc"]]
+      ),
+    };
+  }
+
+  // "Thomas Woodford", not "Thomas": an ancestor row's first names and surname at birth (full names, 2026-10-12)
+  function rowFullName(row) {
+    return fullName({ name: row?.displayName, lnab: row?.lnab, wtid: row?.wtid }) || row?.wtid || "";
+  }
+
+  function buildAncestorCountAnswer(count, { subjectLabel, rootPerson }) {
+    const isUser = rootPerson?.subjectType === "user";
+    const key = rootPerson.wtId;
+    const send = (label, prompt) => ({ label, actionType: "send-prompt", prompt, newSearch: true });
+    return {
+      message:
+        `${isUser ? "You have" : `${subjectLabel} has`} ${count.toLocaleString("en-US")} ancestor${count === 1 ? "" : "s"} on WikiTree, every generation back (WikiTree+ query: Ancestors=${key}). ` +
+        // (Darwin: 11,747 here, 8,940 in the summary, which reads 25 generations; 2026-10-18)
+        "Genie's charts and summary read up to 25 generations, so they may count fewer.",
+      actions: [
+        send("How far back, and the earliest", `${key}'s ancestor summary`),
+        send("Show them all", `show ${key}'s ancestors`),
+        ...visualActions(key, "ancestors"),
+      ],
+    };
+  }
+
   function buildAncestorPickAnswer(rows, pick, { subjectLabel, rootPerson, locationPhrase, total, treeTakenAsAncestors, askedRepeats }) {
     if (pick === "depth") {
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${subjectLabel}'s`;
       return {
         message: buildAncestorDepthMessage(rows, owner, 25),
         table: makeAncestorProfileTable(relativesTableTitle("ancestors", ownerTitle(rootPerson)), rows, [[0, "asc"]]),
+        actions: visualActions(rootPerson?.wtId || rootPerson?.key, "ancestors"),
+      };
+    }
+    // "did any of his ancestors marry their cousin": the couples, in a table of their own (2026-10-18)
+    if (pick === "cousinCouples") {
+      const ownerText = rootPerson?.subjectType === "user" ? "Your" : `${subjectLabel}'s`;
+      const { message, couples } = buildCousinCouplesAnswer(rows, { ownerText });
+      if (!couples.length) return { message };
+      const person = (row) => ({ wtid: row?.wtid || "", label: `${row?.displayName || row?.wtid || ""}` });
+      return {
+        message,
+        table: {
+          title: `${ownerText} ancestors who married a relative`,
+          defaultOrder: [[0, "asc"]],
+          columns: [
+            { title: "Generation", key: "generation" },
+            { title: "Husband", key: "husband", render: (row) => makeProfileLink(row.husbandId, row.husband) },
+            { title: "Wife", key: "wife", render: (row) => makeProfileLink(row.wifeId, row.wife) },
+            { title: "Related as", key: "relation" },
+            { title: "Through", key: "through", render: (row) => makeProfileLink(row.throughId, row.through) },
+          ],
+          rows: couples
+            .sort((a, b) => Number(a.father.degrees) - Number(b.father.degrees) || a.steps - b.steps)
+            .map((couple) => ({
+              generation: Number(couple.father.degrees),
+              husband: person(couple.father).label,
+              husbandId: couple.father.wtid,
+              wife: person(couple.mother).label,
+              wifeId: couple.mother.wtid,
+              relation: couple.relation,
+              through: person(couple.ancestor).label,
+              throughId: couple.ancestor.wtid,
+            })),
+        },
         actions: visualActions(rootPerson?.wtId || rootPerson?.key, "ancestors"),
       };
     }
@@ -708,10 +828,10 @@ export function createChatPeopleHandlers({
     const which = pick === "recent" ? "most recent" : "earliest";
     const gen = generationOf(chosen);
     const genText = gen ? ` (${gen} generation${gen === 1 ? "" : "s"} back)` : "";
-    const born = chosen.birth ? `, born ${chosen.birth}` : "";
+    const born = chosen.birth ? `, born ${formatPreviewDate(chosen.birth) || chosen.birth}` : "";
     const place = chosen.birthLocation ? ` in ${chosen.birthLocation}` : "";
     return {
-      message: `${owner} ${which} ancestor${locationPhrase ? ` ${locationPhrase}` : ""} is ${chosen.displayName || chosen.wtid} (${chosen.wtid})${born}${place}${genText}. ${locationPhrase ? `${rows.length} of ${total} ancestors match` : `${total} ancestors checked`}; all are in the table.`,
+      message: `${owner} ${which} ancestor${locationPhrase ? ` ${locationPhrase}` : ""} is ${rowFullName(chosen)} (${chosen.wtid})${born}${place}${genText}. ${locationPhrase ? `${rows.length} of ${total} ancestors match` : `${total} ancestors checked`}; all are in the table.`,
       table: makeAncestorProfileTable(relativesTableTitle(`ancestors${locationPhrase ? ` ${locationPhrase}` : ""}`, ownerTitle(rootPerson)), sorted, [[0, "asc"]]),
     };
   }
@@ -751,8 +871,12 @@ export function createChatPeopleHandlers({
 
   // Born in one country and died in another; a state, province or county counts
   // as its country, so "Philadelphia, Pennsylvania" and "Ohio, United States" match.
-  function isEmigrant(row) {
-    return isEmigrantRow(row, placeCountry);
+  // "emigrated to America" (2026-10-17): and died there, in that country or a place named so.
+  function isEmigrant(row, to = "") {
+    if (!isEmigrantRow(row, placeCountry)) return false;
+    if (!to) return true;
+    const destination = placeCountry(to).toLowerCase();
+    return placeCountry(row.deathLocation).toLowerCase() === destination || normalizeText(row.deathLocation).includes(normalizeText(to));
   }
   function hasBothCountries(row) {
     return Boolean(placeCountry(row.birthLocation) && placeCountry(row.deathLocation));
@@ -1085,9 +1209,10 @@ export function createChatPeopleHandlers({
     }
 
     const personKey = rootPerson.Id || rootPerson.Name;
-    const personLabel = `${rootPerson.RealName || rootPerson?.Derived?.ShortName || rootPerson.Name} (${
-      rootPerson.Name
-    })`;
+    // (full names: "Franklin Roosevelt (Roosevelt-1)", not "Franklin (Roosevelt-1)")
+    const personLabel = `${
+      rootPerson?.Derived?.ShortName || fullName({ name: rootPerson.RealName, lnab: rootPerson.LastNameAtBirth }) || rootPerson.Name
+    } (${rootPerson.Name})`;
 
     try {
       const result = await WikiTreeAPI.getRelatives(
@@ -1283,7 +1408,7 @@ export function createChatPeopleHandlers({
     const [, , people] = await WikiTreeAPI.getPeople(
       WBE_CHAT_APP_ID,
       [key],
-      "Id,Name,RealName,Gender,DataStatus,DeathDate,DeathLocation,Categories,Bio"
+      "Id,Name,RealName,LastNameAtBirth,Gender,DataStatus,BirthDate,BirthLocation,DeathDate,DeathLocation,Categories,Bio"
     );
     const person = Object.values(people || {}).find((entry) => entry?.Name);
     if (!person) return cantLoad(key);
@@ -1292,7 +1417,7 @@ export function createChatPeopleHandlers({
       const search = buildOthersBuriedSearch(person);
       return search.query ? { cemeterySearch: search.query, note: search.note } : search.message;
     }
-    return buildBurialAnswer(person);
+    return params?.baptism ? buildBaptismAnswer(person) : buildBurialAnswer(person);
   }
 
   // "Find his family on WikiTree": relatives named in the biography, searched for one by one.
@@ -1309,6 +1434,87 @@ export function createChatPeopleHandlers({
         return `I couldn't identify which profile you meant by "${targetName}". Try a WikiTree ID like Name-123, or a more specific name.`;
       }
     }
+    const checked = await checkBioRelatives(key, params, { usePage: !targetName });
+    if (checked.text) return checked.text;
+    const answer = buildFindRelativesAnswer(checked);
+    if (checked.pageAttached) answer.message += "\n(Read from this page: the profile isn't in WikiTree's API yet.)";
+    return answer;
+  }
+
+  // "Check my in-laws" (2026-10-18): the people married into the family with a parent missing on WikiTree, each
+  // run through checkBioRelatives (their parents and siblings only), two at a time.
+  async function tryHandleInLawCheckPrompt(params, prompt = "") {
+    const owner = String(params?.owner || "the");
+    let root;
+    if (/^(my|our)$/i.test(owner)) root = await getLoggedInRootPerson();
+    else if (/-\d+['’]s$/.test(owner)) {
+      const found = await resolveConnectionTargetPerson(owner.replace(/['’]s$/, ""), prompt);
+      root = found?.Name ? { key: found.Id || found.Name, wtId: found.Name, displayName: found.RealName || found.Name, subjectType: "named" } : null;
+    } else root = getProfileSubjectRoot() || (await getLoggedInRootPerson());
+    if (!root?.key && !root?.wtId) return "Open a profile page first, or name the person (for example \"check Smith-123's in-laws\").";
+    const degrees = Number(params?.degrees) || IN_LAW_DEGREES.default;
+    const fields = "Id,Name,FirstName,RealName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,Gender,Father,Mother,Spouses,Meta";
+    notify(`Reading the family within ${degrees} degrees…`);
+    // (nuclear leaves out the starting person, so it's fetched on its own)
+    const [[, , family], [, , self]] = await Promise.all([
+      fetchPeoplePaged(WBE_CHAT_APP_ID, root.wtId || root.key, fields, { nuclear: degrees }),
+      fetchPeoplePaged(WBE_CHAT_APP_ID, root.wtId || root.key, fields, {}),
+    ]);
+    const rootProfile = Object.values(self || {})[0];
+    if (!rootProfile?.Id) return cantLoad(root);
+    const profiles = [rootProfile, ...Object.values(family || {})];
+    const byId = new Map(profiles.map((person) => [String(person.Id), person]));
+    const { inLaws } = familyInLaws(profiles, rootProfile.Id);
+    // A spouse of someone at the edge isn't in the nuclear set: fetch those.
+    const unknown = inLaws.map((entry) => entry.id).filter((id) => !byId.has(id));
+    if (unknown.length) {
+      const [, , more] = await fetchPeoplePaged(WBE_CHAT_APP_ID, unknown, fields, {});
+      for (const person of Object.values(more || {})) byId.set(String(person.Id), person);
+    }
+    const { picked, total } = inLawsToCheck(inLaws, byId);
+    const isUser = root.subjectType === "user";
+    const rootLabel = fullName({ name: rootProfile.RealName || rootProfile.FirstName, lnab: rootProfile.LastNameAtBirth, wtid: rootProfile.Name });
+    const whose = isUser ? "your" : `${rootLabel}'s`;
+    if (!picked.length) {
+      return inLaws.length
+        ? `Everyone who married into ${whose} family within ${degrees} degrees (${inLaws.length}) has both parents on WikiTree.`
+        : `I found nobody married into ${whose} family within ${degrees} degrees.`;
+    }
+    const label = (person) =>
+      `${fullName({ name: person.RealName || person.FirstName, lnab: person.LastNameAtBirth, wtid: person.Name })} (${person.Name})`;
+    let done = 0;
+    const checked = await mapLimited(picked, 2, async (entry) => {
+      const result = await checkBioRelatives(entry.profile.Name, { roles: ["father", "mother", "sibling"] }, { quiet: true }).catch((error) => {
+        console.warn("wbe: in-law check failed", entry.profile.Name, error);
+        return { text: "failed" };
+      });
+      done += 1;
+      notify(`Checked ${done} of ${picked.length}: ${label(entry.profile)}`);
+      const { found, duplicates } = checkLeads(result);
+      return {
+        label: label(entry.profile),
+        partnerLabel: label(byId.get(entry.partnerId) || { Name: entry.partnerId }),
+        missing: entry.missing,
+        found,
+        duplicates,
+        failed: Boolean(result.text && !result.noBio && !result.nothingNamed),
+        noBio: Boolean(result.noBio),
+        nothingNamed: Boolean(result.nothingNamed || (result.results && !result.results.length)),
+      };
+    });
+    return buildInLawCheckMessage(checked.filter(Boolean), {
+      whose,
+      degrees,
+      inLawCount: inLaws.length,
+      gapCount: total,
+      capped: Math.max(0, total - picked.length),
+    });
+  }
+
+  // The relatives a profile's biography names, searched for on WikiTree, and its duplicates: {text} when there's
+  // nothing to search, else {subjectLabel, results, readBy, duplicates, pageAttached}. Also run for each in-law.
+  async function checkBioRelatives(key, params, { usePage = false, quiet = false } = {}) {
+    const say = quiet ? () => {} : notify;
     let [profile] =
       (await WikiTreeAPI.getProfile(
         WBE_CHAT_APP_ID,
@@ -1319,7 +1525,7 @@ export function createChatPeopleHandlers({
     // Not in the API yet (a new profile, or the staging server): this page has the biography
     // and the family already connected, which is all this needs (the user, 2026-10-07).
     let pageAttached = null;
-    if (!profile?.Name && !targetName) {
+    if (!profile?.Name && usePage) {
       const page = getProfilePersonInfo();
       const pageBio = page?.Name && focusIsPagePerson() ? readPageBio(document) : "";
       if (pageBio) {
@@ -1337,7 +1543,7 @@ export function createChatPeopleHandlers({
         pageAttached = readPageAttached(document, page.Name);
       }
     }
-    if (!profile?.Name) return cantLoad(key);
+    if (!profile?.Name) return { text: cantLoad(key) };
     // The profile person's own duplicates, alongside (the user, 2026-10-07).
     const pagePerson = pageAttached
       ? {
@@ -1375,14 +1581,15 @@ export function createChatPeopleHandlers({
     const subjectLabel = `${fullName({ name: profile.RealName || profile.FirstName, lnab: profile.LastNameAtBirth, wtid: profile.Name })} (${profile.Name})`;
     const bio = profile.Bio || profile.bio || ""; // the API returns "bio"
     if (!bio.replace(/\[\[Category:[^\]]*\]\]|==[^=]+==|<references\s*\/>/g, "").trim()) {
-      return `${subjectLabel} has no biography, so there are no relatives to read from it.`;
+      // (the duplicates still count for "check my in-laws": a duplicate may have the parents)
+      return { text: `${subjectLabel} has no biography, so there are no relatives to read from it.`, subjectLabel, noBio: true, duplicates: await duplicatesPromise };
     }
 
     let relatives = [];
     let readBy = "read from its census tables and text";
     const { provider, key: aiKey, model, paused: aiSwitchedOff } = await getChatAiConfig();
     if (aiKey) {
-      notify("Reading the biography for relatives…");
+      say("Reading the biography for relatives…");
       try {
         const response = await chrome.runtime.sendMessage({
           action: "chatWithAI",
@@ -1394,7 +1601,11 @@ export function createChatPeopleHandlers({
         });
         if (response?.success && response.response) {
           relatives = relativesFromAiJson(parsePlannerJson(response.response), profile);
-          if (relatives.length) readBy = "read by AI";
+          if (relatives.length) {
+            readBy = "read by AI";
+            // (the AI isn't asked for grandparents, uncles and cousins: census tables give those by code, and anyone it missed)
+            relatives = [...relatives, ...censusKinBeyond(relatives, bio, profile)];
+          }
         }
       } catch (error) {
         console.warn("wbe: AI couldn't read the biography; reading it by code", error);
@@ -1406,14 +1617,16 @@ export function createChatPeopleHandlers({
     if (!relatives.length) {
       // (not "I couldn't…": that hands the question to the AI, or with AI off hides this behind "We need AI")
       const duplicates = await duplicatesPromise;
-      return [
+      const text = [
         `No ${roles.length ? "such relatives" : "relatives"} found in ${subjectLabel}'s biography. Genie looks for "son of …", "daughter of …", "married …" and census household tables${
           aiKey ? "" : aiSwitchedOff ? "; with AI switched on, Genie can read biographies written in other ways" : "; with an AI key Genie can read biographies written in other ways"
         }.`,
         ...duplicateLines(duplicates, subjectLabel),
       ].join("\n");
+      return { text, subjectLabel, nothingNamed: true, duplicates };
     }
-    relatives = relatives.slice(0, 40);
+    // Family first: the people named in passing are searched for only within the limit.
+    relatives = [...relatives.filter((r) => r.role !== "other"), ...relatives.filter((r) => r.role === "other")].slice(0, 40);
 
     let attached = pageAttached;
     if (!attached) {
@@ -1432,8 +1645,15 @@ export function createChatPeopleHandlers({
         ...Object.values(person.Siblings || {}).map((p) => ({ role: "sibling", profile: p })),
       ];
     }
+    // Grandparents, uncles, cousins and in-laws: the parents' parents, the parents' siblings, and so on.
+    attached = [
+      ...attached,
+      ...(await furtherAttached(attached, relatives, (ids, options) =>
+        WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, ids, "Id,Name,FirstName,Gender,BirthDate", options)
+      )),
+    ];
 
-    notify(`Searching WikiTree for ${relatives.length} relative${relatives.length === 1 ? "" : "s"}…`);
+    say(`Searching WikiTree for ${relatives.length} relative${relatives.length === 1 ? "" : "s"}…`);
     const results = await searchRelatives({
       subject: profile,
       relatives,
@@ -1454,9 +1674,7 @@ export function createChatPeopleHandlers({
       },
     });
     const duplicates = await duplicatesPromise;
-    const answer = buildFindRelativesAnswer({ subjectLabel, results, readBy, duplicates });
-    if (pageAttached) answer.message += "\n(Read from this page: the profile isn't in WikiTree's API yet.)";
-    return answer;
+    return { subjectLabel, results, readBy, duplicates, pageAttached };
   }
 
   async function tryHandlePersonMarriagePrompt(params, prompt = "") {
@@ -1624,7 +1842,7 @@ export function createChatPeopleHandlers({
       const creator = Object.values(people || {}).find((entry) => entry?.Name);
       if (creator) creatorLabel = profileLabel(creator);
     }
-    return buildProfileFactAnswer(profile, params?.fact, profileLabel(profile), { creatorLabel, categories });
+    return buildProfileFactAnswer(profile, params?.fact, profileLabel(profile), { creatorLabel, categories, category: params?.category });
   }
 
   // Fan chart (2026-10-03): ancestors drawn with d3 in a popup; the reply sums it up.
@@ -1794,7 +2012,7 @@ export function createChatPeopleHandlers({
     const rootKey = person.wtid || person.id;
     return showFractalTreePopup(tree, {
       which,
-      title: `Branches: ${personNameText(person)}'s ${noun}${person.wtid ? ` (${person.wtid})` : ""}`,
+      title: `Trees: ${personNameText(person)}'s ${noun}${person.wtid ? ` (${person.wtid})` : ""}`,
       // Zooming into someone at the edge of what's loaded fetches the next generations of their branch.
       onExpand: (branchPerson) => loadFractalTree(branchPerson.wtid || branchPerson.id, which, FRACTAL_TREE_EXPAND_GENERATIONS[which], { bioShown }),
       biological: which === "ancestors" && rootKey ? { shown: bioShown, reload: () => loadFractalTree(rootKey, which, generations, { bioShown }) } : null,
@@ -1808,10 +2026,10 @@ export function createChatPeopleHandlers({
     });
   }
 
-  /** A "Branches" chart button for ancestor and descendant answers. */
+  /** A "Trees" chart button for ancestor and descendant answers. */
   function fractalTreeAction(key, which = "descendants") {
     return {
-      label: "Branches",
+      label: "Trees",
       onClick: async () => {
         try {
           const tree = await loadFractalTree(key, which, FRACTAL_TREE_DEFAULT_GENERATIONS[which]);
@@ -1830,7 +2048,7 @@ export function createChatPeopleHandlers({
     if (rootPerson?.unresolvedName) {
       return rootPerson.message || `I couldn't identify which profile you meant by "${rootPerson.unresolvedName}". Try a WikiTree ID like Name-123.`;
     }
-    if (!rootPerson) return "I could not detect a profile person or your logged-in profile to draw a Branches chart for.";
+    if (!rootPerson) return "I could not detect a profile person or your logged-in profile to draw a Trees chart for.";
     const generations = Number(params?.generations) || FRACTAL_TREE_DEFAULT_GENERATIONS[which];
     try {
       const tree = await loadFractalTree(rootPerson.key, which, generations);
@@ -1841,12 +2059,12 @@ export function createChatPeopleHandlers({
       if (hasBranches) open();
       return {
         message: buildFractalTreeSummary(tree, owner, which),
-        actions: hasBranches ? [{ label: "Open Branches chart", onClick: open }] : [],
+        actions: hasBranches ? [{ label: "Open Trees chart", onClick: open }] : [],
         table: tableFromTree(`${owner} ${which}`, tree, which),
         chartOpened: hasBranches,
       };
     } catch (error) {
-      return `The Branches chart failed to load (${error?.message || error}).`;
+      return `The Trees chart failed to load (${error?.message || error}).`;
     }
   }
 
@@ -3384,7 +3602,7 @@ export function createChatPeopleHandlers({
         ? `born in ${location}`
         : locationField === "DeathLocation"
         ? `died in ${location}`
-        : `in ${location}`
+        : `born or died in ${location}`
       : "";
     const datePhrase = getDateConstraintLabel(dateField, dateDirection, dateValue);
     const missingParent = String(params?.missingParent || "").trim();
@@ -3425,6 +3643,13 @@ export function createChatPeopleHandlers({
 
     const subjectLabel = formatSubjectLabel(rootPerson);
 
+    // "How many ancestors does he have?": the number, from WikiTree+, not every ancestor in a table
+    // (the user, 2026-10-18). The summary and the table are a click away.
+    if (params?.countOnly && rootPerson.wtId) {
+      const count = await countWtPlusProfiles(`Ancestors=${rootPerson.wtId}`);
+      if (Number.isFinite(count)) return buildAncestorCountAnswer(count, { subjectLabel, rootPerson });
+    }
+
     const cachedAncestorRows = filterCachedKinRows({
       intent: ChatIntent.ANCESTOR_LIST,
       rootKey: rootPerson.key,
@@ -3438,7 +3663,7 @@ export function createChatPeopleHandlers({
     });
 
     const wantsPlaceAnswer = Boolean(params?.placeSummary || params?.emigrated);
-    if (cachedAncestorRows && !wantsPlaceAnswer && !params?.pick && !params?.countMode) {
+    if (cachedAncestorRows && !wantsPlaceAnswer && !params?.pick && !params?.countMode && !params?.percent) {
       const ancestors = sortKinRows(
         filterRowsByAgeAtDeath(
           filterRowsByMissingParent(
@@ -3635,6 +3860,11 @@ export function createChatPeopleHandlers({
         } back on WikiTree.`;
       }
 
+      // "which of my ancestors remarried" / "twins in my ancestors": each one's spouses or siblings, fetched
+      if (params?.pick === "remarried" || params?.pick === "twins") {
+        return await buildAncestorCheckAnswer(sortedAncestors, params.pick, { rootPerson, subjectLabel, label: baseDisplayRelationshipLabel });
+      }
+
       if (params?.pick) {
         return buildAncestorPickAnswer(sortedAncestors, params.pick, {
           subjectLabel,
@@ -3644,6 +3874,37 @@ export function createChatPeopleHandlers({
           treeTakenAsAncestors: Boolean(params?.treeTakenAsAncestors),
           askedRepeats: Boolean(params?.repeats),
         });
+      }
+
+      // "what percentage of my ancestors were born in Scotland": the share, of all and of those with the place
+      if (params?.percent) {
+        const owner = rootPerson?.subjectType === "user" ? "your" : `${subjectLabel}'s`;
+        const share = (count, of) => `${Math.round((100 * count) / of)}%`;
+        const field = locationField === "BirthLocation" ? "birthLocation" : locationField === "DeathLocation" ? "deathLocation" : "";
+        const recorded = field ? allAncestors.filter((person) => normalizeText(person[field])).length : 0;
+        const ofRecorded =
+          field && recorded && recorded < allAncestors.length
+            ? ` Of the ${recorded} with a ${getLocationFieldLabel(locationField)} recorded, that's ${share(sortedAncestors.length, recorded)}.`
+            : "";
+        const listResult = buildKinListResult({
+          details: params?.details || [],
+          order: params?.order || "",
+          rows: sortedAncestors,
+          displayRelationshipLabel,
+          subjectLabel,
+          rootDisplayName: rootPerson.displayName,
+          rootWtId: rootPerson.wtId,
+          includeUpTo,
+          tableFactory: makeAncestorProfileTable,
+          treeAppKind: "ancestors",
+        });
+        return {
+          ...listResult,
+          message: `${share(sortedAncestors.length, allAncestors.length)}: ${sortedAncestors.length} of ${owner} ${allAncestors.length} ${baseDisplayRelationshipLabel} on WikiTree ${filterPhrase
+            .replace(/^who\s+/, "")
+            .replace(/^born\b/, "were born")}.${ofRecorded}`,
+          inlineMore: null,
+        };
       }
 
       // One generation has 2^g slots, so say how complete it is (C4).
@@ -3754,14 +4015,19 @@ export function createChatPeopleHandlers({
         ? `born in ${location}`
         : locationField === "DeathLocation"
         ? `died in ${location}`
-        : `in ${location}`
+        : `born or died in ${location}`
       : "";
     const datePhrase = getDateConstraintLabel(dateField, dateDirection, dateValue);
     const ageAtDeath = params?.ageAtDeath || null;
     const ageAtDeathPhrase = getAgeAtDeathPhrase(ageAtDeath);
     // "did any of her children emigrate?" (no-AI batch 3, 2026-10-14): the phrase states the rule.
     const emigrated = Boolean(params?.emigrated);
-    const emigratedPhrase = emigrated ? "who were born in one country and died in another" : "";
+    const emigratedTo = emigrated ? String(params?.emigratedTo || "") : "";
+    const emigratedPhrase = !emigrated
+      ? ""
+      : emigratedTo
+      ? `who were born in another country and died in ${emigratedTo}`
+      : "who were born in one country and died in another";
     const filterPhrase = [livingOnly ? "marked living on WikiTree" : "", locationPhrase, datePhrase, ageAtDeathPhrase, emigratedPhrase].filter(Boolean).join(" ")
       // "children who died before 1900", not "children died before 1900" (live R6 recheck).
       .replace(/^died\b/, "who died");
@@ -3811,7 +4077,7 @@ export function createChatPeopleHandlers({
             dateValue,
           }),
           ageAtDeath
-        ).filter((row) => !emigrated || isEmigrant(row)),
+        ).filter((row) => !emigrated || isEmigrant(row, emigratedTo)),
         includeUpTo
       );
       const cachedBlankRows = descendants.filter((row) => isEffectivelyBlankKinRow(row));
@@ -3853,6 +4119,7 @@ export function createChatPeopleHandlers({
             dateValue,
             ageAtDeath,
             emigrated,
+            emigratedTo,
           },
         }), descendants);
       }
@@ -3946,7 +4213,7 @@ export function createChatPeopleHandlers({
             dateValue,
           }),
           ageAtDeath
-        ).filter((row) => !emigrated || isEmigrant(row)),
+        ).filter((row) => !emigrated || isEmigrant(row, emigratedTo)),
         includeUpTo
       );
 
@@ -3969,7 +4236,8 @@ export function createChatPeopleHandlers({
         }
         if (emigrated && descendants.length && !normalizedLocation && !dateField && !ageAtDeath) {
           const bothPlaces = descendants.filter(hasBothCountries).length;
-          return `None of the ${descendants.length} ${baseDisplayRelationshipLabel} for ${subjectLabel} were born in one country and died in another (${bothPlaces} ${bothPlaces === 1 ? "has" : "have"} both places recorded).`;
+          const rule = emigratedTo ? `were born in another country and died in ${emigratedTo}` : "were born in one country and died in another";
+          return `None of the ${descendants.length} ${baseDisplayRelationshipLabel} for ${subjectLabel} ${rule} (${bothPlaces} ${bothPlaces === 1 ? "has" : "have"} both places recorded).`;
         }
         if (descendants.length) {
           const count = descendants.length;
@@ -4012,6 +4280,7 @@ export function createChatPeopleHandlers({
           dateValue,
           ageAtDeath,
           emigrated,
+          emigratedTo,
         },
       }), sortedDescendants);
     } catch (error) {
@@ -4106,6 +4375,7 @@ export function createChatPeopleHandlers({
     tryHandleProfileDuplicatesPrompt,
     tryHandlePersonBurialPrompt,
     tryHandleFindBioRelativesPrompt,
+    tryHandleInLawCheckPrompt,
     tryHandleProfileFactPrompt,
     tryHandleDnaPrompt,
     tryHandleFanChartPrompt,

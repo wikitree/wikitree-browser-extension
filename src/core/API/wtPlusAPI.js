@@ -163,12 +163,18 @@ export const wtAPIFindAGraveMemorials = (callerID, memorialIDs) =>
 // Base call to WikiTree+
 // *******************************************************************
 
+// A refused call throws an Error with the HTTP status. "blocked" (and the IP the page shows) when WT+ answered
+// with its "Blocked request" page: an IP range blocked because of AI bot traffic (a 429, 2026-10-18).
 const wtAPICall = (url) => {
-  return fetch(`https://plus.wikitree.com/function/${url}&format=json`).then((response) => {
+  return fetch(`https://plus.wikitree.com/function/${url}&format=json`).then(async (response) => {
     if (response.ok) {
       return response.json();
-    } else {
-      throw response.statusText;
     }
+    const body = await response.text().catch(() => "");
+    const error = new Error(response.statusText || `HTTP ${response.status}`);
+    error.status = response.status;
+    error.blocked = /blocked request|ip range blocked/i.test(body);
+    error.ip = (body.match(/your IP:\s*(?:<[^>]*>\s*)*([0-9a-f.:]+)/i) || [])[1] || "";
+    throw error;
   });
 };

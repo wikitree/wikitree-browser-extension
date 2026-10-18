@@ -627,6 +627,11 @@ function parseAsciiSearchSpecPrompt(prompt) {
   const spec = {};
   if (created) spec.created = created;
   if (Object.keys(names).length) spec.names = names;
+  // "Beacalls in my ancestors", "twins in my family", "cousin marriages in my tree" ran Location="my ancestors",
+  // Location=my and MarriageLocation=cousin: relatives are never a place (2026-10-17).
+  if (places.some((place) => /^(?:my|our|his|her|their|your)\b/i.test(place.text) || /\b(?:ancestors|descendants|relatives|family|tree|cousins?)$/i.test(place.text))) {
+    return null;
+  }
   if (places.length) spec.places = places;
   if (spanned.length) {
     const seen = new Set();

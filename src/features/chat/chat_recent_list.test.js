@@ -61,3 +61,48 @@ describe("mountRecentList", () => {
     expect(container.querySelector(".chat-recent-empty").textContent).toMatch(/Nothing yet/);
   });
 });
+
+
+// "Most used" and pinned favourites (the user, 2026-10-18)
+describe("Most used and pins", () => {
+  let container;
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+  });
+  afterEach(() => container.remove());
+
+  function statsStore() {
+    const list = ["c", "b", "a"];
+    const uses = { a: 5, b: 2, c: 1 };
+    let pinned = [];
+    return {
+      list: () => list,
+      load: () => Promise.resolve(list),
+      mostUsed: () => [...list].sort((x, y) => uses[y] - uses[x]),
+      uses: (text) => uses[text] || 1,
+      pinned: () => pinned,
+      isPinned: (text) => pinned.includes(text),
+      togglePin: (text) => (pinned = pinned.includes(text) ? pinned.filter((item) => item !== text) : [...pinned, text]),
+      remove: () => {},
+      clear: () => {},
+    };
+  }
+  const texts = () => [...container.querySelectorAll(".chat-recent-text")].map((el) => el.textContent);
+
+  test("Most used orders by count and shows it; ☆ pins to the top of both", async () => {
+    const recent = mountRecentList({ container, store: statsStore(), onChoose: jest.fn() });
+    await recent.open();
+    expect(texts()).toEqual(["c", "b", "a"]);
+    container.querySelector('.chat-recent-view[data-view="most"]').click();
+    expect(texts()).toEqual(["a", "b", "c"]);
+    expect(container.querySelector(".chat-recent-uses").textContent).toBe("5×");
+    expect(container.querySelector(".chat-recent-uses").title).toBe("Asked 5 times");
+    container.querySelector('.chat-recent-pin[data-index="2"]').click();
+    expect(texts()).toEqual(["c", "a", "b"]);
+    expect(container.querySelector('.chat-recent-pin[data-index="0"]').getAttribute("aria-pressed")).toBe("true");
+    container.querySelector('.chat-recent-view[data-view="recent"]').click();
+    expect(texts()).toEqual(["c", "b", "a"]);
+    expect(container.querySelector(".chat-recent-uses")).toBeNull();
+  });
+});

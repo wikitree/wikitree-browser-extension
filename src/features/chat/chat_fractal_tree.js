@@ -63,7 +63,7 @@ const HINT_KEY = "wbe-explorer-hint-seen";
 // The Explorer's views of the same family (user, 2026-10-11: "Let's do all three"); the last one used opens next time.
 const VIEW_KEY = "wbe-explorer-view";
 const EXPLORER_VIEWS = [
-  { key: "tree", label: "Branches", title: "Each family a branch: click a family to see their children, zoom out for the parents" },
+  { key: "tree", label: "Trees", title: "Each family a tree, each person on a branch: click a family to see their children, zoom out for the parents" },
   { key: "family", label: "Family", title: "One person with their parents, siblings, husband or wife and children: click anyone to move to them" },
   { key: "galaxy", label: "Galaxy", title: "Everyone loaded as stars round one person: ancestors above, descendants below, each branch its own colour" },
   { key: "3d", label: "3D", title: "The ancestors as a 3D model to turn round, a Tornado or a Fan tower, and download for 3D printing" },
@@ -272,7 +272,7 @@ function showNestedTreePopup(tree, options = {}) {
       </div>
     </div>`,
   });
-  popup.querySelector(".wbe-chart-title").textContent = options.title || "Branches";
+  popup.querySelector(".wbe-chart-title").textContent = options.title || "Trees";
 
   // Someone's biological parents (BioFather, BioMother), switched one person at a time (the user, 2026-10-13: "the
   // switches should probably be on individuals"): the switch is for whoever the view is on, when they have any.

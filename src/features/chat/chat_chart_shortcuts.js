@@ -11,7 +11,7 @@
 export const CHART_SHORTCUTS = [
   { key: "familymap", label: "Relationship Chart", title: "Relatives grouped by relationship, with names and dates", words: "relationship\\s+chart|family\\s+(?:map|matrix|cards|relationships)|kinship\\s+(?:map|dashboard)", prompt: (id) => `${id}'s relationship chart` },
   { key: "fan", label: "Fan", title: "Ancestors as a fan chart", words: "fan(?:\\s+chart)?|ancestors?\\s+(?:fan|chart|tree)|(?:family\\s+)?tree\\s+chart|pedigree(?:\\s+chart)?", prompt: (id) => `${id}'s fan chart` },
-  { key: "explorer", label: "Explorer", title: "Family Explorer: the family round someone, as cards, Branches or a Galaxy", words: "(?:family\\s+)?explorer|fractal(?:\\s+tree)?|branches|family\\s+world|cc-?7\\s+tree", prompt: (id) => `${id}'s family explorer` },
+  { key: "explorer", label: "Explorer", title: "Family Explorer: the family round someone, as cards, Trees or a Galaxy", words: "(?:family\\s+)?explorer|fractal(?:\\s+tree)?|branches|family\\s+world|cc-?7\\s+tree", prompt: (id) => `${id}'s family explorer` },
   { key: "descendants", label: "Descendants", title: "Descendants as a sunburst", words: "descendants?(?:\\s+(?:chart|sunburst|tree))?|sunburst", prompt: (id) => `${id}'s descendant chart` },
   { key: "timeline", label: "Timeline", title: "Family timeline: births, marriages and deaths", words: "(?:family\\s+)?timeline", prompt: (id) => `${id}'s family timeline` },
   { key: "lifespans", label: "Lifespans", title: "Every ancestor's life as a bar", words: "lifespans?|life\\s+spans?", prompt: (id) => `${id}'s lifespans` },

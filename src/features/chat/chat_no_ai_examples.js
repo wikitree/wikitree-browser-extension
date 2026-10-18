@@ -229,6 +229,11 @@ export const NO_AI_EXAMPLE_SECTIONS = [
         examples: ["check for profiles", "find his family on WikiTree", "are her parents on WikiTree?"],
         note: "Reads the parents, wife or husband, children and siblings named in the biography, searches WikiTree for each, and checks the profile for duplicates.",
       },
+      {
+        pattern: "check [my / the] in-laws [within N degrees]",
+        examples: ["check my in-laws", "check the in-laws within 3 degrees", "check my cousins' spouses"],
+        note: "The people married into the family (5 degrees unless you say) who have a parent missing on WikiTree, each checked like \"check for profiles\": the parents and siblings their biography names, and duplicates. Connecting an in-law's parents can shorten connection paths a lot.",
+      },
     ],
   },
   {

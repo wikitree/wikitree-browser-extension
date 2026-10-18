@@ -1009,6 +1009,55 @@
   display: none;
 }
 
+/* Recent | Most used (2026-10-18) */
+.chat-recent-views {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.3rem;
+}
+
+.chat-input-row .chat-recent-view {
+  min-width: 0;
+  width: auto;
+  border: 1px solid #c9d6ea;
+  border-radius: 999px;
+  background: #fff;
+  color: #24456e;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  padding: 0.15rem 0.6rem;
+  cursor: pointer;
+}
+
+.chat-input-row .chat-recent-view[aria-selected="true"] {
+  background: #24456e;
+  border-color: #24456e;
+  color: #fff;
+}
+
+.chat-input-row .chat-recent-pin {
+  min-width: 0;
+  width: auto;
+  border: 0;
+  background: none;
+  color: #9aa4ae;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  padding: 0 0.1rem;
+  cursor: pointer;
+}
+
+.chat-input-row .chat-recent-pin[aria-pressed="true"] {
+  color: #d39b00;
+}
+
+.chat-recent-uses {
+  color: #6b7580;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
 .chat-recent-filter {
   width: 100%;
   box-sizing: border-box;
@@ -2087,6 +2136,27 @@ body.darkMode .chat-recent-item[aria-selected="true"]:not(#none),
 body.darkMode .chat-recent-item:not(#none):hover {
   background: #3a4048 !important;
 }
+body.darkMode .chat-input-row .chat-recent-view:not(#none) {
+  background: transparent !important;
+  color: #dedecb !important;
+  border: 1px solid #5c6470 !important;
+}
+body.darkMode .chat-input-row .chat-recent-view[aria-selected="true"]:not(#none) {
+  background: #3b6ea8 !important;
+  border-color: #3b6ea8 !important;
+  color: #fff !important;
+}
+body.darkMode .chat-input-row .chat-recent-pin:not(#none) {
+  border: 0 !important;
+  background: none !important;
+  color: #8a929c !important;
+}
+body.darkMode .chat-input-row .chat-recent-pin[aria-pressed="true"]:not(#none) {
+  color: #e8b830 !important;
+}
+body.darkMode .chat-recent-uses:not(#none) {
+  color: #b9bfb0 !important;
+}
 body.darkMode .chat-input-row .chat-recent-remove:not(#none),
 body.darkMode .chat-input-row .chat-recent-clear:not(#none) {
   border: 0 !important;
@@ -2299,4 +2369,53 @@ body.darkMode .wbe-tour-pointer:not(#none) {
 body.darkMode .wbe-tour-caption .wbe-tour-key:not(#none) {
   background: #fff !important;
   color: #1d1d1f !important;
+}
+
+/* Genie's tooltips (chat_quick_tips.js): WBE's yellow ones, but wrapping, and quick. Dark Mode and Custom
+   Style recolour every div, hence the !important. */
+.wbe-quick-tip:not(#none) {
+  position: absolute;
+  z-index: 100000;
+  max-width: min(320px, calc(100% - 8px));
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #fcb815 !important;
+  color: #25422d !important;
+  font-family: "Roboto Mono", monospace;
+  font-weight: 500;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  white-space: normal;
+  text-align: left;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  animation: wbe-quick-tip-in 0.1s ease-out;
+}
+.wbe-quick-tip[hidden] {
+  display: none;
+}
+.wbe-quick-tip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: var(--wbe-tip-arrow, 50%);
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #fcb815;
+}
+.wbe-quick-tip--below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: #fcb815;
+}
+@keyframes wbe-quick-tip-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wbe-quick-tip:not(#none) {
+    animation: none;
+  }
 }

@@ -23,9 +23,9 @@ export const ROWS_LEAD =
   /^(?:and\s+)?(?:(?:how\s+many|which|who)\s+(?:of\s+(?:them|those|these|the\s+results)|among\s+them)|which\s+ones|(?:(?:show|list|keep)\s+(?:me\s+)?)?(?:only|just)\s+(?:those|the\s+ones|the\s+people)|(?:show|list|keep)\s+(?:me\s+)?(?:those|the\s+ones))\s+(?:(?:who|that)\s+)?/i;
 
 // An age at death, after "who": "died young", "lived past 90", "lived to 100", "died under 5", "died aged 42",
-// "died at the age of 42", "were 90 or over". Seven groups, read by ageAtDeathRange. Used for the table
+// "died at the age of 42", "were 90 or over", "died before 30" (one or two digits after before/after: an age). Seven groups, read by ageAtDeathRange. Used for the table
 // follow-ups below and chat_router's "my ancestors who died young".
-export const AGE_AT_DEATH_WORDS = String.raw`(?:(?:lived|died|were|was|survived)\s+)?(aged\s+|at\s+(?=\d)|at\s+(?:the\s+)?age(?:\s+of)?\s+)?(?:(past|beyond|over|above|older\s+than|more\s+than|longer\s+than)|(to|to\s+at\s+least|at\s+least)|(under|below|younger\s+than|less\s+than|before\s+(?:the\s+)?age(?:\s+of)?)|(young|as\s+(?:children|infants|babies|a\s+child|an\s+infant|a\s+baby)|in\s+(?:childhood|infancy)))?\s*(?:age\s+|the\s+age\s+of\s+)?(\d{1,3})?(\s*\+|\s+or\s+(?:more|older|over))?(?:\s+years?(?:\s+old)?)?`;
+export const AGE_AT_DEATH_WORDS = String.raw`(?:(?:lived|died|were|was|survived)\s+)?(aged\s+|at\s+(?=\d)|at\s+(?:the\s+)?age(?:\s+of)?\s+)?(?:(past|beyond|over|above|older\s+than|more\s+than|longer\s+than|after(?=\s+\d{1,2}\b))|(to|to\s+at\s+least|at\s+least)|(under|below|younger\s+than|less\s+than|before\s+(?:the\s+)?age(?:\s+of)?|before(?=\s+\d{1,2}\b))|(young|as\s+(?:children|infants|babies|a\s+child|an\s+infant|a\s+baby)|in\s+(?:childhood|infancy)))?\s*(?:age\s+|the\s+age\s+of\s+)?(\d{1,3})?(\s*\+|\s+or\s+(?:more|older|over))?(?:\s+years?(?:\s+old)?)?`;
 
 /** {min, max} from AGE_AT_DEATH_WORDS' groups, or null. "Young" is 15 or under. */
 export function ageAtDeathRange([aged, over, atLeast, under, young, numText, plus]) {

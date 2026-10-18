@@ -327,7 +327,9 @@ export function describeRelationship(analysis, label1, label2, { gender1 = "" } 
   }
   const lines = [];
   const [first, ...others] = analysis.routes;
-  const who = (route) => joinWithAnd(route.ancestors.map((a) => (a.wtId ? `${a.name} (${a.wtId})` : a.name)));
+  // (named once: the same ancestor by two routes of one length came twice, "Nicholas Rosenvelt (Rosenvelt-3), Nicholas
+  // Rosenvelt (Rosenvelt-3), and…" for Franklin and Theodore Roosevelt, 2026-10-18; the DNA still counts both routes)
+  const who = (route) => joinWithAnd([...new Set(route.ancestors.map((a) => (a.wtId ? `${a.name} (${a.wtId})` : a.name)))]);
   const noun = (route) => (route.ancestors.length > 1 ? "parents" : route.ancestors[0].gender === "male" ? "father" : route.ancestors[0].gender === "female" ? "mother" : "parent");
   const both = (route) => `${possessive(label1)} ${ancestorWord(route.gens1, noun(route))} and ${possessive(label2)} ${ancestorWord(route.gens2, noun(route))}`;
   const many = first.ancestors.length > 1;

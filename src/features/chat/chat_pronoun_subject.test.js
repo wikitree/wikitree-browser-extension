@@ -6,6 +6,10 @@ describe("pronouns follow the last answer's person", () => {
   test("an answer about one person sets the subject", () => {
     expect(pickAnswerSubject("Connection found: Abraham (Lincoln-103) is 21 steps away from you.")).toEqual(lincoln);
   });
+  // (connection answers now give the full name, 2026-10-18)
+  test("a full name too", () => {
+    expect(pickAnswerSubject("Connection found: Murray Maloney (Maloney-2332) is 18 steps away from Franklin Delano Roosevelt (Roosevelt-1).")).toEqual({ wtId: "Maloney-2332", displayName: "Murray Maloney" });
+  });
 
   test("a list of people sets none", () => {
     expect(pickAnswerSubject("Here are 2: Hannah (Hutton-734), James (Cook-8720)")).toBeNull();

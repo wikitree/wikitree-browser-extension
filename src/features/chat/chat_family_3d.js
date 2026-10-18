@@ -42,7 +42,7 @@ import { GALAXY_HUES, branchLabel } from "./chat_family_galaxy_data";
 import { NEARBY, nearbyPlaquesLayout, plaqueNeighbour } from "./chat_family_plaques_data";
 import { easeCubicInOut as ease } from "d3-ease";
 import { addStyleOnce, downloadBlob, escapeText, fullName, lifeYears, onChartResume, photoUrl, siteUrl } from "./chat_chart_common";
-import { reducedMotion } from "./chat_fractal_common";
+import { reducedMotion, remember, remembered } from "./chat_fractal_common";
 
 const STYLE_ID = "wbe-3d-style";
 const SHAPE_KEY = "wbe-explorer-3d-look"; // (was -shape, before Plaques, the shape it now opens on)
@@ -148,20 +148,6 @@ const CSS = `
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 const mix = (a, b, t) => a.map((value, i) => value + (b[i] - value) * t);
 const css = ([r, g, b]) => `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
-const remembered = (key, fallback) => {
-  try {
-    return localStorage.getItem(key) || fallback;
-  } catch (error) {
-    return fallback;
-  }
-};
-const remember = (key, value) => {
-  try {
-    localStorage.setItem(key, String(value));
-  } catch (error) {
-    // (storage blocked: the default next time)
-  }
-};
 
 /** A shiny ball in `colour`, drawn once and stamped for each ancestor. */
 function ballSprite(colour) {

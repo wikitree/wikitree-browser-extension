@@ -8,6 +8,7 @@ const ALIASES = {
   us: "United States",
   "u.s.a.": "United States",
   "united states of america": "United States",
+  america: "United States",
   "british america": "United States",
   "british colonial america": "United States",
   deutschland: "Germany",

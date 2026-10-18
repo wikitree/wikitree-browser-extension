@@ -79,7 +79,7 @@ export async function selectCIB(data, hideTopLevel) {
         })
         .catch((error) => {
           lb.innerHTML =
-            '<tr><td style="color:var(--wbe-cb-danger, red)">Error in WikiTree+ server' + error + "</td></tr>";
+            '<tr><td style="color:var(--wbe-cb-danger, red)">Error in WikiTree+ server: ' + (error?.message || error) + "</td></tr>";
         });
     }
   };

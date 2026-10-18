@@ -242,15 +242,15 @@ export function buildFractalLayout(root) {
   return { nodes };
 }
 
-/** "Ellen's Branches chart holds 212 descendants over 6 generations; 140 lines end in a leaf." */
+/** "Ellen's Trees chart holds 212 descendants over 6 generations; 140 lines end in a leaf." */
 export function buildFractalTreeSummary(tree, ownerText, which = "descendants") {
-  if (!tree?.person) return `${ownerText} Branches chart couldn't be drawn.`;
+  if (!tree?.person) return `${ownerText} Trees chart couldn't be drawn.`;
   countPeople(tree);
   const people = tree.weight - 1;
   if (!people) {
     return which === "ancestors"
-      ? `${ownerText} Branches chart has nothing to show yet: no parents are recorded on WikiTree.`
-      : `${ownerText} Branches chart has nothing to show yet: no children are recorded on WikiTree.`;
+      ? `${ownerText} Trees chart has nothing to show yet: no parents are recorded on WikiTree.`
+      : `${ownerText} Trees chart has nothing to show yet: no children are recorded on WikiTree.`;
   }
   let deepest = 0;
   let leaves = 0;
@@ -270,9 +270,9 @@ export function buildFractalTreeSummary(tree, ownerText, which = "descendants") 
   const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
   if (hasFrontier(tree)) {
     // Only part of the tree is loaded (ancestors can run to millions), so no grand total.
-    return `${ownerText} Branches chart starts with ${plural(people, noun)} over ${plural(deepest, "generation")}, and some lines go further.${family} Zoom into anyone to see their family inside their circle; more generations load as you go.`;
+    return `${ownerText} Trees chart starts with ${plural(people, noun)} over ${plural(deepest, "generation")}, and some lines go further.${family} Zoom into anyone to see their family inside their circle; more generations load as you go.`;
   }
-  return `${ownerText} Branches chart holds ${plural(people, noun)} over ${plural(deepest, "generation")}; ${leaves} line${
+  return `${ownerText} Trees chart holds ${plural(people, noun)} over ${plural(deepest, "generation")}; ${leaves} line${
     leaves === 1 ? " ends" : "s end"
   } in a leaf.${family} Zoom into anyone to see their family inside their circle.`;
 }

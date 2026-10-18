@@ -58,6 +58,15 @@ describe("Galaxy view: where the stars go (user, 2026-10-11: 'Let's do the Galax
     expect(rel(1)).toBe("");
   });
 
+  test("a degrees limit, counted as WikiTree does (user, 2026-10-18: 'Let's let people add or remove degrees')", () => {
+    const ids = (degrees) => galaxyLayout(people(), 1, { degrees }).nodes.map((n) => n.id).sort((x, y) => x - y);
+    // (a sister is one degree, not two through a parent)
+    expect(ids(1)).toEqual([1, 2, 4, 6, 10, 11]);
+    expect(ids(2)).toEqual([1, 2, 4, 5, 6, 7, 10, 11, 12, 20, 21]);
+    expect(ids(3)).toContain(13);
+    expect(galaxyLayout(people(), 1, { degrees: 2 }).nodes.find((n) => n.id === 5).steps).toBe(3); // (the ring still goes through John)
+  });
+
   test("moving the middle to someone else", () => {
     const all = people();
     const layout = galaxyLayout(all, 13);

@@ -7,6 +7,7 @@ import { applySameCemetery, compileSearchSpec, pickCemeteryCategories } from "./
 import { formatPreviewDate } from "./chat_preview_format";
 import { shownGender } from "./chat_gender_display";
 import { profileLabel, promptTarget } from "./chat_text_utils";
+import { cleanSourceText, extractBioSources } from "./chat_sources";
 
 const SUBJECT = String.raw`(this\s+person|the\s+profile\s+person|he|she|they|him|her|them|[A-Z][A-Za-z'_ -]*?-\d+|[A-Z][A-Za-z'.]*(?:\s+[A-Z][A-Za-z'.()]*){0,4})`;
 const BURIAL_PROMPT_RES = [
@@ -48,6 +49,69 @@ export function parseBurialPrompt(prompt) {
     return target === null ? null : { target };
   }
   return null;
+}
+
+// "when was she baptised?", "where was he christened?" (imagined AA2, 2026-10-18): WikiTree has no field for
+// it, so the biography and its sources are read for the sentences that mention one.
+const RITE = String.raw`(?:baptised|baptized|christened)`;
+const RITE_NOUN = String.raw`(?:baptism|christening)`;
+const BAPTISM_PROMPT_RES = [
+  new RegExp(String.raw`^(?:when|where|was|were)\s+(?:is|was|were)?\s*${SUBJECT}\s+${RITE}$`, "i"),
+  new RegExp(String.raw`^(?:when|where)\s+(?:is|was)\s+${SUBJECT}(?:'s|’s)\s+${RITE_NOUN}(?:\s+(?:date|place))?$`, "i"),
+  new RegExp(String.raw`^(?:when|where)\s+(?:is|was)\s+(?:his|her|their)()\s+${RITE_NOUN}(?:\s+(?:date|place))?$`, "i"),
+  new RegExp(String.raw`^(?:what\s+(?:is|was)\s+)?(?:his|her|their)()\s+${RITE_NOUN}(?:\s+(?:date|place|record|details))?$`, "i"),
+  new RegExp(String.raw`^(?:the\s+)?${RITE_NOUN}(?:\s+(?:date|place|record))?\s+(?:of|for)\s+${SUBJECT}$`, "i"),
+];
+const RITE_TEXT_RE = /\b(?:baptis|baptiz|christen|chr\.)/i;
+
+/** {target, baptism: true} ("" = the page profile) or null. */
+export function parseBaptismPrompt(prompt) {
+  const text = String(prompt || "")
+    .trim()
+    .replace(/[.!?]+$/g, "");
+  for (const re of BAPTISM_PROMPT_RES) {
+    const match = text.match(re);
+    if (!match) continue;
+    const target = promptTarget(match[1], PROFILE_SUBJECT_RE);
+    return target === null ? null : { target, baptism: true };
+  }
+  return null;
+}
+
+const clip = (text, most = 280) => (text.length > most ? `${text.slice(0, most - 1).trimEnd()}…` : text);
+
+/** The biography's sentences (refs, templates and headings out) and its sources that mention a baptism. */
+export function findBaptismMentions(bio) {
+  const text = String(bio || "");
+  const body = text
+    .replace(/<ref[^>]*\/\s*>/gi, "")
+    .replace(/<ref[\s\S]*?<\/ref>/gi, "")
+    .split(/^==+\s*Sources?\s*==+\s*$/im)[0]
+    .replace(/\{\{[^{}]*\}\}/g, " ")
+    .replace(/^=+[^=\n]*=+\s*$/gm, " ");
+  // (no lookbehind: iOS 15 Safari can't parse it)
+  const sentences = cleanSourceText(body)
+    .replace(/([.!?])\s+(?=[A-Z])/g, "$1\n")
+    .split("\n")
+    .filter((sentence) => RITE_TEXT_RE.test(sentence));
+  const sources = extractBioSources(text).filter((source) => RITE_TEXT_RE.test(source));
+  return { sentences: [...new Set(sentences)].slice(0, 3).map((line) => clip(line)), sources: [...new Set(sources)].slice(0, 3).map((line) => clip(line)) };
+}
+
+export function buildBaptismAnswer(person) {
+  const label = profileLabel(person);
+  const { sentences, sources } = findBaptismMentions(person.Bio || person.bio);
+  const lines = [];
+  if (sentences.length) lines.push(`${label}'s biography says:`, ...sentences.map((line) => `- ${line}`));
+  if (sources.length) lines.push(`${sentences.length ? "Sources" : `${label}'s sources`} that mention a baptism or christening:`, ...sources.map((line) => `- ${line}`));
+  if (lines.length) return lines.join("\n");
+  const born = [
+    person.BirthDate && !/^0000/.test(person.BirthDate) ? formatPreviewDate(person.BirthDate) : "",
+    person.BirthLocation ? `in ${person.BirthLocation}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return `WikiTree has no baptism field, and ${label}'s biography doesn't mention a baptism or christening.${born ? ` Born ${born}.` : ""}`;
 }
 
 /** Find a Grave / BillionGraves IDs cited in the biography wikitext. */

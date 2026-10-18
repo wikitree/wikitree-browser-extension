@@ -38,7 +38,7 @@ const W_OWNER_AFTER = String.raw`(me|us|her|him|them|this\s+(?:profile|person)|[
 const W_LEAD = String.raw`(?:(?:show|draw|open|explore|make|build|give)(?:\s+me)?\s+)?`;
 // (and plain "fractal" / "fractal tree": the family world is the fractal tree's newest version; "my ancestors as a
 // fractal tree" still gets the ancestors-only one)
-const W_VIEW = String.raw`(?:family\s+(?:world|explorer)|explorer|cc-?7\s+(?:tree|chart|view|world|map)|zoomable\s+cc-?7|fractal(?:\s+(?:tree|chart|view|world))?|branches(?:\s+(?:view|chart))?|galaxy(?:\s+view)?|3-?d(?:\s+(?:view|model|tree|chart|family\s+tree|ancestors))?|(?:ancestor\s+|family\s+)?tornado|fan\s+tower)`;
+const W_VIEW = String.raw`(?:family\s+(?:world|explorer)|explorer|cc-?7\s+(?:tree|chart|view|world|map)|zoomable\s+cc-?7|fractal(?:\s+(?:tree|chart|view|world))?|branches(?:\s+(?:view|chart))?|trees\s+(?:view|chart)|galaxy(?:\s+view)?|3-?d(?:\s+(?:view|model|tree|chart|family\s+tree|ancestors))?|(?:ancestor\s+|family\s+)?tornado|fan\s+tower)`;
 const WORLD_PATTERNS = [
   // "show my family world", "Cook-8721's CC7 tree", "family world"
   new RegExp(String.raw`^${W_LEAD}(?:an?\s+|the\s+)?(?:${W_OWNER}\s+)?${W_VIEW}$`, "i"),
@@ -75,7 +75,7 @@ export function parseFamilyWorldPrompt(prompt) {
       : raw;
     const subjectPrompt = !owner ? "this profile's ancestors" : /^(?:my|her|his|their)$/.test(owner) ? `${owner} ancestors` : `${owner}'s ancestors`;
     // (a view named in the prompt opens on that view, whichever was used last: "my galaxy", "Beacall-9's branches")
-    const view = /\b(?:branches|fractal)\b/i.test(text) ? "tree" : /\bgalaxy\b/i.test(text) ? "galaxy" : /\b(?:3-?d|tornado|fan\s+tower)\b/i.test(text) ? "3d" : "";
+    const view = /\b(?:branches|fractal|trees\s+(?:view|chart))\b/i.test(text) ? "tree" : /\bgalaxy\b/i.test(text) ? "galaxy" : /\b(?:3-?d|tornado|fan\s+tower)\b/i.test(text) ? "3d" : "";
     // (and the 3D view's shape: "my fan tower", "Cook-8721's tornado")
     const shape = /\bfan\s+tower\b/i.test(text) ? "tower" : /\btornado\b/i.test(text) ? "tornado" : "";
     if (shape) return { owner, subjectPrompt, view, shape };

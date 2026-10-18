@@ -236,6 +236,9 @@ describe("parseFamilyWorldPrompt", () => {
     ["fractal tree for Cook-8721", { owner: "Cook-8721", subjectPrompt: "Cook-8721's ancestors", view: "tree" }],
     ["show Cook-8721's branches", { owner: "Cook-8721", subjectPrompt: "Cook-8721's ancestors", view: "tree" }],
     ["branches view for her", { owner: "her", subjectPrompt: "her ancestors", view: "tree" }],
+    // (and "Trees": each family is a tree, each person on a branch; the user, 2026-10-18)
+    ["trees view for her", { owner: "her", subjectPrompt: "her ancestors", view: "tree" }],
+    ["show Cook-8721's trees chart", { owner: "Cook-8721", subjectPrompt: "Cook-8721's ancestors", view: "tree" }],
     ["show my galaxy", { owner: "my", subjectPrompt: "my ancestors", view: "galaxy" }],
     // (the 3D view, and its shape when named)
     ["show my 3D family tree", { owner: "my", subjectPrompt: "my ancestors", view: "3d" }],

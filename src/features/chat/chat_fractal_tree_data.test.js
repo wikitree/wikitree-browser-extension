@@ -108,13 +108,13 @@ describe("buildFractalTreeSummary", () => {
       children: [{ person: person("Big-1"), depth: 1, children: [1, 2, 3, 4].map((i) => leaf(`K-${i}`, 2)) }, leaf("Solo-1", 1)],
     };
     expect(buildFractalTreeSummary(tree, "Ellen's")).toBe(
-      "Ellen's Branches chart holds 6 descendants over 2 generations; 5 lines end in a leaf. The biggest family on it is Big-1's, with 4 children. Zoom into anyone to see their family inside their circle."
+      "Ellen's Trees chart holds 6 descendants over 2 generations; 5 lines end in a leaf. The biggest family on it is Big-1's, with 4 children. Zoom into anyone to see their family inside their circle."
     );
   });
 
   test("no branches", () => {
     expect(buildFractalTreeSummary({ person: person("Solo-1"), children: [], depth: 0 }, "Your", "ancestors")).toBe(
-      "Your Branches chart has nothing to show yet: no parents are recorded on WikiTree."
+      "Your Trees chart has nothing to show yet: no parents are recorded on WikiTree."
     );
   });
 });
@@ -157,7 +157,7 @@ describe("loading more as you zoom in", () => {
     const tree = { person: anc("Root-1"), depth: 0, children: [{ person: anc("Dad-1", 4), depth: 1, children: [] }] };
     markFrontier(tree, "ancestors", 1);
     expect(buildFractalTreeSummary(tree, "Your", "ancestors")).toBe(
-      "Your Branches chart starts with 1 ancestor over 1 generation, and some lines go further. Zoom into anyone to see their family inside their circle; more generations load as you go."
+      "Your Trees chart starts with 1 ancestor over 1 generation, and some lines go further. Zoom into anyone to see their family inside their circle; more generations load as you go."
     );
   });
 });

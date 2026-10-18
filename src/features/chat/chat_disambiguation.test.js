@@ -49,3 +49,13 @@ test("a short list is shown whole, as before", () => {
 test("a number past 8 picks that person", () => {
   expect(resolveDisambiguationReply("25", lukers)?.Name).toBe("Luker-25");
 });
+
+// "how is Roosevelt-1 related to Theodore Roosevelt": "Roosevelt-26 - Theodore", and "Choose 7." with nothing after it (2026-10-18)
+test("choices give full names, and say so for a private profile sent without one", () => {
+  const message = buildDisambiguationMessage(
+    [{ Name: "Roosevelt-18", RealName: "Theodore", LastNameAtBirth: "Roosevelt", BirthDate: "1858-10-27" }, { Id: 9 }],
+    "Theodore Roosevelt"
+  );
+  expect(message).toContain("1. Roosevelt-18 - Theodore Roosevelt (b. 1858)");
+  expect(message).toContain("2. a private profile");
+});
