@@ -168,3 +168,19 @@ describe("makeStandardProfileTable removed column", () => {
     expect(table.columns.some((column) => column.key === "categoryDisplay")).toBe(false);
   });
 });
+
+describe("makeAncestorProfileTable age at death", () => {
+  const rows = [{ ahnen: 2, wtid: "Roosevelt-2", firstName: "James", lnab: "Roosevelt", birth: "1828-07-16", death: "1900-12-08", ageAtDeath: 72 }];
+
+  test("adds an Age at death column after Death, sorted by it (user: 'by age at death' was sorted by Ahnen)", () => {
+    const table = makeAncestorProfileTable("Ancestors by age at death", rows, [[7, "desc"], [0, "asc"]], { withAgeAtDeath: true });
+    expect(table.columns.map((column) => column.title).slice(5, 9)).toEqual(["Birth", "Death", "Age at death", "Birth Location"]);
+    expect(table.columns[table.defaultOrder[0][0]].key).toBe("ageAtDeath");
+    expect(table.defaultOrder).toEqual([[7, "desc"], [0, "asc"]]);
+  });
+
+  test("no age column unless asked", () => {
+    const table = makeAncestorProfileTable("Ancestors", rows);
+    expect(table.columns.some((column) => column.key === "ageAtDeath")).toBe(false);
+  });
+});

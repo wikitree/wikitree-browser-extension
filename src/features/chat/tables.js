@@ -305,7 +305,8 @@ export function makeCousinProfileTable(
   };
 }
 
-export function makeAncestorProfileTable(title, rows, defaultOrder = [[0, "asc"]]) {
+// withAgeAtDeath: an "Age at death" column after Death (row.ageAtDeath), for "lived longest" (user, 2026-10-18)
+export function makeAncestorProfileTable(title, rows, defaultOrder = [[0, "asc"]], { withAgeAtDeath = false } = {}) {
   const baseColumns = [
     { title: "Ahnen", key: "ahnen" },
     {
@@ -318,6 +319,7 @@ export function makeAncestorProfileTable(title, rows, defaultOrder = [[0, "asc"]
     { title: "Current Last", key: "lastNameCurrent", cellClass: "nowrap-cell" },
     { title: "Birth", key: "birth", cellClass: "chat-date-cell" },
     { title: "Death", key: "death", cellClass: "chat-date-cell" },
+    ...(withAgeAtDeath ? [{ title: "Age at death", key: "ageAtDeath", headerTitle: "Age at death in years, from the birth and death dates" }] : []),
     { title: "Birth Location", key: "birthLocation" },
     { title: "Death Location", key: "deathLocation" },
   ];

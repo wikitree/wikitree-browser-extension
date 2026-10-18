@@ -1160,6 +1160,10 @@ function showNestedTreePopup(tree, options = {}) {
 
   /** The person in the middle of the view (or the nearest one around them), for the chart links. */
   function focusedPersonKey() {
+    // (the Family, Galaxy or 3D view's centre when one is showing: Charts ▾ on Alice Lee drew Theodore's; user, 2026-10-18)
+    const viewId = explorerView?.api.currentId?.();
+    const viewWtid = viewId && world?.raw?.people.get(viewId)?.wtid;
+    if (viewWtid) return viewWtid;
     let node = focusedNode();
     while (node && !node.person?.wtid) node = nodes[node.parent];
     return node?.person?.wtid || options.linkKey || "";

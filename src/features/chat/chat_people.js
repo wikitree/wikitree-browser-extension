@@ -864,7 +864,11 @@ export function createChatPeopleHandlers({
       table: makeAncestorProfileTable(
         relativesTableTitle("ancestors by age at death", ownerTitle(rootPerson)),
         aged,
-        [[0, "asc"]]
+        [
+          [7, shortest ? "asc" : "desc"],
+          [0, "asc"],
+        ],
+        { withAgeAtDeath: true }
       ),
     };
   }
