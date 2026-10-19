@@ -16,7 +16,7 @@ shouldInitializeFeature("darkMode").then((result) => {
 });
 
 // Features that the category and "toggle all" switches leave alone.
-const TOGGLE_ALL_EXCLUDED_SELECTOR = ["darkMode", "highlightWBEFeatures", "colorBlindSupport"]
+const TOGGLE_ALL_EXCLUDED_SELECTOR = ["darkMode", "highlightWBEFeatures", "colorBlindSupport", "hauntedTree"]
   .map((id) => "#" + id)
   .join(",");
 

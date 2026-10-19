@@ -2,8 +2,9 @@
 // season, scannedAt, checkedAt, total, people, laidToRest }. Only the haunted people are kept, not the whole list.
 // Anything going wrong here just means the member scans again.
 //
-// A localStorage flag says there's something saved, so that after the season every page load can check it cheaply
-// and only the first one opens IndexedDB to delete it. The list the member last looked at is in localStorage too.
+// A localStorage flag says there's something saved, so that while the feature is off outside October every page load
+// can check it cheaply and only the first one opens IndexedDB to delete it. The list the member last looked at is in
+// localStorage too.
 
 const DB_NAME = "WBE_haunted_tree";
 const STORE = "trees";
@@ -94,7 +95,7 @@ export function rememberSource(source) {
   }
 }
 
-/** After the season: delete the saved scans, if there are any. */
+/** Off, outside October: delete the saved scans, if there are any. */
 export function clearHauntedTreeIfSaved() {
   try {
     localStorage.removeItem(SOURCE_KEY);

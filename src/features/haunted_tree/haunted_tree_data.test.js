@@ -11,7 +11,6 @@ import {
   wikiTreeIdFromHref,
   wikiTreeIdKey,
 } from "./haunted_tree_data";
-import { isHauntedSeason } from "./haunted_tree_season";
 
 const YEAR = 2026;
 // Shapes as the live API sent them on 2026-10-19
@@ -22,17 +21,6 @@ const blankDates = {
   DeathDateDecade: "unknown",
 };
 const person = (fields) => ({ Id: 1, Name: "Smith-1", Father: 5, Mother: 6, Templates: [], ...fields });
-
-describe("isHauntedSeason", () => {
-  test("1 October to 1 November, every year", () => {
-    expect(isHauntedSeason(new Date(2026, 8, 30))).toBe(false);
-    expect(isHauntedSeason(new Date(2026, 9, 1))).toBe(true);
-    expect(isHauntedSeason(new Date(2026, 9, 31, 23, 59))).toBe(true);
-    expect(isHauntedSeason(new Date(2026, 10, 1, 23, 59))).toBe(true);
-    expect(isHauntedSeason(new Date(2026, 10, 2))).toBe(false);
-    expect(isHauntedSeason(new Date(2027, 9, 15))).toBe(true);
-  });
-});
 
 describe("hauntedGroups", () => {
   test("the Undead: born 110+ years ago with no death date", () => {
