@@ -96,6 +96,7 @@ import "./find_and_replace/find_and_replace_options";
 import "./g2g/g2g_options";
 import "./gold_standard/gold_standard_options";
 import "./genderPredictor/gender_predictor_options";
+import "./haunted_tree/haunted_tree_options";
 import "./help/help_options";
 import "./hide_my_contributions/hide_my_contributions_options";
 import "./highlight_WBE_features/highlight_WBE_features_options";

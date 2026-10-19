@@ -1,0 +1,148 @@
+#hauntedTree {
+  position: fixed;
+  top: 90px;
+  left: 16px;
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  color: #222;
+  border: 2px solid #e66a00;
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(30, 10, 40, 0.35);
+  z-index: 10000;
+  text-align: left;
+  font-size: 14px;
+}
+#hauntedTree .ht-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #2b1a3a;
+  border-radius: 5px 5px 0 0;
+  cursor: move;
+}
+#hauntedTree .ht-header h2 {
+  margin: 0;
+  padding: 0;
+  color: #ff9a3c;
+  font-size: 1.4em;
+  line-height: 1.4;
+  border: none;
+}
+#hauntedTree .close-popup {
+  background: none;
+  border: none;
+  color: #ff9a3c;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+#hauntedTree .close-popup:hover {
+  color: #fff;
+}
+#hauntedTree .ht-sources {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px;
+  background: #2b1a3a;
+}
+#hauntedTree .ht-source {
+  margin: 0;
+  padding: 4px 10px 6px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: #d8c8e8;
+  font-size: 0.95em;
+  text-transform: none;
+  cursor: pointer;
+}
+#hauntedTree .ht-source:hover {
+  color: #fff;
+}
+#hauntedTree .ht-source[aria-pressed="true"] {
+  color: #ff9a3c;
+  border-bottom-color: #ff9a3c;
+  font-weight: bold;
+}
+#hauntedTree .ht-source:disabled {
+  cursor: default;
+}
+#hauntedTree .ht-body {
+  padding: 10px 16px 14px;
+  overflow: auto;
+}
+#hauntedTree p {
+  margin: 0 0 0.7em;
+}
+#hauntedTree .ht-status {
+  color: #666;
+  font-size: 0.9em;
+}
+#hauntedTree .ht-score {
+  font-size: 1.2em;
+}
+#hauntedTree .ht-score strong {
+  color: #c45500;
+}
+#hauntedTree .ht-error {
+  color: #a00;
+}
+#hauntedTree .ht-working::before {
+  content: "🕸️ ";
+}
+#hauntedTree .ht-button {
+  margin: 0;
+}
+#hauntedTree .ht-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+#hauntedTree .ht-group {
+  border-top: 1px solid #eee;
+  padding: 4px 0;
+}
+#hauntedTree .ht-group summary {
+  cursor: pointer;
+  font-weight: bold;
+  padding: 4px 0;
+}
+#hauntedTree .ht-group.ht-empty summary {
+  color: #888;
+  font-weight: normal;
+}
+#hauntedTree .ht-meaning {
+  color: #555;
+  font-size: 0.9em;
+  margin: 0 0 0.4em 1.4em;
+}
+#hauntedTree ol {
+  margin: 0 0 0.5em 1.4em !important;
+  padding-left: 1.6em !important;
+  list-style: decimal outside !important;
+}
+#hauntedTree li {
+  margin: 2px 0;
+}
+#hauntedTree .ht-years {
+  color: #666;
+}
+#hauntedTree .ht-edit {
+  font-size: 0.85em;
+  color: #c45500;
+}
+.ht-icons {
+  margin-left: 4px;
+  white-space: nowrap;
+  cursor: help;
+}
+h1 .ht-icons {
+  font-size: 0.6em;
+  vertical-align: middle;
+}
