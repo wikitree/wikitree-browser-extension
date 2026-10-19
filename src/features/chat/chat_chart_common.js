@@ -116,6 +116,48 @@ export function chartLinkButtons(links) {
   return `<button type="button" class="small wbe-chart-link wbe-chart-menu-button" data-link="menu" aria-haspopup="menu" aria-expanded="false" title="Another chart for the person at the centre">Charts ▾</button>`;
 }
 
+/**
+ * The "Biological parents" switches, one per person in the chart with a birth parent recorded
+ * (choices: [{id, name, on}], from fanBirthParentChoices). The fan chart had them first; the
+ * charts drawn from the same ancestors have them too (Patty LaPlante, 2026-10-19: "In the
+ * Relationship, Lifespan … charts I am not finding that option"). "" for nobody.
+ */
+export function birthParentSwitchesHtml(choices) {
+  if (!(choices || []).length) return "";
+  return `<span title="On WikiTree as BioFather and BioMother, where someone was raised by other parents">Biological parents:</span>${choices
+    .map(
+      (choice) =>
+        `<label title="${escapeText(choice.on ? `Showing ${choice.name} with their biological parents. Untick for the parents who raised them.` : `Show ${choice.name} with their biological parents instead of the parents who raised them`)}"><input type="checkbox" data-bio="${choice.id}"${choice.on ? " checked" : ""}> ${escapeText(choice.name)}</label>`
+    )
+    .join("")}`;
+}
+
+/** A toolbar row of those switches (hidden for nobody); birthParents: {choices, onChange(id, on)}. */
+export function birthParentRowHtml(birthParents) {
+  const html = birthParentSwitchesHtml(birthParents?.choices);
+  return `<div class="wbe-chart-toolbar wbe-chart-bio"${html ? "" : " hidden"}>${html}</div>`;
+}
+
+/**
+ * The row for a chart that has no place of its own for it: under its first toolbar (or its header).
+ * birthParents: {choices, onChange(id, on)}; the redraw opens the chart again where this one is.
+ */
+export function addBirthParentRow(popup, birthParents) {
+  if (!birthParents?.choices?.length || popup.querySelector(".wbe-chart-bio")) return;
+  const anchor = popup.querySelector(".wbe-chart-toolbar") || popup.querySelector(".chat-popup-header");
+  if (!anchor) return;
+  anchor.insertAdjacentHTML("afterend", birthParentRowHtml(birthParents));
+  wireBirthParentRow(popup, birthParents);
+}
+
+/** Calls birthParents.onChange(id, on) when a switch in the popup's row is ticked or unticked. */
+export function wireBirthParentRow(popup, birthParents) {
+  popup.querySelector(".wbe-chart-bio")?.addEventListener("change", (event) => {
+    const id = Number(event.target?.dataset?.bio);
+    if (id) birthParents?.onChange?.(id, event.target.checked);
+  });
+}
+
 /** The menu's groups: every chart Genie's box can open, plus the ones this chart links to. */
 export function chartMenuGroups(links, { viaGenie = Boolean(chartMenuHandler) } = {}) {
   return CHART_MENU_GROUPS.map((group) => ({
@@ -451,9 +493,9 @@ const CHART_CSS = `
   .wbe-chart-tip .wbe-chart-tip-repeat { color: #b0185a; margin-top: 4px; }
   .wbe-chart-tip .wbe-chart-tip-dna { color: #6a3bb5; margin-top: 4px; }
   .wbe-chart-tip .wbe-chart-tip-bio { color: #2f6fb3; margin-top: 4px; }
-  .wbe-chart-toolbar.wbe-fan-bio { gap: 4px 12px; }
-  .wbe-chart-toolbar.wbe-fan-bio[hidden] { display: none; }
-  .wbe-fan-bio label { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; cursor: pointer; }
+  .wbe-chart-toolbar.wbe-fan-bio, .wbe-chart-toolbar.wbe-chart-bio { gap: 4px 12px; }
+  .wbe-chart-toolbar.wbe-fan-bio[hidden], .wbe-chart-toolbar.wbe-chart-bio[hidden] { display: none; }
+  .wbe-fan-bio label, .wbe-chart-bio label { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; cursor: pointer; }
   .wbe-chart-tip .wbe-chart-tip-quality { color: #2f6b3a; margin-top: 4px; }
   .wbe-chart-tip .wbe-chart-tip-history { color: #8a5a00; margin-top: 4px; }
   .wbe-chart-stats .wbe-chart-repeats { white-space: normal; font-size: 11px; color: #c2185b; margin-top: 2px; max-width: 220px; }
@@ -897,8 +939,8 @@ export function installLegendGrip(popup) {
   });
 }
 
-/** Create one chart of this kind, releasing the previous instance first. */
-export function createChartPopup({ id, html, keepFullScreen = false }) {
+/** Create one chart of this kind, releasing the previous instance first; birthParents adds the "Biological parents" row. */
+export function createChartPopup({ id, html, keepFullScreen = false, birthParents = null }) {
   const previous = document.getElementById(id);
   // A chart that reloads itself ("Load generations") keeps its window, so a full-screen
   // chart stays full screen (the browser would drop it with the old element, and a new
@@ -909,6 +951,7 @@ export function createChartPopup({ id, html, keepFullScreen = false }) {
     previous._wbeChartCleanup = null;
     previous._wbeSignal = new AbortController();
     previous.innerHTML = html;
+    addBirthParentRow(previous, birthParents);
     updateChartNav(previous);
     installLegendGrip(previous);
     return previous;
@@ -920,6 +963,7 @@ export function createChartPopup({ id, html, keepFullScreen = false }) {
   popup.className = "wbe-popup chat-popup ui-draggable wbe-chart-popup";
   popup.style.display = "flex";
   popup.innerHTML = html;
+  addBirthParentRow(popup, birthParents);
   popup._wbeSignal = new AbortController();
   let closed = false;
   popup._wbeCloseChart = () => {

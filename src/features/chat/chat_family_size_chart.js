@@ -42,6 +42,7 @@ const years = (child) => (child.birthYear ? `${child.birthYear}–${child.deathY
 export function showFamilySizePopup(data, options = {}) {
   const popup = createChartPopup({
     id: "wbe-family-size-popup",
+    birthParents: options.birthParents,
     html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>

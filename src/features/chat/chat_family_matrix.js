@@ -70,9 +70,9 @@ export function familyRelationshipsSvg(popup, title) {
   return svg;
 }
 
-export function showFamilyMatrixPopup(matrix, { reload } = {}) {
+export function showFamilyMatrixPopup(matrix, { reload, birthParents = null } = {}) {
   const rootName = fullWikiTreeName(matrix.root) || matrix.root.RealName || matrix.root.Name || "Private profile";
-  const popup = createChartPopup({ id: "wbe-family-matrix-popup", keepFullScreen: true, html: `
+  const popup = createChartPopup({ id: "wbe-family-matrix-popup", keepFullScreen: true, birthParents, html: `
     <div class="chat-popup-header"><strong>Relationship Chart: ${escapeText(rootName)}</strong><div class="chat-popup-controls">${chartLinkButtons()}${chartPopupControls()}</div></div>
     <div class="chat-popup-body wbe-kin-dashboard">
       <div class="wbe-kin-controls"><label>Ancestors <input type="number" name="ancestors" min="1" max="25" value="${matrix.ancestorDepth}"></label><label>Descendant branches <input type="number" name="descendants" min="1" max="10" value="${matrix.descendantDepth}"></label><button type="button" data-act="load">Load generations</button><input type="search" placeholder="Find a relative" aria-label="Find a relative"></div>

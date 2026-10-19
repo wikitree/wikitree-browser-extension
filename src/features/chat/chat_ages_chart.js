@@ -31,6 +31,7 @@ export function showAgesPopup(slots, options = {}) {
 
   const popup = createChartPopup({
     id: "wbe-ages-popup",
+    birthParents: options.birthParents,
     html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>

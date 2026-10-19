@@ -167,6 +167,7 @@ export function showTreeOverviewPopup(overview, options = {}) {
 
   const popup = createChartPopup({
     id: "wbe-tree-overview-popup",
+    birthParents: options.birthParents,
     html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>

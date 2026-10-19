@@ -34,7 +34,7 @@ import { showCompletenessHeatmapPopup } from "./chat_completeness_heatmap";
 import { buildNeedsHelpAnswer, buildQualitySummary } from "./chat_profile_quality_data";
 import { buildDnaCarrierSummary, buildDnaLinesSummary, buildParentStatusSummary, buildXDnaSummary, furthestLineAncestors, lineSharersGenerations, lineSharersHeading } from "./chat_dna_data";
 import { buildHistorySummary, buildPersonHistorySummary, placeCountry, placeRegions, rowCountries } from "./chat_world_events_data";
-import { buildFanSlots, buildFanChartSummary, buildSurnameSummary, fanChartStats, generationOfSlot, FAN_CHART_DEFAULT_GENERATIONS, FAN_CHART_MAX_GENERATIONS } from "./chat_fan_chart_data";
+import { buildFanSlots, fanBirthParentChoices, buildFanChartSummary, buildSurnameSummary, fanChartStats, generationOfSlot, FAN_CHART_DEFAULT_GENERATIONS, FAN_CHART_MAX_GENERATIONS } from "./chat_fan_chart_data";
 import { showFanChartPopup } from "./chat_fan_chart";
 import { buildLifeLine, buildLifeLineSummary } from "./chat_life_line_data";
 import { showLifeLinePopup } from "./chat_life_line";
@@ -1853,6 +1853,21 @@ export function createChatPeopleHandlers({
   // quality: also the Gold Standard checklist fields (biographies included, so heavier).
   // The people each set of slots came from, so the fan can switch someone's birth parents without fetching again.
   const fanSlotSources = new WeakMap();
+  // The "Biological parents" switches for a chart drawn from fan slots (Patty LaPlante, 2026-10-19: the fan and
+  // Explorer had them, Lifespans and the rest didn't). redraw(bioShown, {position, mode}) loads and draws it again.
+  // (choices: for a chart not drawn from fan slots, its own list)
+  function birthParentSwitches(slots, bioShown = [], redraw, choices = fanBirthParentChoices(slots)) {
+    return {
+      choices,
+      onChange: (id, on, again = {}) => {
+        const next = new Set((bioShown || []).map(Number));
+        if (on) next.add(Number(id));
+        else next.delete(Number(id));
+        Promise.resolve(redraw([...next], again)).catch((error) => notify(`The chart couldn't load with those parents (${error?.message || error}).`));
+      },
+    };
+  }
+
   // bioShown: Ids of people shown with their birth parents (getPeople "ancestors" sends both lines).
   async function loadFanSlots(key, generations = FAN_CHART_DEFAULT_GENERATIONS, { quality = false, bioShown = [] } = {}) {
     const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, key, quality ? `${FAN_CHART_FIELDS},${QUALITY_FIELDS}` : FAN_CHART_FIELDS, {
@@ -2255,6 +2270,20 @@ export function createChatPeopleHandlers({
     }
   }
 
+  // The ancestors' migration map, with the "Biological parents" switches (each redraw loads the ancestors again).
+  async function showAncestorMap(slots, { bioShown = [], year = 0 } = {}) {
+    const key = slots[1].wtid;
+    return showMigrationMapPopup(buildMigration(slots), {
+      title: `Migration map: ${personNameText(slots[1])} (${key})`,
+      fileBase: `migration-map-${String(key || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
+      rootKey: key,
+      year,
+      birthParents: birthParentSwitches(slots, bioShown, async (next) =>
+        showAncestorMap(await loadFanSlots(key, MIGRATION_MAP_GENERATIONS, { bioShown: next }), { bioShown: next, year })
+      ),
+    });
+  }
+
   async function tryHandleMigrationMapPrompt(params, prompt = "") {
     if (params?.descendants) return tryHandleDescendantMapPrompt(params, prompt);
     const rootPerson = await resolveAncestorSubjectRoot(params?.ancestorPrompt || prompt);
@@ -2268,14 +2297,7 @@ export function createChatPeopleHandlers({
       const owner = rootPerson?.subjectType === "user" ? "Your" : `${formatSubjectLabel(rootPerson)}'s`;
       await loadGeocodeCache();
       const migration = buildMigration(slots);
-      const label = `${slots[1].name || slots[1].wtid} (${slots[1].wtid})`;
-      const open = () =>
-        showMigrationMapPopup(migration, {
-          title: `Migration map: ${label}`,
-          fileBase: `migration-map-${String(slots[1].wtid || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
-          rootKey: slots[1].wtid,
-          year: Number(params?.year) || 0,
-        });
+      const open = () => showAncestorMap(slots, { year: Number(params?.year) || 0 });
       const canMap = migration.places.length > 0;
       if (canMap) void open().catch((error) => console.warn("wbe: migration map failed", error));
       return {
@@ -2330,7 +2352,7 @@ export function createChatPeopleHandlers({
       });
       return { rows, undated, table, opened: true };
     }
-    const slots = await loadFanSlots(key, LIFESPANS_GENERATIONS);
+    const slots = await loadFanSlots(key, LIFESPANS_GENERATIONS, { bioShown: extra.bioShown || [] });
     if (!slots[1]) return null;
     if (!slots[1].fatherId && !slots[1].motherId) {
       const descendants = await openLifespans(key, { ...extra, view: "descendants" });
@@ -2345,13 +2367,15 @@ export function createChatPeopleHandlers({
       title: `Lifespans: ${personNameText(slots[1])} (${slots[1].wtid})`,
       undated,
       links: chartLinks("overview", "fan", "explorer", "calendar"),
+      mode: extra.mode,
+      birthParents: birthParentSwitches(slots, extra.bioShown, (bioShown, again) => openLifespans(key, { ...extra, ...again, bioShown })),
     });
     return { rows, undated, table, opened: true };
   }
 
   // Name cloud (2026-10-03): ancestors' first names and surnames, sized by count.
-  async function openNameCloud(key) {
-    const slots = await loadFanSlots(key, NAME_CLOUD_GENERATIONS);
+  async function openNameCloud(key, { bioShown = [] } = {}) {
+    const slots = await loadFanSlots(key, NAME_CLOUD_GENERATIONS, { bioShown });
     if (!slots[1]) return null;
     let names = slots;
     let scope = "ancestors";
@@ -2375,7 +2399,9 @@ export function createChatPeopleHandlers({
         scope,
         rootKey: slots[1].wtid,
         links: chartLinks("overview", "fan", "lifespans", "explorer"),
-        ...(scope === "ancestors" ? { onRiver: () => showSurnameRiver(slots) } : {}),
+        ...(scope === "ancestors"
+          ? { onRiver: () => showSurnameRiver(slots), birthParents: birthParentSwitches(slots, bioShown, (next) => openNameCloud(key, { bioShown: next })) }
+          : {}),
         // After you group or ungroup names (2026-10-15).
         rebuild: buildClouds,
       });
@@ -2384,8 +2410,8 @@ export function createChatPeopleHandlers({
   }
 
   // Family size (2026-10-04): each ancestral couple's children, generation by generation.
-  async function openFamilySize(key) {
-    const slots = await loadFanSlots(key, FAMILY_SIZE_GENERATIONS);
+  async function openFamilySize(key, { bioShown = [] } = {}) {
+    const slots = await loadFanSlots(key, FAMILY_SIZE_GENERATIONS, { bioShown });
     if (!slots[1]) return null;
     // The parents' children: getPeople with descendants: 1 on every ancestor who is someone's parent.
     const parentIds = [...new Set(slots.slice(2).filter(Boolean).map((person) => person.id).filter(Boolean))];
@@ -2399,6 +2425,7 @@ export function createChatPeopleHandlers({
         title: `Family size: ${personNameText(slots[1])} (${slots[1].wtid})`,
         rootKey: slots[1].wtid,
         links: chartLinks("lifespans", "fan", "overview", "explorer"),
+        birthParents: birthParentSwitches(slots, bioShown, (next) => openFamilySize(key, { bioShown: next })),
       });
     }
     return { slots, data, opened };
@@ -2518,8 +2545,8 @@ export function createChatPeopleHandlers({
   }
 
   // Family calendar (2026-10-03): ancestors' births and deaths on one year, with today marked.
-  async function openFamilyCalendar(key, focusMonth = 0) {
-    const slots = await loadFanSlots(key, FAMILY_CALENDAR_GENERATIONS);
+  async function openFamilyCalendar(key, focusMonth = 0, { bioShown = [] } = {}) {
+    const slots = await loadFanSlots(key, FAMILY_CALENDAR_GENERATIONS, { bioShown });
     if (!slots[1]) return null;
     const [tree, relatives] = await Promise.all([
       loadDescendantTree(key, FAMILY_CALENDAR_GENERATIONS),
@@ -2549,6 +2576,7 @@ export function createChatPeopleHandlers({
         rootKey: slots[1].wtid,
         focusMonth,
         links: chartLinks("overview", "fan", "lifespans", "timeline"),
+        birthParents: birthParentSwitches(slots, bioShown, (next) => openFamilyCalendar(key, focusMonth, { bioShown: next })),
       });
     }
     return { slots, events, opened };
@@ -2557,11 +2585,17 @@ export function createChatPeopleHandlers({
   async function tryHandleFamilyMatrixPrompt(params, prompt = "") {
     const root = await resolveAncestorSubjectRoot(params?.ancestorPrompt || prompt);
     if (!root || root.unresolvedName) return "I couldn't identify that profile. Try a WikiTree ID for the Relationship Chart.";
+    // bioShown: who is shown with their birth parents (the "Biological parents" switches), kept across reloads.
+    let bioShown = [];
     const load = async (ancestors = 4, descendants = 5, progress) => {
-      const people = await loadFamilyMatrixPeople(WikiTreeAPI, WBE_CHAT_APP_ID, root.key, ancestors, descendants, progress);
-      const matrix = buildFamilyMatrix(people, root.key, ancestors, descendants);
+      const people = await loadFamilyMatrixPeople(WikiTreeAPI, WBE_CHAT_APP_ID, root.key, ancestors, descendants, progress, { bioShown });
+      const matrix = buildFamilyMatrix(people, root.key, ancestors, descendants, { bioShown });
       if (!matrix) throw new Error("WikiTree returned no starting profile");
-      showFamilyMatrixPopup(matrix, { reload: load });
+      const birthParents = birthParentSwitches(null, bioShown, (next) => {
+        bioShown = next;
+        return load(ancestors, descendants);
+      }, matrix.birthParentChoices);
+      showFamilyMatrixPopup(matrix, { reload: load, birthParents });
       return matrix;
     };
     try {
@@ -2571,8 +2605,8 @@ export function createChatPeopleHandlers({
   }
 
   // Tree overview (2026-10-03): a dashboard of the ancestors, each panel opening its chart.
-  async function openTreeOverview(key) {
-    const slots = await loadFanSlots(key, TREE_OVERVIEW_GENERATIONS);
+  async function openTreeOverview(key, { bioShown = [] } = {}) {
+    const slots = await loadFanSlots(key, TREE_OVERVIEW_GENERATIONS, { bioShown });
     if (!slots[1]) return null;
     const overview = buildTreeOverview(slots);
     if (!slots[1].fatherId && !slots[1].motherId) {
@@ -2596,6 +2630,7 @@ export function createChatPeopleHandlers({
       showTreeOverviewPopup(overview, {
         title: `Tree overview: ${personNameText(slots[1]) || wtid} (${wtid})`,
         rootKey: wtid,
+        birthParents: birthParentSwitches(slots, bioShown, (next) => openTreeOverview(key, { bioShown: next })),
         open: {
           familymap: run(chartAction("Relationship Chart", async () => {
             const result = await tryHandleFamilyMatrixPrompt({ ancestorPrompt: `${wtid}'s ancestors` });
@@ -2694,13 +2729,19 @@ export function createChatPeopleHandlers({
         actions: [VISUALS.explorer(key), VISUALS.descendants(key)],
         chartOpened: false,
       };
-      const open = () =>
-        showAgesPopup(ages, {
+      // (ancestors: with the "Biological parents" switches, each redraw loading them again)
+      const showAges = (shown, bioShown = []) =>
+        showAgesPopup(shown, {
           title: `Lives & ages (${scope}): ${personNameText(slots[1]) || key} (${key})`,
           mode: params?.mode || "death",
           links: chartLinks("fan", "lifespans", "overview"),
           rootKey: key,
+          birthParents:
+            scope === "ancestors"
+              ? birthParentSwitches(shown, bioShown, async (next) => showAges(await loadFanSlots(key, Number(params?.generations) || 10, { bioShown: next }), next))
+              : null,
         });
+      const open = () => showAges(ages);
       noteHiddenProfiles(slots.filter((person) => person?.hidden).length);
       open();
       return {
@@ -3067,11 +3108,7 @@ export function createChatPeopleHandlers({
         const slots = await loadFanSlots(key, MIGRATION_MAP_GENERATIONS);
         const migration = buildMigration(slots);
         if (slots[1] && migration.places.length) {
-          await showMigrationMapPopup(migration, {
-            title: `Migration map: ${personNameText(slots[1])} (${slots[1].wtid})`,
-            fileBase: `migration-map-${String(slots[1].wtid || "").replace(/[^A-Za-z0-9_-]/g, "")}`,
-            rootKey: slots[1].wtid,
-          });
+          await showAncestorMap(slots);
           return { opened: true };
         }
         return { opened: false };

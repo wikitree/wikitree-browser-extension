@@ -102,7 +102,7 @@ export function fullWikiTreeName(person) {
 // lines (live, Rockstrom-4), with DataStatus.BioFather/BioMother for how sure the birth links are. Someone in
 // `bioShown` has their birth parents in their parent slots; with one birth parent recorded, a parent marked
 // non-biological on the other side is left out (they weren't a couple).
-function chosenParents(person, bio) {
+export function chosenParents(person, bio) {
   const status = person.DataStatus || {};
   const side = (raised, birth) => {
     const nonBio = String(status[raised] ?? "") === "5";

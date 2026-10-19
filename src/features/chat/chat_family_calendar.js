@@ -50,6 +50,7 @@ export function showFamilyCalendarPopup(events, options = {}) {
 
   const popup = createChartPopup({
     id: "wbe-family-calendar-popup",
+    birthParents: options.birthParents,
     html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>

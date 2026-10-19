@@ -79,6 +79,7 @@ export function showNameCloudPopup(clouds, options = {}) {
 
   const popup = createChartPopup({
     id: "wbe-name-cloud-popup",
+    birthParents: options.birthParents,
     html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>

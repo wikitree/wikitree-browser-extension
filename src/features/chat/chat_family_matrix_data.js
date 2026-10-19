@@ -1,10 +1,10 @@
 import { canonicalChartOwner } from "./chat_chart_owner";
-import { fullWikiTreeName } from "./chat_fan_chart_data";
+import { chosenParents, fullWikiTreeName } from "./chat_fan_chart_data";
 import { shownGender } from "./chat_gender_display";
 import { ordinal } from "./chat_text_utils";
 import { ancestorGenerationLabel, descendantWord } from "./chat_kin_labels";
 
-export const FAMILY_MATRIX_FIELDS = "Id,Name,FirstName,MiddleName,RealName,LastNameAtBirth,LastNameCurrent,Gender,BirthDate,DeathDate,BirthLocation,DeathLocation,DataStatus,Father,Mother,IsLiving";
+export const FAMILY_MATRIX_FIELDS = "Id,Name,FirstName,MiddleName,RealName,LastNameAtBirth,LastNameCurrent,Gender,BirthDate,DeathDate,BirthLocation,DeathLocation,DataStatus,Father,Mother,BioFather,BioMother,IsLiving";
 
 export function parseFamilyMatrixPrompt(prompt) {
   const match = String(prompt || "").trim().replace(/[.!?]+$/, "").match(/^(?:(?:show|open)(?: me)?\s+)?(?:(my|our|his|her|their|this profile's|[A-Za-z][A-Za-z'_ -]*-\d+['’]s)\s+)?(?:(?:family|kinship|relationship)\s+(?:map|matrix|dashboard|cards|relationships)|relationship\s+chart)$/i);
@@ -15,14 +15,22 @@ export function parseFamilyMatrixPrompt(prompt) {
 
 const MAX_COLLATERAL_GENERATIONS = 8;
 
-function ancestorPaths(id, byId, limit) {
+// A person's parents in the chart: their birth parents when they're in `shown` (the "Biological parents" switches).
+function parentsOf(person, shown) {
+  if (!person) return [];
+  const bio = shown?.has(Number(person.Id)) && Boolean(Number(person.BioFather) || Number(person.BioMother));
+  const { father, mother } = chosenParents(person, bio);
+  return [father.id, mother.id];
+}
+
+function ancestorPaths(id, byId, limit, shown) {
   const paths = new Map([[String(id), 0]]);
   let frontier = [String(id)];
   for (let depth = 1; depth <= limit && frontier.length; depth++) {
     const next = [];
     frontier.forEach((key) => {
       const person = byId.get(key);
-      [person?.Father, person?.Mother].filter((parent) => Number(parent)).forEach((parent) => {
+      parentsOf(person, shown).filter((parent) => Number(parent)).forEach((parent) => {
         const key = String(parent);
         if (!paths.has(key)) { paths.set(key, depth); next.push(key); }
       });
@@ -47,22 +55,26 @@ function relationLabel(up, down) {
   return `${ordinal(cousin)} cousins${removed ? ` ${removedWord(removed)} removed` : ""}`;
 }
 
-export function buildFamilyMatrix(people, rootKey, ancestorDepth = 4, descendantDepth = 5) {
+// bioShown: Ids of people shown with their birth parents instead of the parents who raised them.
+export function buildFamilyMatrix(people, rootKey, ancestorDepth = 4, descendantDepth = 5, { bioShown = [] } = {}) {
+  const shown = new Set([...(bioShown || [])].map(Number));
   const byId = new Map(Object.values(people || {}).filter(Boolean).map((person) => [String(person.Id), person]));
   const root = byId.get(String(rootKey)) || [...byId.values()].find((person) => person.Name === rootKey);
   if (!root) return null;
-  const rootPaths = ancestorPaths(root.Id, byId, ancestorDepth);
+  const rootPaths = ancestorPaths(root.Id, byId, ancestorDepth, shown);
   const groups = new Map();
   for (const person of byId.values()) {
     if (String(person.Id) === String(root.Id)) continue;
-    const paths = ancestorPaths(person.Id, byId, Math.max(ancestorDepth, descendantDepth));
+    const paths = ancestorPaths(person.Id, byId, Math.max(ancestorDepth, descendantDepth), shown);
     const shared = [...rootPaths].filter(([id]) => paths.has(id)).map(([id, up]) => ({ id, up, down: paths.get(id) }));
     shared.sort((a, b) => (a.up + a.down) - (b.up + b.down) || Math.max(a.up, a.down) - Math.max(b.up, b.down));
     const closest = shared[0];
     if (!closest || closest.down > descendantDepth) continue;
     let label = relationLabel(closest.up, closest.down);
-    if (closest.up === 1 && closest.down === 1 && root.Father && root.Mother && person.Father && person.Mother) {
-      const common = [root.Father, root.Mother].filter((id) => [person.Father, person.Mother].some((parent) => String(id) === String(parent)));
+    const rootParents = parentsOf(root, shown);
+    const personParents = parentsOf(person, shown);
+    if (closest.up === 1 && closest.down === 1 && rootParents.every(Number) && personParents.every(Number)) {
+      const common = rootParents.filter((id) => personParents.some((parent) => String(id) === String(parent)));
       if (common.length === 1) label = "half siblings";
     }
     const key = `${closest.up}:${closest.down}:${label}`;
@@ -71,11 +83,17 @@ export function buildFamilyMatrix(people, rootKey, ancestorDepth = 4, descendant
   }
   const cards = [...groups.values()].sort((a, b) => (b.up - b.down) - (a.up - a.down) || a.up - b.up);
   cards.forEach((card) => card.people.sort((a, b) => a.birth.localeCompare(b.birth) || a.name.localeCompare(b.name)));
-  return { root, cards, ancestorDepth, descendantDepth, total: cards.reduce((sum, card) => sum + card.people.length, 0) };
+  // The switches: the root and their ancestors in range who have birth parents on WikiTree.
+  const birthParentChoices = [...rootPaths]
+    .filter(([, up]) => up < ancestorDepth)
+    .map(([id]) => byId.get(id))
+    .filter((person) => person && (Number(person.BioFather) || Number(person.BioMother)))
+    .map((person) => ({ id: Number(person.Id), name: fullWikiTreeName(person) || person.RealName || person.Name || "Private profile", on: shown.has(Number(person.Id)) }));
+  return { root, cards, ancestorDepth, descendantDepth, birthParentChoices, total: cards.reduce((sum, card) => sum + card.people.length, 0) };
 }
 
 // Related-key requests allow at most 100 keys. Paginate related profiles even when keys are a list.
-export async function loadFamilyMatrixPeople(api, appId, rootKey, ancestorDepth, descendantDepth, progress) {
+export async function loadFamilyMatrixPeople(api, appId, rootKey, ancestorDepth, descendantDepth, progress, { bioShown = [] } = {}) {
   const people = {};
   async function fetch(keys, options) {
     for (let start = 0; ; start += 1000) {
@@ -93,7 +111,7 @@ export async function loadFamilyMatrixPeople(api, appId, rootKey, ancestorDepth,
   // Deep ancestor views retain their direct ancestry; collateral branches start in the nearest
   // ancestors, as many generations as asked for (to MAX_COLLATERAL_GENERATIONS): 3rd cousins share
   // great-great-grandparents (4 up), 4th cousins need 5, and so on.
-  const nearest = buildFamilyMatrix(people, rootKey, Math.min(ancestorDepth, MAX_COLLATERAL_GENERATIONS), descendantDepth);
+  const nearest = buildFamilyMatrix(people, rootKey, Math.min(ancestorDepth, MAX_COLLATERAL_GENERATIONS), descendantDepth, { bioShown });
   const ids = [nearest?.root?.Id, ...(nearest?.cards || []).filter((card) => card.down === 0).flatMap((card) => card.people.map((person) => person.id))].filter(Boolean).map(String);
   const targets = ids.length ? [...new Set(ids)] : seeds.slice(0, 100);
   for (let index = 0; index < targets.length; index += 20) {

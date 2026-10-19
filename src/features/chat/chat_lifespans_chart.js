@@ -28,6 +28,8 @@ import {
   tipMoreHint,
   truncate,
   yearOf,
+  birthParentRowHtml,
+  wireBirthParentRow,
 } from "./chat_chart_common";
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
@@ -113,7 +115,8 @@ export function showLifespansPopup(rows, options = {}) {
   const family = options.view === "family";
   const descendants = options.view === "descendants";
   const modes = family ? FAMILY_MODES : descendants ? DESCENDANT_MODES : MODES;
-  const state = { mode: modes[0].key };
+  // (mode: kept when a "Biological parents" switch draws the chart again)
+  const state = { mode: modes.some((m) => m.key === options.mode) ? options.mode : modes[0].key };
   const word = options.peopleWord || (family ? "relative" : descendants ? "descendant" : "ancestor");
   const words = (count) => `${word}${count === 1 ? "" : "s"}`;
   const root = rows.find(isRoot) || null;
@@ -143,11 +146,14 @@ export function showLifespansPopup(rows, options = {}) {
         <span class="wbe-chart-spacer"></span>
         <span style="opacity:.65">Move across to see who was alive · click a bar to open the profile</span>
       </div>
+      ${birthParentRowHtml(options.birthParents)}
       <div class="wbe-chart-stage" style="overflow-y:auto"><div class="wbe-chart-tip"></div></div>
       <div class="wbe-chart-footer"><div class="wbe-chart-legend"></div><div class="wbe-chart-centuries"></div></div>
     </div>`,
   });
   if (options.position?.left) Object.assign(popup.style, { left: options.position.left, top: options.position.top });
+  // (birthParents.onChange draws the chart again in the same place and colouring)
+  wireBirthParentRow(popup, { onChange: (id, on) => options.birthParents?.onChange?.(id, on, { position: { left: popup.style.left, top: popup.style.top }, mode: state.mode }) });
   popup.querySelector(".wbe-chart-title").textContent = options.title || "Lifespans";
 
   const stage = popup.querySelector(".wbe-chart-stage");

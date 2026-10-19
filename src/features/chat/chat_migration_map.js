@@ -109,6 +109,7 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
 
   const popup = createChartPopup({
     id: "wbe-migration-popup",
+    birthParents: options.birthParents,
     html: `
     <div class="chat-popup-header ui-draggable-handle">
       <strong class="wbe-chart-title"></strong>

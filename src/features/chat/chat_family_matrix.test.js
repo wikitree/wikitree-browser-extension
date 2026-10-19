@@ -149,3 +149,29 @@ test("exports contain portable SVG cards and labels, excluding transient hover l
   expect(popup.querySelector('[data-act="svg"]')).not.toBeNull();
   expect(popup.querySelector('[data-act="png"]')).not.toBeNull();
 });
+
+// Patty LaPlante (2026-10-19): Terry was raised by the Warners; Patty is his birth mother, with birth parents of her own.
+test("Biological parents switches: the chart follows birth parents for the people ticked", () => {
+  const people = {
+    1: { Id: 1, Name: "Rockstrom-4", FirstName: "Terry", LastNameAtBirth: "Rockstrom", Father: 2, Mother: 3, BioFather: 4, BioMother: 5, DataStatus: { Father: "5", Mother: "5" } },
+    2: { Id: 2, Name: "Warner-1", FirstName: "Bernard" },
+    3: { Id: 3, Name: "Mathis-1", FirstName: "Ruby" },
+    4: { Id: 4, Name: "Rockstrom-1", FirstName: "Pat" },
+    5: { Id: 5, Name: "Luker-573", FirstName: "Patty", Father: 6, Mother: 7, BioFather: 8, BioMother: 9 },
+    6: { Id: 6, Name: "Luker-1", FirstName: "Raised" },
+    7: { Id: 7, Name: "Luker-2", FirstName: "RaisedMother" },
+    8: { Id: 8, Name: "Luker-3", FirstName: "Riley" },
+    9: { Id: 9, Name: "Johnson-1", FirstName: "Frances" },
+  };
+  const names = (matrix) => matrix.cards.flatMap((card) => card.people.map((person) => person.wtid)).sort();
+  const raised = buildFamilyMatrix(people, "Rockstrom-4", 2, 1);
+  expect(names(raised)).toEqual(["Mathis-1", "Warner-1"]);
+  expect(raised.birthParentChoices).toEqual([{ id: 1, name: expect.stringContaining("Terry"), on: false }]);
+
+  const terry = buildFamilyMatrix(people, "Rockstrom-4", 2, 1, { bioShown: [1] });
+  expect(names(terry)).toEqual(["Luker-1", "Luker-2", "Luker-573", "Rockstrom-1"]);
+  expect(terry.birthParentChoices.map((choice) => [choice.id, choice.on])).toEqual([[1, true], [5, false]]);
+
+  const both = buildFamilyMatrix(people, "Rockstrom-4", 2, 1, { bioShown: [1, 5] });
+  expect(names(both)).toEqual(["Johnson-1", "Luker-3", "Luker-573", "Rockstrom-1"]);
+});

@@ -20,7 +20,7 @@ import { buildMigration } from "./chat_migration_data";
 import { showMigrationMapPopup } from "./chat_migration_map";
 import { PARENT_STATUSES, autosomalShare, dnaLineAncestors, dnaLineCarrierNote, dnaLineOf, lineTestSummary, parentLinkStatus, parentStatusCounts, percentText, xDnaShares } from "./chat_dna_data";
 import { researchStatusLabel } from "./chat_profile_quality_data";
-import { chartPopupControls, chartLinkButtons, escapeText, injectChartStyles, personNameText, lifeYears as years, profileUrl, textColourFor, truncate, handleChartPopupButton, createChartPopup, mountChartPopup } from "./chat_chart_common";
+import { birthParentSwitchesHtml, chartPopupControls, chartLinkButtons, escapeText, injectChartStyles, personNameText, lifeYears as years, profileUrl, textColourFor, truncate, handleChartPopupButton, createChartPopup, mountChartPopup } from "./chat_chart_common";
 import { joinWithAnd, yearOf } from "./chat_text_utils";
 import { joinWithAndMore, moreTextToHtml } from "./chat_more_text";
 
@@ -573,14 +573,7 @@ export function showFanChartPopup(slots, options = {}) {
     const row = popup.querySelector(".wbe-fan-bio");
     const choices = fanBirthParentChoices(state.slots);
     row.hidden = !choices.length;
-    row.innerHTML = choices.length
-      ? `<span title="On WikiTree as BioFather and BioMother, where someone was raised by other parents">Biological parents:</span>${choices
-          .map(
-            (choice) =>
-              `<label title="${escapeText(choice.on ? `Showing ${choice.name} with their biological parents. Untick for the parents who raised them.` : `Show ${choice.name} with their biological parents instead of the parents who raised them`)}"><input type="checkbox" data-bio="${choice.id}"${choice.on ? " checked" : ""}> ${escapeText(choice.name)}</label>`
-          )
-          .join("")}`
-      : "";
+    row.innerHTML = birthParentSwitchesHtml(choices);
   }
 
   async function setBirthParents(id, on) {
