@@ -42,6 +42,28 @@ export async function addLoginButton(opt) {
   });
 }
 
+/**
+ * A working Apps Login button to put anywhere, such as in a popup. It has no id, so there can be more than one.
+ * @param {string} appId - The application ID to use in the call to the WikiTree Apps server.
+ * @param {string} title - The title (tooltip) for the button.
+ */
+export function createAppsLoginButton(appId, title) {
+  const button = $(`<button class='small button wbe-app-login wbe-button'>Apps Login</button>`).attr("title", title);
+  return button.on("click", (e) => {
+    e.preventDefault();
+    window.location = `https://api.wikitree.com/api.php?action=clientLogin&appId=${appId}&returnURL=${currentHrefWithoutAuthcode()}`;
+  });
+}
+
+// Whether the page was opened straight back from api.wikitree.com's clientLogin (with an authcode)
+const arrivedWithAuthcode =
+  typeof window !== "undefined" && new URLSearchParams(window.location.search).has("authcode");
+
+/** True if this page was opened straight back from api.wikitree.com's clientLogin (with an authcode). */
+export function pageHadAuthcode() {
+  return arrivedWithAuthcode;
+}
+
 async function handleOptionalAuthCode(opt) {
   if (await redeemAuthcode(opt.appId)) {
     $(`#${opt.btnId}`).hide();
