@@ -13,6 +13,8 @@ import {
   RELATIVE_SPOUSE_FIELDS,
   spousesOf,
   buildFindRelativesAnswer,
+  censusKinBeyond,
+  furtherAttached,
   duplicateLines,
   buildRelativesAiPrompt,
   readRelativesFromBio,
@@ -1394,7 +1396,11 @@ export function createChatPeopleHandlers({
         });
         if (response?.success && response.response) {
           relatives = relativesFromAiJson(parsePlannerJson(response.response), profile);
-          if (relatives.length) readBy = "read by AI";
+          if (relatives.length) {
+            readBy = "read by AI";
+            // (the AI isn't asked for grandparents, uncles and cousins: census tables give those by code, and anyone it missed)
+            relatives = [...relatives, ...censusKinBeyond(relatives, bio, profile)];
+          }
         }
       } catch (error) {
         console.warn("wbe: AI couldn't read the biography; reading it by code", error);
@@ -1413,7 +1419,8 @@ export function createChatPeopleHandlers({
         ...duplicateLines(duplicates, subjectLabel),
       ].join("\n");
     }
-    relatives = relatives.slice(0, 40);
+    // Family first: the people named in passing are searched for only within the limit.
+    relatives = [...relatives.filter((r) => r.role !== "other"), ...relatives.filter((r) => r.role === "other")].slice(0, 40);
 
     let attached = pageAttached;
     if (!attached) {
@@ -1432,6 +1439,13 @@ export function createChatPeopleHandlers({
         ...Object.values(person.Siblings || {}).map((p) => ({ role: "sibling", profile: p })),
       ];
     }
+    // Grandparents, uncles, cousins and in-laws: the parents' parents, the parents' siblings, and so on.
+    attached = [
+      ...attached,
+      ...(await furtherAttached(attached, relatives, (ids, options) =>
+        WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, ids, "Id,Name,FirstName,Gender,BirthDate", options)
+      )),
+    ];
 
     notify(`Searching WikiTree for ${relatives.length} relative${relatives.length === 1 ? "" : "s"}…`);
     const results = await searchRelatives({
