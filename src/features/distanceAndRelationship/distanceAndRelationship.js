@@ -836,56 +836,76 @@ async function getOtherMostRecentCommonAncestor(userID, profileID, firstData, fi
   }
 }
 
+// The path names the child of the common ancestor on each side: one on the user's line, one on
+// the profile's. Any other parent those two children share (usually the ancestor's spouse) is a
+// common ancestor at the same distance, so no second getConnections call is needed to confirm it.
+// A parent of only one of them is a half relation's other parent and is left out.
+// Returns null when either child is hidden from us, so the caller can try another way.
+async function getSharedParentsOfPathChildren(path, pathAnalysis) {
+  const { ancestorIndex } = pathAnalysis;
+  const userSideChild = path[ancestorIndex - 1];
+  const profileSideChild = path[ancestorIndex + 1];
+  const keyFor = (node) => node?.Name || (Number(node?.Id) > 0 ? Number(node.Id) : null);
+  const userSideKey = keyFor(userSideChild);
+  const profileSideKey = keyFor(profileSideChild);
+  if (!userSideKey || !profileSideKey) {
+    return null;
+  }
+
+  try {
+    const relatives = await WikiTreeAPI.getRelatives(
+      WBE_DIST_REL_APP_ID,
+      [userSideKey, profileSideKey],
+      "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,DataStatus",
+      { getParents: true }
+    );
+    console.log("[WBE dist-rel] getRelatives (getParents) response for path children", relatives);
+
+    const parentsOf = (node) => {
+      const item = relatives?.find((relative) => Number(relative?.person?.Id) === Number(node.Id));
+      return item?.person ? Object.values(item.person.Parents || {}) : null;
+    };
+    const userSideParents = parentsOf(userSideChild);
+    const profileSideParents = parentsOf(profileSideChild);
+    if (!userSideParents || !profileSideParents) {
+      return null;
+    }
+
+    const firstAncestorId = Number(pathAnalysis.ancestorNode?.Id);
+    return userSideParents.filter(
+      (parent) =>
+        parent?.Name &&
+        Number(parent.Id) !== firstAncestorId &&
+        profileSideParents.some((other) => Number(other?.Id) === Number(parent.Id))
+    );
+  } catch (error) {
+    console.log("Could not retrieve parents of path children for common ancestor display", error);
+    return null;
+  }
+}
+
 async function augmentWithOtherParentCommonAncestor(userID, profileID, data, pathAnalysis, commonAncestors) {
   if (!(pathAnalysis.upSteps >= 1 && pathAnalysis.downSteps >= 1)) {
     return commonAncestors;
   }
 
-  let nextAncestors = commonAncestors;
-
-  if (pathAnalysis.downSteps === 1) {
-    try {
-      const relatives = await WikiTreeAPI.getRelatives(
-        WBE_DIST_REL_APP_ID,
-        [profileID],
-        "Id,Name,Gender,FirstName,LastNameCurrent,LastNameAtBirth,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,DataStatus",
-        { getParents: true }
-      );
-      console.log("[WBE dist-rel] getRelatives (getParents) response for profile", profileID, relatives);
-
-      const person = relatives?.[0]?.person;
-      const parents = person?.Parents ? Object.values(person.Parents) : [];
-      const directAncestorId = Number(pathAnalysis.ancestorNode?.Id);
-      const otherParent = parents.find((parent) => Number(parent?.Id) !== directAncestorId && parent?.Name);
-
-      const otherParentEntry = asCommonAncestorEntry(otherParent, pathAnalysis.upSteps, pathAnalysis.downSteps);
-      if (otherParentEntry) {
-        const alreadyIncluded = nextAncestors.some(
-          (ancestor) => String(ancestor?.ancestor?.mName || "") === String(otherParentEntry.ancestor.mName)
-        );
-        if (!alreadyIncluded) {
-          nextAncestors = [...nextAncestors, otherParentEntry];
-        }
-      }
-    } catch (error) {
-      console.log("Could not retrieve second parent for common ancestor display", error);
-    }
-  }
-
-  if (nextAncestors.length < 2) {
+  let otherAncestors = await getSharedParentsOfPathChildren(data.path, pathAnalysis);
+  if (otherAncestors === null) {
     const otherMrca = await getOtherMostRecentCommonAncestor(userID, profileID, data, pathAnalysis);
-    if (otherMrca) {
-      const otherMrcaEntry = asCommonAncestorEntry(otherMrca, pathAnalysis.upSteps, pathAnalysis.downSteps);
-      if (otherMrcaEntry) {
-        const alreadyIncluded = nextAncestors.some(
-          (ancestor) => String(ancestor?.ancestor?.mName || "") === String(otherMrcaEntry.ancestor.mName)
-        );
-        if (!alreadyIncluded) {
-          return [...nextAncestors, otherMrcaEntry];
-        }
-      }
-    }
+    otherAncestors = otherMrca ? [otherMrca] : [];
   }
+
+  let nextAncestors = commonAncestors;
+  otherAncestors.forEach((otherAncestor) => {
+    const otherEntry = asCommonAncestorEntry(otherAncestor, pathAnalysis.upSteps, pathAnalysis.downSteps);
+    if (!otherEntry) return;
+    const alreadyIncluded = nextAncestors.some(
+      (ancestor) => String(ancestor?.ancestor?.mName || "") === String(otherEntry.ancestor.mName)
+    );
+    if (!alreadyIncluded) {
+      nextAncestors = [...nextAncestors, otherEntry];
+    }
+  });
 
   return nextAncestors;
 }
