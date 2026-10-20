@@ -113,6 +113,31 @@ describe('personFromProfilePage connected (the "degrees from" line, live 2026-10
   });
 });
 
+describe("personFromProfilePage living (the line under the name, live 2026-10-20)", () => {
+  const NO_BIRTH_DATE = `<div id="Birth" class="VITALS">Born <a href="/index.php?title=Special:EditPerson&u=1">[birth date?]</a></div>`;
+  const livingLine = (status) =>
+    `<small> Smith-304528: Person #38227665 | ${status} <br> Feeds: <a href="/index.php?title=Special:NetworkFeed">Merges</a></small>`;
+
+  test('"Living Person": living, so no dates is no ghost', () => {
+    const doc = page(livingLine(`<a href="/wiki/Help:Living_People" target="Help">Living</a> Person`), NO_BIRTH_DATE);
+    const person = personFromProfilePage(doc);
+    expect(person.IsLiving).toBe(1);
+    expect(hauntedGroups(person, 2026)).toEqual([]);
+  });
+
+  test('"Not Living": a ghost', () => {
+    const line = livingLine(`Not <a href="/wiki/Help:Living_People" target="Help">Living</a> | Has Children`);
+    const person = personFromProfilePage(page(line, NO_BIRTH_DATE, NO_DEATH_DATE));
+    expect(person.IsLiving).toBe(0);
+    expect(hauntedGroups(person, 2026)).toEqual(["ghost"]);
+  });
+
+  test("a link to the help page in the biography isn't the line", () => {
+    const doc = page(`<p>See <a href="/wiki/Help:Living_People">Living</a> people.</p>`, NO_BIRTH_DATE);
+    expect(personFromProfilePage(doc).IsLiving).toBeUndefined();
+  });
+});
+
 test("a project account's page (WikiTree-N) gets no icons", () => {
   const doc = page(
     `<div id="pageData" data-mnamedb="WikiTree-11" data-mid="1"></div>`,

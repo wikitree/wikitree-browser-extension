@@ -4,9 +4,13 @@
 // - a missing parent is 0, a parent the member isn't allowed to see is null (so null isn't "missing")
 // - templates come as [{ name, params }], with the name as written ("unsourced" as often as "Unsourced")
 // - Connected is 1 or 0 (getWatchlist sends the same fields as getProfile); a profile the member can't see has none
+// - IsLiving is 1 for someone WikiTree takes to be living: marked "still living", with an email address, or born less
+//   than 100 years ago (Help:Living_People). Of 41 profiles with no dates in 1,586 random ones (2026-10-20), 27 had
+//   IsLiving 1 (all privacy 35 or 40) and 14 had 0 (nearly all public or open), so the undated dead aren't living
 
 export const HAUNTED_FIELDS =
-  "Id,Name,Derived.LongName,BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,Father,Mother,Templates,Connected,Meta";
+  "Id,Name,Derived.LongName,BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,IsLiving,Father,Mother,Templates," +
+  "Connected,Meta";
 
 export const UNDEAD_YEARS = 110;
 
@@ -27,6 +31,7 @@ export const GROUPS = [
     icon: "👻",
     title: "Ghosts",
     meaning: "No birth or death date at all, not even a decade.",
+    note: "Living people aren't ghosts, so they're left out.",
     scored: true,
   },
   {
@@ -104,6 +109,7 @@ function latestBirthYear(person) {
 }
 
 const isZero = (value) => value !== null && value !== undefined && value !== "" && Number(value) === 0;
+const isLiving = (person) => Number(person.IsLiving) === 1;
 
 // WikiTree-N profiles (WikiTree-11, say) are accounts for WikiTree's projects, not people
 export const isProjectAccount = (person) => /^WikiTree-\d+$/i.test(String(person?.Name || "").trim());
@@ -115,7 +121,7 @@ export function hauntedGroups(person, thisYear = new Date().getFullYear(), keys 
   const born = latestBirthYear(person);
   const noDeath = dateIsMissing(person.DeathDate, person.DeathDateDecade);
   if (born !== null && thisYear - born >= UNDEAD_YEARS && noDeath) groups.push("undead");
-  if (noDeath && dateIsMissing(person.BirthDate, person.BirthDateDecade)) groups.push("ghost");
+  if (noDeath && dateIsMissing(person.BirthDate, person.BirthDateDecade) && !isLiving(person)) groups.push("ghost");
   if (Array.isArray(person.Templates) && person.Templates.some((t) => /^\s*unsourced\s*$/i.test(t?.name || ""))) {
     groups.push("skeleton");
   }
@@ -161,8 +167,11 @@ function newlyRested(previous, freshById, thisYear, keys) {
   for (const before of previous) {
     if (!isScored(before.groups)) continue;
     const fresh = freshById.get(String(before.Id));
-    if (fresh && !isScored(hauntedGroups(fresh, thisYear, keys)))
-      rested.push(slimPerson(fresh, before.groups, before.Degrees));
+    if (!fresh || isScored(hauntedGroups(fresh, thisYear, keys))) continue;
+    // Counted only as a Ghost, but living: scans made before IsLiving was read (2026-10-20) got them wrong, and
+    // nothing has been put right
+    if (isLiving(fresh) && before.groups.every((key) => key === "ghost" || !SCORED.has(key))) continue;
+    rested.push(slimPerson(fresh, before.groups, before.Degrees));
   }
   return rested;
 }
