@@ -90,6 +90,29 @@ describe("personFromProfilePage parents", () => {
   });
 });
 
+describe('personFromProfilePage connected (the "degrees from" line, live 2026-10-20)', () => {
+  const MATCHES = `<section id="Matches"><h2>Matches and Merges</h2></section>`;
+  const CHECKERS = `<section><div class="container"><div class="row pb-4"><div class="col"><p>
+    <a href="https://www.wikitree.com/g2g/2095858/play-this-weeks-explorers-connection-checkers-game"><b>Explorers</b>
+    Connection Checkers</a>: Elisabeth is <a href="/index.php?title=Special:Connection&action=connect&person1Name=Joliet-16&person2Name=De_Villiers-279">16 degrees from Louis Jolliet</a></p></div></div></div></section>`;
+
+  test("with the line: connected", () => {
+    const person = personFromProfilePage(page(BIRTH_1857, MATCHES, CHECKERS));
+    expect(person.Connected).toBe(1);
+    expect(hauntedGroups(person, 2026)).not.toContain("lonewolf");
+  });
+
+  test("without it: a Lone wolf", () => {
+    const person = personFromProfilePage(page(BIRTH_1857, MATCHES));
+    expect(person.Connected).toBe(0);
+    expect(hauntedGroups(person, 2026)).toContain("lonewolf");
+  });
+
+  test("a page without the bottom sections says nothing about it", () => {
+    expect(personFromProfilePage(page(BIRTH_1857)).Connected).toBeUndefined();
+  });
+});
+
 test("a project account's page (WikiTree-N) gets no icons", () => {
   const doc = page(
     `<div id="pageData" data-mnamedb="WikiTree-11" data-mid="1"></div>`,
@@ -122,5 +145,6 @@ test("a saved real profile page (older Ancestors markup, with both parents)", ()
     BirthDate: "1892-01-03",
     DeathDate: "1973-09-02",
     Templates: [],
+    Connected: 1, // "J. R. R. is 28 degrees from Quincy Jones, ..." (no Connection Checkers name in 2025)
   });
 });

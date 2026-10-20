@@ -1,5 +1,9 @@
 import {
+  groupsFor,
+  groupsNotLookedFor,
+  GROUP_KEYS,
   hauntedGroups,
+  hauntedOnlyBy,
   isProjectAccount,
   recheckHaunted,
   rescanHaunted,
@@ -99,6 +103,14 @@ describe("hauntedGroups", () => {
     expect(hauntedGroups(person({ ...dates, Father: 0, Mother: 7 }), YEAR)).toEqual([]);
     expect(hauntedGroups(person({ ...dates, Father: null, Mother: null }), YEAR)).toEqual([]);
     expect(hauntedGroups(person({ ...dates, Father: 0, Mother: null }), YEAR)).toEqual([]);
+  });
+
+  test("Lone wolves: Connected 0; no Connected (a profile the member can't see) isn't one", () => {
+    const dates = { BirthDate: "1950-01-01", DeathDate: "2000-01-01" };
+    expect(hauntedGroups(person({ ...dates, Connected: 0 }), YEAR)).toEqual(["lonewolf"]);
+    expect(hauntedGroups(person({ ...dates, Connected: 1 }), YEAR)).toEqual([]);
+    expect(hauntedGroups(person({ ...dates, Connected: null }), YEAR)).toEqual([]);
+    expect(hauntedGroups(person(dates), YEAR)).toEqual([]);
   });
 
   test("Halloween folk: born or died on 31 October", () => {
@@ -237,7 +249,7 @@ describe("sortPeople and summarize", () => {
       { groups: ["ghost", "headless"] },
     ];
     const { counts, haunted, percent } = summarize(people, 400);
-    expect(counts).toEqual({ undead: 1, ghost: 1, skeleton: 1, headless: 2, halloween: 1 });
+    expect(counts).toEqual({ undead: 1, ghost: 1, skeleton: 1, headless: 2, lonewolf: 0, halloween: 1 });
     expect(haunted).toBe(3);
     expect(percent).toBe("0.8");
     expect(summarize(people, 20).percent).toBe("15");
@@ -330,5 +342,41 @@ describe("project accounts (WikiTree-N)", () => {
     for (const Name of ["WikiTreeson-5", "Smith-WikiTree-1", "WikiTree-", "Beacall-6", undefined]) {
       expect(isProjectAccount({ Name })).toBe(false);
     }
+  });
+});
+
+describe("scans made before Lone wolves were added (2026-10-20)", () => {
+  test("an old watchlist scan (no looksFor) didn't look for them; a new one did", () => {
+    expect(groupsNotLookedFor({ people: [] }, "watchlist")).toEqual(["lonewolf"]);
+    expect(groupsNotLookedFor({ looksFor: groupsFor("watchlist"), people: [] }, "watchlist")).toEqual([]);
+    expect(groupsFor("watchlist")).toEqual(GROUP_KEYS);
+  });
+
+  test("a CC7 hunt never looks for them, so an old CC7 scan isn't missing anything", () => {
+    expect(groupsFor("cc7")).not.toContain("lonewolf");
+    expect(groupsFor("cc7")).toEqual(GROUP_KEYS.filter((key) => key !== "lonewolf"));
+    expect(groupsNotLookedFor({ people: [] }, "cc7")).toEqual([]);
+  });
+
+  test("an unconnected relative in a CC7 scan or re-check isn't a Lone wolf", () => {
+    const wolf = person({ BirthDate: "1950-01-01", DeathDate: "2000-01-01", Father: 5, Mother: 6, Connected: 0 });
+    expect(hauntedGroups(wolf, YEAR, groupsFor("cc7"))).toEqual([]);
+    expect(rescanHaunted([], [wolf], YEAR, groupsFor("cc7")).people).toEqual([]);
+    expect(rescanHaunted([], [wolf], YEAR, groupsFor("watchlist")).people.map((p) => p.groups)).toEqual([["lonewolf"]]);
+    const before = [{ Id: wolf.Id, Name: wolf.Name, groups: ["lonewolf"] }];
+    const { people, rested } = recheckHaunted(before, [wolf], YEAR, groupsFor("cc7"));
+    expect(people).toEqual([]);
+    expect(rested.map((p) => p.Id)).toEqual([wolf.Id]);
+  });
+
+  test("who is haunted only because of them: not those who are haunted in other ways too", () => {
+    const people = [
+      { Id: 1, groups: ["lonewolf"] },
+      { Id: 2, groups: ["lonewolf", "headless"] },
+      { Id: 3, groups: ["lonewolf", "halloween"] }, // Halloween folk aren't scored
+      { Id: 4, groups: ["undead"] },
+    ];
+    expect(hauntedOnlyBy(people, ["lonewolf"]).map((p) => p.Id)).toEqual([1, 3]);
+    expect(hauntedOnlyBy(people, [])).toEqual([]);
   });
 });

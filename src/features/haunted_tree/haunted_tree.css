@@ -91,6 +91,12 @@
 #hauntedTree .ht-score strong {
   color: #c45500;
 }
+#hauntedTree .ht-new {
+  padding: 6px 10px;
+  background: #fff4e6;
+  border-left: 3px solid #e66a00;
+  font-size: 0.9em;
+}
 #hauntedTree .ht-error {
   color: #a00;
 }
