@@ -14,6 +14,9 @@
 //   profiles checked on 2026-10-20 (open, public and semi-private ones the member can't see in full). Only read
 //   where the page has the Matches and Merges section, which comes before it, so a page that leaves out the bottom
 //   sections isn't taken as unconnected
+// - living: the small line under the name says "Smith-304528: Person #38227665 | Living Person" or
+//   "Unknown-206595: Person #6202029 | Not Living | Has Children", with "Living" linked to Help:Living_People
+//   (2026-10-20, logged in). Matches getPeople's IsLiving for both
 // - the WikiTree ID is #pageData's data-mnamedb (so project accounts, WikiTree-N, can be left out)
 
 function textWithout(element, selector) {
@@ -35,8 +38,8 @@ function readDate(doc, section, prop) {
 }
 
 /**
- * A getPeople-like person from a profile page: WikiTree ID, dates, parents (0 only if none shown), templates, and
- * Connected.
+ * A getPeople-like person from a profile page: WikiTree ID, dates, IsLiving, parents (0 only if none shown),
+ * templates, and Connected.
  */
 export function personFromProfilePage(doc) {
   const person = {};
@@ -48,6 +51,10 @@ export function personFromProfilePage(doc) {
   if (birth.decade) person.BirthDateDecade = birth.decade;
   if (death.date) person.DeathDate = death.date;
   if (death.decade) person.DeathDateDecade = death.decade;
+  const livingLink = [...doc.querySelectorAll("a[href$='/wiki/Help:Living_People']")].find((link) =>
+    /Person #\d+/.test(link.parentElement?.textContent || "")
+  );
+  if (livingLink) person.IsLiving = /\bNot\s*$/.test(livingLink.previousSibling?.textContent || "") ? 0 : 1;
 
   const parentCells = [...doc.querySelectorAll(".tree--parents .tree--person")];
   const noParents = parentCells.length > 0 && parentCells.every((cell) => cell.querySelector(".BLANK"));

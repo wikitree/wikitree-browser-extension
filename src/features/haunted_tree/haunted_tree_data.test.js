@@ -345,6 +345,30 @@ describe("project accounts (WikiTree-N)", () => {
   });
 });
 
+describe("living people aren't Ghosts (IsLiving, read from 2026-10-20)", () => {
+  test("no dates and living: not a ghost; no dates and not living: a ghost", () => {
+    expect(hauntedGroups(person({ ...blankDates, IsLiving: 1 }), YEAR)).toEqual([]);
+    expect(hauntedGroups(person({ ...blankDates, IsLiving: 0 }), YEAR)).toEqual(["ghost"]);
+    expect(hauntedGroups(person(blankDates), YEAR)).toEqual(["ghost"]);
+  });
+
+  test("living, but haunted in other ways: still counted for those", () => {
+    expect(hauntedGroups(person({ ...blankDates, IsLiving: 1, Father: 0, Mother: 0 }), YEAR)).toEqual(["headless"]);
+  });
+
+  test("a living person an older scan counted only as a Ghost isn't laid to rest by a re-check", () => {
+    const living = person({ ...blankDates, IsLiving: 1 });
+    const before = [{ Id: living.Id, Name: living.Name, groups: ["ghost"] }];
+    expect(recheckHaunted(before, [living], YEAR)).toEqual({ people: [], rested: [] });
+  });
+
+  test("but one whose parents have been added since is", () => {
+    const living = person({ ...blankDates, IsLiving: 1 });
+    const before = [{ Id: living.Id, Name: living.Name, groups: ["ghost", "headless"] }];
+    expect(recheckHaunted(before, [living], YEAR).rested.map((p) => p.Id)).toEqual([living.Id]);
+  });
+});
+
 describe("scans made before Lone wolves were added (2026-10-20)", () => {
   test("an old watchlist scan (no looksFor) didn't look for them; a new one did", () => {
     expect(groupsNotLookedFor({ people: [] }, "watchlist")).toEqual(["lonewolf"]);
