@@ -2033,8 +2033,11 @@ export const treeImageURL = chrome.runtime.getURL("images/tree.gif");
  */
 export function getUserNumId() {
   const id = $("button:contains('My WikiTree')").eq(0).data("user-user-id");
-  if (!id) return null;
-  return id || null;
+  if (id) return id;
+  // G2G's "My WikiTree" button has no user id, but its Badges menu item (on every WT page) has it as u=
+  const href = $('nav[aria-label="My WikiTree Navigation"] a[href*="Special:Badges"]').attr("href");
+  const match = /[?&]u=(\d+)/.exec(href || "");
+  return match ? Number(match[1]) : null;
 }
 
 /**

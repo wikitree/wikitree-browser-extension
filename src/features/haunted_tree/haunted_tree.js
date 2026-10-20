@@ -11,7 +11,10 @@ import { getUserNumId, oncePerTab } from "../../core/common";
 import { createAppsLoginButton, pageHadAuthcode, redeemAuthcode } from "../../core/loginButton";
 import {
   GROUPS,
+  groupsFor,
+  groupsNotLookedFor,
   HAUNTED_FIELDS,
+  hauntedOnlyBy,
   isProjectAccount,
   mergeLaidToRest,
   readAllPages,
@@ -195,7 +198,9 @@ function showIntro(popup, source) {
         ? "Something is stirring in your family tree. Haunted Tree reads your CC7"
         : "Something is stirring in your watchlist. Haunted Tree reads it") +
         " and finds the restless spirits: the Undead (no death date), Ghosts (no dates at all), Skeletons in the " +
-        "closet (unsourced), Headless Horsemen (no parents) and Halloween folk."
+        "closet (unsourced), Headless Horsemen (no parents)" +
+        (source === "cc7" ? " " : ", Lone wolves (not connected to the global family tree) ") +
+        "and Halloween folk."
     ),
     size ? $("<p>").text(size) : "",
     $("<p>").append(button("Start the hunt", `Read ${SOURCES[source].your} now`, () => run(popup, "scan", source)))
@@ -240,10 +245,13 @@ function personItem(person) {
   return item;
 }
 
-/** A collapsed group whose list is only built when it's opened (Headless Horsemen can run to thousands). */
-function groupSection(icon, title, meaning, people) {
+/**
+ * A collapsed group whose list is only built when it's opened (Headless Horsemen can run to thousands). `count` is
+ * what the heading shows in brackets: how many, unless it's given.
+ */
+function groupSection(icon, title, meaning, people, count = people.length.toLocaleString()) {
   const section = $(`<details class="ht-group"><summary></summary></details>`);
-  section.find("summary").text(`${icon} ${title} (${people.length.toLocaleString()})`);
+  section.find("summary").text(`${icon} ${title} (${count})`);
   section.append($("<p class='ht-meaning'>").text(meaning));
   if (!people.length) {
     section.addClass("ht-empty");
@@ -255,6 +263,41 @@ function groupSection(icon, title, meaning, people) {
     section.append(list);
   });
   return section;
+}
+
+const groupNames = (keys, icons = true) =>
+  GROUPS.filter((group) => keys.includes(group.key))
+    .map((group) => (icons ? `${group.icon} ${group.title}` : group.title))
+    .join(" and ");
+
+/** For a scan made before a group was added: a Full rescan will find them, so the score may go up. */
+function newGroupsNote(notLookedFor) {
+  if (!notLookedFor.length) return "";
+  return (
+    `New: Haunted Tree now looks for ${groupNames(notLookedFor)} too. This scan was made before that, so click ` +
+    "Full rescan to find them. They count towards the score, so it may go up."
+  );
+}
+
+/** For the first scan to count a new group (the last one was made before it was added): what it did to the score. */
+function firstCountedNote(record, source) {
+  const keys = record.firstCounted || [];
+  if (!keys.length) return "";
+  const first = `This is the first scan that counts ${groupNames(keys)}.`;
+  const found = record.people.filter((person) => person.groups.some((key) => keys.includes(key)));
+  if (!found.length) return `${first} It found none, so they haven't changed the score.`;
+  const only = new Set(hauntedOnlyBy(record.people, keys).map((person) => String(person.Id)));
+  if (!only.size) return `${first} They're all haunted in other ways too, so they haven't changed the score.`;
+  const { haunted } = summarize(record.people, record.total);
+  const without = summarize(
+    record.people.filter((person) => !only.has(String(person.Id))),
+    record.total
+  ).percent;
+  return (
+    `${first} Of the ${haunted.toLocaleString()} restless spirits, ${only.size.toLocaleString()} ` +
+    `${only.size == 1 ? "is" : "are"} only in ${groupNames(keys, false)}: without them, ${SOURCES[source].your} ` +
+    `would be ${without}% haunted.`
+  );
 }
 
 function showRecord(popup, record, source) {
@@ -288,6 +331,10 @@ function showRecord(popup, record, source) {
     score.text(`Not a spirit in sight. ${label} is 0% haunted!`);
   }
   container.append(score);
+  const notLookedFor = groupsNotLookedFor(record, source);
+  for (const note of [newGroupsNote(notLookedFor), firstCountedNote(record, source)]) {
+    if (note) container.append($("<p class='ht-new'>").text(note));
+  }
   const rested = record.laidToRest || [];
   if (rested.length) {
     container.append(
@@ -307,9 +354,15 @@ function showRecord(popup, record, source) {
   );
   container.append(actions);
 
-  for (const group of GROUPS) {
-    const people = record.people.filter((person) => person.groups.includes(group.key));
+  const keys = groupsFor(source);
+  for (const group of GROUPS.filter(({ key }) => keys.includes(key))) {
     const meaning = [group.meaning, group.note].filter(Boolean).join(" ");
+    if (notLookedFor.includes(group.key)) {
+      // A Re-check may have found a few, among those haunted in other ways, but that isn't all of them
+      container.append(groupSection(group.icon, group.title, meaning, [], "not looked for yet"));
+      continue;
+    }
+    const people = record.people.filter((person) => person.groups.includes(group.key));
     container.append(groupSection(group.icon, group.title, meaning, people));
   }
   if (rested.length) {
@@ -333,11 +386,12 @@ async function run(popup, action, source) {
     const before = await loadHauntedTree(userNumId, thisSeason(), source);
     const thisYear = new Date().getFullYear();
     const now = Date.now();
+    const keys = groupsFor(source);
     let record;
     if (action === "recheck" && before?.people.length) {
       showWorking(popup, `Checking on ${before.people.length.toLocaleString()} spirits…`);
       const fresh = await fetchByIds(before.people.map((person) => person.Id));
-      const { people, rested } = recheckHaunted(before.people, fresh, thisYear);
+      const { people, rested } = recheckHaunted(before.people, fresh, thisYear, keys);
       record = {
         ...before,
         people,
@@ -358,11 +412,14 @@ async function run(popup, action, source) {
           : await fetchWatchlist(onProgress);
       // Project accounts aren't people, so they aren't counted at all
       const scanned = read.filter((person) => !isProjectAccount(person));
-      const { people, rested } = rescanHaunted(before?.people || [], scanned, thisYear);
+      const { people, rested } = rescanHaunted(before?.people || [], scanned, thisYear, keys);
       record = {
         season: thisSeason(),
         scannedAt: now,
         checkedAt: now,
+        looksFor: keys,
+        // Groups the last scan didn't look for (it was made before they were added), to say what they changed
+        firstCounted: before ? groupsNotLookedFor(before, source) : [],
         total: scanned.length,
         cc7Total,
         people,
@@ -396,7 +453,7 @@ async function openHauntedTree(action, source = lastSource()) {
 }
 
 function addMenuItem() {
-  $("li a.dropdown-item[href='/wiki/Category:Categories']").each(function () {
+  $("li a.dropdown-item[href='/wiki/Special:BrowseRS']").each(function () {
     const item = $(
       `<li><a href="#n" class="dropdown-item hauntedTreeMenuItem" title="A Halloween hunt through your CC7 or watchlist for profiles that need help">🎃 Haunted Tree</a></li>`
     );

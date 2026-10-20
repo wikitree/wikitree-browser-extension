@@ -3,9 +3,10 @@
 // - a missing date is "0000-00-00" with decade "unknown"; a private profile may send only the decade
 // - a missing parent is 0, a parent the member isn't allowed to see is null (so null isn't "missing")
 // - templates come as [{ name, params }], with the name as written ("unsourced" as often as "Unsourced")
+// - Connected is 1 or 0 (getWatchlist sends the same fields as getProfile); a profile the member can't see has none
 
 export const HAUNTED_FIELDS =
-  "Id,Name,Derived.LongName,BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,Father,Mother,Templates,Meta";
+  "Id,Name,Derived.LongName,BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,Father,Mother,Templates,Connected,Meta";
 
 export const UNDEAD_YEARS = 110;
 
@@ -43,6 +44,13 @@ export const GROUPS = [
     scored: true,
   },
   {
+    key: "lonewolf",
+    icon: "🐺",
+    title: "Lone wolves",
+    meaning: "Not connected to the global family tree.",
+    scored: true,
+  },
+  {
     key: "halloween",
     icon: "🦇",
     title: "Halloween folk",
@@ -53,6 +61,23 @@ export const GROUPS = [
 ];
 
 const SCORED = new Set(GROUPS.filter((group) => group.scored).map((group) => group.key));
+
+export const GROUP_KEYS = GROUPS.map((group) => group.key);
+// What the scans made before Lone wolves were added (2026-10-20) looked for; they have no looksFor
+const FIRST_GROUP_KEYS = ["undead", "ghost", "skeleton", "headless", "halloween"];
+
+/**
+ * The groups a hunt through this list ("cc7" or "watchlist") looks for, saved with each full scan (as looksFor), so a
+ * scan made before a group was added can say so. Everyone in a CC7 is connected to the member, so they're all
+ * connected to the global family tree or none are: Lone wolves are only looked for in the watchlist.
+ */
+export const groupsFor = (source) => GROUP_KEYS.filter((key) => source !== "cc7" || key !== "lonewolf");
+
+/** The scored groups a saved scan of this list didn't look for, because they were added after it was made. */
+export function groupsNotLookedFor(record, source) {
+  const looked = new Set(record?.looksFor || FIRST_GROUP_KEYS);
+  return groupsFor(source).filter((key) => SCORED.has(key) && !looked.has(key));
+}
 
 function yearOf(date) {
   const match = /^(\d{4})/.exec(String(date || ""));
@@ -80,11 +105,11 @@ function latestBirthYear(person) {
 
 const isZero = (value) => value !== null && value !== undefined && value !== "" && Number(value) === 0;
 
-/** The keys of the groups a getPeople person falls into (empty if none). */
 // WikiTree-N profiles (WikiTree-11, say) are accounts for WikiTree's projects, not people
 export const isProjectAccount = (person) => /^WikiTree-\d+$/i.test(String(person?.Name || "").trim());
 
-export function hauntedGroups(person, thisYear = new Date().getFullYear()) {
+/** The keys of the groups a getPeople person falls into (empty if none), out of those given. */
+export function hauntedGroups(person, thisYear = new Date().getFullYear(), keys = GROUP_KEYS) {
   if (isProjectAccount(person)) return [];
   const groups = [];
   const born = latestBirthYear(person);
@@ -95,8 +120,9 @@ export function hauntedGroups(person, thisYear = new Date().getFullYear()) {
     groups.push("skeleton");
   }
   if (isZero(person.Father) && isZero(person.Mother)) groups.push("headless");
+  if (isZero(person.Connected)) groups.push("lonewolf");
   if (/-10-31$/.test(person.BirthDate || "") || /-10-31$/.test(person.DeathDate || "")) groups.push("halloween");
-  return groups;
+  return groups.filter((key) => keys.includes(key));
 }
 
 export const isScored = (groups) => (groups || []).some((key) => SCORED.has(key));
@@ -119,23 +145,23 @@ export function slimPerson(person, groups, degrees) {
   };
 }
 
-/** The haunted people from a full CC7 scan, slimmed. */
-export function hauntedFromScan(scanned, thisYear) {
+/** The haunted people from a full scan, slimmed. `keys` are the groups looked for (see groupsFor). */
+export function hauntedFromScan(scanned, thisYear, keys) {
   const people = [];
   for (const person of scanned) {
-    const groups = hauntedGroups(person, thisYear);
+    const groups = hauntedGroups(person, thisYear, keys);
     if (groups.length) people.push(slimPerson(person, groups));
   }
   return people;
 }
 
 /** People who were in a scored group before and aren't now, given the fresh profiles by Id. */
-function newlyRested(previous, freshById, thisYear) {
+function newlyRested(previous, freshById, thisYear, keys) {
   const rested = [];
   for (const before of previous) {
     if (!isScored(before.groups)) continue;
     const fresh = freshById.get(String(before.Id));
-    if (fresh && !isScored(hauntedGroups(fresh, thisYear)))
+    if (fresh && !isScored(hauntedGroups(fresh, thisYear, keys)))
       rested.push(slimPerson(fresh, before.groups, before.Degrees));
   }
   return rested;
@@ -155,7 +181,7 @@ function byIdOf(people) {
  * Re-check: the stored haunted people against fresh getPeople results for just their Ids. Anyone not sent back
  * (deleted) is dropped. Returns { people, rested }.
  */
-export function recheckHaunted(previous, fresh, thisYear) {
+export function recheckHaunted(previous, fresh, thisYear, keys) {
   const freshById = byIdOf(fresh);
   const people = [];
   const seen = new Set();
@@ -163,15 +189,18 @@ export function recheckHaunted(previous, fresh, thisYear) {
     const person = freshById.get(String(before.Id));
     if (!person || seen.has(String(person.Id))) continue;
     seen.add(String(person.Id));
-    const groups = hauntedGroups(person, thisYear);
+    const groups = hauntedGroups(person, thisYear, keys);
     if (groups.length) people.push(slimPerson(person, groups, before.Degrees));
   }
-  return { people, rested: newlyRested(previous, freshById, thisYear) };
+  return { people, rested: newlyRested(previous, freshById, thisYear, keys) };
 }
 
 /** Full rescan: the new haunted list, and who from the old one has been put right. Returns { people, rested }. */
-export function rescanHaunted(previous, scanned, thisYear) {
-  return { people: hauntedFromScan(scanned, thisYear), rested: newlyRested(previous, byIdOf(scanned), thisYear) };
+export function rescanHaunted(previous, scanned, thisYear, keys) {
+  return {
+    people: hauntedFromScan(scanned, thisYear, keys),
+    rested: newlyRested(previous, byIdOf(scanned), thisYear, keys),
+  };
 }
 
 /** The laid-to-rest list: old and new, once each, leaving out anyone who is haunted again. */
@@ -188,6 +217,18 @@ export function mergeLaidToRest(before, rested, people) {
 export function sortPeople(people) {
   const name = (p) => p.LongName || p.Name || "";
   return [...people].sort((a, b) => (a.Degrees ?? 99) - (b.Degrees ?? 99) || name(a).localeCompare(name(b)));
+}
+
+/**
+ * The people who are haunted only because of these groups: in at least one of them, and in no other scored group.
+ * (Those a newly added group put into the score.)
+ */
+export function hauntedOnlyBy(people, keys) {
+  return people.filter(
+    (person) =>
+      person.groups.some((key) => keys.includes(key)) &&
+      !person.groups.some((key) => SCORED.has(key) && !keys.includes(key))
+  );
 }
 
 /** { counts: { groupKey: n }, haunted: n in a scored group, percent: "3.2" } */

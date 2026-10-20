@@ -8,6 +8,12 @@
 //   each parent: a name link if there is one, or a .BLANK "Father?" link if not. A parent the member can't see is
 //   "[private father (1930s - unknown)]" in the family lists, so that rules out headless too
 // - {{Unsourced}} (however it's written) puts the profile in Category:Unsourced_Profiles
+// - connected to the global tree: only a connected profile has the line near the bottom that says how far it is
+//   from this week's notables ("Explorers Connection Checkers: Elisabeth is 16 degrees from Louis Jolliet, ...";
+//   in 2025 just "J. R. R. is 28 degrees from Quincy Jones, ..."). It matched getPeople's Connected for all 77
+//   profiles checked on 2026-10-20 (open, public and semi-private ones the member can't see in full). Only read
+//   where the page has the Matches and Merges section, which comes before it, so a page that leaves out the bottom
+//   sections isn't taken as unconnected
 // - the WikiTree ID is #pageData's data-mnamedb (so project accounts, WikiTree-N, can be left out)
 
 function textWithout(element, selector) {
@@ -28,7 +34,10 @@ function readDate(doc, section, prop) {
   return { date: "0000-00-00", decade: "unknown" };
 }
 
-/** A getPeople-like person from a profile page: WikiTree ID, dates, parents (0 only if none shown), templates. */
+/**
+ * A getPeople-like person from a profile page: WikiTree ID, dates, parents (0 only if none shown), templates, and
+ * Connected.
+ */
 export function personFromProfilePage(doc) {
   const person = {};
   const name = doc.getElementById("pageData")?.dataset.mnamedb;
@@ -52,5 +61,12 @@ export function personFromProfilePage(doc) {
     /\/wiki\/Category:Unsourced_Profiles$/.test(link.getAttribute("href"))
   );
   person.Templates = unsourced ? [{ name: "Unsourced", params: [] }] : [];
+
+  if (doc.getElementById("Matches")) {
+    const degreesFrom = [...doc.querySelectorAll("a[href*='Special:Connection']")].some((link) =>
+      /^\d+ degrees? from /.test(link.textContent.trim())
+    );
+    person.Connected = degreesFrom ? 1 : 0;
+  }
   return person;
 }
