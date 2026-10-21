@@ -10,6 +10,7 @@ import { getObjectStores, distRelDbKeyFor, getUserWtId } from "../../core/common
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
 import { deriveRelationshipFromLegacyDoc } from "./legacyRelationshipParser";
+import { PersonName } from "../auto_bio/person_name";
 
 export const CONNECTION_DB_NAME = "ConnectionFinderWTE";
 export const CONNECTION_DB_VERSION = 2;
@@ -439,7 +440,14 @@ function cleanCommonAncestors(commonAncestors) {
   if (!Array.isArray(commonAncestors)) return [];
   return commonAncestors.map((ancestor) => {
     const { ancestor: anc = {}, ...rest } = ancestor || {};
-    const mDerived = { LongNameWithDates: anc?.mDerived?.LongNameWithDates || longNameWithDatesFromPathPerson(anc) };
+    let longName = anc?.mDerived?.LongNameWithDates || longNameWithDatesFromPathPerson(anc);
+    // Records cached before the "(LNAB)" format still read "Joan Davies (…)"; upgrade them.
+    const oldName = [anc.mFirstName, anc.mLastNameCurrent || anc.mLastNameAtBirth].filter(Boolean).join(" ");
+    const newName = displayName(anc.mFirstName, anc.mLastNameAtBirth, anc.mLastNameCurrent);
+    if (oldName && newName !== oldName && longName.startsWith(`${oldName} (`)) {
+      longName = newName + longName.slice(oldName.length);
+    }
+    const mDerived = { LongNameWithDates: longName };
     return {
       ...rest,
       ancestor: {
@@ -577,10 +585,21 @@ function certaintyPrefixFromDataStatus(pathPerson, fieldName) {
   return "";
 }
 
+// WikiTree style: "Joan (Smith) Davies" when the birth surname differs from the current one.
+function displayName(firstName, lastNameAtBirth, lastNameCurrent) {
+  // PersonName prints "(LNAB) null" when LastNameCurrent is missing, so fall back to the LNAB.
+  return new PersonName({
+    FirstName: firstName || "",
+    LastNameAtBirth: lastNameAtBirth || "",
+    LastNameCurrent: lastNameCurrent || lastNameAtBirth || "",
+  }).withParts(["FirstName", "LastNameAtBirth", "LastNameCurrent"]);
+}
+
 function longNameWithDatesFromPathPerson(pathPerson) {
-  const firstName = pathPerson.FirstName || "";
-  const lastName = pathPerson.LastNameCurrent || pathPerson.LastNameAtBirth || "";
-  const baseName = [firstName, lastName].filter(Boolean).join(" ").trim() || pathPerson.Name || "Unknown";
+  const baseName =
+    displayName(pathPerson.FirstName, pathPerson.LastNameAtBirth, pathPerson.LastNameCurrent) ||
+    pathPerson.Name ||
+    "Unknown";
   const birthYear = yearFromDate(pathPerson.BirthDate) || yearFromDecade(pathPerson.BirthDateDecade) || "?";
   const deathYear = yearFromDate(pathPerson.DeathDate) || yearFromDecade(pathPerson.DeathDateDecade) || "?";
   const birthPrefix = birthYear !== "?" ? certaintyPrefixFromDataStatus(pathPerson, "BirthDate") : "";
