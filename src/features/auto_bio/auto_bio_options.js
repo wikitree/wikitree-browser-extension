@@ -1,6 +1,6 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import { isProfileEdit, isIansProfile } from "../../core/pageType";
-import { sharedAiOptionGroup } from "../../core/options/shared_ai_options";
+import { aiSettingsButton } from "../../core/options/shared_ai_options";
 
 const autoBio = {
   name: "Auto Bio",
@@ -631,7 +631,7 @@ const autoBio = {
       ],
       defaultValue: true,
     },
-    sharedAiOptionGroup("Genie"),
+    aiSettingsButton(),
   ],
 };
 

@@ -5,6 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isSpaceEdit, isCategoryEdit, isProfileEdit } from "../../core/pageType";
+import { addChangeExplanationButton } from "./change_explanation_button";
 
 /*──────────────────────────────
   1. Default phrases
@@ -66,6 +67,7 @@ function removeFromSummary(text) {
   ─────────────────────────────*/
 shouldInitializeFeature("customChangeSummaryOptions").then(async (on) => {
   if (!on) return;
+  addSuggestButton();
   if ($("#summaryOptionsContainer").length) return; // already initialized
   setTimeout(async () => {
     $("#save, #wpSave").closest("div").prop("id", "saveButtons");
@@ -106,6 +108,17 @@ shouldInitializeFeature("customChangeSummaryOptions").then(async (on) => {
     addListeners();
   }, 3000);
 });
+
+// The Suggest button in the Change Explanation box (change_explanation_button.js), on the pages where
+// the phrases show. It doesn't wait for them.
+async function addSuggestButton() {
+  const opt = await getFeatureOptions("customChangeSummaryOptions");
+  if (!opt.suggestButton) return;
+  if (isSpaceEdit && !opt.showOnSpacePages) return;
+  if (isCategoryEdit && !opt.showOnCategoryPages) return;
+  const page = isSpaceEdit ? "space" : isCategoryEdit ? "category" : "profile";
+  addChangeExplanationButton(document, { page, useAi: opt.suggestWithAi !== false });
+}
 
 function addListeners() {
   /*──────────────────────────────

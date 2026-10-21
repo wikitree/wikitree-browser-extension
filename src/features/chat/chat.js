@@ -103,11 +103,7 @@ import { copyToClipboard } from "../../core/clipboard";
 import { insertIntoEnhancedEditor, readEnhancedEditor, writeEnhancedEditor } from "../../core/enhancedEditor";
 import {
   EDIT_QUALITY_FIELDS,
-  bioChanges,
-  changeExplanation,
   editCommandChips,
-  editFormChanges,
-  fillChangeExplanation,
   isChangeExplanationPrompt,
   editFormFacts,
   editMenuItem,
@@ -117,7 +113,18 @@ import {
   insertIntoBiography,
   isMissingCheckPrompt,
   parseEditCommand,
+  showChangeExplanationBox,
 } from "./chat_edit_page";
+import { fillChangeExplanation } from "../custom_change_summary_options/change_explanation";
+import { suggestChangeExplanation } from "../custom_change_summary_options/change_explanation_ai";
+import {
+  ASKING_AI,
+  COMPARING_DRAFT,
+  NO_ROOM,
+  nothingToExplain,
+  suggestionNotes,
+  suggestionSource,
+} from "../custom_change_summary_options/change_explanation_messages";
 import { profileQuality } from "./chat_profile_quality_data";
 import { editPagePerson, formBioDifferences, formBioDifferencesMessage, isFormBioCheckPrompt } from "./chat_edit_consistency";
 import {
@@ -3133,20 +3140,34 @@ async function answerEditPageMissing() {
   appendMessage("assistant", editPageQualityMessage(page.displayName || page.wtId, quality) + note + (differences ? `\n\n${differences}` : ""));
 }
 
-// "Suggest a change explanation": the form and biography now against how they loaded. (Not kept in
-// the history: it describes this edit only.)
+// "Suggest a change explanation": the form and biography now against how they loaded, worded by the AI
+// when it's on (Change Summary Options' Suggest button does the same). (Not kept in the history: it
+// describes this edit only.)
 async function answerChangeExplanation() {
-  const box = document.querySelector("#wpTextbox1");
-  const now = await liveBiography();
-  const text = changeExplanation(editFormChanges(), bioChanges(box?.defaultValue ?? "", now));
+  let suggestion;
+  try {
+    suggestion = await suggestChangeExplanation({
+      live: await liveBiography(),
+      useAi: !isAiPaused(),
+      getConfig: getChatAiConfig,
+      onAi: () => showChatShaky(ASKING_AI),
+      onDraft: () => showChatShaky(COMPARING_DRAFT),
+    });
+  } finally {
+    hideChatShaky();
+  }
+  const { text } = suggestion;
+  const notes = suggestionNotes(suggestion)
+    .map((note) => `\n\n(${note})`)
+    .join("");
   if (!text) {
-    appendMessage("assistant", "Nothing has changed since the page loaded, so there's nothing to explain yet.", { shouldPersist: false });
+    appendMessage("assistant", `${nothingToExplain(suggestion)}${notes}`, { shouldPersist: false });
     return;
   }
-  appendMessage("assistant", `A change explanation for this edit:\n\n${text}`, {
+  appendMessage("assistant", `A change explanation for this edit, from ${suggestionSource(suggestion)}:\n\n${text}${notes}`, {
     shouldPersist: false,
     actions: [
-      { label: "Use it", onClick: useIt },
+      { label: "Use it", onClick: () => useIt() },
       {
         label: "Copy",
         onClick: () =>
@@ -3157,9 +3178,21 @@ async function answerChangeExplanation() {
     ],
   });
   pendingEditInsert = useIt;
-  function useIt() {
+  function useIt({ replace = false } = {}) {
     pendingEditInsert = null;
-    appendMessage("assistant", fillChangeExplanation(text) ? "Added to the Change explanation box." : "There's no Change explanation box on this page.", { shouldPersist: false });
+    const result = fillChangeExplanation(text, document, { replace });
+    if (result === "full") {
+      appendMessage("assistant", NO_ROOM, { shouldPersist: false, actions: [{ label: "Replace current", onClick: () => useIt({ replace: true }) }] });
+    } else {
+      const said = {
+        filled: "Added to the Change explanation box.",
+        same: "It's already in the Change explanation box.",
+        none: "There's no Change explanation box on this page.",
+      };
+      appendMessage("assistant", said[result], { shouldPersist: false });
+    }
+    // Shown where it went, with the panel briefly shrunk off it if it's in the way (chat_edit_page.js).
+    if (result !== "none") void showChangeExplanationBox(document.getElementById(CHAT_POPUP_ID));
   }
 }
 

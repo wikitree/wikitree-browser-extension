@@ -548,3 +548,52 @@ body button.wbe-app-login:not(#none) svg {
 .wbe-genie-bar-button.wbe-genie-header-visible {
   display: none !important;
 }
+
+/* Change Summary Options' Suggest button in the edit page's Change Explanation box
+   (custom_change_summary_options/change_explanation_button.js). */
+.wbe-suggest-summary-button {
+  cursor: pointer;
+}
+.wbe-suggest-summary-button:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+.wbe-suggest-summary-button:disabled {
+  cursor: progress;
+}
+.wbe-suggest-summary-button[aria-busy="true"] {
+  animation: wbe-suggest-summary-pulse 0.7s ease-in-out infinite alternate;
+}
+@keyframes wbe-suggest-summary-pulse {
+  to {
+    opacity: 0.5;
+  }
+}
+/* (Dark Mode darkens the "?" segment, a span, but not buttons: the same colours here.) */
+body.darkMode .wbe-suggest-summary-button {
+  background-color: #36393f !important;
+  color: #dedecb !important;
+}
+/* On free-space and category pages the box isn't in an input group, so it gets one. */
+.wbe-suggest-summary-group > #wpSummary {
+  flex: 1 1 auto;
+  width: 1%;
+  min-width: 0;
+}
+.wbe-suggest-summary-error {
+  color: #b02a37;
+}
+body.darkMode .wbe-suggest-summary-error {
+  color: #ff8a8a;
+}
+.wbe-suggest-summary-tree {
+  width: 24px;
+  height: 24px;
+  margin-right: 0.4em;
+  vertical-align: middle;
+}
+.wbe-suggest-summary-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-top: 0.25em;
+}

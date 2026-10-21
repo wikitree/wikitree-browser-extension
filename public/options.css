@@ -114,8 +114,10 @@ div.feature-options {
   display: inline-block;
 }
 
-/* "Allow access to Ollama" (options.js updateOllamaAccessRows), the same pill as the other buttons */
-.ollama-access-button {
+/* "Allow access to Ollama" (options.js updateOllamaAccessRows) and "AI Settings" in the options of
+   each feature that uses AI (addAiSettingsDialog), the same pill as the other buttons */
+.ollama-access-button,
+.ai-settings-button {
   background-color: #ddd;
   color: #000;
   border: 0;
@@ -125,8 +127,15 @@ div.feature-options {
   margin: 4px 0 4px 20px;
   cursor: pointer;
 }
-.ollama-access-button:hover {
+.ollama-access-button:hover,
+.ai-settings-button:hover {
   background-color: #8fc641;
+}
+.ai-settings-button {
+  margin-left: 0;
+}
+#aiSettingsDialog {
+  font-size: 16px;
 }
 /* Safari's OLLAMA_ORIGINS command (options.js ollamaSafariRow), selected whole with one click */
 .ollama-command {

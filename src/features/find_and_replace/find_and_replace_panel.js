@@ -77,7 +77,7 @@ const HELP_HTML = `
     and <code>\\n</code> starts a new line.</p>
   <p><b>Saved</b> keeps a search to use again (Save this search, then Rename if you like), and has ready-made
     ones, such as for turning text from an AI chat into WikiTree markup.</p>
-  <p><b>Ask Genie</b> (when you've set an AI key for Genie) writes the search for you: say what you want
+  <p><b>Ask Genie</b> (when you've added an AI key in WBE's AI Settings) writes the search for you: say what you want
     changed, then check the matches it finds before you replace them.</p>
   <p>Replacements can be undone with ${MOD_KEY}+Z in the edit box.</p>
 `;

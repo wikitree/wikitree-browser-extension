@@ -3,7 +3,7 @@ Created By: Rob Pavey (Pavey-429)
 */
 
 import { getDefaultOptionValuesForFeature, getFeatureData, features } from "./options_registry";
-import { SHARED_AI_FEATURES, SHARED_AI_OPTIONS_KEY, SHARED_AI_OPTION_IDS } from "./shared_ai_options";
+import { SHARED_AI_DEFAULTS, SHARED_AI_FEATURES, SHARED_AI_OPTIONS_KEY, SHARED_AI_OPTION_IDS } from "./shared_ai_options";
 
 function isSharedAiFeature(featureId) {
   return SHARED_AI_FEATURES.includes(featureId);
@@ -211,7 +211,8 @@ async function getFeatureOptions(featureId) {
             }
           }
 
-          const mergedOptions = { ...optionsToReturn, ...migratedSharedOptions };
+          // (the AI settings aren't among the feature's own options, so their defaults come from here)
+          const mergedOptions = { ...SHARED_AI_DEFAULTS, ...optionsToReturn, ...migratedSharedOptions };
 
           if (didMigrate) {
             chrome.storage.sync.set({ [SHARED_AI_OPTIONS_KEY]: migratedSharedOptions }, () => {

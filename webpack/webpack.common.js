@@ -124,6 +124,11 @@ module.exports = (env) => ({
           to: "../features/find_and_replace/find_and_replace_page.js",
           context: "src",
         },
+        {
+          from: "features/custom_change_summary_options/edit_draft_page.js",
+          to: "../features/custom_change_summary_options/edit_draft_page.js",
+          context: "src",
+        },
       ],
     }),
     new webpack.DefinePlugin({

@@ -151,7 +151,7 @@ describe("what's missing, on the edit page", () => {
   });
 });
 
-import { bioChanges, changeExplanation, editFormChanges, fillChangeExplanation, isChangeExplanationPrompt } from "./chat_edit_page";
+import { isChangeExplanationPrompt } from "./chat_edit_page";
 
 describe("change explanation", () => {
   test.each(["Suggest a change explanation", "change explanation", "edit summary", "summarize my changes", "What did I change?", "what's changed"])("%s", (prompt) => {
@@ -159,49 +159,67 @@ describe("change explanation", () => {
     expect(isChangeExplanationPrompt(prompt)).toBe(false);
   });
 
-  test("the form fields changed since the page loaded", () => {
-    document.body.innerHTML = `<form id="editform">
-      <input id="mBirthDate" value="1844"><input id="mDeathLocation" value="">
-      <input type="radio" name="mStatus_BirthDate" value="guess" checked><input type="radio" name="mStatus_BirthDate" value="certain">
-      <input type="checkbox" name="mNoChildren" value="1"><input type="checkbox" name="mStatus_Spouse" value="blank" checked>
-    </form>`;
-    expect(editFormChanges()).toEqual([]);
-    document.querySelector("#mDeathLocation").value = "Allentown, Lehigh, Pennsylvania";
-    document.querySelector("input[name='mStatus_BirthDate'][value='certain']").checked = true;
-    document.querySelector("input[name='mNoChildren']").checked = true;
-    document.querySelector("input[name='mStatus_Spouse']").checked = false;
-    expect(editFormChanges()).toEqual(["death place", "birth date status", 'unticked "no more spouses"', 'ticked "no more children"']);
+});
+
+describe("peekPastPanel", () => {
+  const { peekPastPanel } = require("./chat_edit_page");
+  const rect = (top, left, height, width) => ({ top, left, height, width, bottom: top + height, right: left + width });
+  let panel;
+  let box;
+  const place = (el, r) => (el.getBoundingClientRect = () => r);
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    document.body.innerHTML = `<div id="panel"><div class="chat-messages"></div></div><input id="wpSummary">`;
+    panel = document.getElementById("panel");
+    box = document.getElementById("wpSummary");
+    place(panel, rect(90, 20, 600, 620));
+    place(box, rect(480, 40, 30, 700));
+  });
+  afterEach(() => jest.useRealTimers());
+
+  test("shrinks the panel to clear the box, then grows it back", () => {
+    panel.style.maxHeight = "";
+    expect(peekPastPanel(panel, box)).toBe(true);
+    expect(panel.style.maxHeight).toBe("378px"); // 480 - 12 - 90
+    jest.advanceTimersByTime(350 + 4000);
+    expect(panel.style.maxHeight).toBe("600px");
+    jest.advanceTimersByTime(350);
+    expect(panel.style.maxHeight).toBe("");
+    expect(panel.style.transition).toBe("");
   });
 
-  test("the biography's changes", () => {
-    const before = "[[Category:Carbon County, Pennsylvania]]\n{{Unsourced}}\n== Biography ==\nDennis was born.\n== Sources ==\n<references />";
-    const after =
-      '[[Category:Carbon County, Pennsylvania]]\n[[Category:Highland Memorial Park Cemetery, Allentown, Pennsylvania]]\n== Biography ==\nDennis was born.<ref>Birth</ref>\n\nDennis died in 1908.<ref name="Death_1">Grave</ref>\n== Research Notes ==\n== Sources ==\n<references />';
-    expect(bioChanges(before, after)).toEqual({
-      refsAdded: 2,
-      refsRemoved: 0,
-      categoriesAdded: ["Highland Memorial Park Cemetery, Allentown, Pennsylvania"],
-      categoriesRemoved: [],
-      templatesAdded: [],
-      templatesRemoved: ["Unsourced"],
-      sectionsAdded: ["Research Notes"],
-      textChanged: true,
-    });
-    expect(bioChanges(before, before).textChanged).toBe(false);
+  test("using the panel grows it back at once", () => {
+    peekPastPanel(panel, box);
+    panel.querySelector(".chat-messages").dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    expect(panel.style.maxHeight).toBe("600px");
+    jest.advanceTimersByTime(350);
+    expect(panel.style.maxHeight).toBe("");
   });
 
-  test("the explanation", () => {
-    const bio = bioChanges("== Biography ==\nA.", "== Biography ==\nA.<ref>x</ref>\nB.<ref>y</ref>\n[[Category:Lehigh County, Pennsylvania]]");
-    expect(changeExplanation(["death place", 'ticked "no more children"'], bio)).toBe(
-      'Added 2 source citations; improved the biography; added Category: Lehigh County, Pennsylvania; updated death place; ticked "no more children".'
-    );
-    expect(changeExplanation([], bioChanges("x", "x"))).toBe("");
+  test("keeps a max-height the panel already had", () => {
+    panel.style.maxHeight = "500px";
+    peekPastPanel(panel, box);
+    jest.advanceTimersByTime(350 + 4000 + 350);
+    expect(panel.style.maxHeight).toBe("500px");
   });
 
-  test("goes after anything already in the box, once", () => {
-    document.body.innerHTML = '<input id="wpSummary" value="Fixing typos.">';
-    expect(fillChangeExplanation("Added 1 source citation.")).toBe(true);
-    fillChangeExplanation("Added 1 source citation.");
-    expect(document.querySelector("#wpSummary").value).toBe("Fixing typos. Added 1 source citation.");
+  test("leaves the panel alone when it isn't over the box", () => {
+    place(box, rect(480, 700, 30, 300));
+    expect(peekPastPanel(panel, box)).toBe(false);
+    expect(panel.style.maxHeight).toBe("");
+  });
+
+  test("leaves the panel alone when the room above the box is too short", () => {
+    place(box, rect(250, 40, 30, 700));
+    expect(peekPastPanel(panel, box)).toBe(false);
+  });
+
+  test("a second peek ends the first one first", () => {
+    panel.style.maxHeight = "500px";
+    peekPastPanel(panel, box);
+    peekPastPanel(panel, box);
+    jest.advanceTimersByTime(350 + 4000 + 350);
+    expect(panel.style.maxHeight).toBe("500px");
   });
 });

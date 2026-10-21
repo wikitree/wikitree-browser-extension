@@ -34,7 +34,7 @@ const CHIP_TITLES = [
   [/^Auto Bio$/i, "Runs the edit menu's Auto Bio: rewrites the biography from the profile's data and sources"],
   [/^Fix formatting$/i, "Runs the edit menu's Automated corrections on the biography's formatting"],
   [/^Suggest categories$/i, "Categories that may fit this biography, checked against WikiTree's categories"],
-  [/^Change explanation$/i, "A change explanation for this edit, from what you changed since the page loaded"],
+  [/^Change explanation$/i, "A change explanation for this edit: what you changed, or how your draft differs from the saved profile"],
 ];
 
 /** The tooltip for a suggestion button, or "" when there's none. */

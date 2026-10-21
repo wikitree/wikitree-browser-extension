@@ -3,7 +3,7 @@
 import { AI_KEY_HELP_URL } from "./chat_answer";
 
 const link = (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url.replace(/^https:\/\//, "")}</a>`;
-const PASTE_STEP = "Paste it into <b>AI Assistance</b> in WBE's settings (see below).";
+const PASTE_STEP = "Paste it into <b>AI Settings</b> in WBE's settings (see below).";
 const SAVE_NOTE = "Save it somewhere safe (Notes, a text file…). You may not be able to see it again.";
 
 const PROVIDERS = [
@@ -89,7 +89,7 @@ export function aiKeyHelpHtml() {
     <p>An API key is a long password that lets the AI work for you. Which company and model you use is up to you. You pay the company directly, usually very little.</p>
     ${providers}
     <h4>2. Add it to WBE</h4>
-    <p>Open WBE's settings, find <b>Genie</b>, and under <b>AI Assistance</b> choose your provider and paste the key. Auto Bio shares these settings, so one key works for both. Then reopen Genie: the AI switch at the top will be <b>On</b>.</p>
+    <p>Open WBE's settings, find <b>Genie</b>, click <b>Show options</b> and then <b>AI Settings</b>, and choose your provider and paste the key. Every WBE feature that uses AI shares these settings, so one key works for all of them. Then reopen Genie: the AI switch at the top will be <b>On</b>.</p>
     <h4>Keep your key safe</h4>
     <ul>
       <li>Don't share it with anyone or post it on WikiTree.</li>

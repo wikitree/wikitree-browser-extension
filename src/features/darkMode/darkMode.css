@@ -76,6 +76,7 @@
   body.wte#options,
   body.wte#options #categoryBar,
   body.wte#options dialog#settingsDialog,
+  body.wte#options dialog#aiSettingsDialog,
   body.darkMode blockquote,
   body.darkMode section.searchBar,
   body.darkMode button img,
@@ -666,7 +667,8 @@
 
   /* Options page */
   body.wte#options div.category-root,
-  body.wte#options dialog#settingsDialog div.dialog-header {
+  body.wte#options dialog#settingsDialog div.dialog-header,
+  body.wte#options dialog#aiSettingsDialog div.dialog-header {
     color: black !important;
   }
   body.wte#options div.section-header label {

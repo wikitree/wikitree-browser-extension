@@ -22,6 +22,14 @@ function ReactivateEnhancedEditorIfNeeded(enhancedEditorOn) {
 
 export { DeactivateEnhancedEditorIfPresent, ReactivateEnhancedEditorIfNeeded };
 
+/** Whether WikiTree's enhanced editor (CodeMirror) is on: the plain box is then hidden and out of date. */
+export function enhancedEditorOn(doc = document) {
+  const toggle = doc.querySelector("#toggleMarkupColor");
+  if (toggle && /turn\s+off/i.test(toggle.value || toggle.textContent || "")) return true;
+  const box = doc.querySelector("#wpTextbox1");
+  return Boolean(box && box.nextElementSibling?.classList?.contains("CodeMirror"));
+}
+
 // Inserting at the cursor (2026-10-14; shared by Clipboard and Notes and Genie). The editor's text and
 // cursor are only reachable from the page's own scripts, so this hands the text to
 // features/clipboard_and_notes/cm_insert.js, run in the page. Resolves to whether it was inserted.

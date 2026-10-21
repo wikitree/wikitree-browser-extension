@@ -175,7 +175,7 @@ async function ask({ provider, key, model }, prompt) {
  */
 export async function askGenie({ request, selected = "", current = null }) {
   const config = await getAiConfig();
-  if (!config?.key) throw new Error("Ask Genie needs an AI key. Add one in the WBE options, under Genie's AI Assistance.");
+  if (!config?.key) throw new Error("Ask Genie needs an AI key. Add one in the WBE options: Find and Replace > Show options > AI Settings.");
   const backslashes = /\\/.test(request + selected);
   let answer = await ask(config, buildPrompt({ request, selected, current }));
   let problems = answer.search.find ? checkAnswer(answer, { backslashes }) : [];

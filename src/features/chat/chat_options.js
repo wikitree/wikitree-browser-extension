@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import { isMainDomain } from "../../core/pageType";
-import { sharedAiOptionGroup } from "../../core/options/shared_ai_options";
+import { aiSettingsButton } from "../../core/options/shared_ai_options";
 
 registerFeature({
   name: "Genie",
@@ -17,7 +17,7 @@ registerFeature({
   defaultValue: true,
   pages: [isMainDomain],
   options: [
-    sharedAiOptionGroup("Auto Bio"),
+    aiSettingsButton(),
     {
       id: "showResultsInTable",
       type: OptionType.CHECKBOX,

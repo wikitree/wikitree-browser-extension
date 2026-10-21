@@ -1,9 +1,10 @@
 /*
-The AI settings Auto Bio and Genie share (2026-10-04). Both features show this same
-group on the options page and read and write the same stored values
-(sharedAI_options), so a key added or removed in one is added or removed in the
-other. Defined once here so the two can't drift apart again (Auto Bio had gained
-xAI and newer default models that Genie never got).
+The AI settings Auto Bio and Genie share (2026-10-04), stored once (sharedAI_options) and defined
+once here so the two can't drift apart again (Auto Bio had gained xAI and newer default models that
+Genie never got). Find and Replace and Change Summary Options use them too, so since 2026-10-21 they
+are a section of their own, AI Settings (SHARED_AI_SETTINGS): a dialog on the options page that each
+of those features' options opens with a button (aiSettingsButton). getFeatureOptions("chat") and
+getFeatureOptions("autoBio") still include them.
 */
 
 import { OptionType } from "./options_registry";
@@ -150,32 +151,40 @@ function ollamaOptions(provider) {
   ];
 }
 
-/** The "AI Assistance" group, for the feature whose sharing partner is `otherFeatureName`. */
-export function sharedAiOptionGroup(otherFeatureName) {
+// The settings themselves: the AI Settings dialog on the options page (options.js), which saves them
+// to SHARED_AI_OPTIONS_KEY. Not a registered feature, so it has no on/off switch of its own.
+export const SHARED_AI_SETTINGS = {
+  id: "sharedAI",
+  name: "AI Settings",
+  options: [
+    {
+      id: "aiProvider",
+      type: OptionType.SELECT,
+      label: "AI Provider",
+      values: PROVIDERS.map((provider) => ({ value: provider.value, text: provider.text })),
+      defaultValue: "openai",
+    },
+    ...PROVIDERS.flatMap((provider) => (provider.whereId ? ollamaOptions(provider) : [keyOption(provider), modelOption(provider, provider.modelId, provider.modelLabel, provider.value)])),
+    {
+      id: "aiModel",
+      type: OptionType.TEXT,
+      label: "Custom Model Override (Advanced)",
+      defaultValue: "",
+      comment: "If provided, this will override the selection above.",
+    },
+  ],
+};
+
+/** Each AI setting's default (getFeatureOptions adds them for the features that read the settings). */
+export const SHARED_AI_DEFAULTS = Object.fromEntries(
+  SHARED_AI_SETTINGS.options.filter((option) => option.id && option.defaultValue !== undefined).map((option) => [option.id, option.defaultValue])
+);
+
+/** For a feature that uses AI, in its options: a button that opens the AI Settings. */
+export function aiSettingsButton() {
   return {
-    id: "aiGroup",
-    type: OptionType.GROUP,
-    label: "AI Assistance",
-    options: [
-      {
-        type: OptionType.TEXT_LINE,
-        comment: `These AI settings are shared with ${otherFeatureName}. Changing them here changes them there too.`,
-      },
-      {
-        id: "aiProvider",
-        type: OptionType.SELECT,
-        label: "AI Provider",
-        values: PROVIDERS.map((provider) => ({ value: provider.value, text: provider.text })),
-        defaultValue: "openai",
-      },
-      ...PROVIDERS.flatMap((provider) => (provider.whereId ? ollamaOptions(provider) : [keyOption(provider), modelOption(provider, provider.modelId, provider.modelLabel, provider.value)])),
-      {
-        id: "aiModel",
-        type: OptionType.TEXT,
-        label: "Custom Model Override (Advanced)",
-        defaultValue: "",
-        comment: "If provided, this will override the selection above.",
-      },
-    ],
+    type: OptionType.AI_SETTINGS,
+    label: "AI Settings",
+    comment: "The AI provider, API keys and models, shared by every feature that uses AI.",
   };
 }

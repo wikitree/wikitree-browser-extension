@@ -9,6 +9,7 @@ import {
   SHARED_AI_KEY_IDS,
   SHARED_AI_OPTIONS_KEY,
   SHARED_AI_OPTION_IDS,
+  SHARED_AI_SETTINGS,
   effectiveAiProvider,
 } from "./core/options/shared_ai_options";
 import { categorize } from "./features/register_categories";
@@ -16,7 +17,7 @@ import "./features/register_feature_options";
 import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink, recordBackupMade } from "./core/common";
 import { restoreOptions, restoreData, restoreAll, sendMessageToContentTab } from "./upload";
 import { navigatorDetect } from "./core/navigatorDetect";
-import { shouldInitializeFeature } from "./core/options/options_storage.js";
+import { getFeatureOptions, shouldInitializeFeature } from "./core/options/options_storage.js";
 import { initSafariPopupScrollFix } from "./core/popupScrollFix";
 
 shouldInitializeFeature("darkMode").then((result) => {
@@ -99,8 +100,9 @@ $("h1")
 
 const textField = document.getElementById("optionSearch");
 
-function isSharedAiFeature(featureId) {
-  return SHARED_AI_FEATURES.includes(featureId);
+// The AI Settings dialog (addAiSettingsDialog) is built like a feature's options, with this id
+function isAiSettings(featureId) {
+  return featureId === SHARED_AI_SETTINGS.id;
 }
 
 // A key added for a provider other than the selected one, when it's the only key: select that
@@ -152,7 +154,7 @@ function requestOllamaAccessIfChosen(featureId, changedElement) {
   requestOllamaAccess(() => updateOllamaAccessRows());
 }
 
-// "Allow access to Ollama", under "Run Ollama on" in each AI settings group, while Ollama on this
+// "Allow access to Ollama", under "Run Ollama on" in the AI Settings, while Ollama on this
 // computer is chosen and the browser hasn't let WBE reach it: Chrome and Firefox don't ask again
 // after a missed or refused prompt. A click is a gesture everywhere.
 function ollamaAccessRow() {
@@ -205,24 +207,23 @@ function ollamaSafariRow() {
 
 function updateOllamaAccessRows() {
   if (!chrome.permissions?.contains && !isSafari) return;
-  SHARED_AI_FEATURES.forEach((featureId) => {
-    const where = document.getElementById(`${featureId}_ollamaWhere`);
-    if (!where) return;
-    let row = document.getElementById(`${featureId}_ollamaAccess`);
-    if (!row) {
-      row = isSafari ? ollamaSafariRow() : ollamaAccessRow();
-      row.id = `${featureId}_ollamaAccess`;
-      where.closest("div").after(row);
-    }
-    const wanted = document.getElementById(`${featureId}_aiProvider`)?.value === "ollama" && where.value !== "cloud";
-    if (!wanted || isSafari) {
-      $(row).toggle(wanted);
-      return;
-    }
-    chrome.permissions.contains({ origins: OLLAMA_LOCAL_ORIGINS }, (granted) => {
-      // (if the browser can't say, no button: better than one that never goes away)
-      $(row).toggle(!chrome.runtime.lastError && !granted);
-    });
+  const featureId = SHARED_AI_SETTINGS.id;
+  const where = document.getElementById(`${featureId}_ollamaWhere`);
+  if (!where) return;
+  let row = document.getElementById(`${featureId}_ollamaAccess`);
+  if (!row) {
+    row = isSafari ? ollamaSafariRow() : ollamaAccessRow();
+    row.id = `${featureId}_ollamaAccess`;
+    where.closest("div").after(row);
+  }
+  const wanted = document.getElementById(`${featureId}_aiProvider`)?.value === "ollama" && where.value !== "cloud";
+  if (!wanted || isSafari) {
+    $(row).toggle(wanted);
+    return;
+  }
+  chrome.permissions.contains({ origins: OLLAMA_LOCAL_ORIGINS }, (granted) => {
+    // (if the browser can't say, no button: better than one that never goes away)
+    $(row).toggle(!chrome.runtime.lastError && !granted);
   });
 }
 chrome.permissions?.onAdded?.addListener(updateOllamaAccessRows);
@@ -261,16 +262,6 @@ function splitSharedAiOptions(optionsData) {
   });
 
   return { featureOptions, sharedAiOptions };
-}
-
-function mergeSharedAiOptions(featureId, optionsData, storageItems) {
-  if (!isSharedAiFeature(featureId)) {
-    return optionsData;
-  }
-
-  const sharedOptions = storageItems?.[SHARED_AI_OPTIONS_KEY] || {};
-  const legacySharedOptions = collectLegacySharedAiOptions(storageItems);
-  return { ...optionsData, ...legacySharedOptions, ...sharedOptions };
 }
 
 function checkText() {
@@ -382,18 +373,14 @@ function saveFeatureOptions(feature) {
 
   const storageName = feature.id + "_options";
 
-  if (isSharedAiFeature(feature.id)) {
-    const { featureOptions, sharedAiOptions } = splitSharedAiOptions(optionsData);
+  if (isAiSettings(feature.id)) {
     chrome.storage.sync.get([SHARED_AI_OPTIONS_KEY, ...getSharedAiOptionStorageKeys()], (items) => {
       const currentShared = items?.[SHARED_AI_OPTIONS_KEY] || {};
-      const updates = {
-        [storageName]: featureOptions,
-        [SHARED_AI_OPTIONS_KEY]: { ...currentShared, ...sharedAiOptions },
-      };
-      // Old copies of the AI settings in the other feature's storage would bring a removed
+      const updates = { [SHARED_AI_OPTIONS_KEY]: { ...currentShared, ...optionsData } };
+      // Old copies of the AI settings in Genie's or Auto Bio's own storage would bring a removed
       // key back (the user, 2026-10-04): the shared settings are the only copy now.
       getSharedAiOptionStorageKeys().forEach((itemKey) => {
-        if (itemKey === storageName || !items?.[itemKey]) return;
+        if (!items?.[itemKey]) return;
         const { featureOptions: withoutAi } = splitSharedAiOptions(items[itemKey]);
         if (Object.keys(withoutAi).length !== Object.keys(items[itemKey]).length) updates[itemKey] = withoutAi;
       });
@@ -420,7 +407,10 @@ function restoreFeatureOptions(feature, storageItems) {
     optionsData = storageItems[storageName];
   }
 
-  optionsData = mergeSharedAiOptions(feature.id, optionsData, storageItems);
+  if (isAiSettings(feature.id)) {
+    // (with anything still only in Genie's or Auto Bio's old copy)
+    optionsData = { ...collectLegacySharedAiOptions(storageItems), ...(storageItems[SHARED_AI_OPTIONS_KEY] || {}) };
+  }
 
   setUiElementsFromOptionsData(feature, feature.options, optionsData);
 }
@@ -459,6 +449,7 @@ function restore_options() {
         setCategorySwitches();
       }, 100);
     });
+    restoreFeatureOptions(SHARED_AI_SETTINGS, items);
     restore_settings(items);
     updateDependentOptions();
     updateOllamaAccessRows();
@@ -502,19 +493,12 @@ function reset_options(preserveFeatureOptions, callback) {
           if (feature.options) {
             let optionsData = {};
             fillOptionsDataFromUiElements(feature, feature.options, optionsData);
-
-            if (isSharedAiFeature(feature.id)) {
-              const { featureOptions, sharedAiOptions } = splitSharedAiOptions(optionsData);
-              items[feature.id + "_options"] = featureOptions;
-              items[SHARED_AI_OPTIONS_KEY] = {
-                ...(items[SHARED_AI_OPTIONS_KEY] || {}),
-                ...sharedAiOptions,
-              };
-            } else {
-              items[feature.id + "_options"] = optionsData;
-            }
+            items[feature.id + "_options"] = optionsData;
           }
         });
+        let aiSettings = {};
+        fillOptionsDataFromUiElements(SHARED_AI_SETTINGS, SHARED_AI_SETTINGS.options, aiSettings);
+        items[SHARED_AI_OPTIONS_KEY] = aiSettings;
         chrome.storage.sync.set(items, callback);
       }, 1000);
     });
@@ -552,7 +536,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
   }
 
   function onChange(event) {
-    if (isSharedAiFeature(featureId)) {
+    if (isAiSettings(featureId)) {
       selectProviderWithOnlyKey(featureId, event?.target);
       requestOllamaAccessIfChosen(featureId, event?.target);
     }
@@ -705,6 +689,13 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 
       labelElement.appendChild(optionElement);
       optionDivElement.appendChild(labelElement);
+    } else if (option.type == OptionType.AI_SETTINGS) {
+      let buttonElement = document.createElement("button");
+      buttonElement.type = "button";
+      buttonElement.className = "ai-settings-button";
+      buttonElement.innerText = option.label;
+      buttonElement.addEventListener("click", openAiSettings);
+      optionDivElement.appendChild(buttonElement);
     } else if (option.type == OptionType.TEXTAREA) {
       optionElement = document.createElement("textarea");
       optionElement.className = "option-textarea";
@@ -826,6 +817,53 @@ $(() => {
 // adds HTML elements for each category and its features to the options page
 let toggleCount = 0;
 renderCategory(rootCategory, $("#features"));
+addAiSettingsDialog();
+
+// The AI Settings (2026-10-21): the provider, keys and models every feature that uses AI shares, in a
+// dialog of their own that the button in each of those features' options opens (OptionType.AI_SETTINGS).
+// They used to be in Genie's and Auto Bio's options, where members of the other features never saw
+// them; they aren't a feature, so they aren't in the feature list.
+function addAiSettingsDialog() {
+  const usesAiSettings = (options = []) =>
+    options.some((option) => option.type == OptionType.AI_SETTINGS || usesAiSettings(option.options));
+  const names = features.filter((feature) => usesAiSettings(feature.options)).map((feature) => feature.name);
+  const usedBy = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
+  const $content = $('<div class="dialog-content"></div>');
+  const intro = { type: OptionType.TEXT_LINE, comment: `These settings are shared by ${usedBy}.` };
+  addOptionsForFeature(SHARED_AI_SETTINGS, $content.get(0), [intro, ...SHARED_AI_SETTINGS.options]);
+  $('<dialog id="aiSettingsDialog"></dialog>')
+    .append(
+      $('<div class="dialog-header"></div>')
+        .text(SHARED_AI_SETTINGS.name)
+        .prepend(
+          $('<a href="#" class="close">&#x2715;</a>')
+            .on("auxclick", function (e) {
+              e.stopPropagation();
+              e.preventDefault();
+            })
+            .on("click", function (e) {
+              e.stopPropagation();
+              e.preventDefault();
+              this.closest("dialog")?.close();
+            })
+        )
+    )
+    .append($content)
+    .on("click", function (e) {
+      if (e.target === this) {
+        this.close(); // close modal if the backdrop is clicked
+      }
+    })
+    .appendTo(document.body);
+}
+
+function openAiSettings() {
+  document.getElementById("aiSettingsDialog")?.showModal();
+}
+
+// Genie's and Auto Bio's own saves no longer carry the AI settings, so first move anything still only
+// in their old copies over to the shared ones (getFeatureOptions does that, once).
+getFeatureOptions(SHARED_AI_FEATURES[0]).catch((error) => console.warn("wbe: AI settings check failed", error));
 
 function renderCategory(category, container) {
   if (!category.depth) {

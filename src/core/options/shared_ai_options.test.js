@@ -1,16 +1,20 @@
 /**
  * @jest-environment jsdom
  */
-// Auto Bio and Genie share one AI settings group (2026-10-04). These check that the
-// switch keeps everyone's saved settings: nothing already stored is changed, a key
-// kept only in an old per-feature copy (like xAI, which only Auto Bio had) is carried
-// over rather than lost, and a key someone cleared stays cleared.
+// Auto Bio and Genie share one AI settings group (2026-10-04), since 2026-10-21 a section of
+// its own (AI Settings) that their options open with a button. These check that the switch
+// keeps everyone's saved settings: nothing already stored is changed, a key kept only in an
+// old per-feature copy (like xAI, which only Auto Bio had) is carried over rather than lost,
+// and a key someone cleared stays cleared.
 
 import { features } from "./options_registry";
 import { getFeatureOptions } from "./options_storage";
-import { SHARED_AI_OPTION_IDS, SHARED_AI_OPTIONS_KEY } from "./shared_ai_options";
+import { SHARED_AI_DEFAULTS, SHARED_AI_OPTION_IDS, SHARED_AI_OPTIONS_KEY, SHARED_AI_SETTINGS, aiConfigFor } from "./shared_ai_options";
+import { OptionType } from "./options_registry";
 import "../../features/chat/chat_options";
 import "../../features/auto_bio/auto_bio_options";
+import "../../features/find_and_replace/find_and_replace_options";
+import "../../features/custom_change_summary_options/custom_change_summary_options_options";
 
 let store;
 beforeEach(() => {
@@ -35,18 +39,32 @@ beforeEach(() => {
   };
 });
 
-const aiGroupOf = (featureId) => features.find((feature) => feature.id === featureId).options.find((option) => option.id === "aiGroup");
+const optionsOf = (featureId) => features.find((feature) => feature.id === featureId).options;
 
 describe("shared AI settings", () => {
-  test("Auto Bio and Genie show the same AI settings", () => {
-    const ids = (group) => group.options.map((option) => option.id).filter(Boolean);
-    const autoBio = aiGroupOf("autoBio");
-    const chat = aiGroupOf("chat");
-    expect(ids(chat)).toEqual(ids(autoBio));
-    expect(ids(chat)).toEqual(SHARED_AI_OPTION_IDS);
-    expect(chat.options.map((option) => option.defaultValue)).toEqual(autoBio.options.map((option) => option.defaultValue));
-    expect(chat.options[0].comment).toMatch(/shared with Auto Bio/);
-    expect(autoBio.options[0].comment).toMatch(/shared with Genie/);
+  test("one AI Settings section, which each feature that uses AI opens with a button", () => {
+    expect(SHARED_AI_SETTINGS.options.map((option) => option.id)).toEqual(SHARED_AI_OPTION_IDS);
+    for (const featureId of ["chat", "autoBio", "findAndReplace", "customChangeSummaryOptions"]) {
+      const options = optionsOf(featureId);
+      expect(options.filter((option) => option.type === OptionType.AI_SETTINGS)).toHaveLength(1);
+      // (the settings themselves are no longer among the feature's own options)
+      expect(JSON.stringify(options)).not.toMatch(/"id":"(aiProvider|openAIKey|aiModel)"/);
+    }
+  });
+
+  test("with nothing saved, Genie and Auto Bio still get every AI default", async () => {
+    const chat = await getFeatureOptions("chat");
+    const autoBio = await getFeatureOptions("autoBio");
+    expect(chat).toMatchObject(SHARED_AI_DEFAULTS);
+    expect(autoBio).toMatchObject(SHARED_AI_DEFAULTS);
+    expect(chat).toMatchObject({ aiProvider: "openai", ollamaWhere: "local", openAIModel: "gpt-5.6-terra", aiModel: "" });
+    expect(chat.allowAiFallback).toBe(true);
+    expect(store).toEqual({});
+  });
+
+  test("what Find and Replace and Change Summary Options call: the saved settings through Genie's", async () => {
+    store[SHARED_AI_OPTIONS_KEY] = { aiProvider: "gemini", geminiKey: "k-gem" };
+    expect(aiConfigFor(await getFeatureOptions("chat"))).toEqual({ provider: "gemini", key: "k-gem", model: "gemini-3.5-flash" });
   });
 
   test("settings already saved are read unchanged by both features and not rewritten", async () => {
@@ -117,8 +135,7 @@ describe("Ollama (2026-10-16)", () => {
     expect(aiKeyFor({}, "openai")).toBe("");
   });
   test("Run Ollama on: this computer's models, or the key and the cloud models", () => {
-    const { sharedAiOptionGroup } = require("./shared_ai_options");
-    const options = sharedAiOptionGroup("Auto Bio").options;
+    const options = SHARED_AI_SETTINGS.options;
     const byId = (id) => options.find((option) => option.id === id);
     expect(byId("ollamaWhere").defaultValue).toBe("local");
     expect(byId("ollamaModel").values.map((entry) => entry.value)).toContain("gemma4:e4b");

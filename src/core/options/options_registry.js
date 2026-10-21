@@ -28,6 +28,8 @@ const OptionType = {
   COLOR: "color",
   TEXT: "text",
   TEXTAREA: "textarea",
+  // A button that opens the AI Settings (shared_ai_options.js aiSettingsButton); it stores nothing
+  AI_SETTINGS: "aiSettings",
 };
 
 function fillDefaultValuesForOptions(defaultValues, options, useTestDefaults) {
