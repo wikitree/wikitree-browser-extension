@@ -59,4 +59,4 @@ Notes/assumptions:
 - The deterministic `CategoryFull` encoding must match what the WT+ Query Builder expects; the exact encoded URL is key for troubleshooting.
 - Private profile fields require Apps Login; without it `getProfile` returns public-only data.
 
-File created for handoff: `/Users/steve/GitHub/wikitree-browser-extension/src/features/chat/wt_plus_status_for_next_agent.md`
+File created for handoff: `src/features/chat/wt_plus_status_for_next_agent.md`
