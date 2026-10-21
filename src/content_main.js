@@ -82,7 +82,9 @@ import "./features/color_blind_support/color_blind_support";
 
 // followed by the rest
 
-import "./easterEgg";
+// Off until the next egg hunt (Easter?): it fetches wikitreebee.com/easter-egg/config.json on every
+// profile page, and that file has no Access-Control-Allow-Origin header, so the console fills with CORS errors.
+// import "./easterEgg";
 import "./features/access_keys/access_keys";
 import "./features/add_fs_id/add_fs_id";
 import "./features/add_search_boxes/add_search_boxes";
