@@ -41,4 +41,33 @@ describe("the focus person (the picker's choice, else the page's)", () => {
     expect(routeChatPrompt("parents of Lincoln-103")).toEqual(named);
     expect(routeChatPrompt("my parents")).toEqual({ intent: "relationCount", params: { mode: "list", relationRaw: "parents", subjectMode: "user" } });
   });
+
+  // (the user, 2026-10-22: "Who is the mother of Philip Beacall?" was a person search for "the mother of …")
+  test.each([
+    ["Who is the mother of Philip Beacall?", "mother", "Philip Beacall"],
+    ["Who was the father of Philip Beacall?", "father", "Philip Beacall"],
+    ["who were the parents of Philip Beacall", "parents", "Philip Beacall"],
+    ["the mother of Philip Beacall", "mother", "Philip Beacall"],
+    ["mother of Philip Beacall", "mother", "Philip Beacall"],
+    ["Who were the children of Philip Beacall?", "children", "Philip Beacall"],
+    ["who were the grandparents of Martha Teece", "grandparents", "Martha Teece"],
+    ["Philip Beacall's mother", "mother", "Philip Beacall"],
+    ["Philip Beacall's father", "father", "Philip Beacall"],
+  ])("a name after 'of' is that person: %s", (prompt, relationRaw, subjectName) => {
+    expect(routeChatPrompt(prompt)).toEqual({ intent: "relationCount", params: { mode: "list", relationRaw, subjectMode: "named", subjectName } });
+  });
+
+  test("'the wife of', 'the husband of' and 'the mother of my father'", () => {
+    expect(routeChatPrompt("Who is the wife of Philip Beacall?")).toMatchObject({ intent: "spouseList", params: { target: "Philip Beacall", gender: "Female" } });
+    expect(routeChatPrompt("who was the husband of Martha Teece")).toMatchObject({ intent: "spouseList", params: { target: "Martha Teece", gender: "Male" } });
+    expect(routeChatPrompt("who is the mother of my father")).toEqual({
+      intent: "relationCount",
+      params: { mode: "list", relationRaw: "father's mother", subjectMode: "user" },
+    });
+  });
+
+  test.each(["Martha Teece mother of Philip", "Philip Beacall father of Jane Beacall", "Who was the Earl of Bradford?", "births of Shropshire"])(
+    "not a relation question: %s",
+    (prompt) => expect(routeChatPrompt(prompt)?.intent).not.toBe("relationCount")
+  );
 });

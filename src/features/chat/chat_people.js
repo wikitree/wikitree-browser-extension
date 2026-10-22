@@ -1028,7 +1028,12 @@ export function createChatPeopleHandlers({
 
     const possessiveMatch = normalized.match(new RegExp(`^\\s*(.+?)'s\\s+${relation}\\??$`, "i"));
     if (possessiveMatch?.[1]) {
-      return withoutProfilePerson(possessiveMatch[1].trim().replace(/^\d+\s+generations?\s+of\s+/i, "")).trim();
+      // ("Draw a fan chart of Philip Beacall's ancestors" named "Draw a fan chart of Philip Beacall", 2026-10-22)
+      const owner = possessiveMatch[1]
+        .trim()
+        .replace(/^(?:please\s+)?(?:draw|make|create|show|open|display|plot|give|get|build)\b.*?\b(?:of|for)\s+/i, "")
+        .replace(/^\d+\s+generations?\s+of\s+/i, "");
+      return withoutProfilePerson(owner).trim();
     }
 
     const ofMatch = normalized.match(new RegExp(`^(?:show|list|display|give\\s+me)?\\s*(?:all\\s+|the\\s+)?${listWords}\\s+(?:of|for)\\s+(.+?)\\??$`, "i"));
@@ -1073,6 +1078,32 @@ export function createChatPeopleHandlers({
     return { unresolvedName: asked, message };
   }
 
+  // "Philip Beacall's ancestors" from another page drew the first of 10 Philip Beacalls' tree; ask which
+  // one. The chart and list handlers pass the message on; the choice runs the question again with the
+  // chosen one's WikiTree ID in place of the name (replayPrompt, chat.js; the user, 2026-10-22).
+  async function resolveNamedSubjectRoot(namedSubject, normalizedPrompt) {
+    const canAsk = Boolean(buildDisambiguationMessage && setPendingDisambiguationContext);
+    const resolved = canAsk
+      ? await resolveConnectionTargetPerson(namedSubject, normalizedPrompt, { allowDisambiguation: true })
+      : await resolveConnectionTargetPerson(namedSubject, normalizedPrompt);
+    if (resolved?._disambiguationNeeded) {
+      setPendingDisambiguationContext({ intent: "replayPrompt", params: {}, prompt: normalizedPrompt, name: namedSubject, candidates: resolved._candidates });
+      return { unresolvedName: namedSubject, message: buildDisambiguationMessage(resolved._candidates, namedSubject) };
+    }
+    if (!resolved?.Name && !resolved?.Id) {
+      return {
+        unresolvedName: namedSubject,
+      };
+    }
+
+    return {
+      key: resolved.Id || resolved.Name,
+      wtId: resolved.Name,
+      displayName: watchlistDisplayName(resolved) || resolved.RealName || resolved.Name,
+      subjectType: "named",
+    };
+  }
+
   async function resolveAncestorSubjectRoot(prompt) {
     const normalizedPrompt = String(prompt || "").trim();
     const relativeRoot = await resolveRelativeSubjectRoot(normalizedPrompt);
@@ -1105,19 +1136,7 @@ export function createChatPeopleHandlers({
         }
       }
 
-      const resolved = await resolveConnectionTargetPerson(namedSubject, normalizedPrompt);
-      if (!resolved?.Name && !resolved?.Id) {
-        return {
-          unresolvedName: namedSubject,
-        };
-      }
-
-      return {
-        key: resolved.Id || resolved.Name,
-        wtId: resolved.Name,
-        displayName: watchlistDisplayName(resolved) || resolved.RealName || resolved.Name,
-        subjectType: "named",
-      };
+      return await resolveNamedSubjectRoot(namedSubject, normalizedPrompt);
     }
 
     const profileRoot = getProfileSubjectRoot();
@@ -1160,19 +1179,7 @@ export function createChatPeopleHandlers({
         }
       }
 
-      const resolved = await resolveConnectionTargetPerson(namedSubject, normalizedPrompt);
-      if (!resolved?.Name && !resolved?.Id) {
-        return {
-          unresolvedName: namedSubject,
-        };
-      }
-
-      return {
-        key: resolved.Id || resolved.Name,
-        wtId: resolved.Name,
-        displayName: watchlistDisplayName(resolved) || resolved.RealName || resolved.Name,
-        subjectType: "named",
-      };
+      return await resolveNamedSubjectRoot(namedSubject, normalizedPrompt);
     }
 
     const profileRoot = getProfileSubjectRoot();
@@ -1207,7 +1214,13 @@ export function createChatPeopleHandlers({
       return null;
     }
 
-    const rootPerson = await resolveConnectionTargetPerson(targetName, prompt);
+    // (asks which one when several share the name: "Philip Beacall's wife" answered for the first of
+    // 10, 2026-10-22)
+    const rootPerson = params?._resolvedPerson || (await resolveConnectionTargetPerson(targetName, prompt, { allowDisambiguation: true }));
+    if (rootPerson?._disambiguationNeeded) {
+      setPendingDisambiguationContext({ intent: ChatIntent.SPOUSE_LIST, params, prompt, name: targetName, candidates: rootPerson._candidates });
+      return buildDisambiguationMessage(rootPerson._candidates, targetName);
+    }
     if (!rootPerson?.Name && !rootPerson?.Id) {
       return `I couldn't identify which profile you meant by "${targetName}". Try a WikiTree ID like Name-123, or a more specific name.`;
     }
@@ -1312,6 +1325,7 @@ export function createChatPeopleHandlers({
         intent: ChatIntent.PERSON_AGE_AT_DEATH,
         params,
         prompt,
+        name: targetName,
         candidates: person._candidates,
       });
       return buildDisambiguationMessage(person._candidates, targetName);
@@ -1350,7 +1364,11 @@ export function createChatPeopleHandlers({
       key = getProfileSubjectRoot()?.wtId || getProfileSubjectRoot()?.key || "";
       if (!key) return "Open a profile page first, or name the person (for example Smith-123).";
     } else {
-      const person = await resolveConnectionTargetPerson(targetName, prompt);
+      const person = params?._resolvedPerson || (await resolveConnectionTargetPerson(targetName, prompt, { allowDisambiguation: true }));
+      if (person?._disambiguationNeeded) {
+        setPendingDisambiguationContext({ intent: ChatIntent.PERSON_AGE_AT_CHILD_BIRTH, params, prompt, name: targetName, candidates: person._candidates });
+        return buildDisambiguationMessage(person._candidates, targetName);
+      }
       key = person?.Name || person?.Id || "";
       if (!key) {
         return `I couldn't identify which profile you meant by "${targetName}". Try a WikiTree ID like Name-123, or a more specific name.`;

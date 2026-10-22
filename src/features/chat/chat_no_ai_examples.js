@@ -131,6 +131,34 @@ export const NO_AI_EXAMPLE_SECTIONS = [
     ],
   },
   {
+    id: "person",
+    title: "Find one person",
+    intro:
+      "A name finds that person on WikiTree. Add what you know about the family and Genie keeps only the profiles that fit: a spouse, a parent or a child, by first names alone (the surname can be left out). Several can go together, in any order.",
+    items: [
+      { pattern: "[first name] [surname]", examples: ["Martha Teece"] },
+      { pattern: "[name] married [spouse's name]", examples: ["George Beacall married Margaret"] },
+      {
+        pattern: "[name] mother / father / parents [their names]",
+        examples: ["Frederick Beacall mother Mary Ann", "Frederick Beacall whose father was John", "Philip Beacall son of Philip and Martha"],
+        note: "\"Mary Ann\" finds a mother called Mary Ann, Mary Anne, Maryann or Mary Ann Elizabeth (first and middle names both count).",
+      },
+      {
+        pattern: "[name] son / daughter / child / children [their names]",
+        examples: [
+          "Philip Beacall son Thomas Henry",
+          "Philip Beacall children Thomas Henry and Emily",
+          "Philip Beacall father of Robert and Jane",
+        ],
+        note: "Name as many children as you like, with commas or \"and\". \"Son of John\" names a parent: either parent may be called John.",
+      },
+      {
+        pattern: "[name] [spouse, parents and children together]",
+        examples: ["Philip Beacall married Eliza daughter Emily", "Frederick Beacall mother Mary Ann father John"],
+      },
+    ],
+  },
+  {
     id: "columns",
     title: "Extra columns",
     intro:

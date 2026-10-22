@@ -40,6 +40,8 @@ export function createChatBioHandlers({
   findParentProfileIdsFromDOM,
   setLastBioPopupState,
   focusIsPagePerson = () => true,
+  setPendingDisambiguationContext = () => {},
+  buildDisambiguationMessage = null,
 }) {
   function safePageRoot() {
     try {
@@ -607,7 +609,8 @@ export function createChatBioHandlers({
     }
   }
 
-  async function tryHandlePersonBioPrompt(prompt) {
+  // resolvedPerson: the person chosen from a "Which one did you mean?" list
+  async function tryHandlePersonBioPrompt(prompt, { resolvedPerson = null } = {}) {
     console.info("wbe: tryHandlePersonBioPrompt called", { prompt });
 
     try {
@@ -954,6 +957,18 @@ export function createChatBioHandlers({
       return null;
     }
 
+    // "Philip Beacall's mother" with no bio word asks who she is: the router's relation answer, which
+    // names her and offers a choice when several people share the name (from Darwin-15 it opened the
+    // bio of one Philip Beacall's mother; the user, 2026-10-22).
+    if (
+      targetRaw &&
+      !intermediateRelations.length &&
+      !hasBioKeyword &&
+      /^(?:mother|father|parents|wife|husband|spouse)$/i.test(String(relationRaw || ""))
+    ) {
+      return null;
+    }
+
     if (relationRaw && /(ancest|descend)/i.test(String(relationRaw))) {
       console.info("wbe: tryHandlePersonBioPrompt - ancestor/descendant relation detected, deferring to main router", {
         relationRaw,
@@ -963,11 +978,22 @@ export function createChatBioHandlers({
 
     const wantsBioPlural = /\bbios?\b/i.test(str) || /\bprofiles?\b/i.test(str);
 
-    let resolved = null;
-    if (targetRaw) resolved = await resolveConnectionTargetPerson(targetRaw, prompt);
+    // "Philip Beacall's bio" from another page opened the first of 10 Philip Beacalls' bios; ask which
+    // one, as the relation answers do (the user, 2026-10-22).
+    let resolved = resolvedPerson;
+    let namesakes = null;
+    if (!resolved && targetRaw) {
+      resolved = buildDisambiguationMessage
+        ? await resolveConnectionTargetPerson(targetRaw, prompt, { allowDisambiguation: true })
+        : await resolveConnectionTargetPerson(targetRaw, prompt);
+      if (resolved?._disambiguationNeeded) {
+        namesakes = resolved._candidates || [];
+        resolved = null;
+      }
+    }
     console.info("wbe: tryHandlePersonBioPrompt resolved target", { resolved });
 
-    try {
+    if (!resolvedPerson) try {
       const needle = String(targetRaw || "")
         .trim()
         .toLowerCase();
@@ -1034,6 +1060,12 @@ export function createChatBioHandlers({
       } catch (error) {
         /* ignore */
       }
+    }
+
+    // (before the last connection candidates: those are the namesakes themselves)
+    if (!resolved?.Name && !resolved?.Id && namesakes?.length) {
+      setPendingDisambiguationContext({ intent: "personBio", params: {}, prompt, name: targetRaw, candidates: namesakes });
+      return buildDisambiguationMessage(namesakes, targetRaw);
     }
 
     if (!resolved?.Name && !resolved?.Id) {

@@ -348,9 +348,35 @@ export function rewritePromptWithRememberedPerson(prompt, person) {
 // The person the last answer was about: exactly one WikiTree ID in the message
 // and no multi-row table. "Abraham (Lincoln-103) is 21 steps away" → Lincoln-103;
 // a list of ancestors → null.
-export function pickAnswerSubject(messageText, table = null) {
+// The person in the answer the question named most fully: "Philip Beacall's wife" → Philip Beacall
+// (Beacall-10), not Eliza (Roberts) Beacall, so "his father" next is his (the user, 2026-10-22).
+// Each name is the run of capitalised words before an ID; a tie names nobody.
+function personTheQuestionNamed(messageText, prompt) {
+  const text = String(prompt || "");
+  const scored = [];
+  for (const match of String(messageText || "").matchAll(/([^\n:;,]{0,80}?)\(([A-Za-z][A-Za-z0-9_-]*-\d{1,7})\)/g)) {
+    const wtId = match[2];
+    const words = [];
+    for (const word of match[1].replace(/[()]/g, " ").trim().split(/\s+/).reverse()) {
+      if (!/^\p{Lu}[\p{L}'’-]+$/u.test(word) || words.length >= 5) break;
+      words.unshift(word);
+    }
+    const score = text.toLowerCase().includes(wtId.toLowerCase())
+      ? 100
+      : words.filter((word) => word.length > 2 && new RegExp(`(?:^|[^\\p{L}])${word}(?:'s|’s)?(?![\\p{L}])`, "u").test(text)).length;
+    if (!scored.some((entry) => entry.wtId === wtId)) scored.push({ wtId, displayName: words.join(" "), score });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  const [best, runnerUp] = scored;
+  if (!best?.score || (runnerUp && runnerUp.score === best.score)) return null;
+  return { wtId: best.wtId, displayName: best.displayName };
+}
+
+export function pickAnswerSubject(messageText, table = null, prompt = "") {
   if (Array.isArray(table?.rows) && table.rows.length > 1) return null;
   const people = extractResolvedPeopleFromMessage(messageText);
+  const named = prompt ? personTheQuestionNamed(messageText, prompt) : null;
+  if (named) return people.find((person) => person.wtId === named.wtId) || named;
   const ids = [...new Set(people.map((person) => person.wtId))];
   return ids.length === 1 ? people.find((person) => person.wtId === ids[0]) : null;
 }

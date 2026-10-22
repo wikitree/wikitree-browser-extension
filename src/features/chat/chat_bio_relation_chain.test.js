@@ -230,6 +230,57 @@ describe("tryHandlePersonBioPrompt relation chains", () => {
     expect(message).not.toMatch(/Hannah/);
   });
 
+  // (the user, 2026-10-22: "Philip Beacall's bio" from another page opened the first namesake's bio)
+  describe("a name several people share", () => {
+    const namesakes = [
+      { Id: 11, Name: "Beacall-11", RealName: "Philip", LastNameAtBirth: "Beacall" },
+      { Id: 10, Name: "Beacall-10", RealName: "Philip", LastNameAtBirth: "Beacall" },
+    ];
+    const askingDeps = () =>
+      makeDeps({
+        resolveConnectionTargetPerson: jest.fn(async () => ({ _disambiguationNeeded: true, _candidates: namesakes })),
+        // (the resolver leaves the namesakes here too; they mustn't be picked from silently)
+        getLastConnectionCandidates: jest.fn(() => namesakes),
+        setPendingDisambiguationContext: jest.fn(),
+        buildDisambiguationMessage: jest.fn((candidates, name) => `I found ${candidates.length} people named "${name}". Which one did you mean?`),
+      });
+
+    test("asks which one instead of opening the first one's bio", async () => {
+      const deps = askingDeps();
+      const handlers = createChatBioHandlers(deps);
+
+      const message = messageOf(await handlers.tryHandlePersonBioPrompt("Philip Beacall's bio"));
+
+      expect(message).toMatch(/I found 2 people named "Philip Beacall"/);
+      expect(deps.resolveConnectionTargetPerson).toHaveBeenCalledWith("Philip Beacall", expect.any(String), { allowDisambiguation: true });
+      expect(deps.setPendingDisambiguationContext).toHaveBeenCalledWith(
+        expect.objectContaining({ intent: "personBio", prompt: "Philip Beacall's bio", name: "Philip Beacall", candidates: namesakes })
+      );
+      expect(deps.WikiTreeAPI.getProfile).not.toHaveBeenCalled();
+    });
+
+    test("the chosen one's bio opens, without asking again", async () => {
+      const deps = askingDeps();
+      const handlers = createChatBioHandlers(deps);
+
+      const message = messageOf(await handlers.tryHandlePersonBioPrompt("Philip Beacall's bio", { resolvedPerson: namesakes[1] }));
+
+      expect(deps.resolveConnectionTargetPerson).not.toHaveBeenCalled();
+      expect(deps.setPendingDisambiguationContext).not.toHaveBeenCalled();
+      expect(message).toMatch(/^Biography for Beacall-10/);
+    });
+  });
+
+  // (the user, 2026-10-22: "Philip Beacall's mother" opened one namesake's mother's bio; the router
+  // answers who she is and asks which Philip Beacall when several share the name)
+  test.each(["Marguerite's mother", "Marguerite's father", "Marguerite's wife"])("no bio word leaves %s to the router", async (prompt) => {
+    const deps = makeDeps();
+    const handlers = createChatBioHandlers(deps);
+
+    expect(await handlers.tryHandlePersonBioPrompt(prompt)).toBeNull();
+    expect(deps.resolveConnectionTargetPerson).not.toHaveBeenCalled();
+  });
+
   test("stepmother as a hop: Marguerite's stepmother's siblings", async () => {
     const deps = makeDeps();
     withFatherSpouses(deps, {

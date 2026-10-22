@@ -552,6 +552,26 @@ describe("no AI key: searches still run", () => {
     // (2026-10-10: was LastNameAtBirth=George Location=Beacall)
     expect(await classifyWtPrompt({ prompt: "George Beacall married Margaret", getChatAiConfig: noKey, isUnclaimed })).toBeNull();
     expect(await classifyWtPrompt({ prompt: "Kent married 1850s", getChatAiConfig: noKey, isUnclaimed })).toBe("wtplus");
+    // (live, 2026-10-21: was AllLastNames=Frederick Location=Beacall)
+    for (const prompt of [
+      "Frederick Beacall mother Mary Ann",
+      "Frederick Beacall whose mother was Mary Ann",
+      "Frederick Beacall married Margaret mother Mary Ann",
+      "Frederick Beacall mother Mary Ann father John",
+      "Philip Beacall son Thomas Henry",
+      "Philip Beacall father of Albert",
+      "Philip Beacall married Eliza daughter Emily",
+      "Philip Beacall children Thomas Henry and Emily",
+      "Philip Beacall sons Robert, William and Alfred",
+      "Philip Beacall father of Robert and Jane",
+      "Philip Beacall son of Philip and Martha",
+      "Philip Beacall parents Philip and Martha",
+      "Martha Teece mother of Philip",
+    ]) {
+      expect(await classifyWtPrompt({ prompt, getChatAiConfig: noKey, isUnclaimed })).toBe("wt");
+    }
+    expect(await classifyWtPrompt({ prompt: "Beacalls with a mother but no father", getChatAiConfig: noKey, isUnclaimed })).not.toBe("wt");
+    expect(await classifyWtPrompt({ prompt: "Beacalls with a son but no daughter", getChatAiConfig: noKey, isUnclaimed })).not.toBe("wt");
     // a category word: straight to WT+, not a person search for "Devon Centenarians" first (2026-10-10)
     for (const prompt of ["Devon centenarians", "Kent doctors", "Yorkshire convicts"]) {
       expect(await classifyWtPrompt({ prompt, getChatAiConfig: noKey, isUnclaimed })).toBe("wtplus");

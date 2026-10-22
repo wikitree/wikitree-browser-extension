@@ -91,6 +91,8 @@ export function createChatRelationHandlers({
   fetchParentIds,
   isLoggedOutOfAppsServer,
   familyVisuals = () => [],
+  setPendingDisambiguationContext = () => {},
+  buildDisambiguationMessage = null,
 }) {
   // "Limit exceeded" makes getRelatives resolve to undefined; read that as no relatives.
   const getRelativesOrEmpty = async (...args) => (await WikiTreeAPI.getRelatives(...args)) || [];
@@ -1477,24 +1479,40 @@ export function createChatRelationHandlers({
 
   // Whose relatives: a named person, the profile person, or the user. Returns
   // the subject, or a message string when it can't be resolved.
-  async function resolveRelationSubject({ named, subjectName: requestedSubjectName, forceUserSubject }, prompt = "") {
+  // askWhich: { intent, params } to offer a choice of namesakes and run that again with the one picked
+  // ("Who is the mother of Philip Beacall?" took one of seven Philip Beacalls without saying so;
+  // the user, 2026-10-22).
+  async function resolveRelationSubject(
+    { named, subjectName: requestedSubjectName, forceUserSubject, resolvedPerson = null, askWhich = null },
+    prompt = ""
+  ) {
     let subject = null;
     if (!forceUserSubject && named) {
       const subjectName = String(requestedSubjectName || "").trim();
-      if (!subjectName) {
+      if (!subjectName && !resolvedPerson) {
         return "I couldn't tell which person you meant. Could you include a name or WikiTree ID?";
       }
-      const resolved = await resolveConnectionTargetPerson(subjectName, prompt);
+      const canAsk = Boolean(askWhich && buildDisambiguationMessage);
+      const resolved =
+        resolvedPerson ||
+        (await (canAsk
+          ? resolveConnectionTargetPerson(subjectName, prompt, { allowDisambiguation: true })
+          : resolveConnectionTargetPerson(subjectName, prompt)));
+      if (resolved?._disambiguationNeeded) {
+        setPendingDisambiguationContext({ ...askWhich, prompt, name: subjectName, candidates: resolved._candidates });
+        return buildDisambiguationMessage(resolved._candidates, subjectName);
+      }
       if (!resolved?.Name && !resolved?.Id) {
         return `I couldn't identify which profile you meant by "${subjectName}". Try a WikiTree ID like Name-123, or a more specific name.`;
       }
+      const label = `${watchlistDisplayName(resolved) || resolved.RealName || resolved.Name} (${resolved.Name || resolved.Id})`;
       subject = {
         key: resolved.Id || resolved.Name,
         chartKey: resolved.Name || resolved.Id,
-        firstName: firstNameOf(resolved.RealName || resolved.FirstName),
-        label: `${watchlistDisplayName(resolved) || resolved.RealName || resolved.Name} (${
-          resolved.Name || resolved.Id
-        })`,
+        // a person named in the question: "Found Philip Beacall (Beacall-10)'s mother", not "Philip's",
+        // when there are seven Philip Beacalls (the user, 2026-10-22)
+        firstName: label,
+        label,
         isUser: false,
       };
     } else {
@@ -1694,6 +1712,8 @@ export function createChatRelationHandlers({
         named: params?.subjectMode === "named" || Boolean(subjectNameFromChain),
         subjectName: params?.subjectName || subjectNameFromChain,
         forceUserSubject,
+        resolvedPerson: params?._resolvedPerson || null,
+        askWhich: { intent: "relationCount", params },
       },
       prompt
     );

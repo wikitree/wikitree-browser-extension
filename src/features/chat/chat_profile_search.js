@@ -1,4 +1,5 @@
 import { parseCategoryPeriod } from "./chat_category_period";
+import { PARENT_ROLES, describeRelatives, isNameWord, matchRelativeByName, splitRelativeClauses } from "./chat_relative_clause";
 import { wtPlusLogCounts } from "./chat_wtplus_count";
 import { ahnenNumbers, getGenerationFromAhnen } from "./chat_ahnentafel";
 import { parseRouterCanonicalSearch } from "./chat_router_canonical";
@@ -219,6 +220,8 @@ export function matchSpouseByName(spousesObj, spouseQuery, { normalizeText, quot
 
   return null;
 }
+
+export { matchRelativeByName, splitRelativeClauses };
 
 export function createProfileSearchHandler({
   WBE_CHAT_APP_ID,
@@ -9231,10 +9234,11 @@ ${note}` };
     }
     working = working.replace(/\s{2,}/g, " ").trim();
 
-    const parentRegex = /(father|dad|fatherFirstName|fatherFirst|fatherLast|fatherLastName)\s*[:=]?\s*([A-Za-z'\-]+)/i;
-    const motherRegex = /(mother|mum|motherFirstName|motherFirst|motherLast|motherLastName)\s*[:=]?\s*([A-Za-z'\-]+)/i;
+    // (whole words, and a name after them: "mother of Philip" names no mother, nor does "Mothersole")
+    const parentRegex = /\b(father|dad|fatherFirstName|fatherFirst|fatherLast|fatherLastName)\b\s*[:=]?\s*([A-Za-z'\-]+)/i;
+    const motherRegex = /\b(mother|mum|motherFirstName|motherFirst|motherLast|motherLastName)\b\s*[:=]?\s*([A-Za-z'\-]+)/i;
     const pMatch = working.match(parentRegex);
-    if (pMatch) {
+    if (pMatch && isNameWord(pMatch[2])) {
       const pKey = (pMatch[1] || "").toLowerCase();
       const pVal = (pMatch[2] || "").trim();
       if (/last/i.test(pKey)) modifiers.fatherLastName = pVal;
@@ -9242,7 +9246,7 @@ ${note}` };
       working = working.replace(pMatch[0], "");
     }
     const mMatch2 = working.match(motherRegex);
-    if (mMatch2) {
+    if (mMatch2 && isNameWord(mMatch2[2])) {
       const mKey = (mMatch2[1] || "").toLowerCase();
       const mVal = (mMatch2[2] || "").trim();
       if (/last/i.test(mKey)) modifiers.motherLastName = mVal;
@@ -9358,7 +9362,12 @@ ${note}` };
     try {
       let mainQuery = query;
       let spouseQuery = null;
-      const spouseMatch = query.match(
+      // "Frederick Beacall mother Mary Ann", "Philip Beacall son Thomas Henry": search for the person, then
+      // check the family. Taken off before the spouse, so "… married Sarah mother Mary Ann" works in either order.
+      const relativeSplit = splitRelativeClauses(mainQuery);
+      const relativeFilters = relativeSplit.relatives;
+      if (relativeFilters.length) mainQuery = relativeSplit.mainQuery;
+      const spouseMatch = mainQuery.match(
         /^(.*?)\s*(?:,|-)??\s*(?:whose\s+(?:wife|husband|spouse)\s+(?:was|is)|(?:with\s+)?(?:spouse|wife|husband)|married(?:\s+to)?|who\s+married)\s*[:\-]?\s*(.+)$/i
       );
       const spouseMatchLooksLikePossessiveChain = /^\s*['’]s\b/i.test(String(spouseMatch?.[2] || ""));
@@ -9373,7 +9382,7 @@ ${note}` };
         /\b(?:once|twice|thrice|times|(?:more|fewer|less)\s+than|at\s+(?:least|most))\b/i.test(spouseTailCandidate);
       const spouseTailLooksLikeName = isLikelyPersonAliasLabel(stripSurroundingQuotes(spouseTailCandidate));
       if (spouseMatch && !spouseMatchLooksLikePossessiveChain && !spouseTailLooksLikeConstraint && spouseTailLooksLikeName) {
-        mainQuery = (spouseMatch[1] || "").trim().replace(/\s+(?:with|whose|and)\s*$/i, "") || query;
+        mainQuery = (spouseMatch[1] || "").trim().replace(/\s+(?:with|whose|and)\s*$/i, "") || mainQuery;
         spouseQuery = spouseTailCandidate;
       }
 
@@ -9934,7 +9943,8 @@ ${note}` };
         if ((hasKey && options?.allowAiFallback) || options?.forceAiParse) {
           showChatShaky("Asking AI to parse search query...");
           console.debug("wbe: calling callAiParseQuery for", query);
-          const aiParseRaw = await callAiParseQuery(query);
+          // (relatives taken off: "son George" isn't something the parser's keys hold, so it said "unsupported")
+          const aiParseRaw = await callAiParseQuery(relativeFilters.length ? [mainQuery, spouseQuery ? `married ${spouseQuery}` : ""].filter(Boolean).join(" ") : query);
           console.debug("wbe: aiParseRaw", aiParseRaw);
           // A name search would drop the condition ("Beacalls who emigrated to
           // Australia" → every Beacall; live C16, 2026-10-03). Decline, so the
@@ -10095,10 +10105,14 @@ ${note}` };
         apiParams.watchlist = 1;
       }
 
-      if (modifiers?.fatherFirstName) apiParams.fatherFirstName = modifiers.fatherFirstName;
-      if (modifiers?.fatherLastName) apiParams.fatherLastName = modifiers.fatherLastName;
-      if (modifiers?.motherFirstName) apiParams.motherFirstName = modifiers.motherFirstName;
-      if (modifiers?.motherLastName) apiParams.motherLastName = modifiers.motherLastName;
+      // Parents' names are checked on the candidates' own parents, not sent to searchPerson
+      // ("Mary Ann" may be First Mary, Middle Ann there).
+      if (!relativeFilters.length) {
+        for (const role of ["mother", "father"]) {
+          const name = [modifiers?.[`${role}FirstName`], modifiers?.[`${role}LastName`]].filter(Boolean).join(" ").trim();
+          if (name) relativeFilters.push({ role, name });
+        }
+      }
 
       const unquotedMain = stripSurroundingQuotes(effectiveMainQuery);
       if (hadQuotedPhrase) mainQuery = unquotedMain;
@@ -10117,15 +10131,12 @@ ${note}` };
       if (apiParams.skipVariants) searchParams.skipVariants = 1;
       // The API takes in/out/any; 1 is rejected ("Invalid 'watchlist'").
       if (apiParams.watchlist) searchParams.watchlist = "in";
-      if (apiParams.fatherFirstName) searchParams.fatherFirstName = apiParams.fatherFirstName;
-      if (apiParams.fatherLastName) searchParams.fatherLastName = apiParams.fatherLastName;
-      if (apiParams.motherFirstName) searchParams.motherFirstName = apiParams.motherFirstName;
-      if (apiParams.motherLastName) searchParams.motherLastName = apiParams.motherLastName;
       if (modifiers?.birthLocation) searchParams.BirthLocation = modifiers.birthLocation;
       if (modifiers?.deathLocation) searchParams.DeathLocation = modifiers.deathLocation;
       // "George Beacall married Margaret" names a specific couple: match the
-      // surname exactly, not its sound-alikes (Bickel, Buckel).
-      if (spouseQuery && searchParams.LastName) searchParams.skipVariants = 1;
+      // surname exactly, not its sound-alikes (Bickel, Buckel). The same with a
+      // parent or child ("whose father was John" gave 5 Bickels of 7; live, 2026-10-21).
+      if ((spouseQuery || relativeFilters.length) && searchParams.LastName) searchParams.skipVariants = 1;
 
       const cleanedForName = hasDateModifiers
         ? stripDateQualifiersFromText(unquotedMain) || unquotedMain
@@ -10227,7 +10238,8 @@ ${note}` };
         modifiers?.diedAfter ||
         modifiers?.bornRange ||
         modifiers?.diedRange ||
-        Boolean(spouseQuery);
+        Boolean(spouseQuery) ||
+        relativeFilters.length > 0;
 
       let profileIds = [];
       // A bare WikiTree ID ("Beacall-10") is that profile, not a surname to search for (live, 2026-10-04).
@@ -10275,7 +10287,7 @@ ${note}` };
       // candidate volume rather than issuing per-chunk follow-up calls later.
       const SPOUSE_FILTER_CANDIDATE_CAP = 500;
       let spouseCandidatesTruncated = false;
-      if (spouseQuery && profileIds.length > SPOUSE_FILTER_CANDIDATE_CAP) {
+      if ((spouseQuery || relativeFilters.length) && profileIds.length > SPOUSE_FILTER_CANDIDATE_CAP) {
         spouseCandidatesTruncated = true;
         profileIds = profileIds.slice(0, SPOUSE_FILTER_CANDIDATE_CAP);
       }
@@ -10284,7 +10296,8 @@ ${note}` };
         WBE_CHAT_APP_ID,
         profileIds,
         "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,LastNameOther,Gender,DataStatus" +
-          (spouseQuery ? ",Spouses" : ""),
+          (spouseQuery ? ",Spouses" : "") +
+          (relativeFilters.length ? ",Father,Mother" : ""),
         spouseQuery ? { getSpouses: 1 } : {}
       );
       const peopleCount = Object.keys(people || {}).length;
@@ -10370,6 +10383,64 @@ ${note}` };
       });
 
       let finalRows = mappedRows;
+      if (relativeFilters.length) {
+        const describeFilters = describeRelatives(relativeFilters);
+        showChatShaky(`Checking families for ${describeFilters}...`);
+        // One nuclear call brings each candidate's parents and children (linked by their Father/Mother);
+        // getPeople's getChildren sent no children (live, 2026-10-21). 50 keys a call stays under its 1000 people.
+        const [, , familyPeople] = await fetchPeoplePaged(
+          WBE_CHAT_APP_ID,
+          matchedPeople.map((p) => p.Id),
+          "Id,Name,FirstName,MiddleName,RealName,Nicknames,LastNameAtBirth,LastNameCurrent,LastNameOther,Gender,Father,Mother",
+          { nuclear: 1, limit: 50 }
+        );
+        const family = Object.values(familyPeople || {});
+        const familyById = new Map(family.map((p) => [Number(p?.Id), p]));
+        const relativeLabel = (p) =>
+          [p?.FirstName || p?.RealName, p?.MiddleName, p?.LastNameAtBirth].filter(Boolean).join(" ") || p?.Name || "";
+        const relativesFor = (person, role) => {
+          const id = Number(person?.Id);
+          if (PARENT_ROLES.includes(role)) {
+            const keys = role === "either" ? ["Father", "Mother"] : [role === "mother" ? "Mother" : "Father"];
+            return keys.map((key) => [key === "Mother" ? "mother" : "father", familyById.get(Number(person?.[key]))]);
+          }
+          const wantGender = role === "son" ? "male" : role === "daughter" ? "female" : "";
+          return family
+            .filter((p) => Number(p?.Father) === id || Number(p?.Mother) === id)
+            .filter((p) => !wantGender || !p?.Gender || String(p.Gender).toLowerCase() === wantGender)
+            .map((p) => [role === "child" ? (/^female$/i.test(p?.Gender) ? "daughter" : /^male$/i.test(p?.Gender) ? "son" : "child") : role, p]);
+        };
+        const kept = [];
+        const keptPeople = [];
+        matchedPeople.forEach((person, index) => {
+          const found = [];
+          // ("children Mary and Mary Ann" are two children, not one Mary Ann twice; "son of John
+          // and Mary" two parents)
+          const usedRelatives = new Set();
+          const matchesAll = relativeFilters.every((f) => {
+            const hit = relativesFor(person, f.role).find(
+              ([, p]) => !usedRelatives.has(p) && matchRelativeByName(p, f.name, { normalizeText })
+            );
+            if (hit) usedRelatives.add(hit[1]);
+            if (hit) found.push(`${hit[0]}: ${relativeLabel(hit[1])}`);
+            return Boolean(hit);
+          });
+          if (!matchesAll) return;
+          kept.push({ ...mappedRows[index], matchedRelatives: found.join("; ") });
+          keptPeople.push(person);
+        });
+        hideChatShaky();
+        if (!kept.length) {
+          const truncationNote = spouseCandidatesTruncated
+            ? ` (Only the first ${SPOUSE_FILTER_CANDIDATE_CAP} name matches were checked — try narrowing the main name.)`
+            : " (Relatives on private profiles may not be visible.)";
+          return `I found ${matchedPeople.length.toLocaleString("en-US")} profile${
+            matchedPeople.length === 1 ? "" : "s"
+          } for "${mainQuery}", but none with ${describeFilters}.${truncationNote}`;
+        }
+        finalRows = kept;
+        matchedPeople = keptPeople;
+      }
       if (spouseQuery) {
         const normalizedSpouseQuery = normalizeText(String(spouseQuery || ""))
           .replace(/['’]/g, "")
@@ -10416,7 +10487,7 @@ ${note}` };
               lnab: found?.LastNameAtBirth || found?.LastNameCurrent || found?.LastNameOther || "",
               display: found?.RealName || found?.Name || "",
             };
-            matches.push({ row: mappedRows[index], spouseName: found.RealName || found.Name || "", spouseEntry });
+            matches.push({ row: finalRows[index], spouseName: found.RealName || found.Name || "", spouseEntry });
           }
         });
         hideChatShaky();
@@ -10458,7 +10529,8 @@ ${note}` };
         const birth = person.birth || "?";
         const death = person.death || "?";
         const spouseSuffix = person.matchedSpouse ? ` — spouse: ${person.matchedSpouse}` : "";
-        return `- ${person.displayName} (${person.wtid}) [${birth} - ${death}]${formatLocation(person)}${spouseSuffix}`;
+        const parentSuffix = person.matchedRelatives ? ` — ${person.matchedRelatives}` : "";
+        return `- ${person.displayName} (${person.wtid}) [${birth} - ${death}]${formatLocation(person)}${spouseSuffix}${parentSuffix}`;
       });
 
       const inlineMore = remainingRows.length
@@ -10469,9 +10541,10 @@ ${note}` };
                 const birth = person.birth || "?";
                 const death = person.death || "?";
                 const spouseSuffix = person.matchedSpouse ? ` — spouse: ${person.matchedSpouse}` : "";
+                const parentSuffix = person.matchedRelatives ? ` — ${person.matchedRelatives}` : "";
                 return `- ${person.displayName} (${person.wtid}) [${birth} - ${death}]${formatLocation(
                   person
-                )}${spouseSuffix}`;
+                )}${spouseSuffix}${parentSuffix}`;
               })
               .join("\n"),
           }

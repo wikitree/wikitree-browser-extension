@@ -16,6 +16,17 @@ describe("pronouns follow the last answer's person", () => {
     expect(pickAnswerSubject("Abraham (Lincoln-103)", { rows: [{}, {}] })).toBeNull();
   });
 
+  // (the user, 2026-10-22: "his father" after "Philip Beacall's wife" was the page person's father)
+  test("with several people, the one the question named", () => {
+    const answer = "Here are spouses for Philip Beacall (Beacall-10) (1 found):\n- Eliza (Roberts) Beacall (Roberts-25813)";
+    expect(pickAnswerSubject(answer, null, "Philip Beacall's wife")).toMatchObject({ wtId: "Beacall-10" });
+    expect(pickAnswerSubject("Found Philip Beacall (Beacall-10)'s mother.\n- Martha (Teece) Beacall (Teece-118)", null, "Beacall-10's mother")).toMatchObject({ wtId: "Beacall-10" });
+    // (a question naming nobody keeps the subject it had)
+    expect(nextAnswerSubject(lincoln, pickAnswerSubject(answer, null, "spouses please"), "spouses please")).toBe(lincoln);
+    // (a tie names neither)
+    expect(pickAnswerSubject("Hannah Hutton (Hutton-734), James Hutton (Hutton-735)", null, "the Huttons")).toBeNull();
+  });
+
   test("his wife after Lincoln → Lincoln-103's wife", () => {
     expect(rewritePronounToSubject("his wife's siblings", lincoln, "Male")).toEqual({
       changed: true,

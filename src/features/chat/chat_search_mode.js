@@ -1,4 +1,5 @@
 import { parseSearchSpecPrompt } from "./chat_spec_parser";
+import { nameWithRelatives } from "./chat_relative_clause";
 import { isRouterCanonicalSearch } from "./chat_router_canonical";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { WIKITREE_GLOSSARY_FOR_AI } from "./chat_wikitree_glossary";
@@ -949,6 +950,13 @@ export async function classifyWtPrompt({ prompt, getChatAiConfig, buildRecentUse
 
   if (isWtPlusOnlyPrompt(normalizedPrompt)) {
     return "wtplus";
+  }
+
+  // "Frederick Beacall mother Mary Ann" is that person, with family to check: with AI off it went to
+  // WT+, which read it as AllLastNames=Frederick Location=Beacall (live, 2026-10-21).
+  const withRelatives = nameWithRelatives(normalizedPrompt);
+  if (withRelatives && isBareName(withRelatives.name)) {
+    return "wt";
   }
 
   if (isLikelyWtPlusFilterPrompt(normalizedPrompt)) {

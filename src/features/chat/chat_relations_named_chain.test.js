@@ -287,3 +287,37 @@ describe("a gender marked not to show (the user, 2026-10-12)", () => {
     expect(children.message).not.toContain("Not counted");
   });
 });
+
+// (the user, 2026-10-22: "Who is the mother of Philip Beacall?" took one of seven Philip Beacalls)
+describe("a name several people share", () => {
+  const SARAH_2 = { Id: 101, Name: "Sarah-2", RealName: "Sarah Jones", FirstName: "Sarah" };
+  const params = { mode: "list", relationRaw: "father", subjectMode: "named", subjectName: "Sarah Jones" };
+
+  test("asks which one, and keeps the question to run again with the one picked", async () => {
+    const setPendingDisambiguationContext = jest.fn();
+    const buildDisambiguationMessage = jest.fn((candidates, name) => `Which ${name}? ${candidates.map((c) => c.Name).join(", ")}`);
+    const { handlers, deps } = makeHandlers({
+      resolveConnectionTargetPerson: jest.fn(async () => ({ _disambiguationNeeded: true, _candidates: [SARAH, SARAH_2] })),
+      setPendingDisambiguationContext,
+      buildDisambiguationMessage,
+    });
+    const reply = await handlers.tryHandleRelationCountPrompt(params, "Who is the father of Sarah Jones?");
+    expect(deps.resolveConnectionTargetPerson).toHaveBeenCalledWith("Sarah Jones", expect.any(String), { allowDisambiguation: true });
+    expect(reply).toBe("Which Sarah Jones? Sarah-1, Sarah-2");
+    expect(setPendingDisambiguationContext).toHaveBeenCalledWith({
+      intent: "relationCount",
+      params,
+      prompt: "Who is the father of Sarah Jones?",
+      // (remembered for the one picked, so the name means them from then on)
+      name: "Sarah Jones",
+      candidates: [SARAH, SARAH_2],
+    });
+  });
+
+  test("the one picked is used without looking the name up again", async () => {
+    const { handlers, deps } = makeHandlers({ buildDisambiguationMessage: jest.fn() });
+    const result = await handlers.tryHandleRelationCountPrompt({ ...params, _resolvedPerson: SARAH }, "Who is the father of Sarah Jones?");
+    expect(deps.resolveConnectionTargetPerson).not.toHaveBeenCalled();
+    expect(JSON.stringify(result)).toContain("Bob-1");
+  });
+});

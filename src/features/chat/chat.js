@@ -188,6 +188,7 @@ import {
 import { WT_PLUS_BIO_CHECK_WORDS, WT_PLUS_RESEARCH_STATUS_WORDS } from "./wt_plus_query_grammar";
 import { isRouterCanonicalSearch } from "./chat_router_canonical";
 import { bigPullKey, createFetchMemo } from "./chat_fetch_memo";
+import { nameWithRelatives } from "./chat_relative_clause";
 
 // Debug: indicate the chat feature script has been loaded
 console.debug("wbe: chat.js loaded");
@@ -728,6 +729,11 @@ function maybeCoerceFollowupConnectionPrompt(prompt) {
   }
 
   if (/\b(connection|distance|related|relationship|cousin|ancestor|descendant|spouse|siblings?)\b/i.test(raw)) {
+    return { prompt: raw, changed: false, reason: "" };
+  }
+  // "Philip Beacall father of Robert and Jane" names his children, not two people to connect
+  // (live, 2026-10-21: after a Philip Beacall answer it became "connection from Beacall-11 to Jane").
+  if (nameWithRelatives(raw)) {
     return { prompt: raw, changed: false, reason: "" };
   }
 
@@ -1365,6 +1371,10 @@ const {
   buildRecentConversationForAi,
   getLastStructuredResult: () => lastStructuredResult,
   getLastConnectionCandidates: () => lastConnectionCandidates,
+  setPendingDisambiguationContext: (value) => {
+    pendingDisambiguationContext = value;
+  },
+  buildDisambiguationMessage,
   // The page's family links, only for the page's own person: "my parents" (private on the API)
   // listed the page person's parents as yours (live, 2026-10-11).
   findSpouseProfileIdsFromDOM: (key) => (isPagePersonKey(key) ? findSpouseProfileIdsFromDOM() : []),
@@ -1402,6 +1412,10 @@ const { resolveRelativeTargetPeople, tryHandleRelationCountPrompt } = createChat
   isLoggedOutOfAppsServer: () => isLoggedOutOfAppsServer(),
   // familyVisualActions comes from createChatPeopleHandlers below; called only at answer time.
   familyVisuals: (key) => familyVisualActions(key),
+  buildDisambiguationMessage,
+  setPendingDisambiguationContext: (value) => {
+    pendingDisambiguationContext = value;
+  },
 });
 
 const {
@@ -1454,8 +1468,9 @@ const {
   promptRefersToUser,
   formatSubjectLabel,
   buildDisambiguationMessage,
+  // (a replay runs what the user typed: the handler's prompt can be a part of it, "X's ancestors" for a fan chart)
   setPendingDisambiguationContext: (value) => {
-    pendingDisambiguationContext = value;
+    pendingDisambiguationContext = value?.intent === "replayPrompt" ? { ...value, prompt: lastSubjectPrompt || value.prompt } : value;
   },
   fetchPeoplePaged,
   mapApiPersonToStandardRow,
@@ -2757,7 +2772,7 @@ async function handleChatResult(result) {
       : result.message;
 
   rememberResolvedPeopleFromMessage(messageText);
-  lastAnswerSubject = nextAnswerSubject(lastAnswerSubject, pickAnswerSubject(messageText, result.table), lastSubjectPrompt) || chosenSubject();
+  lastAnswerSubject = nextAnswerSubject(lastAnswerSubject, pickAnswerSubject(messageText, result.table, lastSubjectPrompt), lastSubjectPrompt) || chosenSubject();
 
   // A handler can offer a concrete follow-up; a bare "Sure."/"Yes" on the next
   // turn runs offer.prompt instead of being treated as a search term.
@@ -3460,7 +3475,10 @@ async function sendChatPrompt() {
   // "treat Rousseau and Rousseaù as the same surname" names surnames, not people: no alias or
   // connection rewrites (live, 2026-10-16: "Rousseau" became Pierre Rousseau Smit, then a connection lookup).
   const isNameGrouping = Boolean(routeChatPrompt(prompt)?.params?.grouping);
-  const aliasRewrite = isNameGrouping ? { changed: false } : applyResolvedPersonAliasesToPrompt(prompt);
+  // ("Philip Beacall father of Robert and Jane" is a search by names: a remembered Jane Beacall
+  // isn't necessarily his Jane; live, 2026-10-21, it became "and to Jane Beacall")
+  const namesRelatives = Boolean(nameWithRelatives(prompt));
+  const aliasRewrite = isNameGrouping || namesRelatives ? { changed: false } : applyResolvedPersonAliasesToPrompt(prompt);
   if (aliasRewrite.changed) {
     prompt = aliasRewrite.prompt;
     console.debug("wbe: resolved prompt alias from chat memory", {
@@ -3571,6 +3589,17 @@ async function sendChatPrompt() {
     if (pendingDisambiguationContext) {
       const ctx = pendingDisambiguationContext;
       const chosen = resolveDisambiguationReply(prompt, ctx.candidates);
+      if (chosen && ctx.intent === "replayPrompt") {
+        // The question again, with the chosen one's WikiTree ID for the name: "Beacall-10's ancestors"
+        pendingDisambiguationContext = null;
+        if (ctx.name) rememberResolvedPersonFromMatch(chosen, [ctx.name]);
+        const escapedName = String(ctx.name || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const namePattern = escapedName ? new RegExp(`\\b${escapedName}\\b`, "i") : null;
+        const replay = chosen.Name && namePattern?.test(ctx.prompt) ? ctx.prompt.replace(namePattern, chosen.Name) : ctx.prompt;
+        // (after this send's finally, which would clear the replay's "Working...")
+        setTimeout(() => sendClarifiedPrompt(replay), 0);
+        return;
+      }
       if (chosen) {
         pendingDisambiguationContext = null;
         const resolvedParams = {
@@ -3578,9 +3607,24 @@ async function sendChatPrompt() {
           target: chosen.Name || String(chosen.Id || ""),
           _resolvedPerson: chosen,
         };
-        const result = await executeRoutedIntent({ intent: ctx.intent, params: resolvedParams }, ctx.prompt);
+        // (a bio question isn't a routed intent: it runs again for the chosen person)
+        const result =
+          ctx.intent === "personBio"
+            ? await tryHandlePersonBioPrompt(ctx.prompt, { resolvedPerson: chosen })
+            : await executeRoutedIntent({ intent: ctx.intent, params: resolvedParams }, ctx.prompt);
         if (result) {
+          // The chosen one is who the name and "his"/"her" mean from now on: after choosing
+          // Beacall-10 for "Philip Beacall's mother", "his bio" opened the page person's bio and
+          // "Philip Beacall's wife" asked again (the user, 2026-10-22).
+          if (ctx.name) rememberResolvedPersonFromMatch(chosen, [ctx.name]);
           await handleChatResult(typeof result === "string" ? { message: result } : result);
+          if (chosen.Name) {
+            lastAnswerSubject = {
+              wtId: chosen.Name,
+              displayName: fullWikiTreeName(chosen) || chosen.RealName || chosen.Name,
+              ...(chosen.Gender !== undefined ? { gender: String(chosen.Gender || "") } : {}),
+            };
+          }
           return;
         }
       } else {
@@ -4070,7 +4114,7 @@ async function sendChatPrompt() {
     if (response?.success) {
       const answer = parseAiAnswer(response.response || "");
       rememberResolvedPeopleFromMessage(answer.text);
-      lastAnswerSubject = nextAnswerSubject(lastAnswerSubject, pickAnswerSubject(answer.text), lastSubjectPrompt) || chosenSubject();
+      lastAnswerSubject = nextAnswerSubject(lastAnswerSubject, pickAnswerSubject(answer.text, null, lastSubjectPrompt), lastSubjectPrompt) || chosenSubject();
       if (answer.cannot) {
         recordUnanswered(prompt, answer.text.split("\n")[0].slice(0, 160));
         awaitingDetailFor = prompt;
@@ -4120,7 +4164,12 @@ async function runChartShortcut({ chart, owner }, prompt) {
   if (/-\d+$/.test(owner)) {
     key = owner.charAt(0).toUpperCase() + owner.slice(1); // ("beacall-9")
   } else {
-    const found = await resolveConnectionTargetPerson(owner, prompt);
+    // (asks which one when several share the name; the choice runs the question again with their ID)
+    const found = await resolveConnectionTargetPerson(owner, prompt, { allowDisambiguation: true });
+    if (found?._disambiguationNeeded) {
+      pendingDisambiguationContext = { intent: "replayPrompt", params: {}, prompt: lastSubjectPrompt || prompt, name: owner, candidates: found._candidates };
+      return buildDisambiguationMessage(found._candidates, owner);
+    }
     key = found?.Name || "";
   }
   if (!key) return `I couldn't find who "${owner}" is on WikiTree. Try their WikiTree ID, like Smith-123.`;

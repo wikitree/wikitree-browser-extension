@@ -440,12 +440,21 @@ function parseLateRelationPrompt(prompt) {
   if (myMatch?.[1] && isPlainRelation(myMatch[1])) {
     return { mode: "list", relationRaw: myMatch[1].trim(), subjectMode: "user" };
   }
+  // "Who is the mother of my father?": "my father's mother"
+  const ofMyMatch = rest.match(/^(.+?)\s+of\s+(?:my|our)\s+(.+)$/i);
+  if (ofMyMatch && isPlainRelation(ofMyMatch[1]) && RELATION_WORDS_RE.test(ofMyMatch[2].trim())) {
+    return { mode: "list", relationRaw: `${ofMyMatch[2].trim()}'s ${ofMyMatch[1].trim()}`, subjectMode: "user" };
+  }
   // (or a capitalised name, "Abraham Lincoln's parents", as "who were Abraham Lincoln's parents?" already is:
   // with AI off it became a WT+ query, Location="Abraham Lincoln's"; live, 2026-10-11)
   const idPossessiveMatch =
     rest.match(/^([\p{L}][\p{L}\p{M}'_ -]*-\d+)['’]s\s+(.+)$/iu) ||
     rest.match(/^(\p{Lu}[\p{L}\p{M}.-]*(?:\s+\p{Lu}[\p{L}\p{M}.-]*){0,3})['’]s\s+(.+)$/u);
-  const idOfMatch = rest.match(/^(.+?)\s+of\s+([\p{L}][\p{L}\p{M}'_ -]*-\d+)$/iu);
+  // ("Who is the mother of Philip Beacall?" was a person search for "the mother of Philip Beacall";
+  // the user, 2026-10-22: a name works as an ID does)
+  const idOfMatch =
+    rest.match(/^(.+?)\s+of\s+([\p{L}][\p{L}\p{M}'_ -]*-\d+)$/iu) ||
+    rest.match(/^(.+?)\s+of\s+(\p{Lu}[\p{L}\p{M}.'’-]*(?:\s+\p{Lu}[\p{L}\p{M}.'’-]*){0,3})$/u);
   const [idOwner, idRelation] = idPossessiveMatch ? [idPossessiveMatch[1], idPossessiveMatch[2]] : idOfMatch ? [idOfMatch[2], idOfMatch[1]] : [];
   if (idOwner && isPlainRelation(idRelation)) {
     return { mode: "list", relationRaw: idRelation.trim(), subjectMode: "named", subjectName: idOwner.trim() };
@@ -2516,7 +2525,7 @@ function parseSpousePrompt(prompt) {
   // Live D1, 2026-10-03: "who was Ellen's husband?" searched for "who was Ellen".
   const normalized = String(prompt || "")
     .trim()
-    .replace(/^(?:who|what)\s+(?:was|were|is|are)\s+(?:the\s+names?\s+of\s+)?/i, "")
+    .replace(/^(?:who|what)\s+(?:was|were|is|are)\s+(?:the\s+names?\s+of\s+|the\s+(?=(?:wives|wife|husbands?|spouses?)\s+of\s))?/i, "")
     .replace(/^(?:tell\s+me|show\s+me|list)\s+/i, "");
   if (!normalized) {
     return null;

@@ -10,6 +10,7 @@ jest.mock("../../core/common", () => ({
 
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { createProfileSearchHandler } from "./chat_profile_search";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { ChatIntent, routeChatPrompt } from "./chat_router";
 import { classifyWtPrompt } from "./chat_search_mode";
 import { NO_AI_EXAMPLE_SECTIONS, allNoAiExamples, isAppsSignOutPrompt, isHelpPrompt, noAiExamplesHtml, noAiExamplesWikiText } from "./chat_no_ai_examples";
@@ -183,6 +184,21 @@ describe("no-AI examples", () => {
     expect(button?.wtPlusQuery).toBe("CC7=User-1 BirthLocation=Kent");
   });
 
+  // A name with family to check is the person search's (searchPerson), never WT+: with AI off,
+  // "Frederick Beacall mother Mary Ann" became AllLastNames=Frederick Location=Beacall (live, 2026-10-21).
+  test.each(bySection("person"))("person: %s", async (prompt) => {
+    expect([null, "wt"]).toContain(await classifyWithoutKey(prompt));
+    const fetchSearchPersonPaged = jest.fn(async () => [0, [{ Id: 1, Name: "Test-1" }]]);
+    const searchPerson = jest.spyOn(WikiTreeAPI, "searchPerson").mockResolvedValue([0, [{ Id: 1, Name: "Test-1" }]]);
+    jest.clearAllMocks();
+    await makeHandler({ fetchSearchPersonPaged }).tryHandleProfileSearchPrompt({ chatModeOverride: "wt" }, prompt);
+    const params = fetchSearchPersonPaged.mock.calls[0]?.[1] || searchPerson.mock.calls[0]?.[1];
+    const [first, ...rest] = prompt.split(/\s+/);
+    expect(params).toMatchObject({ FirstName: first, LastName: rest[0] });
+    expect(wtAPIProfileSearch).not.toHaveBeenCalled();
+    searchPerson.mockRestore();
+  });
+
   test("columns", () => {
     expect(parseColumnRequest("Garver profiles with gender and privacy columns")).toEqual({
       keys: ["gender", "privacy"],
@@ -201,7 +217,7 @@ describe("no-AI examples", () => {
   });
 
   const handledByRouter = allNoAiExamples()
-    .filter((e) => !["search", "columns", "followups", "wikitree"].includes(e.section))
+    .filter((e) => !["search", "person", "columns", "followups", "wikitree"].includes(e.section))
     .map((e) => [e.section, e.example]);
   test.each(handledByRouter)("%s: %s", (section, prompt) => {
     expect(DETERMINISTIC.has(routeChatPrompt(prompt, { hasStructuredResult: false })?.intent)).toBe(true);
