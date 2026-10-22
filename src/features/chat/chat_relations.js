@@ -806,6 +806,11 @@ export function createChatRelationHandlers({
     });
 
     const ancestorsByGeneration = new Map();
+    // (an ancestor is never a cousin, though older cousins are found among an ancestor's descendants)
+    const ancestorKeys = new Set();
+    Object.values(ancestorPeopleMap || {}).forEach((profile) => {
+      [profile?.Name, profile?.Id].map((value) => String(value || "").trim()).filter(Boolean).forEach((key) => ancestorKeys.add(key));
+    });
     Object.values(ancestorPeopleMap || {}).forEach((profile) => {
       const generation = Number(profile?.Meta?.Degrees);
       const ancestorId = Number(profile?.Id);
@@ -872,6 +877,29 @@ export function createChatRelationHandlers({
         continue;
       }
 
+      // Older cousins (shared ancestors further up than the subject's own cousin generation): anyone at that level
+      // who also descends from a nearer ancestor is a great-uncle or a nearer cousin (the user, 2026-10-22:
+      // "2nd cousins 3 times removed" listed a great-grandfather and his brothers).
+      const planExcluded = new Set();
+      const level = plan.ancestorGeneration - plan.descendantGeneration;
+      for (let generation = Math.max(sharedAncestorGeneration, level + 1); generation < plan.ancestorGeneration; generation += 1) {
+        const nearer = Array.from(new Set(ancestorsByGeneration.get(generation) || [])).filter((id) => id > 0);
+        const depth = generation - level;
+        if (!nearer.length || depth < 1) continue;
+        try {
+          const [, , nearerPeopleMap] = await fetchPeoplePaged(WBE_CHAT_APP_ID, nearer, "Id,Name,Meta", {
+            descendants: depth,
+            minGeneration: depth,
+            limit: 100,
+          });
+          Object.values(nearerPeopleMap || {}).forEach((person) => {
+            [person?.Name, person?.Id].map((value) => String(value || "").trim()).filter(Boolean).forEach((key) => planExcluded.add(key));
+          });
+        } catch (error) {
+          console.info("wbe: nearer-relation exclusion fetch failed for older cousins", { error });
+        }
+      }
+
       const [, , descendantPeopleMap] = await fetchPeoplePaged(
         WBE_CHAT_APP_ID,
         ancestorIds,
@@ -885,7 +913,8 @@ export function createChatRelationHandlers({
 
       Object.values(descendantPeopleMap || {}).forEach((person) => {
         const key = String(person?.Name || person?.Id || "").trim();
-        if (!key || excludedKeys.has(key)) {
+        const isNearer = (value) => ancestorKeys.has(String(value || "")) || planExcluded.has(String(value || ""));
+        if (!key || excludedKeys.has(key) || isNearer(person?.Name) || isNearer(person?.Id)) {
           return;
         }
 
