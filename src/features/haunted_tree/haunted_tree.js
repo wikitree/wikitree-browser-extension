@@ -2,12 +2,14 @@
 // haunted_tree_data.js for the groups, and haunted_tree_marks.js for the icons it adds beside people's names around
 // WikiTree). The first scan reads the whole list, with paged getPeople calls for the CC7 and paged getWatchlist calls
 // for the watchlist; after that, opening it shows the saved result, Re-check reads just the haunted profiles again,
-// and Full rescan reads the whole list again. Each list has its own saved scan.
+// and Full rescan reads the whole list again. Each list has its own saved scan, which the Export buttons save as
+// Excel, CSV, JSON or a wikitable (haunted_tree_export.js).
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { getUserNumId, oncePerTab } from "../../core/common";
+import { getDownloadLink, getUserNumId, oncePerTab, triggerDownload } from "../../core/common";
+import { copyToClipboard } from "../../core/clipboard";
 import { createAppsLoginButton, pageHadAuthcode, redeemAuthcode } from "../../core/loginButton";
 import {
   GROUPS,
@@ -23,6 +25,7 @@ import {
   sortPeople,
   summarize,
 } from "./haunted_tree_data";
+import { exportFileName, toCsv, toJson, toWikitable, toWorkbook } from "./haunted_tree_export";
 import { lastSource, loadHauntedTree, rememberSource, saveHauntedTree } from "./haunted_tree_store";
 import { markPeopleWhenShown } from "./haunted_tree_marks";
 import "./haunted_tree.css";
@@ -300,12 +303,72 @@ function firstCountedNote(record, source) {
   );
 }
 
+function download(record, source, extension, text) {
+  triggerDownload(getDownloadLink(exportFileName(record, source, extension), text));
+}
+
+/**
+ * The Export buttons, floated top right of a saved scan. Excel, CSV and JSON download; the wikitable is copied, to
+ * paste into a WikiTree page (downloaded if it can't be).
+ */
+function exportButtons(record, source) {
+  const row = $("<div class='ht-export'>").append($("<span class='ht-export-label'>").text("Export:"), " ");
+  const note = $("<span class='ht-export-note' role='status'>");
+  const say = (text) => note.text(text);
+  const formats = [
+    [
+      "Excel",
+      "Download as an Excel spreadsheet (.xlsx)",
+      async () => {
+        // xlsx is big, so it loads only now (the "sheets" chunk in webpack.common.js)
+        const XLSX = await import("xlsx");
+        // Uncompressed, 680 people made 644 KB
+        const options = { compression: true };
+        XLSX.writeFile(toWorkbook(XLSX, record, source), exportFileName(record, source, "xlsx"), options);
+      },
+    ],
+    ["CSV", "Download as a CSV file, for any spreadsheet", () => download(record, source, "csv", toCsv(record, source))],
+    ["JSON", "Download as JSON, with the score", () => download(record, source, "json", toJson(record, source))],
+    [
+      "Wikitable",
+      "Copy as a sortable wikitable, to paste into a WikiTree page",
+      async () => {
+        const text = toWikitable(record, source);
+        try {
+          await copyToClipboard(text);
+          say("Wikitable copied. Paste it into a WikiTree page.");
+        } catch (error) {
+          download(record, source, "wikitable.txt", text);
+          say("Couldn't copy it, so it's downloaded instead.");
+        }
+      },
+    ],
+  ];
+  for (const [label, title, onExport] of formats) {
+    row.append(
+      button(label, title, async () => {
+        say("");
+        try {
+          await onExport();
+        } catch (error) {
+          console.error("Haunted Tree export:", error);
+          say(`That didn't work: ${error?.message || error}`);
+        }
+      }),
+      " "
+    );
+  }
+  return row.append(note);
+}
+
 function showRecord(popup, record, source) {
   const { label, people: noun, rescan } = SOURCES[source];
   const { haunted, percent } = summarize(record.people, record.total);
   const container = body(popup);
+  const rested = record.laidToRest || [];
+  if (record.people.length || rested.length) container.append(exportButtons(record, source));
 
-  let status = `Scanned ${timeAgo(record.scannedAt)}: ${record.total.toLocaleString()} ${noun}.`;
+  let status =`Scanned ${timeAgo(record.scannedAt)}: ${record.total.toLocaleString()} ${noun}.`;
   if (record.checkedAt > record.scannedAt) status += ` Re-checked ${timeAgo(record.checkedAt)}.`;
   container.append($("<p class='ht-status'>").text(status));
   // The CC7 count includes relatives WikiTree won't name to the member (Help:Connection_Counts): on 2026-10-19 its
@@ -335,7 +398,6 @@ function showRecord(popup, record, source) {
   for (const note of [newGroupsNote(notLookedFor), firstCountedNote(record, source)]) {
     if (note) container.append($("<p class='ht-new'>").text(note));
   }
-  const rested = record.laidToRest || [];
   if (rested.length) {
     container.append(
       $("<p class='ht-rested'>").text(`🕯️ ${rested.length.toLocaleString()} laid to rest so far. Well done!`)

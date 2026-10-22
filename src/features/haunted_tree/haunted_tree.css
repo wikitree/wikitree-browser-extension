@@ -110,6 +110,26 @@
   opacity: 0.5;
   cursor: default;
 }
+#hauntedTree .ht-export {
+  float: right;
+  max-width: 50%;
+  margin: 0 0 8px 12px;
+  text-align: right;
+  font-size: 0.9em;
+}
+#hauntedTree .ht-export-label {
+  color: #666;
+}
+#hauntedTree .ht-export .ht-button {
+  margin-bottom: 4px;
+}
+#hauntedTree .ht-export-note {
+  display: block;
+  color: #555;
+}
+#hauntedTree .ht-export-note:empty {
+  display: none;
+}
 #hauntedTree .ht-group {
   border-top: 1px solid #eee;
   padding: 4px 0;
