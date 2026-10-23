@@ -5,6 +5,7 @@
 // born in different places becomes a move. The d3 map is chat_migration_map.js.
 
 import { getCountryFromLocation } from "./chat_place_country";
+import { englishCountry, historicalPlace } from "./chat_historical_places";
 import { yearOf } from "./chat_chart_common";
 import { generationOfSlot } from "./chat_fan_chart_data";
 import { cachedPoint } from "./chat_geocode";
@@ -143,14 +144,23 @@ function regionInParts(parts) {
   return "";
 }
 
-/** The map place for a WikiTree location: {key, country} or null. */
+/**
+ * The map place for a WikiTree location: {key, country} or null. A place in a state that no
+ * longer exists is its province (chat_historical_places), with that dot as regionPoint.
+ */
 export function placeRegion(location) {
-  const parts = String(location || "")
+  // (an aside in brackets isn't where it is: "Stogi, Pomerania, Poland (Heubuden, Gross Werder, Prussia)")
+  const unbracketed = String(location || "").replace(/\([^)]*\)/g, " ");
+  const parts = unbracketed
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
   if (!parts.length) return null;
-  const country = getCountryFromLocation(location);
+  const historical = historicalPlace(location);
+  if (historical) return { key: historical.key, country: historical.country, ...(historical.point ? { regionPoint: historical.point } : {}) };
+  // ("…, Polen" is Poland on the map; Genie's answers keep "Polen")
+  const written = getCountryFromLocation(unbracketed);
+  const country = englishCountry(written) || written;
   if (REGION_POINTS[country] && !SPLIT_COUNTRIES.has(country)) return { key: country, country };
   const region = regionInParts(parts);
   if (region) {

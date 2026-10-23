@@ -31,11 +31,14 @@ const ATLAS_NAMES = {
   "United States": "United States of America",
   "Czech Republic": "Czechia",
   "Bosnia and Herzegovina": "Bosnia and Herz.",
+  "North Macedonia": "Macedonia",
   England: "United Kingdom",
   Scotland: "United Kingdom",
   Wales: "United Kingdom",
   "Northern Ireland": "United Kingdom",
 };
+// Countries whose middle is far from nearly every birthplace: Russia's is in Siberia (2026-10-23).
+const COUNTRY_POINTS = { Russia: [40, 55.5] };
 // A map background when the places are close together (the user's choice,
 // 2026-10-03): Esri's pale World Topo Map tiles, credited in the corner. (CARTO's
 // now need an API key.)
@@ -99,7 +102,10 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
   const atlasCountry = (name) => countryByName.get(ATLAS_NAMES[name] || name);
   const pointOf = (place) => {
     if (place.point) return place.point;
+    // (a province of a state that no longer exists: "Yekaterinoslav")
+    if (place.regionPoint) return place.regionPoint;
     if (REGION_POINTS[place.key]) return REGION_POINTS[place.key];
+    if (COUNTRY_POINTS[place.country || place.key]) return COUNTRY_POINTS[place.country || place.key];
     // Just "Canada" (or the US, Australia): its middle is no one's birthplace. Murray's map put a
     // dot in northern Manitoba and drew a move to it (2026-10-05); it counts as not on the map.
     if (SPLIT_COUNTRIES.has(place.key)) return null;
