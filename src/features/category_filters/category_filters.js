@@ -108,7 +108,7 @@ function initCategoryFilters() {
     btnTitle:
       "Log in to the apps server for profiles that you are on the trusted list of to be included in the filtering",
     btnContainer: $("#categoryFilterButtonsContainer"),
-    returnURL: encodeURI(window.location.href),
+    returnURL: window.location.href,
   });
 
   // Data for the radio buttons (filter modes)

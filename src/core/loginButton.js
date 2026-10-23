@@ -17,8 +17,8 @@ const KEY_ICON =
  * @param {string} opt.btnContainer - The jQuery selector for the container to which append the button.
  * @param {Function} [opt.btnOnClick] - Optional additional functionality to execute when the button is
  *                   clicked and before the user is redirected to the API login page.
- * @param {string} [opt.returnURL] - Optional URL to return to after login. If not suppplied, the current
- *                   URL will be used minus any authcode parameter.
+ * @param {string} [opt.returnURL] - Optional URL to return to after login, unencoded. If not suppplied, the
+ *                   current URL will be used minus any authcode parameter.
  */
 export async function addLoginButton(opt) {
   const returnURL = opt.returnURL ? opt.returnURL : currentHrefWithoutAuthcode();
@@ -55,7 +55,7 @@ function appsLoginPill(title) {
 
 /** Off to api.wikitree.com to log in, coming back to returnURL (by default this page). */
 function goToAppsLogin(appId, returnURL = currentHrefWithoutAuthcode()) {
-  window.location = `https://api.wikitree.com/api.php?action=clientLogin&appId=${appId}&returnURL=${returnURL}`;
+  window.location = clientLoginUrl({ appId: appId }, returnURL);
 }
 
 /**
@@ -64,7 +64,26 @@ function goToAppsLogin(appId, returnURL = currentHrefWithoutAuthcode()) {
  */
 export function goToAppsLogout(returnURL = currentHrefWithoutAuthcode()) {
   WikiTreeAPI.clearCachedApiLoginStatus(getUserNumId());
-  window.location = `https://api.wikitree.com/api.php?action=clientLogin&doLogout=1&returnURL=${returnURL}`;
+  window.location = clientLoginUrl({ doLogout: 1 }, returnURL);
+}
+
+/**
+ * The api.wikitree.com clientLogin address. returnURL goes in as one encoded parameter: sent raw, the return
+ * page's own query split off into the API's, so a page such as Special:Thanks (?…&action=feed&who=…) replaced
+ * action=clientLogin with action=feed and the API answered "unknown_action" (2026-10-23).
+ * @param {Object} params - Parameters besides action and returnURL, e.g. { appId } or { doLogout: 1 }.
+ * @param {string} returnURL - Where to come back to, unencoded.
+ */
+export function clientLoginUrl(params, returnURL) {
+  const url = new URL("https://api.wikitree.com/api.php");
+  url.searchParams.set("action", "clientLogin");
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+  // Without its #fragment, which was never sent before (it stayed on the api.wikitree.com address), and
+  // which the API's appended authcode would land inside.
+  url.searchParams.set("returnURL", returnURL.split("#")[0]);
+  return url.href;
 }
 
 /**
@@ -147,8 +166,9 @@ async function doRedeemAuthcode(appId) {
   return false;
 }
 
+/** This page's address without any authcode, unencoded (clientLoginUrl encodes it). */
 export function currentHrefWithoutAuthcode() {
   const url = new URL(window.location.href);
   url.searchParams.delete("authcode");
-  return encodeURI(url.origin + url.pathname + url.search + url.hash);
+  return url.origin + url.pathname + url.search + url.hash;
 }

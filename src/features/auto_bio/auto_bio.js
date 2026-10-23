@@ -5648,7 +5648,7 @@ export async function generateBio() {
         btnId: "appsLoginButton",
         btnTitle: "Log in to the apps server for better Auto Bio results",
         btnContainer: $("#toolbar"),
-        returnURL: encodeURI(window.location.href),
+        returnURL: window.location.href,
       });
     } else {
       window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];

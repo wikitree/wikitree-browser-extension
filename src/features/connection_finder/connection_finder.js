@@ -1666,7 +1666,7 @@ shouldInitializeFeature("connectionFinderOptions").then((result) => {
           const currentPeople = { person1Name: $("#person1Name").val(), person2Name: $("#person2Name").val() };
           localStorage.setItem("connectionFinderLogin", JSON.stringify(currentPeople));
         },
-        returnURL: encodeURI(window.location.href.replace(/&action=connect/, "")),
+        returnURL: window.location.href.replace(/&action=connect/, ""),
       });
       if (localStorage.connectionFinderLogin) {
         const currentPeople = JSON.parse(localStorage.connectionFinderLogin);
