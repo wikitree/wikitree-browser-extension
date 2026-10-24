@@ -309,6 +309,16 @@ if ($(".ebWBE,.noEbWBE").length === 0) {
         </g>
       </svg>
     </a>
+    ${
+      isProfileEdit
+        ? `<a href="#" class="wbe-icon wbe-tour-start" title="Show me around: what WBE adds to this page" aria-label="Show me around this page">
+      <svg width="28" height="28" viewBox="0 0 512 512" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="256" cy="256" r="256" fill="${fillColor}" />
+        <path d="M200 150 L370 256 L200 362 Z" fill="#FFD700" stroke="#FFC300" stroke-width="20" stroke-linejoin="round" />
+      </svg>
+    </a>`
+        : ""
+    }
     <a href="/wiki/Space:WikiTree_Browser_Extension" target="Help" class="wbe-icon WBEHelpIcon enhancedBy"
        title="WBE Help" target="_blank">
        <svg  width="28" height="28" viewBox="66.26 66.26 379.48 379.48" xmlns="http://www.w3.org/2000/svg">
@@ -322,6 +332,12 @@ if ($(".ebWBE,.noEbWBE").length === 0) {
 
   //      <img src="${questionIcon}" alt="WikiTree Browser Extension Help" />
 
+  // The edit page tour (core/tour/edit_page_tour.js), loaded when asked for.
+  $("header").on("click", ".wbe-tour-start", function (e) {
+    e.preventDefault();
+    import(/* webpackChunkName: "edit-page-tour" */ "./tour/edit_page_tour").then((tour) => tour.startEditPageTour());
+  });
+
   // Click handler toggles body class and updates button title
   $("header").on("click", ".showWBEFeatures", function (e) {
     e.preventDefault();
@@ -333,6 +349,17 @@ if ($(".ebWBE,.noEbWBE").length === 0) {
 }
 
 // 🪄🖍️
+
+// The edit page tour switches on features that are off and reloads (core/tour/tour_features.js): start it again
+// here, or switch them back off if a tour was cut short. Only loaded when there's a note of it.
+chrome.storage.local.get("wbeTourSwitchedOn", (items) => {
+  if (!items?.wbeTourSwitchedOn) return;
+  import(/* webpackChunkName: "edit-page-tour" */ "./tour/tour_features").then(async ({ afterLoad }) => {
+    if ((await afterLoad()) !== "resume") return;
+    const tour = await import(/* webpackChunkName: "edit-page-tour" */ "./tour/edit_page_tour");
+    setTimeout(() => tour.resumeEditPageTour(), 2500);
+  });
+});
 
 // Add wte class to body to let WikiTree BEE know not to add the same functions
 document.querySelector("body").classList.add("wte");

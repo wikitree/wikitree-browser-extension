@@ -33,7 +33,8 @@ async function init() {
   (researchStatus || jumpNav)?.appendChild(button);
 }
 
-function openInspector(profileId) {
+// (exported for the edit page tour, which opens it where the feature is off: core/tour/edit_page_tour.js)
+export function openInspector(profileId) {
   document.querySelector(".wbe-gold-standard-overlay")?.remove();
 
   const overlay = document.createElement("div");

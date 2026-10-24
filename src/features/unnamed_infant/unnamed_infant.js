@@ -204,6 +204,7 @@ function getLocaleInfo(location, bio) {
     "US",
     "U.S.",
     "United Kingdom",
+    "Great Britain", // (the country 1707-1800, as Locations Helper suggests it)
     "UK",
     "U.K.",
     "England",

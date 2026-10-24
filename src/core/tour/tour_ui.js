@@ -1,16 +1,21 @@
-// The "Show me around" tour on screen (chat_tour.js plans and runs it): the caption with Pause, Next
-// and Stop, a pointer that glides to what the tour hovers or clicks, and the mouse events themselves.
-// The caption and pointer are children of the topmost Genie window, never of body: a click on a
-// .wbe-popup raises it over anything body-level (common.js), and a full-screen chart shows only itself.
+// A tour on screen (tour.js plans and runs it): the caption with Pause, Next and Stop, a pointer that glides
+// to what the tour hovers or clicks, and the mouse events themselves. Genie's tours put the caption and pointer
+// in the topmost Genie window, never in body: a click on a .wbe-popup raises it over anything body-level
+// (common.js), and a full-screen chart shows only itself. A page tour (edit_page_tour.js) puts them in body.
 
-import { createTourClock, runTour, TourStopped } from "./chat_tour";
+import { createTourClock, runTour, TourStopped, typingDelay } from "./tour";
+import "./tour.css";
 
 const WAIT_FOR_CHART_MS = 45000;
 const KEY_GAP_MS = 1600;
 const KEY_SIGNS = { ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←", ArrowRight: "→" };
-// What showing a view saves for next time (the Explorer's view and 3D shape, the "you've typed" hint): put
-// back when the tour ends, as the tour changes nothing.
-const RESTORED_SETTINGS = /^(?:wbe-explorer-|wbe-fractal-|wbe-genie-has-typed$)/;
+// (on a page tour, where the target counts as in view: clear of the pinned bars at the top and the caption)
+const IN_VIEW_TOP = 0.22;
+const IN_VIEW_BOTTOM = 0.75;
+const SCROLL_MS = 700;
+// (the windows a page tour's caption stays over, and the caption's own z-index in tour.css)
+const WINDOWS = ".wbe-popup, .wbe-gold-standard-overlay";
+const BASE_Z = 100000;
 
 let active = null;
 
@@ -23,19 +28,38 @@ export function stopTour() {
 }
 
 /**
- * Plays the steps. chatPopup(), input(): Genie's window and box; send(prompt, {followUp}): sends what is in the
- * box (as a follow-up, or a new question) and resolves when Genie has answered; lastAnswer(): the text of Genie's latest answer;
- * welcome(): shows Genie's welcome buttons again; ended(): called once when the tour ends or is stopped.
+ * Plays the steps. host(): what holds the caption and pointer (body); alive(): false once the tour should end
+ * (Genie closed); input(): Genie's box; send(prompt, {followUp}): sends what is in the box (as a follow-up, or a
+ * new question) and resolves when Genie has answered; lastAnswer(): the text of Genie's latest answer; welcome():
+ * shows Genie's welcome buttons again; ended(): called once when the tour ends or is stopped; keep: the
+ * localStorage keys that showing things saves (put back at the end, as a tour changes nothing); label: the
+ * caption's name for screen readers. A page tour (page: true) scrolls what it shows to the middle of the
+ * window and rings it.
  */
-export function startTour({ steps, chatPopup, input, send, lastAnswer, welcome = () => {}, ended = () => {} }) {
+export function startTour({
+  steps,
+  host = () => document.body,
+  alive = () => true,
+  input = () => null,
+  send = async () => {},
+  lastAnswer = () => "",
+  welcome = () => {},
+  ended = () => {},
+  keep = null,
+  label = "Genie's tour",
+  page = false,
+}) {
   stopTour();
   const clock = createTourClock();
-  const restoreSettings = keepSettings();
-  const caption = captionBox();
+  const restoreSettings = keepSettings(keep);
+  const caption = captionBox(label);
   const pointer = pointerArrow();
   let lastHovered = null;
   let finished = false;
   let typed = ""; // (what the tour put in the box, cleared when stopped half-way through typing it)
+  let ringed = null; // (page tours: what the step is about)
+  let opened = null; // (a menu that opens on :hover, held open by the tour)
+  let shownStep = -1;
 
   // A chart that redraws itself (regrouped spellings, a generation more) replaces its window, or its
   // insides when full screen, and the caption and pointer with it: they go back at once, before the page
@@ -45,16 +69,53 @@ export function startTour({ steps, chatPopup, input, send, lastAnswer, welcome =
     if (!finished && (!caption.isConnected || !pointer.isConnected)) place();
   });
   const place = () => {
-    const host = topWindow() || chatPopup();
-    if (!host) return;
-    if (caption.parentNode !== host) host.appendChild(caption);
-    if (pointer.parentNode !== host) host.appendChild(pointer);
-    if (watchedHost !== host) {
-      watchedHost = host;
+    const holder = host();
+    if (!holder) return;
+    if (page) lift();
+    if (caption.parentNode !== holder) holder.appendChild(caption);
+    if (pointer.parentNode !== holder) holder.appendChild(pointer);
+    if (watchedHost !== holder) {
+      watchedHost = holder;
       keeper.disconnect();
       keeper.observe(document.body, { childList: true });
-      keeper.observe(host, { childList: true });
+      if (holder !== document.body) keeper.observe(holder, { childList: true });
     }
+  };
+
+  // A page tour's caption and pointer stay over WBE's windows, which put themselves on top of everything.
+  const lift = () => {
+    let top = 0;
+    document.querySelectorAll(WINDOWS).forEach((el) => (top = Math.max(top, parseFloat(getComputedStyle(el).zIndex) || 0)));
+    caption.style.zIndex = top >= BASE_Z ? String(top + 1) : "";
+    pointer.style.zIndex = top >= BASE_Z ? String(top + 2) : "";
+  };
+
+  const ring = (el) => {
+    if (ringed === el) return;
+    ringed?.classList.remove("wbe-tour-target");
+    ringed = page ? el : null;
+    ringed?.classList.add("wbe-tour-target");
+  };
+  // A menu that only opens on :hover (the edit toolbar's) stays open while the tour is in it.
+  const holdOpen = (el) => {
+    if (opened === el) return;
+    opened?.classList.remove("wbe-tour-open");
+    opened = el;
+    opened?.classList.add("wbe-tour-open");
+  };
+  // A page tour scrolls what it shows to the middle, clear of the pinned bars and the caption; Genie's
+  // windows only scroll it into view.
+  const showOnPage = async (el) => {
+    if (!page) {
+      el.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    if (rect.top >= window.innerHeight * IN_VIEW_TOP && rect.bottom <= window.innerHeight * IN_VIEW_BOTTOM) return;
+    if (pinned(el) && rect.top >= 0 && rect.bottom <= window.innerHeight) return; // (in the header: scrolling won't move it)
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView?.({ block: "center", behavior: still ? "auto" : "smooth" });
+    await clock.wait(still ? 60 : SCROLL_MS);
   };
 
   const teardown = () => {
@@ -65,6 +126,8 @@ export function startTour({ steps, chatPopup, input, send, lastAnswer, welcome =
     window.removeEventListener("keydown", onKey, true);
     caption.remove();
     pointer.remove();
+    ring(null);
+    holdOpen(null);
     restoreSettings();
     if (active?.clock === clock) active = null;
     ended();
@@ -84,7 +147,7 @@ export function startTour({ steps, chatPopup, input, send, lastAnswer, welcome =
   };
   window.addEventListener("keydown", onKey, true);
   // A chart window opening or going full screen takes the caption with it; Genie closing ends the tour.
-  const watcher = setInterval(() => (chatPopup() ? place() : stop()), 400);
+  const watcher = setInterval(() => (alive() ? place() : stop()), 400);
 
   caption.querySelector('[data-tour="pause"]').addEventListener("click", () => (clock.paused ? clock.resume() : clock.pause()));
   caption.querySelector('[data-tour="next"]').addEventListener("click", () => clock.next());
@@ -147,6 +210,11 @@ export function startTour({ steps, chatPopup, input, send, lastAnswer, welcome =
     clock,
     caption(text, { index, count }) {
       place();
+      if (index !== shownStep) {
+        shownStep = index;
+        ring(null);
+        holdOpen(null);
+      }
       caption.querySelector(".wbe-tour-text").textContent = text;
       caption.querySelector(".wbe-tour-count").textContent = `${index + 1} of ${count}`;
     },
@@ -193,7 +261,8 @@ export function startTour({ steps, chatPopup, input, send, lastAnswer, welcome =
       const el = pickTarget(selector, 0, text) || input();
       if (!el) return;
       bringForward(el);
-      el.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+      await showOnPage(el);
+      ring(el);
       const rect = el.getBoundingClientRect();
       await glide({ x: rect.left + Math.min(rect.width / 2, 60), y: rect.top + rect.height / 2 });
     },
@@ -202,7 +271,10 @@ export function startTour({ steps, chatPopup, input, send, lastAnswer, welcome =
       const el = pickTarget(action.hover || action.click, action.pick, action.text, action.has);
       if (!el) return false;
       bringForward(el);
-      el.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+      await showOnPage(el);
+      // (ring: what the step is about, if not this; open: the :hover menu this opens, e.g. ".editToolbarDiv")
+      ring(action.ring ? pickTarget(action.ring) : el);
+      if (action.open) holdOpen(el.closest(action.open));
       const at = pointInside(el);
       await glide(at);
       hoverAt(el, at);
@@ -219,6 +291,31 @@ export function startTour({ steps, chatPopup, input, send, lastAnswer, welcome =
       }
       return true;
     },
+    // The page tour's own doing (Auto Bio writing a biography): what it changes, the tour puts back.
+    async run(action) {
+      if (action.point) await env.point(action.point);
+      return (await action.run({ wait: (ms) => clock.wait(ms) })) !== false;
+    },
+    // Letters typed into a field, as a person would, so what listens for typing (place suggestions) answers.
+    async type(action) {
+      const el = pickTarget(action.into);
+      const text = typeof action.type === "function" ? action.type() : action.type; // (worked out when it's typed)
+      if (!el || !text) return false;
+      await showOnPage(el);
+      ring(el);
+      const rect = el.getBoundingClientRect();
+      await glide({ x: rect.left + Math.min(rect.width / 2, 60), y: rect.top + rect.height / 2 });
+      el.focus({ preventScroll: true });
+      el.value = "";
+      for (const char of text) {
+        el.value += char;
+        el.dispatchEvent(new KeyboardEvent("keydown", { key: char, bubbles: true }));
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new KeyboardEvent("keyup", { key: char, bubbles: true }));
+        await clock.wait(2 * typingDelay(char)); // (slower than Genie's box: each letter brings suggestions)
+      }
+      return true;
+    },
     end: teardown,
   };
 
@@ -227,16 +324,16 @@ export function startTour({ steps, chatPopup, input, send, lastAnswer, welcome =
   pointer.style.left = "-40px";
   return runTour(steps, env).catch((error) => {
     teardown();
-    if (!(error instanceof TourStopped)) console.error("wbe: the Genie tour failed", error);
+    if (!(error instanceof TourStopped)) console.error("wbe: the tour failed", error);
     return "stopped";
   });
 }
 
-function captionBox() {
+function captionBox(label) {
   const box = document.createElement("div");
   box.className = "wbe-tour-caption";
   box.setAttribute("role", "region");
-  box.setAttribute("aria-label", "Genie's tour");
+  box.setAttribute("aria-label", label);
   box.innerHTML = `
     <div class="wbe-tour-text" aria-live="polite"></div>
     <div class="wbe-tour-controls">
@@ -262,13 +359,13 @@ function ripple(pointer) {
   pointer.classList.add("wbe-tour-click");
 }
 
-// The full-screen chart, else the visible Genie window drawn on top (the later one wins a tie).
-function topWindow() {
+/** The full-screen window, else the visible one of these windows drawn on top (the later one wins a tie). */
+export function topWindow(selector = ".wbe-popup") {
   const full = document.fullscreenElement;
   if (full?.classList?.contains("wbe-popup")) return full;
   let top = null;
   let topZ = -Infinity;
-  document.querySelectorAll(".chat-popup.wbe-popup, .chat-results-popup.wbe-popup").forEach((popup) => {
+  document.querySelectorAll(selector).forEach((popup) => {
     if (!popup.getClientRects().length || getComputedStyle(popup).visibility === "hidden") return;
     const z = parseFloat(getComputedStyle(popup).zIndex) || 0;
     if (z >= topZ) {
@@ -279,13 +376,14 @@ function topWindow() {
   return top;
 }
 
-// The settings RESTORED_SETTINGS names as they are now; the function returned puts them back.
-function keepSettings() {
+// The localStorage settings `keep` (a RegExp) names as they are now; the function returned puts them back.
+function keepSettings(keep) {
+  if (!keep) return () => {};
   const saved = new Map();
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (RESTORED_SETTINGS.test(key)) saved.set(key, localStorage.getItem(key));
+      if (keep.test(key)) saved.set(key, localStorage.getItem(key));
     }
   } catch (error) {
     return () => {};
@@ -294,13 +392,21 @@ function keepSettings() {
     try {
       for (let i = localStorage.length - 1; i >= 0; i--) {
         const key = localStorage.key(i);
-        if (RESTORED_SETTINGS.test(key) && !saved.has(key)) localStorage.removeItem(key);
+        if (keep.test(key) && !saved.has(key)) localStorage.removeItem(key);
       }
       saved.forEach((value, key) => localStorage.setItem(key, value));
     } catch (error) {
       // (storage blocked: nothing was saved either)
     }
   };
+}
+
+// Whether the element is in something fixed or sticky (a header).
+function pinned(el) {
+  for (let at = el; at && at !== document.body; at = at.parentElement) {
+    if (/^(?:fixed|sticky)$/.test(getComputedStyle(at).position)) return true;
+  }
+  return false;
 }
 
 function showKey(caption, sign) {

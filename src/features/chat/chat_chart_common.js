@@ -6,7 +6,7 @@ import { color as d3color } from "d3-color";
 import { mainDomain } from "../../core/pageType";
 import { escapeText, fullName, personNameText, yearOf } from "./chat_text_utils";
 import { CHART_MENU_GROUPS, CHART_SHORTCUTS } from "./chat_chart_shortcuts";
-import { isTourRunning } from "./chat_tour_ui";
+import { isTourRunning } from "../../core/tour/tour_ui";
 
 export { escapeText, fullName, personNameText, yearOf };
 

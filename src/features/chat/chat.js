@@ -77,7 +77,7 @@ import { aiKeyHelpHtml } from "./chat_ai_key_help";
 import { dnaReferenceForAi } from "./chat_relationship_data";
 import { isAppsSignOutPrompt, isHelpPrompt, noAiExamplesHtml } from "./chat_no_ai_examples";
 import { SHOW_ME_AROUND, tourFor, TOURS, tourSubject } from "./chat_tour";
-import { startTour } from "./chat_tour_ui";
+import { startTour, topWindow } from "../../core/tour/tour_ui";
 import { createChatCcHandlers } from "./chat_cc";
 import { createLastResultOperationHandler } from "./chat_last_result";
 import { createChatRelationHandlers } from "./chat_relations";
@@ -100,7 +100,7 @@ import {
 } from "./chat_dom_lookup";
 import { isPlusDomain, isProfileEdit } from "../../core/pageType";
 import { copyToClipboard } from "../../core/clipboard";
-import { insertIntoEnhancedEditor, readEnhancedEditor, writeEnhancedEditor } from "../../core/enhancedEditor";
+import { insertIntoEnhancedEditor, readEnhancedEditor, revealInBiography, writeEnhancedEditor } from "../../core/enhancedEditor";
 import {
   EDIT_QUALITY_FIELDS,
   editCommandChips,
@@ -3289,13 +3289,17 @@ function editCategoryAction(category) {
       if (result && !result.added) return say(`${category} is already in the biography.`);
       // (the cursor stays where it was in the text)
       const shift = (offset) => (offset >= result?.at ? offset + result.added.length : offset);
-      if (result && (await writeEnhancedEditor(result.text, shift(editor.from), shift(editor.to)))) return say(`Added [[Category: ${category}]] at the top of the biography.`);
+      if (result && (await writeEnhancedEditor(result.text, shift(editor.from), shift(editor.to)))) {
+        revealInBiography(result.at);
+        return say(`Added [[Category: ${category}]] at the top of the biography.`);
+      }
       return say(`Couldn't add it in the editor: paste [[Category: ${category}]] at the top of the biography.`);
     }
     const result = addCategoryToText(box.value, category);
     if (!result.added) return say(`${category} is already in the biography.`);
     box.setRangeText(result.added, result.at, result.at, "preserve");
     box.dispatchEvent(new Event("input", { bubbles: true }));
+    revealInBiography(result.at);
     say(`Added [[Category: ${category}]] at the top of the biography.`);
   };
   return { label: `Add Category: ${category}`, actionType: "edit-category", editCategory: category, onClick: add };
@@ -3316,7 +3320,10 @@ function editTextActions(text) {
   const insert = async () => {
     pendingEditInsert = null;
     const inserted = insertIntoBiography(withBreak) || (enhancedEditorOn() && (await insertIntoEnhancedEditor(withBreak)));
-    if (inserted) appendMessage("assistant", "Added at the cursor in the biography.", { shouldPersist: false });
+    if (inserted) {
+      revealInBiography();
+      appendMessage("assistant", "Added at the cursor in the biography.", { shouldPersist: false });
+    }
     else if (!document.querySelector("#wpTextbox1")) copy("There's no biography box on this page, so I've copied it instead.");
     else copy("Couldn't put it in the editor, so I've copied it instead: click where it should go and paste.");
   };
@@ -5445,8 +5452,12 @@ async function showMeAround(name = "first") {
   const chosenBefore = chosenPerson;
   void startTour({
     steps: tour.steps(subject),
-    chatPopup: () => document.getElementById(CHAT_POPUP_ID),
+    // (the caption rides in the topmost Genie window, chart or chat; closing Genie ends the tour)
+    host: () => topWindow(".chat-popup.wbe-popup, .chat-results-popup.wbe-popup") || document.getElementById(CHAT_POPUP_ID),
+    alive: () => Boolean(document.getElementById(CHAT_POPUP_ID)),
     input: () => document.getElementById(CHAT_INPUT_ID),
+    // (what showing a view saves for next time: the Explorer's view and 3D shape, the "you've typed" hint)
+    keep: /^(?:wbe-explorer-|wbe-fractal-|wbe-genie-has-typed$)/,
     // (each question is new, unless the step is a follow-up to the one before)
     send: (prompt, { followUp = false } = {}) => {
       $(`input[name="wbe-chat-context"][value="${followUp ? "followup" : "new"}"]`).prop("checked", true);
