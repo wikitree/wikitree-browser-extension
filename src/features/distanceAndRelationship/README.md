@@ -56,6 +56,9 @@ This feature shows the distance (degrees) and relationship between the logged-in
   from both people are kept next to each other, closest couple first, father before mother. The `More` button
   therefore reveals whole couples rather than one member of each.
 - Clicking distance or relationship triggers refresh.
+- The `showRelationship` option (default on) hides the relationship box. The relationship is still computed,
+  cached and rendered, but with the `relationshipHidden` class (`display: none`), because Change Family Lists reads
+  the box's text to decide whether the profile's parents are the user's ancestors.
 
 ## Testing as another member
 

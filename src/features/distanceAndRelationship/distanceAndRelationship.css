@@ -59,6 +59,9 @@ button.copyWidget {
   position: relative;
   background: whitesmoke;
 }
+.yourRelationshipText.relationshipHidden {
+  display: none;
+}
 .showMoreAncestors {
   position: absolute;
   font-size: 0.8em;

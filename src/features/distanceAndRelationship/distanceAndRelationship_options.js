@@ -14,6 +14,12 @@ registerFeature({
   pages: [isProfilePage, isProfileEdit],
   options: [
     {
+      id: "showRelationship",
+      type: OptionType.CHECKBOX,
+      label: 'Show the relationship box (e.g. "Your 2nd cousin") with your common ancestors.',
+      defaultValue: true,
+    },
+    {
       id: "relationshipBoxPosition",
       type: OptionType.RADIO,
       label: "Position of the relationship box",

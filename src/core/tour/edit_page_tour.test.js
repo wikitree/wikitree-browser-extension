@@ -253,3 +253,43 @@ test("the place chosen is named as WikiTree names it for the time, never Great B
   expect(placeChoice(["Paris, France"], 1800)).toBe(0);
   expect(placeChoice(["Bath, Somerset, England, Great Britain"], 1800)).toBe(-1);
 });
+
+test("Edit Family is open for the steps about what's in it, even when it's kept folded", () => {
+  // (the toggle as the redesign draws it: .plus while folded, each click switches)
+  const page = (folded) => {
+    document.body.innerHTML = `<a id="toggleFamilyColumn"><span class="icon--toggler ${
+      folded ? "plus" : "minus"
+    }"></span></a>`;
+    const span = document.querySelector("#toggleFamilyColumn span");
+    document.getElementById("toggleFamilyColumn").addEventListener("click", () => {
+      span.classList.toggle("plus");
+      span.classList.toggle("minus");
+    });
+    return () => span.classList.contains("plus");
+  };
+  // (the step's clicks, as the tour does them: those whose when() is false left out)
+  const play = (step, isFolded) => {
+    const seen = [];
+    for (const action of step.actions.filter((action) => action.click === "#toggleFamilyColumn")) {
+      if (action.when && !action.when()) continue;
+      document.querySelector(action.click).click();
+      seen.push(isFolded());
+    }
+    return seen;
+  };
+  const steps = editPageTourSteps();
+  const foldStep = steps.find((step) => /^The Edit Family section folds/.test(step.caption));
+  const connectStep = steps.find((step) => /Connect links a profile/.test(step.caption));
+  const childlessStep = steps.find((step) => /^Childless/.test(step.caption));
+  for (const folded of [false, true]) {
+    const isFolded = page(folded);
+    expect(play(foldStep, isFolded)).toEqual(folded ? [false, true, false] : [true, false]);
+  }
+  for (const step of [connectStep, childlessStep]) {
+    const isFolded = page(true);
+    play(step, isFolded);
+    expect(isFolded()).toBe(false);
+    page(false);
+    expect(play(step, () => false)).toEqual([]);
+  }
+});

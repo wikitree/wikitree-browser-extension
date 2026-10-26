@@ -48,6 +48,14 @@ export const TOUR_OPTIONS = [
   { feature: "unnamedInfant", option: "diedYoung", value: true, off: (value) => !value },
 ];
 const CONNECT_LINK = ".container.edit--sidebar a[href*='WBEaction=Connect']";
+// The Edit Family section, opened when it's folded (some keep it folded), before a step shows what's in it.
+// (The tour folds it again at the end.)
+const FAMILY_TOGGLE = "#toggleFamilyColumn";
+const OPEN_FAMILY = {
+  click: FAMILY_TOGGLE,
+  when: () => Boolean(document.querySelector(`${FAMILY_TOGGLE} .plus`)),
+  hold: 900,
+};
 const RESTORE_WAIT_MS = 20000;
 
 const MENU = ".editToolbarDiv";
@@ -386,11 +394,8 @@ export function editPageTourSteps(demo = {}, off = new Set(), onForTour = new Se
         "editProfileRedesign",
         "The Edit Family section folds away when you don't need it, to leave more room for the biography."
       ),
-      needs: "#toggleFamilyColumn",
-      actions: [
-        { click: "#toggleFamilyColumn", hold: 2200 },
-        { click: "#toggleFamilyColumn", hold: 600 },
-      ],
+      needs: FAMILY_TOGGLE,
+      actions: [OPEN_FAMILY, { click: FAMILY_TOGGLE, hold: 2200 }, { click: FAMILY_TOGGLE, hold: 600 }],
     },
     {
       caption: note(
@@ -409,8 +414,7 @@ export function editPageTourSteps(demo = {}, off = new Set(), onForTour = new Se
         "Each relative's Add/Remove/Replace link becomes Replace (or Add), Connect and Remove, each going straight to that choice. Connect links a profile that's already on WikiTree, by its ID."
       ),
       needs: CONNECT_LINK,
-      point: CONNECT_LINK,
-      hold: 600,
+      actions: [OPEN_FAMILY, { hover: CONNECT_LINK, hold: 600 }],
     },
     {
       caption: note(
@@ -597,6 +601,7 @@ export function editPageTourSteps(demo = {}, off = new Set(), onForTour = new Se
       actions: [
         { run: run("youngDeath") },
         { hover: "#wpSave", hold: 1500 },
+        OPEN_FAMILY,
         { run: run("showChildless"), point: "input[name='mNoChildren']", hold: 3000 },
       ],
     },

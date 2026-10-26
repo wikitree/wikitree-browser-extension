@@ -349,6 +349,13 @@ function addRelationshipText(oText, commonAncestors) {
     $("#person h1[itemprop='name']").after(cousinText);
   }
 
+  // When the user turns the box off, keep it on the page but hidden: Change Family Lists
+  // reads its text to decide whether to label the profile's parents as ancestors.
+  if (options.showRelationship === false) {
+    cousinText.addClass("relationshipHidden");
+    return;
+  }
+
   if (cousinText.next("span.large").length > 0) {
     cousinText.after($("<br>"));
   }
