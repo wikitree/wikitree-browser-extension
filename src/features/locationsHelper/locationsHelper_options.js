@@ -20,7 +20,7 @@ registerFeature({
     "Manipulates the suggested locations, highlighting likely correct locations," +
     " based on family members' locations, and demoting likely wrong locations, based on the dates." +
     " Additional options:" +
-    " 1) Enable improved (experimental) location suggestions." +
+    " 1) Enable improved location suggestions." +
     " 2) Automatically correct some date-based location names:" +
     " US state names before they joined the Union," +
     " Canadian regional districts," +
@@ -85,6 +85,12 @@ registerFeature({
       id: "nativeName",
       type: OptionType.CHECKBOX,
       label: "Use native names for locations (the name of the country in its own language)",
+      defaultValue: false,
+    },
+    {
+      id: "stripUKGB",
+      type: OptionType.CHECKBOX,
+      label: "Strip 'United Kingdom' and 'Great Britain' from then end of WBE location suggestions",
       defaultValue: false,
     },
   ],

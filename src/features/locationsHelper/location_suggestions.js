@@ -59,6 +59,7 @@ let selectedCountries = [];
 const MAX_COUNTRY_SUMMARY_ROWS = 2;
 let countrySummaryResizeListenerBound = false;
 let countrySummaryResizeFrame = 0;
+let stripUKGB = false; // Whether to strip "United Kingdom" and "Great Britain" from the end of location names
 
 // In exclusive mode our jQuery UI menu and the site's own autocomplete can both
 // exist briefly. We tag our menu and mirror its open/focus state onto <body> so
@@ -407,10 +408,11 @@ function ensureCountryFilterPopup() {
   return popupEl;
 }
 
-export async function initLocationSuggestions(suggestionOption) {
+export async function initLocationSuggestions(suggestionOption, stripUKGBOption) {
   if (suggestionOption === "no") return;
 
   if (suggestionOption === "only") retrieveFamilyBDLocations();
+  stripUKGB = stripUKGBOption === true;
 
   if (!select2Selections) {
     const defaults = await getLocationSuggestionDefaults();
@@ -1165,7 +1167,16 @@ async function fetchOrFilterSuggestions(entry, date, countries) {
     if (locationData.length > 1) {
       const grouped = new Map();
 
+      const ukGBregex = /, (United Kingdom|Great Britain|Y Deyrnas Unedig|An Ríocht Aontaithe|Prydain Fawr)$/;
       for (const item of locationData) {
+        if (stripUKGB && item.p.match(ukGBregex)) {
+          let previous;
+          do {
+            previous = item.p;
+            item.p = item.p.replace(ukGBregex, "");
+          } while (item.p !== previous);
+        }
+
         const key = `${item.p}\u0000${item.dt}`;
         let group = grouped.get(key);
 
