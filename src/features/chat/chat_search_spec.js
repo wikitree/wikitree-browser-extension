@@ -527,6 +527,18 @@ const SPEC_EXAMPLES = [
       },
     },
   ],
+  // (the user, 2026-10-28: this was "unsupported", but 24,709 English profiles have it in a birth or death place)
+  [
+    "profiles in England with 'Registration District' in a birth or death field",
+    {
+      action: "search",
+      understood: "Profiles in England with “Registration District” in the birth or death place",
+      search: {
+        places: [{ text: "England", event: "any" }],
+        anyOf: [{ places: [{ text: "Registration District", event: "birth" }] }, { places: [{ text: "Registration District", event: "death" }] }],
+      },
+    },
+  ],
   [
     "Devon births, post-1850",
     {
@@ -648,7 +660,7 @@ export function buildSearchSpecInstructions({
     "search fields (all optional; everything inside one search must ALL be true):",
     '- names: {"lastNameAtBirth","currentLastName","anyLastName","firstName","surnameKey"}. Use anyLastName for a plain surname. surnameKey = the surname at birth written without spaces or punctuation ("OBRIAN" for O\'Brian, "vanderheyden" for van der Heyden); it only finds OPEN profiles, so use it only when the user asks for every way a spaced or apostrophe surname is written, and say so in assumptions.',
     '- contentRank: N (1-10) or {"min":N,"max":N} — WikiTree+ Content Rank: 1 = least content on the profile, 10 = most. "profiles that need the most work" / "thin profiles" / "least content" = {"max":3}; "rank 1" = 1.',
-    '- places: [{"text":"Place, Country","event":"birth|death|marriage|any"}]. "born in X" / "X births" = birth; "died in X" / "X deaths" = death; "married in X" / "X marriages" = marriage; a bare place = any.',
+    '- places: [{"text":"Place, Country","event":"birth|death|marriage|any"}]. "born in X" / "X births" = birth; "died in X" / "X deaths" = death; "married in X" / "X marriages" = marriage; a bare place = any. The text matches any place containing it, so words found in place fields are places too, never unsupported: "Registration District", "Workhouse", a parish or street. Several places in one search must all match; "in a birth or death place" = anyOf [{"places":[{text, "birth"}]}, {"places":[{text, "death"}]}].',
     '- notPlaces: same shape as places; the place must NOT match. "emigrated to X" / "immigrants to X" = places [{X, death}] + notPlaces [{X, birth}]; "emigrated from X" = places [{X, birth}] + notPlaces [{X, death}]. Say in assumptions that people with no birth (or death) place are included.',
     '- dates: [{"event":"birth|death|marriage","from":YEAR,"to":YEAR}] — whole years, both inclusive, either may be left out.',
     '- missingDates: ["birth","death"] — the date is blank.',
