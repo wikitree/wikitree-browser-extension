@@ -197,6 +197,7 @@ export class Biography {
   static #SEE_ALSO = "see also";
   static #SEE_ALSO2 = "ver tambiéna";
   static #SEE_ALSO3 = "ver también";
+  static #SEE_ALSO4 = "véase también";
   static #TEMPLATE_START = "{{";
   static #TEMPLATE_END = "}}";
   static #NOTOC = "__notoc__";
@@ -2513,6 +2514,7 @@ export class Biography {
           !line.includes(Biography.#SEE_ALSO) &&
           !line.includes(Biography.#SEE_ALSO2) &&
           !line.includes(Biography.#SEE_ALSO3) &&
+          !line.includes(Biography.#SEE_ALSO4) &&
           line.length > 0) {
         // Now gather all lines from this line until an empty line
         // or a line that starts with * to test as the source
