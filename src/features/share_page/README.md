@@ -18,6 +18,7 @@ The feature is off by default. Its option category is Global.
 | Image page                          | `/photo/jpg/Robinson-27274`                                            | The image page                                               |
 | Full-screen image                   | `/photo.php/4/49/Robinson-27274.jpg`                                   | The image page, rebuilt from the file name                   |
 | Tree widget                         | `/treewidget/Robinson-27274/6`                                         | The widget                                                   |
+| G2G post                            | `/g2g/2098490/the-title`                                               | The post by its number only, `/g2g/2098490`                  |
 | Tree Apps view                      | `/apps/Robinson-27274#name=…&view=…`                                   | The person's profile by default, or the view (see Tree Apps) |
 
 Other pages get no button.
@@ -27,6 +28,8 @@ Other pages get no button.
 - Signed-in members on profiles and free-space pages: a share icon (`images/share.svg`) in the row of WBE icon buttons
   beside the site's own (Clipboard, Notes, ...).
 - Otherwise, in the jump bar (profiles, Genealogy Hub pages): a "Share" link like the others there, with the share icon.
+- G2G posts: a share icon to the right of the post's title (the empty `.col-auto` in `.qa-main-heading`, beside the
+  bookmark when signed in), or at the end of the title line if that slot is missing.
 - Category, Help and Project pages: a "Share" link with the icon at the right-hand end of the "Categories: ..." row.
 - Other pages with a heading (Project pages and tree widgets, say): the "Share" link at the end of the title line, after the Scissors
   ID / LINK / URL buttons.
@@ -37,7 +40,7 @@ Other pages get no button.
 
 Before the button appears, the feature asks WikiTree's API (`WikiTreeAPI.getProfile`, app id `WBE_sharePage`) for the
 page's `Privacy` and `IsLiving` fields. This covers profiles, free-space pages, tree widgets, Tree Apps views (the person
-in `#name=` in the address, then the path) and images whose file name is a profile ID.
+in `#name=` in the address, then the path) and images whose file name is a profile ID. G2G posts, and category, project and help pages, are not checked: they are public.
 
 - Public (50) and Open (60) can be shared. Levels 10 to 40 cannot.
 - Anyone marked as living cannot, whatever the level.
@@ -101,6 +104,18 @@ Family Tree".
 
 **The person's WikiTree ID** (for example `Washington-11`) is on the card's first line, after the kind of page, on
 profile and Tree Apps cards, so anyone can find the profile from the picture.
+
+**How a picture fills its box on a card.** It fills the box when that crops at most a fifth of the picture, and the crop
+never takes the top, where heads and the tops of drawings are: a taller picture loses only its bottom, a wider one only
+its sides. If more would be lost, the whole picture is shown with plain bars where it does not reach. See `drawPhoto()`.
+
+**G2G posts** show the post's title (without the "G2G: " the page heading adds; a long title is drawn smaller, up to four
+lines, so it is not cut off), the opening text of the post, and three fields: the category it was asked in, the number
+of answers (from the "N Answers" heading, since the page lists only one page of them), its votes and its first three
+tags. The
+post's own first picture starts on the card (pictures in answers and comments are not offered). All G2G is public, so
+there is no privacy check, and the saved card is named `wtshare-G2G-<number>.png`. Only question pages are covered, not
+the lists, tags and user pages around them. The code is `readG2GFacts()` and `pageSummary("g2g")`.
 
 **Profiles** show the person's data fields (Born, Died, Parents, Spouse, with every parent and spouse name in bold), a
 portrait, and a short life summary:
