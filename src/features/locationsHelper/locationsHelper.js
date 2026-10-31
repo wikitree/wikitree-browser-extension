@@ -201,7 +201,7 @@ shouldInitializeFeature("locationsHelper").then((result) => {
         .then((el) => {
           if (!el) return;
           if (options?.newLocations !== "no") {
-            initLocationSuggestions(options?.newLocations);
+            initLocationSuggestions(options?.newLocations, options?.stripUKGB);
             if (options?.newLocations === "only") {
               return;
             }
