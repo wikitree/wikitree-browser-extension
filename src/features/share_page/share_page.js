@@ -213,7 +213,11 @@ function addShareButton(kind, onClick) {
   // Category, Help and Project pages: the "Categories: ..." row under the title, which every visitor sees
   const $categories = $("#Categories").first();
   const $heading = $("h1").first();
-  const $button = $toolbar
+  // G2G posts: the empty slot to the right of the title, where the bookmark sits when signed in
+  const $g2gSlot = kind === "g2g" ? $(".qa-main-heading .col-auto").first() : $();
+  const $button = $g2gSlot.length
+    ? g2gButton()
+    : $toolbar
     ? toolbarButton()
     : $jumpNav.length || $categories.length || $heading.length
     ? jumpBarLink()
@@ -224,7 +228,9 @@ function addShareButton(kind, onClick) {
     e.preventDefault();
     onClick($button);
   });
-  if ($toolbar) {
+  if ($g2gSlot.length) {
+    $g2gSlot.append($button);
+  } else if ($toolbar) {
     $toolbar.append($button);
   } else if ($jumpNav.length) {
     // after the page's own links, before the Scissors copy buttons (ID, LINK, URL...) if they're already in the bar
@@ -278,6 +284,14 @@ function jumpBarLink() {
   );
 }
 
+/** The share icon on its own, beside the title of a G2G post. */
+function g2gButton() {
+  const title = "Share this post on social media";
+  return $(
+    `<a href="#" class="wbe-share-button wbe-share-g2g" title="${title}" aria-label="${title}">${SHARE_ICON}</a>`
+  );
+}
+
 /** An icon button built like the ones common.js adds, so it gets the same size and tooltip. */
 function toolbarButton() {
   const title = "Share this page on social media";
@@ -294,6 +308,12 @@ function toolbarButton() {
 // ---------------------------------------------------------------------------------------------
 
 function pageTitle() {
+  if (detectPageKind(window.location.pathname) === "g2g") {
+    // the page heading reads "G2G: Question of the Week: …", and the tab title ends " - WikiTree G2G"
+    const heading = clean(textWithoutControls($(".qa-main-heading h1").first())).replace(/^G2G:\s*/i, "");
+    const fromTab = document.title.replace(/\s+-\s+WikiTree G2G.*$/i, "").trim();
+    if (heading || fromTab) return heading || fromTab;
+  }
   const fromTitle = document.title.replace(/\s*\|\s*WikiTree.*$/i, "").trim();
   if (fromTitle) return fromTitle;
   const fromHeading = textWithoutControls($("h1").first()).replace(/\s+/g, " ").trim();
@@ -354,6 +374,36 @@ function readGenealogyFacts() {
   const url = (background.match(/url\(["']?([^"')]+)["']?\)/) || [])[1] || "";
   hub.backgroundImage = url && photoLinks(url) ? photoLinks(url).full : "";
   return hub;
+}
+
+/**
+ * The opening text, category, answer count and tags of a G2G question. The post is paragraphs, list items and the like
+ * inside `.qa-q-view-content`; the answers and comments below it are not part of it.
+ */
+function readG2GFacts() {
+  const $post = $(".qa-q-view-content").first().clone();
+  $post.find("sup, script, style, button, img, .wbe-share-button, .copy--buttons, .scissors").remove();
+  $post.find("br").replaceWith("\n");
+  $post.find("p, div, li, ul, ol, h1, h2, h3, h4, h5, h6, blockquote, table").each((i, el) => {
+    $(el).prepend("\n").append("\n");
+  });
+  const paragraphs = $post.text().split(/\n+/).map(clean).filter(Boolean);
+  const category =
+    clean($(".qa-q-view-meta .qa-category-link, .qa-q-view-where-data a").first().text()) ||
+    (clean($(".qa-q-view-meta").first().text()).match(/\sin (.+?) by /) || [])[1] ||
+    "";
+  // "31 Answers" over the answers; the list on screen is only one page of them
+  const answers = parseInt((clean($("#a_list_title").first().text()).match(/(\d[\d,]*)/) || [])[1], 10) || 0;
+  // the question's own vote count ("+27"); the answers below it have theirs too
+  const votes = parseInt(clean($(".qa-q-view .qa-netvote-count-data").first().text()).replace(/^\+/, ""), 10);
+  const tags = [
+    ...new Set(
+      $(".qa-q-view-tags a")
+        .map((i, el) => clean($(el).text()))
+        .get()
+    ),
+  ].filter(Boolean);
+  return { paragraphs, counts: {}, category, answers, votes: Number.isFinite(votes) ? votes : null, tags };
 }
 
 function readPageFacts() {
@@ -768,6 +818,11 @@ function collectPhotos(kind) {
     add(window.location.href, "");
     return found;
   }
+  if (kind === "g2g") {
+    // the pictures in the post itself, not the ones in other members' answers and comments
+    $(".qa-q-view-content img").each((i, img) => add(img.src, img.alt));
+    return found;
+  }
   // The profile's own photos first, then everything else in the page content.
   $("img.profile--photo").each((i, img) => add(img.src, img.alt));
   $('img[src*="/photo.php/"]')
@@ -847,6 +902,8 @@ const FOOTER_HEIGHT = 56;
 // where a portrait, or the surname hub's score, rank or DNA picture, goes beside a profile's title and fields
 // the text under a profile's fields is drawn in the largest of these sizes that fits
 const BIO_SIZES = [34, 32, 30, 28, 26, 24];
+// the largest of these that lets the title fit its lines
+const TITLE_SIZES = [54, 48, 42, 38];
 // the least height the photo gets when it goes under the text
 const UNDER_MIN_PHOTO = 240;
 const SIDE_BOX = { x: 724, y: 172, w: 300, h: 346 };
@@ -939,19 +996,22 @@ async function drawShareCard(kind, title, extras = {}) {
     g.fillText(fitLine(g, badge.label, right - (x + 28)), x + 28, 146);
   }
 
+  // A picture fills its box when that crops at most a fifth of it, and the crop never takes the top, where heads and the
+  // tops of drawings are: a taller picture loses its bottom, a wider one loses its sides. Any more than that and the whole
+  // picture is shown, with plain bars where it does not reach.
   const drawPhoto = (x, y, w, h) => {
-    const scale = Math.max(w / photo.width, h / photo.height);
+    const cover = Math.max(w / photo.width, h / photo.height);
+    const whole = Math.min(w / photo.width, h / photo.height);
+    const scale = 1 - whole / cover <= 0.2 ? cover : whole;
+    const dw = photo.width * scale;
+    const dh = photo.height * scale;
     g.save();
     g.beginPath();
     g.rect(x, y, w, h);
     g.clip();
-    g.drawImage(
-      photo,
-      x + (w - photo.width * scale) / 2,
-      y + (h - photo.height * scale) / 2,
-      photo.width * scale,
-      photo.height * scale
-    );
+    g.fillStyle = BRAND.paper;
+    g.fillRect(x, y, w, h);
+    g.drawImage(photo, x + (w - dw) / 2, dh > h ? y : y + (h - dh) / 2, dw, dh);
     g.restore();
     g.strokeStyle = BRAND.band;
     g.lineWidth = 2;
@@ -985,8 +1045,17 @@ async function drawShareCard(kind, title, extras = {}) {
     const under = placement === "under" && !!photo;
     const hasSide = !!(photo || slot) && !under;
     const textWidth = hasSide ? SIDE_BOX.x - left - 40 : width;
-    g.font = font("700 54px");
-    const titleBottom = wrapText(g, title, left, 224, textWidth, 62, hasSide ? 3 : 2);
+    // the title is the point of a G2G post, so a long one gets a smaller size and up to four lines, not a cut-off end
+    let titleSize = TITLE_SIZES[TITLE_SIZES.length - 1];
+    for (const candidate of TITLE_SIZES) {
+      g.font = font(`700 ${candidate}px`);
+      if (countLines(g, title, textWidth) <= (candidate >= 48 ? (hasSide ? 3 : 2) : 4)) {
+        titleSize = candidate;
+        break;
+      }
+    }
+    g.font = font(`700 ${titleSize}px`);
+    const titleBottom = wrapText(g, title, left, 224, textWidth, Math.round(titleSize * 1.15), 4);
     if (hasSide && photo) drawPhoto(SIDE_BOX.x, SIDE_BOX.y, SIDE_BOX.w, SIDE_BOX.h);
     else if (hasSide && slot) g.drawImage(slot, SIDE_BOX.x, SIDE_BOX.y, SIDE_BOX.w, SIDE_BOX.h);
 
@@ -1301,7 +1370,11 @@ function openDialog(kind, options, profile = null, extras = {}) {
       ? lifeSummary(readProfileFacts(safeIds))
       : kind === "treeApp"
       ? { fields: [], bio: appSummary(app) }
-      : pageSummary(kind, { ...readPageFacts(), title, genealogy: kind === "genealogy" ? hubFacts : null });
+      : pageSummary(kind, {
+          ...(kind === "g2g" ? readG2GFacts() : readPageFacts()),
+          title,
+          genealogy: kind === "genealogy" ? hubFacts : null,
+        });
   // A profile with a Notability statement starts with it on the card; the member can use the life summary instead, or both.
   const notability = kind === "profile" && cardSummary ? readNotability() : "";
   const lifeBio = cardSummary ? cardSummary.bio : "";
@@ -1344,7 +1417,7 @@ function openDialog(kind, options, profile = null, extras = {}) {
   state.cardPhoto =
     kind === "genealogy"
       ? (cardChoices.find((c) => c.id === "art-score") || {}).id || ""
-      : kind === "profile" || kind === "space" || !cardSummary
+      : kind === "profile" || kind === "space" || kind === "g2g" || !cardSummary
       ? (photos[0] && photos[0].id) || ""
       : "";
   const chosenCard = () => cardChoices.find((c) => c.id === state.cardPhoto) || null;

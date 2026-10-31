@@ -102,6 +102,7 @@ export const KIND_LABELS = {
   fullImage: "Full-screen image",
   treeWidget: "Tree widget",
   treeApp: "Tree Apps view",
+  g2g: "G2G post",
 };
 
 const BODIES = {
@@ -116,6 +117,7 @@ const BODIES = {
     `Explore ${t} on WikiTree: ancestors, cousins and community members, and how their family trees connect.`,
   imagePage: (t) => `A photo shared on WikiTree: ${t}. Every image helps tell a family’s story.`,
   fullImage: (t) => `A photo shared on WikiTree: ${t}. Every image helps tell a family’s story.`,
+  g2g: (t) => `Join the conversation on G2G, WikiTree’s forum for genealogists: ${t}`,
   treeWidget: (t) => `Explore this family tree view for ${t} on WikiTree, built by volunteers working together.`,
   // ctx.appName is the view's own name (for example "Fan Chart"), ctx.person the person shown
   // ctx.profileLink: the post links to the person's profile, which anyone can open, instead of the view itself
@@ -144,6 +146,8 @@ export function detectPageKind(pathname) {
   if (/^\/apps\/[^/]+-\d+/.test(path)) return "treeApp";
   if (/^\/photo\.php\//.test(path)) return "fullImage";
   if (/^\/photo\/[^/]+\/[^/]+/.test(path)) return "imagePage";
+  // a G2G question and its answers (/g2g/2098490/the-title), not the lists, tags and users around it
+  if (/^\/g2g\/\d+(\/|$)/.test(path)) return "g2g";
   const wiki = path.match(/^\/wiki\/(.+)$/);
   if (!wiki) return "other";
   const id = wiki[1];
@@ -162,6 +166,11 @@ export function detectPageKind(pathname) {
  */
 export function shareUrlFor(kind, url) {
   const u = new URL(url, BASE_URL);
+  // a G2G post is shared by its number alone: https://www.wikitree.com/g2g/2101023
+  if (kind === "g2g") {
+    const number = u.pathname.match(/^\/g2g\/(\d+)/);
+    if (number) return `${BASE_URL}/g2g/${number[1]}`;
+  }
   const hash = kind === "treeApp" ? u.hash : "";
   let path = u.pathname;
   if (kind === "fullImage") {
@@ -594,6 +603,21 @@ export function pageSummary(kind, facts = {}) {
     // Just the opening text. Headings are left off these pages: help pages list topics or people (Help:WikiTree Team),
     // and a list of headings is not a useful summary of any of them.
     bio = leadSummary(facts.paragraphs || []);
+  } else if (kind === "g2g") {
+    // a G2G post: the opening of the question, the category it was asked in, how many answers and its first tags
+    bio = leadSummary(facts.paragraphs || []);
+    if (facts.category) fields.push({ label: "Asked in", lines: [facts.category], names: false });
+    if (facts.answers) fields.push({ label: "Answers", lines: [String(facts.answers)], names: false });
+    if (Number.isFinite(facts.votes)) fields.push({ label: "Votes", lines: [String(facts.votes)], names: false });
+    // up to three tags, packed onto at most two lines so they are not cut off
+    const lines = [];
+    (facts.tags || []).slice(0, 3).forEach((tag, i, all) => {
+      const piece = i < all.length - 1 ? `${tag},` : tag;
+      const last = lines.length - 1;
+      if (last >= 0 && lines[last].length + 1 + piece.length <= 30) lines[last] += ` ${piece}`;
+      else lines.push(piece);
+    });
+    if (lines.length) fields.push({ label: "Tags", lines: lines.slice(0, 2), names: true });
   } else if (kind === "genealogy") {
     // a surname hub: "Peasley Genealogy", with the numbers the page shows
     const hub = facts.genealogy || {};
@@ -731,6 +755,8 @@ export function fileIdFor(kind, pathname, hash = "") {
     id = part(/^\/genealogy\/([^/]+)/);
   } else if (kind === "treeWidget") {
     id = part(/^\/treewidget\/([^/]+)/);
+  } else if (kind === "g2g") {
+    id = "G2G-" + part(/^\/g2g\/(\d+)/);
   } else if (kind === "treeApp") {
     const view = viewSlug(hash);
     id = [profileKeyFor(kind, pathname, hash), view].filter(Boolean).join("-");

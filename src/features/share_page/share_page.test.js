@@ -106,8 +106,9 @@ beforeAll(() => {
     beginPath() {},
     rect() {},
     clip() {},
-    drawImage(picture) {
+    drawImage(picture, ...args) {
       if (!picture) return;
+      if (picture._src) global.mockDrawCalls.push([picture._src, ...args]);
       if (picture._src) global.mockDrawn.push(picture._src);
       else if (picture.tagName === "CANVAS") global.mockDrawn.push(`canvas:${picture.width}x${picture.height}`);
     },
@@ -177,6 +178,7 @@ beforeEach(() => {
   global.mockCanvasSizes = [];
   global.mockGetPeople = jest.fn(() => Promise.resolve(["", {}, {}]));
   global.mockArcs = [];
+  global.mockDrawCalls = [];
   global.mockDrawn = [];
   global.mockPhotoSize = null;
   global.mockGetProfile = jest.fn(() => Promise.resolve([{ Privacy: 60, IsLiving: 0 }, 0, "page"]));
@@ -1614,6 +1616,79 @@ describe("Share Page dialog", () => {
     expect(global.mockArcs.length).toBe(1);
   });
 
+  // A G2G question page, as the real ones are built (Question2Answer): heading with an empty slot beside the title, the post,
+  // its meta and tags, then the answers with their own pictures.
+  const G2G_PATH = "/g2g/2098207/question-week-have-ancestors-members-indigenous-community";
+  const G2G_TITLE = "Question of the Week: Do you have ancestors who were members of an Indigenous community?";
+  const G2G_HTML = `
+    <div class="qa-main-heading row"><div class="col"><h1><span>G2G: ${G2G_TITLE}</span></h1></div><div class="col-auto"></div></div>
+    <div class="qa-q-view"><div class="qa-q-view-voting"><span class="qa-netvote-count"><span class="qa-netvote-count-data">+17</span> votes</span></div><div class="qa-q-view-main">
+      <div class="qa-q-view-content qa-post-content"><a name="2098207"></a><div itemprop="text">
+        <p><a href="https://www.wikitree.com/photo.php/8/84/Question_of_the_Week-285.png"><img src="https://www.wikitree.com/photo.php/e/e4/Question_of_the_Week-286.png" width="250" height="250" alt=""></a></p>
+        <p>Do you have ancestors who belonged to an Indigenous people? Tell us about them.</p>
+        <p>By "Indigenous people," we mean Native Americans, First Nations, Aboriginal Australians, or other groups.</p>
+      </div></div>
+      <span class="qa-q-view-meta"><a class="qa-q-view-what" href="x">asked</a> <span class="qa-q-view-where"><span class="qa-q-view-where-pad">in </span><span class="qa-q-view-where-data"><a class="qa-category-link" href="/g2g/questions/the-tree-house">The Tree House</a></span></span> <span class="qa-q-view-who">by Eowyn Langholf</span></span>
+      <ul class="qa-q-view-tags"><li><a href="/g2g/tag/question_of_the_week">question_of_the_week</a></li><li><a href="/g2g/tag/greeters">greeters</a></li><li><a href="/g2g/tag/ambassadors">ambassadors</a></li><li><a href="/g2g/tag/first_peoples">first_peoples</a></li></ul>
+    </div></div>
+    <h2 id="a_list_title">18 Answers</h2>
+    <div class="qa-a-list-item"><div class="qa-a-item-content"><img src="https://www.wikitree.com/photo.php/thumb/4/49/Answer-1.jpg/400px-Answer-1.jpg"> My ancestors were Mohawk.</div></div>`;
+
+  test("a G2G question gets a share icon beside its title, and the privacy API is not asked", async () => {
+    await loadFeature(G2G_PATH, G2G_HTML, `${G2G_TITLE} - WikiTree G2G`);
+    expect($(".qa-main-heading .col-auto .wbe-share-g2g").length).toBe(1);
+    expect($(".wbe-share-button").length).toBe(1);
+    expect(global.mockGetProfile).not.toHaveBeenCalled();
+  });
+
+  test("G2G lists, tags and user pages have no share button", async () => {
+    for (const path of ["/g2g/questions", "/g2g/tags", "/g2g/user/Robinson-27225"]) {
+      await loadFeature(path, G2G_HTML, "G2G - WikiTree G2G");
+      expect($(".wbe-share-button").length).toBe(0);
+    }
+  });
+
+  test("a G2G post's dialog has its title (no 'G2G:'), its link without the page of answers, and the tag and hashtags", async () => {
+    await loadFeature(`${G2G_PATH}?start=20#a2098999`, G2G_HTML, `${G2G_TITLE} - WikiTree G2G`);
+    await clickShare();
+    const text = $("#wbeShareText").val();
+    expect(text).toContain(`Join the conversation on G2G, WikiTree’s forum for genealogists: ${G2G_TITLE}`);
+    expect(text).not.toContain("G2G: Question");
+    expect(text).toContain("https://www.wikitree.com/g2g/2098207");
+    expect(text).not.toContain("question-week-have-ancestors"); // no title in the address
+    expect(text).not.toMatch(/start=|#a2098999/);
+    expect(text).toContain("@WikiTree");
+    expect(text).toContain("#WhereGenealogistsCollaborate");
+  });
+
+  test("a G2G card has the post's text, category, answer count, tags and its own picture, not the answers' pictures", async () => {
+    await loadFeature(G2G_PATH, G2G_HTML, `${G2G_TITLE} - WikiTree G2G`);
+    await clickShare();
+    await settle();
+    expect($("#wbeShareSummary").val()).toContain("Do you have ancestors who belonged to an Indigenous people?");
+    expect($("#wbeShareSummary").val()).not.toContain("My ancestors were Mohawk");
+    const drawn = global.mockCardText.join("|");
+    expect(drawn).toContain("G2G POST");
+    expect(drawn).toContain("ASKED IN");
+    expect(drawn).toContain("The Tree House");
+    expect(drawn).toContain("ANSWERS");
+    expect(drawn).toContain("18");
+    expect(drawn).toContain("VOTES");
+    expect(drawn).toContain("17");
+    expect(drawn).toContain("question_of_the_week,");
+    expect(drawn).toContain("greeters, ambassadors");
+    expect($(".wbe-share-image").length).toBe(2); // the card and the post's one picture
+    const buttons = $(".wbe-share-cardphotobtn").toArray();
+    expect(buttons[0].getAttribute("aria-checked")).toBe("false"); // "None"
+    expect(buttons[1].getAttribute("aria-checked")).toBe("true"); // the post's picture starts on the card
+    expect(buttons.length).toBe(2);
+  });
+
+  test("without the empty slot beside the title the icon goes at the end of the title line", async () => {
+    await loadFeature(G2G_PATH, G2G_HTML.replace('<div class="col-auto"></div>', ""), `${G2G_TITLE} - WikiTree G2G`);
+    expect($(".qa-main-heading h1 .wbe-share-button").length).toBe(1);
+  });
+
   const saveName = async () => {
     const saved = [];
     const click = window.HTMLAnchorElement.prototype.click;
@@ -1640,6 +1715,13 @@ describe("Share Page dialog", () => {
     expect(await saveName()).toEqual(["wtshare-Robinson-27274.png"]);
   });
 
+  test("a G2G post's card is saved as wtshare-G2G- and the post's number", async () => {
+    await loadFeature(G2G_PATH, G2G_HTML, `${G2G_TITLE} - WikiTree G2G`);
+    await clickShare();
+    await settle();
+    expect(await saveName()).toEqual(["wtshare-G2G-2098207.png"]);
+  });
+
   test("a free-space page's card is saved as wtshare- and the page name, without the Space: prefix", async () => {
     await loadFeature("/wiki/Space:Andersonia,_California_One_Place_Study", SPACE_PAGE);
     await clickShare();
@@ -1658,5 +1740,36 @@ describe("Share Page dialog", () => {
     await clickShare();
     await settle();
     expect(await saveName()).toEqual(["wtshare-PEASLEY.png"]);
+  });
+});
+
+describe("the picture on a card", () => {
+  const drawnPhoto = () => global.mockDrawCalls.find(([src]) => /photo\.php/.test(src));
+  const PAGE = `<div class="qa-main-heading row"><div class="col"><h1>G2G: A post</h1></div><div class="col-auto"></div></div>
+    <div class="qa-q-view"><div class="qa-q-view-main"><div class="qa-q-view-content"><div>
+      <p><img src="https://www.wikitree.com/photo.php/e/e4/Question_of_the_Week-286.png"></p>
+      <p>The text of a post that is long enough to count as a sentence on a card, so there is a summary.</p></div></div></div></div>`;
+  const draw = async (size) => {
+    global.mockPhotoSize = size;
+    await loadFeature("/g2g/2098207/a-post", PAGE, "A post - WikiTree G2G");
+    await clickShare();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    return drawnPhoto();
+  };
+
+  test("a taller picture that needs a small crop keeps its top and loses only its bottom", async () => {
+    const call = await draw([400, 500]); // a little taller than its box
+    expect(call).toBeTruthy();
+    const [, , y, , h] = call;
+    expect(y).toBe(172); // the top of the picture box: nothing is cut off the top
+    expect(h).toBeGreaterThan(346); // it overflows the box, so the bottom is cropped
+  });
+
+  test("a picture that would lose more than a fifth is shown whole", async () => {
+    const call = await draw([1000, 400]); // much wider than its box
+    const [, , y, w, h] = call;
+    expect(w).toBe(300); // the whole width of the box
+    expect(h).toBe(120); // and its whole height, centred, with bars above and below
+    expect(y).toBe(172 + (346 - 120) / 2);
   });
 });
