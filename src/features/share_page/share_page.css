@@ -569,3 +569,16 @@ h1 .wbe-share-in-heading {
   color: inherit;
   max-width: 100%;
 }
+
+/* G2G: the icon beside the post's title, next to the bookmark */
+.wbe-share-g2g {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.6rem;
+  vertical-align: middle;
+  color: #25422d;
+}
+.wbe-share-g2g .wbe-share-icon {
+  width: 1.9rem;
+  height: 1.9rem;
+}
