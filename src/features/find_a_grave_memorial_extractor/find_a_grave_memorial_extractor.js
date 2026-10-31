@@ -6,6 +6,7 @@ Extended By: Azure Robinson (Robinson-27225)
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getDownloadLink, triggerDownload } from "../../core/common";
 import { wtAPIFindAGraveMemorials } from "../../core/API/wtPlusAPI";
+import { findButtonAnchor } from "./fg_button_anchor";
 import { buildCsv } from "./fg_csv";
 import { parseRecordCount } from "./fg_memorial_parser";
 import { buildOutcomeNotes, emptyRunNote } from "./fg_messages";
@@ -18,6 +19,8 @@ import "./find_a_grave_memorial_extractor.css";
 const DEBUG_MODE = false;
 
 const FEATURE_ID = "findAGraveMemorialExtractor";
+const BUTTON_RETRY_MS = 500; // how often to look again for where the button goes, while the page loads
+const BUTTON_ATTEMPTS = 60; // about 30 seconds
 const WIKITREE_CALLER_ID = "FindAGraveMemorialExtractor"; // identifies this extension to WikiTree+ (docs/CallsTo wikitree.com.md)
 
 // The last run on this list, so the next prompt can suggest the following pages
@@ -36,10 +39,10 @@ function init() {
   }
 }
 
-function addExtractionButton() {
+function addExtractionButton(attempt = 0) {
   // Wait for page to be ready
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", addExtractionButton);
+    document.addEventListener("DOMContentLoaded", () => addExtractionButton());
     return;
   }
 
@@ -48,11 +51,11 @@ function addExtractionButton() {
     return;
   }
 
-  // Find the Search tips div to position our button after it
-  const searchTipsDiv = document.querySelector(".label.label-update.d-md-inline.mt-3.mt-md-0");
-  if (!searchTipsDiv) {
-    // If the target element doesn't exist yet, try again after a short delay
-    setTimeout(addExtractionButton, 500);
+  const anchor = findButtonAnchor(document);
+  if (!anchor) {
+    // The search form may not be on the page yet: try again for a while, then say so
+    if (attempt < BUTTON_ATTEMPTS) setTimeout(() => addExtractionButton(attempt + 1), BUTTON_RETRY_MS);
+    else console.warn("WBE Find a Grave Memorial Extractor: could not find where to put the Extract to CSV button.");
     return;
   }
 
@@ -66,12 +69,7 @@ function addExtractionButton() {
 
   button.addEventListener("click", () => runExtraction(button));
 
-  // Insert button after the Search tips div
-  searchTipsDiv.parentNode.insertBefore(button, searchTipsDiv.nextSibling);
-
-  // Also find the refine search button to place a button after it
-  const refineBtn = document.querySelector("#js--refine-btn");
-  if (refineBtn != null) refineBtn.parentNode.insertBefore(button, refineBtn.nextSibling);
+  anchor.parentNode.insertBefore(button, anchor.nextSibling);
 }
 
 async function runExtraction(button) {
