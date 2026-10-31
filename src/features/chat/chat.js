@@ -86,7 +86,7 @@ import { createChatBioHandlers } from "./chat_bio";
 import { createChatHistoryHandlers } from "./chat_history";
 import { createAppsLoginButton, goToAppsLogout, redeemAuthcode } from "../../core/loginButton";
 import { createChatAiPlannerHandlers } from "./chat_planner";
-import { mergeFollowupWithUnanswered } from "./chat_followup_merge";
+import { looksLikeCorrection, mergeFollowupWithUnanswered } from "./chat_followup_merge";
 import {
   shouldOfferDisambiguation,
   buildDisambiguationMessage,
@@ -189,6 +189,7 @@ import { WT_PLUS_BIO_CHECK_WORDS, WT_PLUS_RESEARCH_STATUS_WORDS } from "./wt_plu
 import { isRouterCanonicalSearch } from "./chat_router_canonical";
 import { bigPullKey, createFetchMemo } from "./chat_fetch_memo";
 import { nameWithRelatives } from "./chat_relative_clause";
+import { asksWhetherPeopleHaveProfiles } from "./chat_bio_relatives";
 
 // Debug: indicate the chat feature script has been loaded
 console.debug("wbe: chat.js loaded");
@@ -1425,6 +1426,7 @@ const {
   tryHandleProfileDuplicatesPrompt,
   tryHandlePersonBurialPrompt,
   tryHandleFindBioRelativesPrompt,
+  tryHandleFindNamedPeoplePrompt,
   tryHandleInLawCheckPrompt,
   tryHandleProfileFactPrompt,
   tryHandleDnaPrompt,
@@ -3066,6 +3068,16 @@ async function findPersonInFamilyCircle(name) {
 }
 
 // One short AI call (no history, no API docs); null without a key or when AI is off.
+// What Genie said last (for reading a correction of it).
+function lastAssistantText() {
+  for (let index = chatHistory.length - 1; index >= 0; index--) {
+    const entry = chatHistory[index];
+    if (entry?.role === "user") return "";
+    if (entry?.role === "assistant" && String(entry.text || "").trim()) return String(entry.text);
+  }
+  return "";
+}
+
 async function askAiBriefly(prompt) {
   const { provider, key, model } = await getChatAiConfig();
   if (!key) return null;
@@ -3456,24 +3468,36 @@ async function sendChatPrompt() {
 
   // A reply that adds detail to the question Genie just couldn't answer (or asked about):
   // the AI reads them together, and the combined request runs (Elaine, 2026-10-11).
+  // A correction of the last question ("I asked about Ann Heard", "Neither of those people are married
+  // to a Jean Prévost"), also after an answer or a "which one did you mean?" list: the AI reads the
+  // question, Genie's answer and the correction together (Heard-171, 2026-10-31).
   const unansweredBefore = awaitingDetailFor;
   awaitingDetailFor = "";
+  const correcting =
+    !unansweredBefore &&
+    looksLikeCorrection(prompt) &&
+    !(pendingDisambiguationContext && resolveDisambiguationReply(prompt, pendingDisambiguationContext.candidates || []));
+  const questionBefore = unansweredBefore || (correcting ? pendingDisambiguationContext?.prompt || lastRoutedPrompt || lastNonRetryUserPrompt : "");
   if (
-    unansweredBefore &&
+    questionBefore &&
     !retryRequested &&
     !followupOfferNote &&
-    !pendingDisambiguationContext &&
+    (correcting || !pendingDisambiguationContext) &&
     document.querySelector('input[name="wbe-chat-context"]:checked')?.value !== "new"
   ) {
     const merged = await mergeFollowupWithUnanswered({
-      previous: unansweredBefore,
+      previous: questionBefore,
       reply: prompt,
       askAi: askAiBriefly,
+      answer: lastAssistantText(),
+      profile: getPageRootPerson(),
     });
     if (merged) {
-      console.info("wbe: follow-up merged with the unanswered question", { previous: unansweredBefore, reply: prompt, merged });
+      console.info("wbe: follow-up merged with the earlier question", { previous: questionBefore, reply: prompt, merged });
       prompt = merged;
       followupOfferNote = `Taking that as: ${merged}`;
+      // (the list it asked from is answered by the merged question)
+      pendingDisambiguationContext = null;
     }
   }
 
@@ -3738,10 +3762,13 @@ async function sendChatPrompt() {
 
     // Intercept spouse-bio style prompts early so short follow-ups (e.g., "Dona's bio?")
     // can be resolved against recent structured results or DOM before normal routing.
+    // "…adoptive parents were Jean Prévost and Françoise Lamontagne. Do those people have WikiTree profiles?" is
+    // about those two, not "the parents of This profile mentions that Ann Heard" (Heard-171, 2026-10-31).
+    const asksAboutPeoplesProfiles = asksWhetherPeopleHaveProfiles(prompt);
     try {
       // Early pronoun follow-up handler (e.g., "Their bios?") that uses lastStructuredResult
       try {
-        const pronounEarly = await tryHandlePronounFollowup(prompt);
+        const pronounEarly = asksAboutPeoplesProfiles ? null : await tryHandlePronounFollowup(prompt);
         if (pronounEarly) {
           if (typeof pronounEarly === "string") {
             await handleChatResult({ message: pronounEarly });
@@ -3754,7 +3781,7 @@ async function sendChatPrompt() {
         /* ignore pronoun handler errors */
       }
 
-      const spouseEarly = await tryHandlePersonBioPrompt(prompt);
+      const spouseEarly = asksAboutPeoplesProfiles ? null : await tryHandlePersonBioPrompt(prompt);
       if (spouseEarly) {
         if (typeof spouseEarly === "string") {
           await handleChatResult({ message: spouseEarly });
@@ -3799,6 +3826,7 @@ async function sendChatPrompt() {
       ChatIntent.PROFILE_DUPLICATES,
       ChatIntent.PERSON_BURIAL,
       ChatIntent.FIND_BIO_RELATIVES,
+      ChatIntent.FIND_NAMED_PEOPLE,
       ChatIntent.IN_LAW_CHECK,
       ChatIntent.PROFILE_FACT,
       ChatIntent.DNA,
@@ -4302,6 +4330,9 @@ async function executeRoutedIntent(routed, prompt) {
   }
   if (routed.intent === ChatIntent.FIND_BIO_RELATIVES) {
     return await tryHandleFindBioRelativesPrompt(routed.params, prompt);
+  }
+  if (routed.intent === ChatIntent.FIND_NAMED_PEOPLE) {
+    return await tryHandleFindNamedPeoplePrompt(routed.params, prompt);
   }
   if (routed.intent === ChatIntent.IN_LAW_CHECK) {
     return await tryHandleInLawCheckPrompt(routed.params, prompt);

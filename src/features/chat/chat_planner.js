@@ -8,6 +8,8 @@
  * targets.
  */
 
+import { parseFindNamedPeoplePrompt } from "./chat_bio_relatives";
+
 /**
  * @param {object} deps
  * @param {function(): Promise<object>} deps.getChatAiConfig
@@ -45,6 +47,30 @@ export function plannerDriftsFromOneProfile(prompt, planned) {
 // "Do any of the people in the bio have WT profiles?" came back with target "null", so
 // Genie looked for a person called null (2026-10-07). A placeholder means "not given".
 const PLACEHOLDER_RE = /^(?:null|undefined|none|n\/a|unknown|nil|)$/i;
+// "Please locate profiles of Jean Prévost and Françoise Lamontagne", on Heard-171, became a connection between
+// Heard-171 and herself ("That's the same person twice", 2026-10-31). A connection answers only a question
+// about how people are related; one that asks for profiles and says nothing of relationships isn't that.
+export function plannerDriftsToConnection(prompt, planned) {
+  if (planned?.intent !== "connectionLookup") return false;
+  if (!/\b(?:profiles?|on\s+wikitree|locate|find)\b/i.test(String(prompt || ""))) return false;
+  return !/\b(?:relat(?:ed|ion|ionship)|connect(?:ed|ion|ions)?|cousins?|kin|path|link(?:ed)?|how\s+(?:am|is|are|was|were)\b)/i.test(String(prompt || ""));
+}
+
+// The same question, live with AI (Heard-171, 2026-10-31): "This profile mentions that Ann Heard's new adoptive
+// parents were Jean Prévost and Françoise Lamontagne. Do those people have WikiTree profiles?" came back as a
+// profile search for "Jean Prévost or Françoise Lamontagne": 53 namesakes. Two or more full names, asked about
+// as having profiles, are those people's own check (with their marriage, when they're a couple).
+export function plannedSearchAsNamedPeople(prompt, planned) {
+  if (planned?.intent !== "profileSearch") return null;
+  const original = String(prompt || "");
+  if (!/\b(?:profiles?|on\s+wikitree|locate)\b/i.test(original)) return null;
+  const query = String(planned.params?.query || "").replace(/\s+or\s+/gi, " and ").trim();
+  const parsed = query ? parseFindNamedPeoplePrompt(`find profiles for ${query}`) : null;
+  if (!parsed || parsed.names.length < 2) return null;
+  const couple = parsed.names.length === 2 && /\b(?:couple|husband|wife|parents|married|spouses?)\b/i.test(original);
+  return { names: parsed.names, couple };
+}
+
 export function cleanPlannerParams(params) {
   if (!params || typeof params !== "object" || Array.isArray(params)) return {};
   return Object.fromEntries(Object.entries(params).filter(([, value]) => !(value === null || value === undefined || (typeof value === "string" && PLACEHOLDER_RE.test(value.trim())))));
@@ -113,6 +139,9 @@ export function createChatAiPlannerHandlers({
       `- ${ChatIntent.ANCESTOR_LIST} with params {\"generation\":5,\"relationshipLabel\":\"3rd great-grandparents\",\"location\":\"optional place\",\"locationField\":\"BirthLocation|DeathLocation|AnyLocation\"}`,
       `- ${ChatIntent.DESCENDANT_LIST} with params {\"generation\":5,\"relationshipLabel\":\"5 generations of descendants\",\"includeUpTo\":true}`,
       `- ${ChatIntent.PROFILE_SEARCH} with params {\"query\":\"...\"} — use for looking up a specific named person, NOT for filtering an existing result set`,
+      // Heard-171 (2026-10-31): "do Jean Prévost and Françoise Lamontagne have profiles?" became a name search for
+      // "This profile mentions that Ann Heard", and a connection between Heard-171 and herself.
+      `- ${ChatIntent.FIND_NAMED_PEOPLE} with params {"names":["Jean Prévost","Françoise Lamontagne"],"couple":true} — whether particular people, named in the prompt or the recent conversation, have WikiTree profiles, or to find or locate their profiles ("do those people have profiles?", "please locate profiles of X and Y", "are X and Y on WikiTree?"). names: each person's first name and surname as written, without "on WikiTree" and without the people only mentioned as context (the profile person). couple: true when the two are married to each other (a couple, husband and wife, someone's parents or adoptive parents). A follow-up saying the people offered aren't married to the other one is this too, with couple true. Never ${ChatIntent.CONNECTION_LOOKUP} or ${ChatIntent.PROFILE_SEARCH} for these.`,
       `- ${ChatIntent.LAST_RESULT_OPERATION} with params:`,
       `    table: {"action":"table"}`,
       `    count: {"action":"count"}`,
@@ -173,7 +202,14 @@ export function createChatAiPlannerHandlers({
     }
 
     const planned = parsePlannerJson(response.response);
-    if (!planned?.intent || planned.intent === ChatIntent.FALLBACK_AI || plannerDriftsToBios(prompt, planned) || plannerDriftsFromOneProfile(prompt, planned)) {
+    console.debug(`wbe: planner chose ${planned?.intent || "nothing"} ${JSON.stringify(planned?.params || {}).slice(0, 200)}`);
+    if (
+      !planned?.intent ||
+      planned.intent === ChatIntent.FALLBACK_AI ||
+      plannerDriftsToBios(prompt, planned) ||
+      plannerDriftsFromOneProfile(prompt, planned) ||
+      plannerDriftsToConnection(prompt, planned)
+    ) {
       return null;
     }
     if (planned.intent === "rewrite") {
@@ -182,11 +218,14 @@ export function createChatAiPlannerHandlers({
       return rewrittenPrompt && rewrittenPrompt !== prompt ? { rewrittenPrompt } : null;
     }
 
+    const namedPeople = plannedSearchAsNamedPeople(prompt, planned);
     return await executeRoutedIntent(
-      {
-        intent: planned.intent,
-        params: cleanPlannerParams(planned.params),
-      },
+      namedPeople
+        ? { intent: ChatIntent.FIND_NAMED_PEOPLE, params: namedPeople }
+        : {
+            intent: planned.intent,
+            params: cleanPlannerParams(planned.params),
+          },
       prompt
     );
   }

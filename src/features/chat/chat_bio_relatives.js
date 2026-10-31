@@ -115,6 +115,62 @@ export function parseFindRelativesPrompt(prompt) {
   return parseLooseBioPeoplePrompt(text);
 }
 
+// "Do Jean Prévost and Françoise Lamontagne have WikiTree profiles?", "locate profiles of the couple Jean
+// Prévost and Françoise Lamontagne" (Heard-171, 2026-10-31): particular people, by name, each a capitalised
+// first name and surname (with de, dit, van and the like between).
+const PERSON_NAME = String.raw`\p{Lu}[\p{L}\p{M}'’.-]*(?:\s+(?:(?:de|du|des|la|le|dit|van|von|der|den|di|da|del|y)\s+)*\p{Lu}[\p{L}\p{M}'’.-]*){1,4}`;
+const PERSON_NAMES = String.raw`(${PERSON_NAME}(?:\s*,\s*${PERSON_NAME})*(?:\s*,?\s+(?:and|&)\s+${PERSON_NAME})?)`;
+const COUPLE_WORDS = String.raw`(?:the\s+couple\s+|(?:the\s+)?(?:husband\s+and\s+wife|married\s+couple)\s+)?`;
+const ON_WIKITREE = String.raw`(?:\s+(?:already\s+)?(?:on|in)\s+wikitree)?`;
+const NAMED_PEOPLE_RES = [
+  new RegExp(
+    String.raw`^(?:${FIND}|locate|search)\s+(?:the\s+)?(?:wikitree\s+)?profiles?\s+(?:of|for)\s+${COUPLE_WORDS}${PERSON_NAMES}${ON_WIKITREE}$`,
+    "iu"
+  ),
+  new RegExp(String.raw`^(?:do(?:es)?|did)\s+${COUPLE_WORDS}${PERSON_NAMES}\s+(?:already\s+)?(?:have|has)\s+(?:a\s+|any\s+)?(?:wikitree\s+)?profiles?${ON_WIKITREE}$`, "iu"),
+  new RegExp(String.raw`^(?:are|is)\s+${COUPLE_WORDS}${PERSON_NAMES}\s+(?:already\s+)?(?:on|in)\s+wikitree$`, "iu"),
+  new RegExp(String.raw`^(?:is|are)\s+there\s+(?:a\s+|any\s+)?(?:wikitree\s+)?profiles?\s+(?:of|for)\s+${COUPLE_WORDS}${PERSON_NAMES}${ON_WIKITREE}$`, "iu"),
+];
+const NOT_A_PERSON_RE = /^(?:wikitree|genie|this|that|these|those|his|her|their|my|the|profile|profiles|bio|biography)$/i;
+
+const PROFILE_ASK_RE =
+  /\b(?:have|has|got)\s+(?:a\s+|any\s+)?(?:wikitree\s+)?profiles?\b|\b(?:locate|find|search\s+for|look\s+for|look\s+up)\b[^.?!]{0,40}\bprofiles?\b|\b(?:are|is)\s+(?:they|those\s+(?:people|two)|these\s+(?:people|two)|both(?:\s+of\s+them)?)\s+(?:on|in)\s+wikitree\b/i;
+const THOSE_PEOPLE_RE = /\b(?:those|these)\s+(?:people|persons|two)\b|\bthe\s+couple\b|\b(?:them|they)\b/i;
+
+/**
+ * Whether the prompt asks if particular people have WikiTree profiles: by name, or as "those people" after
+ * naming them ("…adoptive parents were Jean Prévost and Françoise Lamontagne. Do those people have WikiTree
+ * profiles?"). Such a question is the planner's to read, not a WT+ search's (Heard-171, 2026-10-31).
+ */
+export function asksWhetherPeopleHaveProfiles(prompt) {
+  const text = String(prompt || "");
+  if (!PROFILE_ASK_RE.test(text)) return false;
+  if (parseFindNamedPeoplePrompt(text)) return true;
+  const names = (text.match(new RegExp(PERSON_NAME, "gu")) || []).filter((name) => !name.split(/\s+/).some((word) => NOT_A_PERSON_RE.test(word)));
+  return names.length > 0 || THOSE_PEOPLE_RE.test(text);
+}
+
+/** {names, couple} for a question about particular named people's profiles, or null. */
+export function parseFindNamedPeoplePrompt(prompt) {
+  const text = String(prompt || "")
+    .trim()
+    .replace(/[.!?]+$/g, "")
+    .replace(/\bWT(?!\+)\b/g, "WikiTree")
+    .replace(LOOSE_POLITE_RE, "")
+    .replace(/\s+/g, " ");
+  for (const re of NAMED_PEOPLE_RES) {
+    const match = text.match(re);
+    if (!match) continue;
+    const names = match[1].split(/\s*,\s*(?:and\s+|&\s*)?|\s+(?:and|&)\s+/).map((name) => name.trim()).filter(Boolean);
+    // (case-insensitive patterns: every name must really start with a capital, and none be a pronoun)
+    if (!names.length || names.length > 6) return null;
+    if (names.some((name) => !/^\p{Lu}/u.test(name) || name.split(/\s+/).some((word) => NOT_A_PERSON_RE.test(word)))) return null;
+    const couple = /\b(?:couple|husband\s+and\s+wife)\b/i.test(text) && names.length === 2;
+    return { names, couple };
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Names
 
@@ -147,6 +203,55 @@ export function splitName(raw) {
   const surname = parts.length > 1 ? parts[parts.length - 1] : "";
   const given = parts.length > 1 ? parts.slice(0, -1) : parts;
   return { given: given.map((part) => part.replace(/\.$/, "")), surname, birthSurname };
+}
+
+/** A person asked about by name, searched for like a relative the biography names in passing. */
+export function relativeFromName(name, { partnerKey = "" } = {}) {
+  const parts = splitName(name);
+  const surnames = [parts.surname, parts.birthSurname].filter(Boolean);
+  return { role: "other", ...parts, surnames, birthYear: 0, birthPlace: "", gender: "", evidence: [], asked: true, ...(partnerKey ? { partnerKey } : {}) };
+}
+
+/**
+ * The people asked about, as the biography knows them when it names them (Heard-171's "adoptive parents
+ * Jean Prévost and Françoise Lamontagne (aka Leblanc)" are her father and mother there, with their years
+ * and each other); the rest by name alone. `couple`: the two asked about are married to each other.
+ */
+export function namedPeopleAsRelatives(names, bioRelatives = [], { couple = false } = {}) {
+  const used = new Set();
+  const firstOf = (name) => fold(splitName(name).given[0]);
+  const sameFirst = (relative, first) => fold(relative.given?.[0]) === first;
+  const byName = names.map((name) => {
+    const wanted = splitName(name);
+    const last = [wanted.surname, wanted.birthSurname].map(fold).filter(Boolean);
+    const known = bioRelatives.find(
+      (relative) =>
+        !used.has(relative) &&
+        sameFirst(relative, firstOf(name)) &&
+        [relative.surname, relative.birthSurname, ...(relative.surnames || [])].map(fold).some((surname) => surname && last.includes(surname))
+    );
+    if (known) used.add(known);
+    return known;
+  });
+  // The bio may give one of them by another surname ("Françoise Lamontagne (aka Françoise Leblanc)", read as
+  // Françoise Leblanc): the only one in the bio with that first name is the one meant.
+  const people = names.map((name, index) => {
+    let known = byName[index];
+    if (!known) {
+      const sameFirstName = bioRelatives.filter((relative) => sameFirst(relative, firstOf(name)));
+      if (sameFirstName.length === 1 && !used.has(sameFirstName[0])) known = sameFirstName[0];
+    }
+    if (!known) return relativeFromName(name);
+    used.add(known);
+    // (her surname as asked is searched for too)
+    const asked = splitName(name).surname;
+    const surnames = asked && !(known.surnames || []).some((surname) => fold(surname) === fold(asked)) ? [...(known.surnames || []), asked].slice(0, 3) : known.surnames;
+    return { ...known, surnames, asked: true };
+  });
+  // Two asked about as a couple, and not already the bio's father and mother: each other's spouse.
+  const unpaired = people.filter((person) => !["father", "mother", "spouse"].includes(person.role));
+  if (couple && people.length === 2 && unpaired.length) return people.map((person) => ({ ...person, partnerKey: "asked couple" }));
+  return people;
 }
 
 /** Same person, roughly: first names start alike (Elizah/Elijah, Elisabeth/Elizabeth) and years agree. */
@@ -744,6 +849,20 @@ export function censusKinBeyond(relatives, bio, subject) {
 }
 
 /** Family surnames for children and siblings; a wife's birth name kept apart from her married one. */
+/** The surnames a woman's child would have: the child's own when it's a husband's, else her husbands'. */
+function childSurnamesOfWoman(child, subject, relatives) {
+  // (his surname at birth first: "Sébastien Cholet dit Laviolette" is a Cholet on WikiTree)
+  const husbands = [
+    ...new Set(relatives.filter((person) => person.role === "spouse").map((person) => person.birthSurname || person.surname).filter(Boolean)),
+  ];
+  const known = [child.surname, child.birthSurname].filter(Boolean);
+  const own = known.find((name) => husbands.some((husband) => fold(husband) === fold(name)));
+  if (own) return [own];
+  if (husbands.length) return husbands;
+  const married = subject.LastNameCurrent && fold(subject.LastNameCurrent) !== fold(subject.LastNameAtBirth) ? subject.LastNameCurrent : "";
+  return [married || subject.LastNameAtBirth || subject.LastNameCurrent || ""];
+}
+
 function finishRelatives(list, subject) {
   const subjectSurname = subject.LastNameAtBirth || subject.LastNameCurrent || "";
   const isSubject = (person) =>
@@ -766,6 +885,9 @@ function finishRelatives(list, subject) {
       // A father the bio names with his own surname is searched by that alone: John Carr is
       // just John Carr, not a Beacall (Beacall-491; the user, 2026-10-07).
       if (person.role === "father" && person.surname) surnames.push(person.surname);
+      // A woman's children have their father's surname: Marie Anne Heard's were Cholets, not
+      // "Joseph Heard" (Heard-171, 2026-10-31).
+      else if (person.role === "child" && subject.Gender === "Female") surnames.push(...childSurnamesOfWoman(person, subject, merged));
       else if (["child", "sibling", "father"].includes(person.role)) surnames.push(subjectSurname);
       if (person.birthSurname) surnames.push(person.birthSurname);
       if (person.surname) surnames.push(person.surname);
@@ -1157,6 +1279,8 @@ function firstNameAgrees(person, expected) {
 
 /** Who a father, mother or spouse should be married to, from the bio. */
 export function expectedPartnerFor(relative, subject, relatives) {
+  // Two people asked about as a couple ("the couple Jean Prévost and Françoise Lamontagne").
+  if (relative.partnerKey) return relatives.find((person) => person !== relative && person.partnerKey === relative.partnerKey) || null;
   const find = (role) => relatives.find((person) => person.role === role) || null;
   if (relative.role === "mother") return find("father");
   if (relative.role === "father") return find("mother");
@@ -1370,10 +1494,15 @@ export function duplicateLines(duplicates, subjectLabel) {
   return lines;
 }
 
-export function buildFindRelativesAnswer({ subjectLabel, results: allResults, readBy, duplicates = null }) {
+/**
+ * `askedNames`: the people the question named ("do Jean Prévost and Françoise Lamontagne have profiles?"):
+ * only they were searched for, some perhaps from the biography of `subjectLabel` (which may be "").
+ */
+export function buildFindRelativesAnswer({ subjectLabel, results: allResults, readBy, duplicates = null, askedNames = null }) {
+  const asked = Array.isArray(askedNames) && askedNames.length > 0;
   // People named in passing (an employer, a fellow servant) are searched for too, but listed apart.
-  const results = allResults.filter((entry) => entry.relative.role !== "other");
-  const named = allResults.filter((entry) => entry.relative.role === "other");
+  const results = asked ? allResults : allResults.filter((entry) => entry.relative.role !== "other");
+  const named = asked ? [] : allResults.filter((entry) => entry.relative.role === "other");
   const sorted = [...results].sort(
     (a, b) => ROLE_ORDER.indexOf(a.relative.role) - ROLE_ORDER.indexOf(b.relative.role) || (a.relative.birthYear || 9999) - (b.relative.birthYear || 9999)
   );
@@ -1383,9 +1512,20 @@ export function buildFindRelativesAnswer({ subjectLabel, results: allResults, re
   const missing = sorted.filter((entry) => !entry.attached && !shown(entry).length);
   const total = allResults.length;
   const others = named.length ? ` and ${named.length} other ${named.length === 1 ? "person" : "people"}` : "";
+  const fromBio = asked && subjectLabel && allResults.some((entry) => entry.relative.role !== "other");
   const lines = [
-    `${subjectLabel}'s biography names ${results.length} relative${results.length === 1 ? "" : "s"}${others} (${readBy}). I searched WikiTree for ${total === 1 ? "them" : "each one"}.`,
+    asked
+      ? `I searched WikiTree for ${joinWithAnd(askedNames)}${fromBio ? `, with what ${subjectLabel}'s biography says about them (${readBy})` : ""}.`
+      : `${subjectLabel}'s biography names ${results.length} relative${results.length === 1 ? "" : "s"}${others} (${readBy}). I searched WikiTree for ${total === 1 ? "them" : "each one"}.`,
   ];
+  // Both found, married to each other on WikiTree: the answer to "where is this couple?".
+  const couple = sorted
+    .map((entry) => shown(entry)[0])
+    .filter((best) => best?.couplePartner && sorted.some((other) => Number(shown(other)[0]?.profile?.Id) === Number(best.couplePartner.Id)));
+  if (couple.length === 2) {
+    const [a, b] = couple.map((best) => `${personName(best.profile)} (${best.profile.Name})`);
+    lines.push("", `**Found as a couple:** ${a} and ${b} are married to each other on WikiTree.`);
+  }
   lines.push(...duplicateLines(duplicates, subjectLabel));
   // Beacall-491's family all turned up under Philip Beacall (Beacall-11): this profile may be his duplicate.
   const standIns = new Map();
@@ -1473,7 +1613,8 @@ export function buildFindRelativesAnswer({ subjectLabel, results: allResults, re
   const rows = [...found, ...namedFound].flatMap((entry) => {
     const relative = entry.relative;
     const base = {
-      relative: relative.role === "other" ? `${relativeFullName(relative)} (named in the biography)` : withRole(relative, relativeFullName(relative)),
+      relative:
+        relative.role === "other" ? `${relativeFullName(relative)}${relative.asked ? "" : " (named in the biography)"}` : withRole(relative, relativeFullName(relative)),
       bioBorn: [relative.birthYear ? `about ${relative.birthYear}` : "", relative.birthPlace].filter(Boolean).join(", "),
       gender: relative.gender || "",
     };
@@ -1494,10 +1635,10 @@ export function buildFindRelativesAnswer({ subjectLabel, results: allResults, re
     );
   });
   const table = {
-    title: `Relatives in ${subjectLabel}'s biography`,
+    title: asked ? `Profiles for ${joinWithAnd(askedNames)}` : `Relatives in ${subjectLabel}'s biography`,
     defaultOrder: [],
     columns: [
-      { title: "In the biography", key: "relative" },
+      { title: asked ? "Asked about" : "In the biography", key: "relative" },
       { title: "Born (biography)", key: "bioBorn" },
       { title: "WikiTree", key: "wtid", render: (row) => makeProfileLink(row.wtid, row.wtid) },
       { title: "Name", key: "name" },
@@ -1712,10 +1853,13 @@ export async function searchRelatives({ subject, relatives, attached = [], searc
         .sort((a, b) => b.score - a.score);
     });
   score(new Map());
-  // Then the marriages of the father, mother and spouse candidates still in the running.
+  // Then the marriages of the father, mother and spouse candidates still in the running: those at 40% or
+  // more, and the best few whose name fits only as a spelling (Jean Provost for the bio's Jean Prévost, 38%).
   const partnerIds = toSearch
     .filter((entry) => expectedPartnerFor(entry.relative, subject, all))
-    .flatMap((entry) => entry.candidates.filter((candidate) => candidate.score >= 40).map((candidate) => Number(candidate.profile.Id)));
+    .flatMap((entry) =>
+      entry.candidates.filter((candidate, index) => candidate.score >= 40 || index < 5).map((candidate) => Number(candidate.profile.Id))
+    );
   if (getSpouses && partnerIds.length) {
     const spousesById = new Map();
     const ids = [...new Set(partnerIds)];
@@ -1724,6 +1868,36 @@ export async function searchRelatives({ subject, relatives, attached = [], searc
       batch.forEach((value, key) => spousesById.set(Number(key), value));
     }
     score(spousesById);
+    confirmCouples(toSearch, subject, all, spousesById);
   }
   return pending;
+}
+
+/**
+ * The bio's couple found as a couple: a candidate for the father married on WikiTree to a candidate for the
+ * mother vouches for both, whatever their spellings (Jean Provost and Françoise Leblanc for the bio's "Jean
+ * Prévost and Françoise Lamontagne (aka Leblanc)", Heard-171, 2026-10-31).
+ */
+function confirmCouples(entries, subject, relatives, spousesById) {
+  const byRelative = new Map(entries.map((entry) => [entry.relative, entry]));
+  for (const entry of entries) {
+    const partner = byRelative.get(expectedPartnerFor(entry.relative, subject, relatives));
+    if (!partner) continue;
+    const partnerProfiles = new Map(partner.candidates.map((candidate) => [Number(candidate.profile.Id), candidate.profile]));
+    let changed = false;
+    for (const candidate of entry.candidates) {
+      const spouse = (spousesById.get(Number(candidate.profile.Id)) || []).find((item) => partnerProfiles.has(Number(item?.Id)));
+      if (!spouse) continue;
+      const profile = partnerProfiles.get(Number(spouse.Id));
+      const named = relativeFullName(partner.relative);
+      const whom = partner.relative.role === "other" ? named : `the biography's ${ROLE_WORDS[partner.relative.role](partner.relative.gender).toLowerCase()}, ${named}`;
+      const reason = `Married to ${personName(profile)} (${profile.Name}), who fits ${whom}`;
+      candidate.reasons = [reason, ...candidate.reasons.filter((item) => !item.startsWith("Married to "))];
+      candidate.conflicts = candidate.conflicts.filter((item) => !item.startsWith("Married to "));
+      candidate.score = Math.max(candidate.score, LIKELY);
+      candidate.couplePartner = profile;
+      changed = true;
+    }
+    if (changed) entry.candidates.sort((a, b) => b.score - a.score);
+  }
 }

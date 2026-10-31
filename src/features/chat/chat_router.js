@@ -12,7 +12,7 @@ without growing chat.js into a single large file.
 import { parseCousinRelationRequest } from "./chat_cousin_helpers";
 import { parseDuplicateCheckPrompt } from "./chat_duplicates";
 import { parseBaptismPrompt, parseBurialPrompt } from "./chat_burial";
-import { parseFindRelativesPrompt } from "./chat_bio_relatives";
+import { parseFindNamedPeoplePrompt, parseFindRelativesPrompt } from "./chat_bio_relatives";
 import { parseInLawCheckPrompt } from "./chat_inlaw_check";
 import { withAccentsMasked } from "./chat_accent_mask";
 import { parseProfileFactPrompt } from "./chat_profile_facts";
@@ -69,6 +69,7 @@ export const ChatIntent = {
   PROFILE_DUPLICATES: "profileDuplicates",
   PERSON_BURIAL: "personBurial",
   FIND_BIO_RELATIVES: "findBioRelatives",
+  FIND_NAMED_PEOPLE: "findNamedPeople",
   IN_LAW_CHECK: "inLawCheck",
   PROFILE_FACT: "profileFact",
   DNA: "dna",
@@ -3349,6 +3350,11 @@ function routeChatPromptUnchecked(prompt, options = {}) {
   const relativeFact = parseRelativeFactPrompt(prompt);
   if (relativeFact) {
     return { intent: ChatIntent.RELATIVE_FACT, params: relativeFact };
+  }
+
+  const namedPeople = parseFindNamedPeoplePrompt(prompt);
+  if (namedPeople) {
+    return { intent: ChatIntent.FIND_NAMED_PEOPLE, params: namedPeople };
   }
 
   const bioRelatives = parseFindRelativesPrompt(prompt);

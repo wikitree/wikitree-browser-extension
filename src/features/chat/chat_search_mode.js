@@ -1,4 +1,5 @@
 import { parseSearchSpecPrompt } from "./chat_spec_parser";
+import { asksWhetherPeopleHaveProfiles } from "./chat_bio_relatives";
 import { nameWithRelatives } from "./chat_relative_clause";
 import { isRouterCanonicalSearch } from "./chat_router_canonical";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
@@ -1379,6 +1380,7 @@ export async function handleExplicitSearchMode({
         ChatIntent?.PROFILE_DUPLICATES,
         ChatIntent?.PERSON_BURIAL,
         ChatIntent?.FIND_BIO_RELATIVES,
+        ChatIntent?.FIND_NAMED_PEOPLE,
         ChatIntent?.IN_LAW_CHECK,
         ChatIntent?.PROFILE_FACT,
         ChatIntent?.DNA,
@@ -1458,6 +1460,13 @@ export async function handleExplicitSearchMode({
         console.debug("wbe: explicit wt mode deferring person bio prompt to main flow", {
           prompt: normalizedPrompt.substring(0, 60),
         });
+        return { handled: false, prompt: normalizedPrompt };
+      }
+
+      // "Do those people have WikiTree profiles?" after naming Jean Prévost and Françoise Lamontagne was a WT+
+      // search for every namesake (live, Heard-171, 2026-10-31): the main flow's planner finds those two.
+      if (routed?.intent === ChatIntent?.FALLBACK_AI && asksWhetherPeopleHaveProfiles(normalizedPrompt)) {
+        console.debug("wbe: explicit wt mode deferring a named people's profiles question to main flow");
         return { handled: false, prompt: normalizedPrompt };
       }
 

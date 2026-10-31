@@ -24,6 +24,7 @@ import {
   buildRelativesAiPrompt,
   readRelativesFromBio,
   relativesFromAiJson,
+  namedPeopleAsRelatives,
   searchRelatives,
 } from "./chat_bio_relatives";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
@@ -1463,6 +1464,31 @@ export function createChatPeopleHandlers({
     return answer;
   }
 
+  // "Do Jean Prévost and Françoise Lamontagne have WikiTree profiles?" (Heard-171, 2026-10-31): those people
+  // only, searched for as the profile's biography describes them when it names them (their years, and each
+  // other as a couple), else by name. {names, couple}.
+  async function tryHandleFindNamedPeoplePrompt(params, prompt = "") {
+    const names = (Array.isArray(params?.names) ? params.names : [])
+      .map((name) => String(name || "").replace(/\s+on\s+wikitree$/i, "").trim())
+      .filter(Boolean)
+      .slice(0, 6);
+    if (!names.length) return null;
+    const options = { names, couple: Boolean(params?.couple) && names.length === 2, skipDuplicates: true };
+    const root = getProfileSubjectRoot();
+    const key = root?.wtId || root?.key || "";
+    const checked = key ? await checkBioRelatives(key, options, { usePage: true }) : await searchNamedPeople(options);
+    if (checked.text) return checked.text;
+    return buildFindRelativesAnswer({ ...checked, askedNames: names });
+  }
+
+  // The people asked about, by name alone: no profile to read them from.
+  async function searchNamedPeople({ names, couple }) {
+    const relatives = namedPeopleAsRelatives(names, [], { couple });
+    notify(`Searching WikiTree for ${relatives.length === 1 ? names[0] : `${relatives.length} people`}…`);
+    const results = await searchRelativesOnWikiTree({ Id: 0 }, relatives, []);
+    return { subjectLabel: "", results, readBy: "", duplicates: null };
+  }
+
   // "Check my in-laws" (2026-10-18): the people married into the family with a parent missing on WikiTree, each
   // run through checkBioRelatives (their parents and siblings only), two at a time.
   async function tryHandleInLawCheckPrompt(params, prompt = "") {
@@ -1537,6 +1563,7 @@ export function createChatPeopleHandlers({
   // nothing to search, else {subjectLabel, results, readBy, duplicates, pageAttached}. Also run for each in-law.
   async function checkBioRelatives(key, params, { usePage = false, quiet = false } = {}) {
     const say = quiet ? () => {} : notify;
+    const askedNames = Array.isArray(params?.names) && params.names.length ? params.names : null;
     let [profile] =
       (await WikiTreeAPI.getProfile(
         WBE_CHAT_APP_ID,
@@ -1565,7 +1592,7 @@ export function createChatPeopleHandlers({
         pageAttached = readPageAttached(document, page.Name);
       }
     }
-    if (!profile?.Name) return { text: cantLoad(key) };
+    if (!profile?.Name) return askedNames ? await searchNamedPeople(params) : { text: cantLoad(key) };
     // The profile person's own duplicates, alongside (the user, 2026-10-07).
     const pagePerson = pageAttached
       ? {
@@ -1602,6 +1629,7 @@ export function createChatPeopleHandlers({
     // Full names, not "Edward (Rowland-18000)" (the user, 2026-10-12).
     const subjectLabel = `${fullName({ name: profile.RealName || profile.FirstName, lnab: profile.LastNameAtBirth, wtid: profile.Name })} (${profile.Name})`;
     const bio = profile.Bio || profile.bio || ""; // the API returns "bio"
+    if (askedNames && !bio.replace(/\[\[Category:[^\]]*\]\]|==[^=]+==|<references\s*\/>/g, "").trim()) return await searchNamedPeople(params);
     if (!bio.replace(/\[\[Category:[^\]]*\]\]|==[^=]+==|<references\s*\/>/g, "").trim()) {
       // (the duplicates still count for "check my in-laws": a duplicate may have the parents)
       return { text: `${subjectLabel} has no biography, so there are no relatives to read from it.`, subjectLabel, noBio: true, duplicates: await duplicatesPromise };
@@ -1634,6 +1662,10 @@ export function createChatPeopleHandlers({
       }
     }
     if (!relatives.length) relatives = readRelativesFromBio(bio, profile);
+    if (askedNames) {
+      console.debug(`wbe: asked about ${askedNames.join(", ")}; the bio names ${relatives.map((r) => `${r.role} ${r.given.join(" ")} ${r.surnames.join("/")}`).join("; ").slice(0, 600)}`);
+      relatives = namedPeopleAsRelatives(askedNames, relatives, { couple: params?.couple });
+    }
     const roles = Array.isArray(params?.roles) ? params.roles : [];
     if (roles.length) relatives = relatives.filter((relative) => roles.includes(relative.role));
     if (!relatives.length) {
@@ -1675,9 +1707,19 @@ export function createChatPeopleHandlers({
       )),
     ];
 
-    say(`Searching WikiTree for ${relatives.length} relative${relatives.length === 1 ? "" : "s"}…`);
-    const results = await searchRelatives({
-      subject: profile,
+    say(
+      askedNames
+        ? `Searching WikiTree for ${askedNames.length === 1 ? askedNames[0] : `${askedNames.length} people`}…`
+        : `Searching WikiTree for ${relatives.length} relative${relatives.length === 1 ? "" : "s"}…`
+    );
+    const results = await searchRelativesOnWikiTree(profile, relatives, attached);
+    const duplicates = await duplicatesPromise;
+    return { subjectLabel, results, readBy, duplicates, pageAttached };
+  }
+
+  function searchRelativesOnWikiTree(subject, relatives, attached) {
+    return searchRelatives({
+      subject,
       relatives,
       attached,
       searchPerson: async (searchParams) => {
@@ -1695,8 +1737,6 @@ export function createChatPeopleHandlers({
         return new Map(items.map((item) => [Number(item?.person?.Id), spousesOf(item?.person)]).filter(([id]) => id));
       },
     });
-    const duplicates = await duplicatesPromise;
-    return { subjectLabel, results, readBy, duplicates, pageAttached };
   }
 
   async function tryHandlePersonMarriagePrompt(params, prompt = "") {
@@ -4434,6 +4474,7 @@ export function createChatPeopleHandlers({
     tryHandleProfileDuplicatesPrompt,
     tryHandlePersonBurialPrompt,
     tryHandleFindBioRelativesPrompt,
+    tryHandleFindNamedPeoplePrompt,
     tryHandleInLawCheckPrompt,
     tryHandleProfileFactPrompt,
     tryHandleDnaPrompt,
