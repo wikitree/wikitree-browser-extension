@@ -737,6 +737,11 @@ function maybeCoerceFollowupConnectionPrompt(prompt) {
   if (nameWithRelatives(raw)) {
     return { prompt: raw, changed: false, reason: "" };
   }
+  // "Please locate profiles of the couple Jean Prévost and Françoise Lamontagne" asks for their profiles
+  // (live, Heard-171, 2026-10-31: after an earlier answer it became a connection, then "which Françoise?").
+  if (asksWhetherPeopleHaveProfiles(raw)) {
+    return { prompt: raw, changed: false, reason: "" };
+  }
 
   const andMatch = raw.match(/^\s*(.+?)\s+and\s+(.+?)\s*\??\s*$/i);
   if (!andMatch?.[1] || !andMatch?.[2]) {
@@ -3345,281 +3350,297 @@ function editTextActions(text) {
   ];
 }
 
-async function sendChatPrompt() {
-  const $input = $(`#${CHAT_INPUT_ID}`);
-  if ($input.length === 0) return;
-
-  const rawPrompt = stripPromptListDecorations(String($input.val() || ""));
-  const editInsert = pendingEditInsert;
-  pendingEditInsert = null;
-  if (!rawPrompt) {
-    // Enter again after "add birth": insert what it wrote.
-    if (editInsert) void editInsert();
-    return;
-  }
-  promptHistory.add(rawPrompt);
-  historyStepper.reset();
-  // "help", "what can I type?": the examples panel.
-  if (isHelpPrompt(rawPrompt)) {
-    $input.val("");
-    showNoAiExamples();
-    return;
-  }
-  // "sign out of Apps": the apps server only (the header's "Sign out" does the same).
-  if (isAppsSignOutPrompt(rawPrompt)) {
-    $input.val("");
-    await signOutOfApps(rawPrompt);
-    return;
-  }
-  // "show me around" (or "show me around the Surname River"): Genie plays its own demo (chat_tour.js).
-  const tour = tourFor(rawPrompt);
-  if (tour) {
-    $input.val("");
-    showMeAround(tour);
-    return;
-  }
-  // On the edit page, "what's missing?": the Gold Standard checklist on the unsaved form.
-  if (isMissingCheckPrompt(rawPrompt, { onEditPage: isProfileEdit })) {
-    $input.val("");
-    appendMessage("user", rawPrompt);
-    await answerEditPageMissing();
-    return;
-  }
-  // On the edit page, "check the bio against the form": where the two disagree.
-  if (isFormBioCheckPrompt(rawPrompt, { onEditPage: isProfileEdit })) {
-    $input.val("");
-    appendMessage("user", rawPrompt, { shouldPersist: false });
-    const message = formBioDifferencesMessage(await editPageDifferences());
-    appendMessage("assistant", message || "The form and the biography agree on the birth and death dates and places, as far as I can tell.", { shouldPersist: false });
-    return;
-  }
-  // On the edit page, "suggest categories": AI search terms, checked against the category database.
-  if (isCategorySuggestPrompt(rawPrompt, { onEditPage: isProfileEdit })) {
-    $input.val("");
-    appendMessage("user", rawPrompt);
-    await answerCategorySuggestions();
-    return;
-  }
-  // On the edit page, "suggest a change explanation": from what changed since the page loaded.
-  if (isChangeExplanationPrompt(rawPrompt, { onEditPage: isProfileEdit })) {
-    $input.val("");
-    appendMessage("user", rawPrompt, { shouldPersist: false });
-    await answerChangeExplanation();
-    return;
-  }
-  // On the edit page, "add death", "auto categories": the edit menu's own items (chat_edit_page.js).
-  const editCommand = parseEditCommand(rawPrompt, { onEditPage: isProfileEdit });
-  if (editCommand) {
-    $input.val("");
-    appendMessage("user", rawPrompt);
-    await runEditCommand(editCommand);
-    return;
-  }
-
-  await finishAppsSignIn();
-  // (a login that ran out while the page sat open is said before the answer that misses what it would have shown)
-  await refreshAppsLoginState({ warn: true });
-  // Normalize compact suggestion formats like "dbe803" to "Suggestions=803"
-  // "John Theodore Weatherall's (Weatherall-113) bio" → "Weatherall-113's bio";
-  // "How about his agrandparents?" → "his grandparents?" (live, 2026-10-08).
-  const normalizedPrompt = tidyKinFollowUp(preferBracketedIds(parseSuggestionNumberFromPrompt(rawPrompt)));
-
+// The typed prompt's rewrites, in order (stage B of .chat-lab/send-pipeline-plan.md). Each step gets
+// {raw, normalized, prompt, retryRequested, note, nameGrouping}, may change prompt (and note, shown under
+// the user's message), and returns true when it has ended the turn itself.
+const REWRITE_STEPS = [
   // "siblings of the wife of Sarah's father" -> "Sarah's father's wife's siblings",
   // the form the relation and bio handlers parse.
-  let prompt = rewriteOfRelationChain(normalizedPrompt) || normalizedPrompt;
-  const retryRequested = isRetryPrompt(rawPrompt);
-
-  if (retryRequested) {
-    if (!lastNonRetryUserPrompt) {
-      appendMessage("assistant", "No earlier request to retry yet. Ask a question first.");
-      $input.val("");
-      refreshWtPlusSuggestionPickerForCurrentPopup();
-      return;
-    }
-    // A retry should replay the previous request verbatim, not answer a stale disambiguation prompt.
-    pendingDisambiguationContext = null;
-    pendingFollowupOffer = null;
-    prompt = sanitizeRetriedPrompt(lastNonRetryUserPrompt);
-    appendMessage("assistant", `Retrying your previous request: ${prompt}`, { shouldPersist: false });
-  }
-
+  {
+    name: "relationChain",
+    run: (rewrite) => {
+      rewrite.prompt = rewriteOfRelationChain(rewrite.normalized) || rewrite.normalized;
+      return false;
+    },
+  },
+  {
+    name: "retry",
+    run: (rewrite) => {
+      if (!rewrite.retryRequested) return false;
+      if (!lastNonRetryUserPrompt) {
+        appendMessage("assistant", "No earlier request to retry yet. Ask a question first.");
+        return true;
+      }
+      // A retry should replay the previous request verbatim, not answer a stale disambiguation prompt.
+      pendingDisambiguationContext = null;
+      pendingFollowupOffer = null;
+      rewrite.prompt = sanitizeRetriedPrompt(lastNonRetryUserPrompt);
+      appendMessage("assistant", `Retrying your previous request: ${rewrite.prompt}`, { shouldPersist: false });
+      return false;
+    },
+  },
   // Answer to an offered follow-up ("...would you like to try X instead?").
   // Consume it before any routing so a bare "Sure." never reaches the
   // profile-name search. The offer is single-use either way.
-  let followupOfferNote = "";
-  if (pendingFollowupOffer && !retryRequested) {
-    const offer = pendingFollowupOffer;
-    pendingFollowupOffer = null;
-    if (isNegativeReply(prompt)) {
-      appendMessage("user", normalizedPrompt);
-      appendMessage("assistant", "No problem — ask me anything else when you're ready.");
-      $input.val("");
-      refreshWtPlusSuggestionPickerForCurrentPopup();
-      return;
-    }
-    if (isAffirmativeReply(prompt)) {
-      prompt = offer.prompt;
-      followupOfferNote = `Running: ${prompt}`;
-    }
-  } else if (!retryRequested) {
-    // Any unrelated prompt cancels a stale offer.
-    pendingFollowupOffer = null;
-  }
-
+  {
+    name: "followupOffer",
+    run: (rewrite) => {
+      if (rewrite.retryRequested) return false;
+      const offer = pendingFollowupOffer;
+      // (any unrelated prompt cancels a stale offer)
+      pendingFollowupOffer = null;
+      if (!offer) return false;
+      if (isNegativeReply(rewrite.prompt)) {
+        appendMessage("user", rewrite.normalized);
+        appendMessage("assistant", "No problem — ask me anything else when you're ready.");
+        return true;
+      }
+      if (isAffirmativeReply(rewrite.prompt)) {
+        rewrite.prompt = offer.prompt;
+        rewrite.note = `Running: ${rewrite.prompt}`;
+      }
+      return false;
+    },
+  },
   // A reply that adds detail to the question Genie just couldn't answer (or asked about):
   // the AI reads them together, and the combined request runs (Elaine, 2026-10-11).
   // A correction of the last question ("I asked about Ann Heard", "Neither of those people are married
   // to a Jean Prévost"), also after an answer or a "which one did you mean?" list: the AI reads the
   // question, Genie's answer and the correction together (Heard-171, 2026-10-31).
-  const unansweredBefore = awaitingDetailFor;
-  awaitingDetailFor = "";
-  const correcting =
-    !unansweredBefore &&
-    looksLikeCorrection(prompt) &&
-    !(pendingDisambiguationContext && resolveDisambiguationReply(prompt, pendingDisambiguationContext.candidates || []));
-  const questionBefore = unansweredBefore || (correcting ? pendingDisambiguationContext?.prompt || lastRoutedPrompt || lastNonRetryUserPrompt : "");
-  if (
-    questionBefore &&
-    !retryRequested &&
-    !followupOfferNote &&
-    (correcting || !pendingDisambiguationContext) &&
-    document.querySelector('input[name="wbe-chat-context"]:checked')?.value !== "new"
-  ) {
-    const merged = await mergeFollowupWithUnanswered({
-      previous: questionBefore,
-      reply: prompt,
-      askAi: askAiBriefly,
-      answer: lastAssistantText(),
-      profile: getPageRootPerson(),
-    });
-    if (merged) {
-      console.info("wbe: follow-up merged with the earlier question", { previous: questionBefore, reply: prompt, merged });
-      prompt = merged;
-      followupOfferNote = `Taking that as: ${merged}`;
-      // (the list it asked from is answered by the merged question)
-      pendingDisambiguationContext = null;
-    }
-  }
-
-  lastRoutedPrompt = prompt;
-  ensureResolvedPersonMemoryLoaded();
-  // "treat Rousseau and Rousseaù as the same surname" names surnames, not people: no alias or
-  // connection rewrites (live, 2026-10-16: "Rousseau" became Pierre Rousseau Smit, then a connection lookup).
-  const isNameGrouping = Boolean(routeChatPrompt(prompt)?.params?.grouping);
-  // ("Philip Beacall father of Robert and Jane" is a search by names: a remembered Jane Beacall
-  // isn't necessarily his Jane; live, 2026-10-21, it became "and to Jane Beacall")
-  const namesRelatives = Boolean(nameWithRelatives(prompt));
-  const aliasRewrite = isNameGrouping || namesRelatives ? { changed: false } : applyResolvedPersonAliasesToPrompt(prompt);
-  if (aliasRewrite.changed) {
-    prompt = aliasRewrite.prompt;
-    console.debug("wbe: resolved prompt alias from chat memory", {
-      originalPrompt: normalizedPrompt,
-      rewrittenPrompt: prompt,
-      matchedAlias: aliasRewrite.matchedAlias,
-      resolvedWtId: aliasRewrite.person?.wtId || "",
-    });
-  }
+  {
+    name: "mergeWithEarlierQuestion",
+    run: async (rewrite) => {
+      const unansweredBefore = awaitingDetailFor;
+      awaitingDetailFor = "";
+      const prompt = rewrite.prompt;
+      const correcting =
+        !unansweredBefore &&
+        looksLikeCorrection(prompt) &&
+        !(pendingDisambiguationContext && resolveDisambiguationReply(prompt, pendingDisambiguationContext.candidates || []));
+      const questionBefore = unansweredBefore || (correcting ? pendingDisambiguationContext?.prompt || lastRoutedPrompt || lastNonRetryUserPrompt : "");
+      if (
+        !questionBefore ||
+        rewrite.retryRequested ||
+        rewrite.note ||
+        !(correcting || !pendingDisambiguationContext) ||
+        document.querySelector('input[name="wbe-chat-context"]:checked')?.value === "new"
+      ) {
+        return false;
+      }
+      const merged = await mergeFollowupWithUnanswered({
+        previous: questionBefore,
+        reply: prompt,
+        askAi: askAiBriefly,
+        answer: lastAssistantText(),
+        profile: getPageRootPerson(),
+      });
+      if (merged) {
+        console.info("wbe: follow-up merged with the earlier question", { previous: questionBefore, reply: prompt, merged });
+        rewrite.prompt = merged;
+        rewrite.note = `Taking that as: ${merged}`;
+        // (the list it asked from is answered by the merged question)
+        pendingDisambiguationContext = null;
+      }
+      return false;
+    },
+  },
+  // Names remembered from earlier answers ("Philip Beacall" → Beacall-10 once chosen).
+  {
+    name: "rememberedNames",
+    run: (rewrite) => {
+      // (what the question is, before names and pronouns are swapped for IDs)
+      lastRoutedPrompt = rewrite.prompt;
+      ensureResolvedPersonMemoryLoaded();
+      // "treat Rousseau and Rousseaù as the same surname" names surnames, not people: no alias or
+      // connection rewrites (live, 2026-10-16: "Rousseau" became Pierre Rousseau Smit, then a connection lookup).
+      rewrite.nameGrouping = Boolean(routeChatPrompt(rewrite.prompt)?.params?.grouping);
+      // ("Philip Beacall father of Robert and Jane" is a search by names: a remembered Jane Beacall
+      // isn't necessarily his Jane; live, 2026-10-21, it became "and to Jane Beacall")
+      if (rewrite.nameGrouping || nameWithRelatives(rewrite.prompt)) return false;
+      const aliasRewrite = applyResolvedPersonAliasesToPrompt(rewrite.prompt);
+      if (aliasRewrite.changed) {
+        rewrite.prompt = aliasRewrite.prompt;
+        console.debug("wbe: resolved prompt alias from chat memory", {
+          originalPrompt: rewrite.normalized,
+          rewrittenPrompt: rewrite.prompt,
+          matchedAlias: aliasRewrite.matchedAlias,
+          resolvedWtId: aliasRewrite.person?.wtId || "",
+        });
+      }
+      return false;
+    },
+  },
   // "his wife" as a follow-up to an answer about one person means that
   // person's wife, if the pronoun fits; otherwise the profile person.
-  const isFollowupContext =
-    document.querySelector('input[name="wbe-chat-context"]:checked')?.value !== "new";
-  lastSubjectPrompt = normalizedPrompt;
-  // ("New search" starts again from the profile person)
-  if (!isFollowupContext) lastAnswerSubject = null;
-  // (someone chosen in the picker is "him"/"her" in New mode too)
-  const pronounSubject = (isFollowupContext && lastAnswerSubject) || chosenSubject();
-  if (pronounSubject && /\b(?:his|her|their)\s+[A-Za-z]/i.test(prompt)) {
-    const pronounRewrite = rewritePronounToSubject(prompt, pronounSubject, await getSubjectGender(pronounSubject));
-    console.debug("wbe: pronoun follow-up", {
-      prompt,
-      subject: pronounSubject.wtId,
-      gender: pronounSubject.gender,
-      rewrittenPrompt: pronounRewrite.changed ? pronounRewrite.prompt : "",
-    });
-    if (pronounRewrite.changed) prompt = pronounRewrite.prompt;
-  }
-  const coercedConnectionPrompt = isNameGrouping ? { changed: false } : maybeCoerceFollowupConnectionPrompt(prompt);
-  if (coercedConnectionPrompt.changed) {
-    prompt = coercedConnectionPrompt.prompt;
-    console.debug("wbe: coerced follow-up prompt to connection lookup", {
-      originalPrompt: normalizedPrompt,
-      rewrittenPrompt: prompt,
-      reason: coercedConnectionPrompt.reason,
-    });
-  }
-
-  const previousStructuredResult = lastStructuredResult;
-  // If the user chose "New search", discard previous result context before routing
-  const newQueryContext = document.querySelector('input[name="wbe-chat-context"]:checked')?.value === "new";
-  if (newQueryContext) {
-    setPersistedLastStructuredResult(null);
-  }
-
-  appendMessage("user", normalizedPrompt);
-  if (followupOfferNote) {
-    appendMessage("assistant", followupOfferNote, { shouldPersist: false });
-  }
-  if (!retryRequested) {
-    lastNonRetryUserPrompt = rawPrompt;
-  }
-  $input.val("");
-  refreshWtPlusSuggestionPickerForCurrentPopup();
-  setPendingState(true);
-  // Show global chat loader while processing
-  try {
-    showChatShaky("Working...", "center");
-  } catch (e) {
-    /* ignore if shaky helper unavailable */
-  }
-
-  try {
-    const jsonBatchPayload = extractJsonBatchPayload(prompt);
-    if (jsonBatchPayload !== null) {
-      appendMessage("assistant", "Detected JSON batch mode. Processing people from the pasted JSON...", {
-        shouldPersist: false,
+  {
+    name: "pronouns",
+    run: async (rewrite) => {
+      const isFollowupContext = document.querySelector('input[name="wbe-chat-context"]:checked')?.value !== "new";
+      lastSubjectPrompt = rewrite.normalized;
+      // ("New search" starts again from the profile person)
+      if (!isFollowupContext) lastAnswerSubject = null;
+      // (someone chosen in the picker is "him"/"her" in New mode too)
+      const pronounSubject = (isFollowupContext && lastAnswerSubject) || chosenSubject();
+      if (!pronounSubject || !/\b(?:his|her|their)\s+[A-Za-z]/i.test(rewrite.prompt)) return false;
+      const pronounRewrite = rewritePronounToSubject(rewrite.prompt, pronounSubject, await getSubjectGender(pronounSubject));
+      console.debug("wbe: pronoun follow-up", {
+        prompt: rewrite.prompt,
+        subject: pronounSubject.wtId,
+        gender: pronounSubject.gender,
+        rewrittenPrompt: pronounRewrite.changed ? pronounRewrite.prompt : "",
       });
-    }
+      if (pronounRewrite.changed) rewrite.prompt = pronounRewrite.prompt;
+      return false;
+    },
+  },
+  // "A and B" after an answer about one of them: how they're connected.
+  {
+    name: "connectionFollowup",
+    run: (rewrite) => {
+      if (rewrite.nameGrouping) return false;
+      const coerced = maybeCoerceFollowupConnectionPrompt(rewrite.prompt);
+      if (coerced.changed) {
+        rewrite.prompt = coerced.prompt;
+        console.debug("wbe: coerced follow-up prompt to connection lookup", {
+          originalPrompt: rewrite.normalized,
+          rewrittenPrompt: rewrite.prompt,
+          reason: coerced.reason,
+        });
+      }
+      return false;
+    },
+  },
+];
 
-    const jsonBatchResponseEarly = await tryHandleJsonPeopleBatchPrompt(prompt);
-    if (jsonBatchResponseEarly) {
-      await handleChatResult(jsonBatchResponseEarly);
-      return;
-    }
+// Commands that take the typed text as it is, before any rewriting or routing (stage A of
+// .chat-lab/send-pipeline-plan.md). `match` → a truthy value, passed on to `run`.
+const FRONT_DOOR_STEPS = [
+  // "help", "what can I type?": the examples panel.
+  { name: "help", match: (raw) => isHelpPrompt(raw), run: () => void showNoAiExamples() },
+  // "sign out of Apps": the apps server only (the header's "Sign out" does the same).
+  { name: "appsSignOut", match: (raw) => isAppsSignOutPrompt(raw), run: (raw) => signOutOfApps(raw) },
+  // "show me around" (or "show me around the Surname River"): Genie plays its own demo (chat_tour.js).
+  { name: "tour", match: (raw) => tourFor(raw), run: (raw, tour) => void showMeAround(tour) },
+  // On the edit page, "what's missing?": the Gold Standard checklist on the unsaved form.
+  {
+    name: "editPageMissing",
+    match: (raw) => isMissingCheckPrompt(raw, { onEditPage: isProfileEdit }),
+    run: async (raw) => {
+      appendMessage("user", raw);
+      await answerEditPageMissing();
+    },
+  },
+  // On the edit page, "check the bio against the form": where the two disagree.
+  {
+    name: "formBioCheck",
+    match: (raw) => isFormBioCheckPrompt(raw, { onEditPage: isProfileEdit }),
+    run: async (raw) => {
+      appendMessage("user", raw, { shouldPersist: false });
+      const message = formBioDifferencesMessage(await editPageDifferences());
+      appendMessage("assistant", message || "The form and the biography agree on the birth and death dates and places, as far as I can tell.", { shouldPersist: false });
+    },
+  },
+  // On the edit page, "suggest categories": AI search terms, checked against the category database.
+  {
+    name: "categorySuggestions",
+    match: (raw) => isCategorySuggestPrompt(raw, { onEditPage: isProfileEdit }),
+    run: async (raw) => {
+      appendMessage("user", raw);
+      await answerCategorySuggestions();
+    },
+  },
+  // On the edit page, "suggest a change explanation": from what changed since the page loaded.
+  {
+    name: "changeExplanation",
+    match: (raw) => isChangeExplanationPrompt(raw, { onEditPage: isProfileEdit }),
+    run: async (raw) => {
+      appendMessage("user", raw, { shouldPersist: false });
+      await answerChangeExplanation();
+    },
+  },
+  // On the edit page, "add death", "auto categories": the edit menu's own items (chat_edit_page.js).
+  {
+    name: "editCommand",
+    match: (raw) => parseEditCommand(raw, { onEditPage: isProfileEdit }),
+    run: async (raw, command) => {
+      appendMessage("user", raw);
+      await runEditCommand(command);
+    },
+  },
+];
 
-    // "1800s" may mean the 19th century or the decade 1800-1809: ask, and let the
-    // buttons resend the prompt with an explicit year range.
-    prompt = rewriteExplicitCenturyDecadeWording(prompt);
-    const centuryDecadeChoice = jsonBatchPayload === null ? findAmbiguousCenturyDecade(prompt) : null;
-    if (centuryDecadeChoice) {
-      await handleChatResult({
-        message: centuryDecadeChoice.question,
-        actions: centuryDecadeChoice.choices.map((choice) => ({
-          label: choice.label,
+/** The first front-door command the typed text is, as {step, match}, or null. */
+function frontDoorStep(rawPrompt) {
+  for (const step of FRONT_DOOR_STEPS) {
+    const match = step.match(rawPrompt);
+    if (match) return { step, match };
+  }
+  return null;
+}
+
+// A handler's answer shown, ending the turn (a string is a plain message).
+async function answered(result) {
+  await handleChatResult(typeof result === "string" ? { message: result } : result);
+  return true;
+}
+
+// What runs before the router, in order (stage D of .chat-lab/send-pipeline-plan.md). Each step gets the
+// turn ({prompt, answerWithAi, previousStructuredResult, newQueryContext, jsonBatchPayload}) and returns
+// true when it has answered; it may rewrite turn.prompt for the steps after it.
+const BEFORE_ROUTING_STEPS = [
+  {
+    name: "jsonBatch",
+    run: async (turn) => {
+      if (turn.jsonBatchPayload !== null) {
+        appendMessage("assistant", "Detected JSON batch mode. Processing people from the pasted JSON...", {
+          shouldPersist: false,
+        });
+      }
+      const result = await tryHandleJsonPeopleBatchPrompt(turn.prompt);
+      return result ? answered(result) : false;
+    },
+  },
+  // "1800s" may mean the 19th century or the decade 1800-1809: ask, and let the
+  // buttons resend the prompt with an explicit year range.
+  {
+    name: "centuryOrDecade",
+    run: async (turn) => {
+      turn.prompt = rewriteExplicitCenturyDecadeWording(turn.prompt);
+      const choice = turn.jsonBatchPayload === null ? findAmbiguousCenturyDecade(turn.prompt) : null;
+      if (!choice) return false;
+      return answered({
+        message: choice.question,
+        actions: choice.choices.map((option) => ({
+          label: option.label,
           actionType: "send-prompt",
-          prompt: choice.prompt,
+          prompt: option.prompt,
         })),
       });
-      return;
-    }
-
-    // Extra columns: "add a privacy column" goes on the last result; "my cousins
-    // with a gender column" runs "my cousins", then adds it (Discord, 2026-10-06).
-    pendingRequestedColumns = null;
-    const columnRequest = jsonBatchPayload === null ? parseColumnRequest(prompt) : null;
-    if (columnRequest && !columnRequest.rest) {
-      await handleChatResult(await addColumnsToResult(previousStructuredResult, columnRequest.keys));
-      return;
-    }
-    if (columnRequest) {
-      console.debug("wbe: columns requested", columnRequest);
-      pendingRequestedColumns = columnRequest.keys;
-      prompt = columnRequest.rest;
-    }
-
-    // Handle pending disambiguation: user is replying to a "which one did you mean?" prompt
-    if (pendingDisambiguationContext) {
+    },
+  },
+  // Extra columns: "add a privacy column" goes on the last result; "my cousins
+  // with a gender column" runs "my cousins", then adds it (Discord, 2026-10-06).
+  {
+    name: "columns",
+    run: async (turn) => {
+      pendingRequestedColumns = null;
+      const columnRequest = turn.jsonBatchPayload === null ? parseColumnRequest(turn.prompt) : null;
+      if (columnRequest && !columnRequest.rest) return answered(await addColumnsToResult(turn.previousStructuredResult, columnRequest.keys));
+      if (columnRequest) {
+        console.debug("wbe: columns requested", columnRequest);
+        pendingRequestedColumns = columnRequest.keys;
+        turn.prompt = columnRequest.rest;
+      }
+      return false;
+    },
+  },
+  // Handle pending disambiguation: user is replying to a "which one did you mean?" prompt
+  {
+    name: "whichOneReply",
+    run: async (turn) => {
+      if (!pendingDisambiguationContext) return false;
       const ctx = pendingDisambiguationContext;
-      const chosen = resolveDisambiguationReply(prompt, ctx.candidates);
+      const chosen = resolveDisambiguationReply(turn.prompt, ctx.candidates);
       if (chosen && ctx.intent === "replayPrompt") {
         // The question again, with the chosen one's WikiTree ID for the name: "Beacall-10's ancestors"
         pendingDisambiguationContext = null;
@@ -3629,42 +3650,45 @@ async function sendChatPrompt() {
         const replay = chosen.Name && namePattern?.test(ctx.prompt) ? ctx.prompt.replace(namePattern, chosen.Name) : ctx.prompt;
         // (after this send's finally, which would clear the replay's "Working...")
         setTimeout(() => sendClarifiedPrompt(replay), 0);
-        return;
+        return true;
       }
-      if (chosen) {
-        pendingDisambiguationContext = null;
-        const resolvedParams = {
-          ...ctx.params,
-          target: chosen.Name || String(chosen.Id || ""),
-          _resolvedPerson: chosen,
-        };
-        // (a bio question isn't a routed intent: it runs again for the chosen person)
-        const result =
-          ctx.intent === "personBio"
-            ? await tryHandlePersonBioPrompt(ctx.prompt, { resolvedPerson: chosen })
-            : await executeRoutedIntent({ intent: ctx.intent, params: resolvedParams }, ctx.prompt);
-        if (result) {
-          // The chosen one is who the name and "his"/"her" mean from now on: after choosing
-          // Beacall-10 for "Philip Beacall's mother", "his bio" opened the page person's bio and
-          // "Philip Beacall's wife" asked again (the user, 2026-10-22).
-          if (ctx.name) rememberResolvedPersonFromMatch(chosen, [ctx.name]);
-          await handleChatResult(typeof result === "string" ? { message: result } : result);
-          if (chosen.Name) {
-            lastAnswerSubject = {
-              wtId: chosen.Name,
-              displayName: fullWikiTreeName(chosen) || chosen.RealName || chosen.Name,
-              ...(chosen.Gender !== undefined ? { gender: String(chosen.Gender || "") } : {}),
-            };
-          }
-          return;
-        }
-      } else {
+      if (!chosen) {
         // Not a disambiguation reply — clear context and fall through to normal routing
         pendingDisambiguationContext = null;
+        return false;
       }
-    }
-    const exportFormat = lastStructuredResult?.rows?.length ? parseExportResultPrompt(prompt) : null;
-    if (exportFormat) {
+      pendingDisambiguationContext = null;
+      const resolvedParams = {
+        ...ctx.params,
+        target: chosen.Name || String(chosen.Id || ""),
+        _resolvedPerson: chosen,
+      };
+      // (a bio question isn't a routed intent: it runs again for the chosen person)
+      const result =
+        ctx.intent === "personBio"
+          ? await tryHandlePersonBioPrompt(ctx.prompt, { resolvedPerson: chosen })
+          : await executeRoutedIntent({ intent: ctx.intent, params: resolvedParams }, ctx.prompt);
+      if (!result) return false;
+      // The chosen one is who the name and "his"/"her" mean from now on: after choosing
+      // Beacall-10 for "Philip Beacall's mother", "his bio" opened the page person's bio and
+      // "Philip Beacall's wife" asked again (the user, 2026-10-22).
+      if (ctx.name) rememberResolvedPersonFromMatch(chosen, [ctx.name]);
+      await answered(result);
+      if (chosen.Name) {
+        lastAnswerSubject = {
+          wtId: chosen.Name,
+          displayName: fullWikiTreeName(chosen) || chosen.RealName || chosen.Name,
+          ...(chosen.Gender !== undefined ? { gender: String(chosen.Gender || "") } : {}),
+        };
+      }
+      return true;
+    },
+  },
+  {
+    name: "export",
+    run: async (turn) => {
+      const exportFormat = lastStructuredResult?.rows?.length ? parseExportResultPrompt(turn.prompt) : null;
+      if (!exportFormat) return false;
       const exporters = {
         csv: exportResultAsCsv,
         xlsx: exportResultAsXlsx,
@@ -3681,25 +3705,30 @@ async function sendChatPrompt() {
         console.info("wbe: export failed", { exportFormat, error });
         await handleChatResult({ message: "Sorry, the export failed. Try the Export buttons above the results table." });
       }
-      return;
-    }
-    // C33: "how many have no sources?" narrows the WT+ search behind the current result.
-    const narrowBaseQuery = getResultWtPlusQuery(lastStructuredResult);
-    const narrow = narrowBaseQuery ? parseWtPlusNarrowPrompt(prompt) : null;
-    if (narrow) {
+      return true;
+    },
+  },
+  // C33: "how many have no sources?" narrows the WT+ search behind the current result.
+  {
+    name: "narrowWtPlus",
+    run: async (turn) => {
+      const narrowBaseQuery = getResultWtPlusQuery(lastStructuredResult);
+      const narrow = narrowBaseQuery ? parseWtPlusNarrowPrompt(turn.prompt) : null;
+      if (!narrow) return false;
       const narrowedQuery = narrowWtPlusQuery(narrowBaseQuery, narrow.flag);
       console.info("wbe: narrowing the last WT+ search", { narrowBaseQuery, narrowedQuery });
       let narrowResult = await tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, narrowedQuery);
       if (narrowResult && typeof narrowResult === "object" && isLocallyFilteredResult(lastStructuredResult)) {
         narrowResult = restrictNarrowResultToRows(narrowResult, lastStructuredResult.rows, narrow.label, narrowedQuery);
       }
-      if (narrowResult) {
-        await handleChatResult(typeof narrowResult === "string" ? { message: narrowResult } : narrowResult);
-        return;
-      }
-    }
-    // "questions you couldn't answer": the list kept in this browser (chat_answer.js).
-    if (parseUnansweredPrompt(prompt)) {
+      return narrowResult ? answered(narrowResult) : false;
+    },
+  },
+  // "questions you couldn't answer": the list kept in this browser (chat_answer.js).
+  {
+    name: "unansweredList",
+    run: async (turn) => {
+      if (!parseUnansweredPrompt(turn.prompt)) return false;
       const list = await loadUnanswered();
       const listText = unansweredMessage(list);
       appendMessage("assistant", listText, {
@@ -3711,467 +3740,578 @@ async function sendChatPrompt() {
             ]
           : [],
       });
-      return;
-    }
-    // A question to answer in words (the AI said so, or "ask: …"): skip the
-    // search planner and go to the AI answer below.
-    let answerWithAi = false;
-    try {
-      const modeResult = await handleExplicitSearchMode({
-        prompt,
-        chatPopupId: CHAT_POPUP_ID,
-        hasStructuredResult: Boolean(lastStructuredResult?.rows?.length),
-        getLastStructuredResult: () => lastStructuredResult,
-        ChatIntent,
-        routeChatPrompt,
-        buildRecentConversationForAi,
-        buildRecentUserMessagesForAi,
-        getChatAiConfig,
-        appendMessage,
-        tryHandleProfileSearchPrompt,
-        handleChatResult,
-        extractFollowupTableFilterText,
-        openResultsTable,
-        tryHandleAiPlannedIntent,
-        setExplicitMode: setCurrentChatMode,
-        continueQueryContext: !newQueryContext,
-        translateWtPlusRefinementTerms,
-        reRunSavedWtPlusQuery,
-        getLastExecutedWtPlusQuery,
-      });
-      prompt = modeResult.prompt;
-      answerWithAi = Boolean(modeResult.answer);
-      console.debug("wbe: explicit mode result", {
-        handled: Boolean(modeResult?.handled),
-        prompt: String(prompt || "").substring(0, 60),
-      });
-      if (modeResult.handled) {
-        return;
-      }
-    } catch (modeErr) {
-      console.debug("wbe: chat mode handling failed", modeErr);
-    }
-
-    const correctionResponse = await tryHandleConnectionCorrectionPrompt(prompt);
-    if (correctionResponse) {
-      await handleChatResult(
-        typeof correctionResponse === "string" ? { message: correctionResponse } : correctionResponse
-      );
-      return;
-    }
-
-    // Intercept spouse-bio style prompts early so short follow-ups (e.g., "Dona's bio?")
-    // can be resolved against recent structured results or DOM before normal routing.
-    // "…adoptive parents were Jean Prévost and Françoise Lamontagne. Do those people have WikiTree profiles?" is
-    // about those two, not "the parents of This profile mentions that Ann Heard" (Heard-171, 2026-10-31).
-    const asksAboutPeoplesProfiles = asksWhetherPeopleHaveProfiles(prompt);
-    try {
-      // Early pronoun follow-up handler (e.g., "Their bios?") that uses lastStructuredResult
+      return true;
+    },
+  },
+  // A question to answer in words (the AI said so, or "ask: …"): skip the
+  // search planner and go to the AI answer below.
+  {
+    name: "searchMode",
+    run: async (turn) => {
       try {
-        const pronounEarly = asksAboutPeoplesProfiles ? null : await tryHandlePronounFollowup(prompt);
-        if (pronounEarly) {
-          if (typeof pronounEarly === "string") {
-            await handleChatResult({ message: pronounEarly });
-          } else {
-            await handleChatResult(pronounEarly);
-          }
-          return;
-        }
+        const modeResult = await handleExplicitSearchMode({
+          prompt: turn.prompt,
+          chatPopupId: CHAT_POPUP_ID,
+          hasStructuredResult: Boolean(lastStructuredResult?.rows?.length),
+          getLastStructuredResult: () => lastStructuredResult,
+          ChatIntent,
+          routeChatPrompt,
+          buildRecentConversationForAi,
+          buildRecentUserMessagesForAi,
+          getChatAiConfig,
+          appendMessage,
+          tryHandleProfileSearchPrompt,
+          handleChatResult,
+          extractFollowupTableFilterText,
+          openResultsTable,
+          tryHandleAiPlannedIntent,
+          setExplicitMode: setCurrentChatMode,
+          continueQueryContext: !turn.newQueryContext,
+          translateWtPlusRefinementTerms,
+          reRunSavedWtPlusQuery,
+          getLastExecutedWtPlusQuery,
+        });
+        turn.prompt = modeResult.prompt;
+        turn.answerWithAi = Boolean(modeResult.answer);
+        console.debug("wbe: explicit mode result", {
+          handled: Boolean(modeResult?.handled),
+          prompt: String(turn.prompt || "").substring(0, 60),
+        });
+        return Boolean(modeResult.handled);
+      } catch (modeErr) {
+        console.debug("wbe: chat mode handling failed", modeErr);
+        return false;
+      }
+    },
+  },
+  {
+    name: "connectionCorrection",
+    run: async (turn) => {
+      const result = await tryHandleConnectionCorrectionPrompt(turn.prompt);
+      return result ? answered(result) : false;
+    },
+  },
+  // Early pronoun follow-up handler (e.g., "Their bios?") that uses lastStructuredResult.
+  // "…adoptive parents were Jean Prévost and Françoise Lamontagne. Do those people have WikiTree profiles?" is
+  // about those two, not "the parents of This profile mentions that Ann Heard" (Heard-171, 2026-10-31).
+  {
+    name: "pronounFollowup",
+    run: async (turn) => {
+      if (asksWhetherPeopleHaveProfiles(turn.prompt)) return false;
+      let result = null;
+      try {
+        result = await tryHandlePronounFollowup(turn.prompt);
       } catch (e) {
         /* ignore pronoun handler errors */
       }
-
-      const spouseEarly = asksAboutPeoplesProfiles ? null : await tryHandlePersonBioPrompt(prompt);
-      if (spouseEarly) {
-        if (typeof spouseEarly === "string") {
-          await handleChatResult({ message: spouseEarly });
-        } else {
-          await handleChatResult(spouseEarly);
-        }
-        return;
-      }
-    } catch (e) {
-      /* ignore early spouse handler errors */
-    }
-
-    // The AI planner restated the prompt in a canonical form; run it once
-    // through the local handlers. Null means nothing local took it.
-    async function runRewrittenPrompt(rewrittenPrompt) {
+      return result ? answered(result) : false;
+    },
+  },
+  // Intercept spouse-bio style prompts early so short follow-ups (e.g., "Dona's bio?")
+  // can be resolved against recent structured results or DOM before normal routing.
+  {
+    name: "personBio",
+    run: async (turn) => {
+      if (asksWhetherPeopleHaveProfiles(turn.prompt)) return false;
+      let result = null;
       try {
-        const bioResult = await tryHandlePersonBioPrompt(rewrittenPrompt);
-        if (bioResult) return bioResult;
+        result = await tryHandlePersonBioPrompt(turn.prompt);
       } catch (e) {
-        /* fall through to the router */
+        /* ignore early spouse handler errors */
       }
-      const rewrittenRoute = routeChatPrompt(rewrittenPrompt, {
-        hasStructuredResult: Boolean(lastStructuredResult?.rows?.length),
-      });
-      if (!rewrittenRoute?.intent || rewrittenRoute.intent === ChatIntent.FALLBACK_AI) return null;
-      return await executeRoutedIntent(rewrittenRoute, rewrittenPrompt);
+      return result ? answered(result) : false;
+    },
+  },
+];
+
+// Stage E of .chat-lab/send-pipeline-plan.md: the router, the AI planner, the routed tool, then the AI answer.
+const DETERMINISTIC_INTENTS = new Set([
+  ChatIntent.CC7_LOCATION_FILTER,
+  ChatIntent.CC_SUMMARY,
+  ChatIntent.RELATION_COUNT,
+  ChatIntent.CONNECTION_LOOKUP,
+  ChatIntent.PROFILE_FAMILY_CONNECTION,
+  ChatIntent.ANCESTOR_AVG_AGE_AT_DEATH,
+  ChatIntent.PERSON_AGE_AT_DEATH,
+  ChatIntent.PERSON_AGE_AT_CHILD_BIRTH,
+  ChatIntent.PROFILE_DUPLICATES,
+  ChatIntent.PERSON_BURIAL,
+  ChatIntent.FIND_BIO_RELATIVES,
+  ChatIntent.FIND_NAMED_PEOPLE,
+  ChatIntent.IN_LAW_CHECK,
+  ChatIntent.PROFILE_FACT,
+  ChatIntent.DNA,
+  ChatIntent.FAN_CHART,
+  ChatIntent.FRACTAL_TREE,
+  ChatIntent.FAMILY_WORLD,
+  ChatIntent.CHART_SHORTCUT,
+  ChatIntent.DESCENDANT_CHART,
+  ChatIntent.FAMILY_TIMELINE,
+  ChatIntent.MIGRATION_MAP,
+  ChatIntent.LIFESPANS,
+  ChatIntent.NAME_CLOUD,
+  ChatIntent.FAMILY_CALENDAR,
+  ChatIntent.AGES_CHART,
+  ChatIntent.TREE_OVERVIEW,
+  ChatIntent.FAMILY_MATRIX,
+  ChatIntent.PROFILE_SOURCES,
+  ChatIntent.PERSON_MARRIAGE,
+  ChatIntent.RELATIVE_FACT,
+  ChatIntent.CHILD_TWINS,
+  ChatIntent.CHILDREN_WITH_CHILDREN,
+  ChatIntent.CHILDREN_OUTLIVED,
+  ChatIntent.WATCHLIST,
+  ChatIntent.ANCESTOR_LIST,
+  ChatIntent.DESCENDANT_LIST,
+  ChatIntent.SPOUSE_LIST,
+  ChatIntent.SPOUSE_BIO,
+  ChatIntent.LAST_RESULT_OPERATION,
+]);
+
+// The AI planner restated the prompt in a canonical form; run it once
+// through the local handlers. Null means nothing local took it.
+async function runRewrittenPrompt(rewrittenPrompt) {
+  try {
+    const bioResult = await tryHandlePersonBioPrompt(rewrittenPrompt);
+    if (bioResult) return bioResult;
+  } catch (e) {
+    /* fall through to the router */
+  }
+  const rewrittenRoute = routeChatPrompt(rewrittenPrompt, {
+    hasStructuredResult: Boolean(lastStructuredResult?.rows?.length),
+  });
+  if (!rewrittenRoute?.intent || rewrittenRoute.intent === ChatIntent.FALLBACK_AI) return null;
+  return await executeRoutedIntent(rewrittenRoute, rewrittenPrompt);
+}
+
+async function answerTurn(prompt, answerWithAi) {
+  const chatOptions = await getChatOptions();
+  const routed = routeChatPrompt(prompt, {
+    hasStructuredResult: Boolean(lastStructuredResult?.rows?.length),
+  });
+  console.debug(`wbe: genie step routed ${routed?.intent || "none"}`);
+  if (chatOptions.allowAiFallback && !answerWithAi && !DETERMINISTIC_INTENTS.has(routed?.intent) && !routed?.params?.profileNarrative) {
+    let plannedToolResponse = await tryHandleAiPlannedIntent(prompt);
+    if (plannedToolResponse?.rewrittenPrompt) {
+      plannedToolResponse = await runRewrittenPrompt(plannedToolResponse.rewrittenPrompt);
+    }
+    // A search the planner tried and couldn't form ("I couldn't work out a concrete person
+    // search…") isn't an answer: go on, so the question still gets one (2026-10-04).
+    // "Smiths born in Devon in the 1850s" after a list of grandparents: the planner made it a text
+    // filter of that list, found nothing and stopped (live, 2026-10-11). A filter that matched
+    // nothing, when the prompt didn't say "only", "those" or "them", goes on as a new question.
+    if (isUnaskedEmptyResultFilter(plannedToolResponse, prompt)) {
+      console.debug("wbe: planner's filter of the last result matched nothing; going on", { prompt: String(prompt).slice(0, 60) });
+      plannedToolResponse = null;
+    }
+    if (plannedToolResponse && shouldEscalateLocalFailureToAi(plannedToolResponse)) {
+      console.debug("wbe: planner's tool couldn't answer; going on", { prompt: String(prompt).slice(0, 60) });
+      plannedToolResponse = null;
+    }
+    if (plannedToolResponse) {
+      if (typeof plannedToolResponse === "string") {
+        await handleChatResult({ message: plannedToolResponse });
+      } else {
+        await handleChatResult(plannedToolResponse);
+      }
+      return;
+    }
+  }
+
+  let directToolResponse = answerWithAi && routed?.intent === ChatIntent.FALLBACK_AI ? null : await executeRoutedIntent(routed, prompt);
+  let localFailureForAi = "";
+
+  if (directToolResponse) {
+    if (typeof directToolResponse === "string") {
+      directToolResponse = { message: directToolResponse };
     }
 
-    const chatOptions = await getChatOptions();
-    const routed = routeChatPrompt(prompt, {
-      hasStructuredResult: Boolean(lastStructuredResult?.rows?.length),
-    });
-    const deterministicIntentSet = new Set([
-      ChatIntent.CC7_LOCATION_FILTER,
-      ChatIntent.CC_SUMMARY,
-      ChatIntent.RELATION_COUNT,
-      ChatIntent.CONNECTION_LOOKUP,
-      ChatIntent.PROFILE_FAMILY_CONNECTION,
-      ChatIntent.ANCESTOR_AVG_AGE_AT_DEATH,
-      ChatIntent.PERSON_AGE_AT_DEATH,
-      ChatIntent.PERSON_AGE_AT_CHILD_BIRTH,
-      ChatIntent.PROFILE_DUPLICATES,
-      ChatIntent.PERSON_BURIAL,
-      ChatIntent.FIND_BIO_RELATIVES,
-      ChatIntent.FIND_NAMED_PEOPLE,
-      ChatIntent.IN_LAW_CHECK,
-      ChatIntent.PROFILE_FACT,
-      ChatIntent.DNA,
-      ChatIntent.FAN_CHART,
-      ChatIntent.FRACTAL_TREE,
-      ChatIntent.FAMILY_WORLD,
-      ChatIntent.CHART_SHORTCUT,
-      ChatIntent.DESCENDANT_CHART,
-      ChatIntent.FAMILY_TIMELINE,
-      ChatIntent.MIGRATION_MAP,
-      ChatIntent.LIFESPANS,
-      ChatIntent.NAME_CLOUD,
-      ChatIntent.FAMILY_CALENDAR,
-      ChatIntent.AGES_CHART,
-      ChatIntent.TREE_OVERVIEW,
-      ChatIntent.FAMILY_MATRIX,
-      ChatIntent.PROFILE_SOURCES,
-      ChatIntent.PERSON_MARRIAGE,
-      ChatIntent.RELATIVE_FACT,
-      ChatIntent.CHILD_TWINS,
-      ChatIntent.CHILDREN_WITH_CHILDREN,
-      ChatIntent.CHILDREN_OUTLIVED,
-      ChatIntent.WATCHLIST,
-      ChatIntent.ANCESTOR_LIST,
-      ChatIntent.DESCENDANT_LIST,
-      ChatIntent.SPOUSE_LIST,
-      ChatIntent.SPOUSE_BIO,
-      ChatIntent.LAST_RESULT_OPERATION,
-    ]);
-    const shouldPreferDeterministicRoute = deterministicIntentSet.has(routed?.intent);
-    if (chatOptions.allowAiFallback && !answerWithAi && !shouldPreferDeterministicRoute && !routed?.params?.profileNarrative) {
-      let plannedToolResponse = await tryHandleAiPlannedIntent(prompt);
-      if (plannedToolResponse?.rewrittenPrompt) {
-        plannedToolResponse = await runRewrittenPrompt(plannedToolResponse.rewrittenPrompt);
-      }
-      // A search the planner tried and couldn't form ("I couldn't work out a concrete person
-      // search…") isn't an answer: go on, so the question still gets one (2026-10-04).
-      // "Smiths born in Devon in the 1850s" after a list of grandparents: the planner made it a text
-      // filter of that list, found nothing and stopped (live, 2026-10-11). A filter that matched
-      // nothing, when the prompt didn't say "only", "those" or "them", goes on as a new question.
-      if (isUnaskedEmptyResultFilter(plannedToolResponse, prompt)) {
-        console.debug("wbe: planner's filter of the last result matched nothing; going on", { prompt: String(prompt).slice(0, 60) });
-        plannedToolResponse = null;
-      }
-      if (plannedToolResponse && shouldEscalateLocalFailureToAi(plannedToolResponse)) {
-        console.debug("wbe: planner's tool couldn't answer; going on", { prompt: String(prompt).slice(0, 60) });
-        plannedToolResponse = null;
-      }
-      if (plannedToolResponse) {
-        if (typeof plannedToolResponse === "string") {
-          await handleChatResult({ message: plannedToolResponse });
-        } else {
-          await handleChatResult(plannedToolResponse);
-        }
-        return;
-      }
-    }
-
-    let directToolResponse = answerWithAi && routed?.intent === ChatIntent.FALLBACK_AI ? null : await executeRoutedIntent(routed, prompt);
-    let localFailureForAi = "";
-
-    if (directToolResponse) {
-      if (typeof directToolResponse === "string") {
-        directToolResponse = { message: directToolResponse };
-      }
-
-      if (!chatOptions.allowAiFallback || !shouldEscalateLocalFailureToAi(directToolResponse)) {
-        await handleChatResult(directToolResponse);
-        return;
-      }
-
-      localFailureForAi = String(directToolResponse.message || "");
-    }
-
-    const { provider, key, model } = await getChatAiConfig();
-    if (!key) {
-      recordUnanswered(prompt, "no AI key");
-      // Without AI, what Genie's own tools found ("I could not find William Luker born 1801")
-      // says more than "We need AI" (the user, 2026-10-15).
-      if (localFailureForAi && directToolResponse) {
-        await handleChatResult(directToolResponse);
-        return;
-      }
-      showNeedsAiKey(prompt);
+    if (!chatOptions.allowAiFallback || !shouldEscalateLocalFailureToAi(directToolResponse)) {
+      await handleChatResult(directToolResponse);
       return;
     }
 
-    if (!chatOptions.allowAiFallback) {
-      recordUnanswered(prompt, "AI answers are turned off");
-      appendMessage(
-        "assistant",
-        "I couldn't answer that with Genie's own tools. Questions like that need AI answers, which are turned off in Genie's options.",
-        { actions: buildCantAnswerActions() }
+    localFailureForAi = String(directToolResponse.message || "");
+  }
+
+  await answerWithGeneralAi(prompt, localFailureForAi ? directToolResponse : null, chatOptions);
+}
+
+// What the AI is told about the person the question is about: the profile it names, the remembered or
+// searched-for person, or the page's (a pronoun or no name at all).
+async function findProfileContextForAi(prompt) {
+  let profileContextText = null;
+  let pronounHintText = "";
+  let contextProfileKey = "";
+  // getProfile left the bio out (privacy) or failed: the page shows it.
+  let profileBioMissing = false;
+  try {
+    const textPrompt = String(prompt || "");
+    const rememberedPromptPerson = resolvePromptAlias(textPrompt)?.person || null;
+    // Extract capitalized name candidates
+    const nameCandidates = promptNameCandidates(textPrompt);
+    console.log("wbe: extracted name candidates from prompt", { nameCandidates, prompt: textPrompt });
+    // 1) Direct profile key like Beacall-156
+    let profileKeyMatch = textPrompt.match(/\b([A-Za-z][A-Za-z0-9_\-]+-\d{1,6})\b/);
+    let profileKey = profileKeyMatch?.[1];
+    console.log("wbe: direct profile key match", { profileKey });
+    if (!profileKey && rememberedPromptPerson?.wtId) {
+      profileKey = rememberedPromptPerson.wtId;
+    }
+    // 2) Last structured result contains match
+    if (!profileKey && lastStructuredResult && Array.isArray(lastStructuredResult.rows)) {
+      const candidate = nameCandidates.find((t) => t && t.length > 2);
+      const found = (lastStructuredResult.rows || []).find((r) =>
+        String(r.displayName || "")
+          .toLowerCase()
+          .includes(String(candidate).toLowerCase())
       );
+      if (found) {
+        profileKey = found.wtid || found.Name || null;
+        console.log("wbe: resolved profileKey from lastStructuredResult", { candidate, profileKey });
+      }
+    }
+    // 3) Quick search by RealName
+    if (!profileKey && nameCandidates.length) {
+      let nameCandidate = nameCandidates[0];
+      if (nameCandidate) {
+        try {
+          console.log("wbe: attempting searchPerson for nameCandidate", { nameCandidate });
+          const [status, matches, total] = await WikiTreeAPI.searchPerson(
+            WBE_CHAT_APP_ID,
+            { RealName: nameCandidate },
+            "Id,Name",
+            { limit: 5 }
+          );
+          console.log("wbe: searchPerson result", { status, matches, total });
+          if (Array.isArray(matches) && matches.length === 1) {
+            profileKey = matches[0].Name || matches[0].user_name || null;
+            rememberResolvedPersonFromMatch(matches[0], [nameCandidate]);
+            console.log("wbe: searchPerson resolved single match for", { nameCandidate, profileKey });
+          } else {
+            console.log("wbe: searchPerson returned multiple or no matches", { nameCandidate, total });
+          }
+        } catch (sErr) {
+          console.log("wbe: searchPerson error", sErr);
+        }
+      }
+    }
+    // 4) Fallback: check getProfilePersonInfo for name match
+    if (!profileKey && nameCandidates.length) {
+      try {
+        const personInfo = getFocusPersonInfo();
+        const fullName = String(personInfo?.FullName || "").toLowerCase();
+        let nameCandidate = nameCandidates.find((candidate) => fullName.includes(candidate.toLowerCase()));
+        console.log("wbe: fallback DOM profile match attempt", {
+          nameCandidate,
+          personInfo,
+          fullName: personInfo && personInfo.FullName,
+          prompt: textPrompt,
+        });
+        if (
+          personInfo &&
+          personInfo.FullName &&
+          nameCandidate &&
+          personInfo.FullName.toLowerCase().includes(nameCandidate.toLowerCase())
+        ) {
+          profileKey = personInfo.Name;
+          console.log("wbe: fallback DOM profile match found", { nameCandidate, personInfo });
+        }
+      } catch (domErr) {
+        console.log("wbe: DOM profile context detection error", domErr);
+      }
+    }
+    // 5) "where was she born?" names no one: a pronoun means the page's
+    // profile person unless the recent conversation names someone it fits
+    // (live F1, 2026-10-03: the AI asked which woman "she" was).
+    // "what's wrong with this profile?" names the page too (live C11).
+    if (
+      !profileKey &&
+      (/\b(?:he|she|him|his|her|hers|they|them|their)\b/i.test(textPrompt) ||
+        /\b(?:this|the\s+current)\s+(?:profile|person|page|man|woman)\b|\bprofile\s+person\b/i.test(textPrompt))
+    ) {
+      const pageRoot = getProfileSubjectRoot();
+      profileKey = pageRoot?.wtId || pageRoot?.key || null;
+      if (profileKey) {
+        pronounHintText = `Pronouns: "he", "she", "his", "her", "they" or "their", and "this profile/person/page", in the current request, when it names no one, mean the profile person ${profileKey} (shown below) unless the recent conversation names someone the pronoun fits. Don't ask which person is meant.`;
+      }
+    }
+    // 6) Names no one at all ("What big events would the family have lived through?"): the person Genie is
+    // about (the page's profile, or the one picked), with their dates and places. Without it the AI had only
+    // the page text and said it had no birth or death years (AI tour, 2026-10-16).
+    if (!profileKey) {
+      const pageRoot = getProfileSubjectRoot();
+      profileKey = pageRoot?.wtId || pageRoot?.key || null;
+      if (profileKey) {
+        pronounHintText = `The user is asking about ${profileKey} (shown below): a request that names no one, or says "the family", is about ${profileKey} and their family unless the recent conversation names someone else. If it is plainly about something else (a place, a term, WikiTree itself), answer that and ignore the profile.`;
+      }
+    }
+    contextProfileKey = profileKey || "";
+    // Fetch profile data if profileKey found
+    if (profileKey) {
+      try {
+        // Dates and places too: a timeline needs them even when the bio is thin.
+        const fields =
+          "Name,RealName,Gender,BirthDate,BirthLocation,DeathDate,DeathLocation,Bio,Sources,Notes,Categories";
+        console.log("wbe: fetching profile for AI context", { profileKey });
+        const [profile, status, page_name] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, profileKey, fields, {
+          bioFormat: "wiki",
+          resolveRedirect: 1,
+        });
+        console.log("wbe: fetched profile for AI context", { profile, status, page_name });
+        const bio = profile?.Bio || profile?.bio || ""; // the API returns "bio"
+        profileBioMissing = !bio;
+        const sources = (profile?.Sources && Array.isArray(profile.Sources) ? profile.Sources : [])
+          .map((s) => (typeof s === "string" ? s : JSON.stringify(s)))
+          .join("\n");
+        const notes = (profile?.Notes && Array.isArray(profile.Notes) ? profile.Notes : [])
+          .map((n) => (typeof n === "string" ? n : JSON.stringify(n)))
+          .join("\n");
+        const categories = profile?.Categories ? String(profile.Categories) : "";
+        const rawProfileJson = profile ? JSON.stringify(profile, null, 2) : "";
+        rememberResolvedPersonFromMatch(profile || { Name: profileKey }, [profileKey]);
+        profileContextText = [
+          `Profile ${profileKey} (page: ${page_name || "unknown"}):`,
+          "BIO:",
+          bio,
+          "SOURCES:",
+          sources,
+          "NOTES:",
+          notes,
+          "CATEGORIES:",
+          categories,
+          rawProfileJson ? "GETPROFILE_JSON:" : "",
+          rawProfileJson,
+          // Murray's own living profile got an unrelated answer (2026-10-12): the API hides it.
+          !bio && !profile?.BirthDate && !sources
+            ? `The API returned no biography, dates or sources for ${profileKey}: the profile is probably private (most living people's are), so Genie can't see its details through the API. Use the page text if it is given below; if the question needs details neither has, say so plainly and why. Don't answer a different question.`
+            : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+        console.log("wbe: included profile context for AI", {
+          profileKey,
+          page_name,
+          bioLength: bio.length,
+          rawProfileLength: rawProfileJson.length,
+        });
+      } catch (pErr) {
+        console.log("wbe: getProfile failed for AI context", pErr);
+        profileBioMissing = true;
+        profileContextText = `Note: failed to fetch profile ${profileKey} for additional context (not logged in or API error).`;
+      }
+    }
+  } catch (ctxErr) {
+    console.log("wbe: profile context detection error", ctxErr);
+  }
+  return { profileContextText, pronounHintText, contextProfileKey, profileBioMissing };
+}
+
+// localFailure: what Genie's own tool said when it couldn't answer (the AI is told; shown when there's no AI).
+async function answerWithGeneralAi(prompt, localFailure, chatOptions) {
+  const localFailureForAi = String(localFailure?.message || "");
+  const { provider, key, model } = await getChatAiConfig();
+  if (!key) {
+    recordUnanswered(prompt, "no AI key");
+    // Without AI, what Genie's own tools found ("I could not find William Luker born 1801")
+    // says more than "We need AI" (the user, 2026-10-15).
+    if (localFailure) {
+      await handleChatResult(localFailure);
       return;
     }
+    showNeedsAiKey(prompt);
+    return;
+  }
 
-    // Begin detailed logging for form submission and AI mode
-    console.log("wbe: chat form submitted", { prompt });
-    const chatMode = document.getElementById("wbe-chat-mode")?.value || "ai";
-    console.log("wbe: detected chat mode", { chatMode });
-    const conversationContext = buildRecentConversationForAi();
-    const recentUserMessages = buildRecentUserMessagesForAi(4);
-    const resolvedPeopleContext = buildResolvedPeopleContextForAi();
-    let profileContextText = null;
-    let pronounHintText = "";
-    let contextProfileKey = "";
-    // getProfile left the bio out (privacy) or failed: the page shows it.
-    let profileBioMissing = false;
-    try {
-      const textPrompt = String(prompt || "");
-      const rememberedPromptPerson = resolvePromptAlias(textPrompt)?.person || null;
-      // Extract capitalized name candidates
-      const nameCandidates = promptNameCandidates(textPrompt);
-      console.log("wbe: extracted name candidates from prompt", { nameCandidates, prompt: textPrompt });
-      // 1) Direct profile key like Beacall-156
-      let profileKeyMatch = textPrompt.match(/\b([A-Za-z][A-Za-z0-9_\-]+-\d{1,6})\b/);
-      let profileKey = profileKeyMatch?.[1];
-      console.log("wbe: direct profile key match", { profileKey });
-      if (!profileKey && rememberedPromptPerson?.wtId) {
-        profileKey = rememberedPromptPerson.wtId;
-      }
-      // 2) Last structured result contains match
-      if (!profileKey && lastStructuredResult && Array.isArray(lastStructuredResult.rows)) {
-        const candidate = nameCandidates.find((t) => t && t.length > 2);
-        const found = (lastStructuredResult.rows || []).find((r) =>
-          String(r.displayName || "")
-            .toLowerCase()
-            .includes(String(candidate).toLowerCase())
-        );
-        if (found) {
-          profileKey = found.wtid || found.Name || null;
-          console.log("wbe: resolved profileKey from lastStructuredResult", { candidate, profileKey });
-        }
-      }
-      // 3) Quick search by RealName
-      if (!profileKey && nameCandidates.length) {
-        let nameCandidate = nameCandidates[0];
-        if (nameCandidate) {
-          try {
-            console.log("wbe: attempting searchPerson for nameCandidate", { nameCandidate });
-            const [status, matches, total] = await WikiTreeAPI.searchPerson(
-              WBE_CHAT_APP_ID,
-              { RealName: nameCandidate },
-              "Id,Name",
-              { limit: 5 }
-            );
-            console.log("wbe: searchPerson result", { status, matches, total });
-            if (Array.isArray(matches) && matches.length === 1) {
-              profileKey = matches[0].Name || matches[0].user_name || null;
-              rememberResolvedPersonFromMatch(matches[0], [nameCandidate]);
-              console.log("wbe: searchPerson resolved single match for", { nameCandidate, profileKey });
-            } else {
-              console.log("wbe: searchPerson returned multiple or no matches", { nameCandidate, total });
-            }
-          } catch (sErr) {
-            console.log("wbe: searchPerson error", sErr);
-          }
-        }
-      }
-      // 4) Fallback: check getProfilePersonInfo for name match
-      if (!profileKey && nameCandidates.length) {
-        try {
-          const personInfo = getFocusPersonInfo();
-          const fullName = String(personInfo?.FullName || "").toLowerCase();
-          let nameCandidate = nameCandidates.find((candidate) => fullName.includes(candidate.toLowerCase()));
-          console.log("wbe: fallback DOM profile match attempt", {
-            nameCandidate,
-            personInfo,
-            fullName: personInfo && personInfo.FullName,
-            prompt: textPrompt,
-          });
-          if (
-            personInfo &&
-            personInfo.FullName &&
-            nameCandidate &&
-            personInfo.FullName.toLowerCase().includes(nameCandidate.toLowerCase())
-          ) {
-            profileKey = personInfo.Name;
-            console.log("wbe: fallback DOM profile match found", { nameCandidate, personInfo });
-          }
-        } catch (domErr) {
-          console.log("wbe: DOM profile context detection error", domErr);
-        }
-      }
-      // 5) "where was she born?" names no one: a pronoun means the page's
-      // profile person unless the recent conversation names someone it fits
-      // (live F1, 2026-10-03: the AI asked which woman "she" was).
-      // "what's wrong with this profile?" names the page too (live C11).
-      if (
-        !profileKey &&
-        (/\b(?:he|she|him|his|her|hers|they|them|their)\b/i.test(textPrompt) ||
-          /\b(?:this|the\s+current)\s+(?:profile|person|page|man|woman)\b|\bprofile\s+person\b/i.test(textPrompt))
-      ) {
-        const pageRoot = getProfileSubjectRoot();
-        profileKey = pageRoot?.wtId || pageRoot?.key || null;
-        if (profileKey) {
-          pronounHintText = `Pronouns: "he", "she", "his", "her", "they" or "their", and "this profile/person/page", in the current request, when it names no one, mean the profile person ${profileKey} (shown below) unless the recent conversation names someone the pronoun fits. Don't ask which person is meant.`;
-        }
-      }
-      // 6) Names no one at all ("What big events would the family have lived through?"): the person Genie is
-      // about (the page's profile, or the one picked), with their dates and places. Without it the AI had only
-      // the page text and said it had no birth or death years (AI tour, 2026-10-16).
-      if (!profileKey) {
-        const pageRoot = getProfileSubjectRoot();
-        profileKey = pageRoot?.wtId || pageRoot?.key || null;
-        if (profileKey) {
-          pronounHintText = `The user is asking about ${profileKey} (shown below): a request that names no one, or says "the family", is about ${profileKey} and their family unless the recent conversation names someone else. If it is plainly about something else (a place, a term, WikiTree itself), answer that and ignore the profile.`;
-        }
-      }
-      contextProfileKey = profileKey || "";
-      // Fetch profile data if profileKey found
-      if (profileKey) {
-        try {
-          // Dates and places too: a timeline needs them even when the bio is thin.
-          const fields =
-            "Name,RealName,Gender,BirthDate,BirthLocation,DeathDate,DeathLocation,Bio,Sources,Notes,Categories";
-          console.log("wbe: fetching profile for AI context", { profileKey });
-          const [profile, status, page_name] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, profileKey, fields, {
-            bioFormat: "wiki",
-            resolveRedirect: 1,
-          });
-          console.log("wbe: fetched profile for AI context", { profile, status, page_name });
-          const bio = profile?.Bio || profile?.bio || ""; // the API returns "bio"
-          profileBioMissing = !bio;
-          const sources = (profile?.Sources && Array.isArray(profile.Sources) ? profile.Sources : [])
-            .map((s) => (typeof s === "string" ? s : JSON.stringify(s)))
-            .join("\n");
-          const notes = (profile?.Notes && Array.isArray(profile.Notes) ? profile.Notes : [])
-            .map((n) => (typeof n === "string" ? n : JSON.stringify(n)))
-            .join("\n");
-          const categories = profile?.Categories ? String(profile.Categories) : "";
-          const rawProfileJson = profile ? JSON.stringify(profile, null, 2) : "";
-          rememberResolvedPersonFromMatch(profile || { Name: profileKey }, [profileKey]);
-          profileContextText = [
-            `Profile ${profileKey} (page: ${page_name || "unknown"}):`,
-            "BIO:",
-            bio,
-            "SOURCES:",
-            sources,
-            "NOTES:",
-            notes,
-            "CATEGORIES:",
-            categories,
-            rawProfileJson ? "GETPROFILE_JSON:" : "",
-            rawProfileJson,
-            // Murray's own living profile got an unrelated answer (2026-10-12): the API hides it.
-            !bio && !profile?.BirthDate && !sources
-              ? `The API returned no biography, dates or sources for ${profileKey}: the profile is probably private (most living people's are), so Genie can't see its details through the API. Use the page text if it is given below; if the question needs details neither has, say so plainly and why. Don't answer a different question.`
-              : "",
-          ]
-            .filter(Boolean)
-            .join("\n\n");
-          console.log("wbe: included profile context for AI", {
-            profileKey,
-            page_name,
-            bioLength: bio.length,
-            rawProfileLength: rawProfileJson.length,
-          });
-        } catch (pErr) {
-          console.log("wbe: getProfile failed for AI context", pErr);
-          profileBioMissing = true;
-          profileContextText = `Note: failed to fetch profile ${profileKey} for additional context (not logged in or API error).`;
-        }
-      }
-    } catch (ctxErr) {
-      console.log("wbe: profile context detection error", ctxErr);
+  if (!chatOptions.allowAiFallback) {
+    recordUnanswered(prompt, "AI answers are turned off");
+    appendMessage(
+      "assistant",
+      "I couldn't answer that with Genie's own tools. Questions like that need AI answers, which are turned off in Genie's options.",
+      { actions: buildCantAnswerActions() }
+    );
+    return;
+  }
+
+  // Begin detailed logging for form submission and AI mode
+  console.log("wbe: chat form submitted", { prompt });
+  const chatMode = document.getElementById("wbe-chat-mode")?.value || "ai";
+  console.log("wbe: detected chat mode", { chatMode });
+  const conversationContext = buildRecentConversationForAi();
+  const recentUserMessages = buildRecentUserMessagesForAi(4);
+  const resolvedPeopleContext = buildResolvedPeopleContextForAi();
+  const { profileContextText, pronounHintText, contextProfileKey, profileBioMissing } = await findProfileContextForAi(prompt);
+
+  const aiPromptParts = [
+    "You are assisting inside the WikiTree Browser Extension chat.",
+    WIKITREE_GLOSSARY_FOR_AI,
+    AI_CHAT_CLAIM_RULES,
+    AI_ANSWER_FORMAT_RULES,
+    recentUserMessages ? `Recent user messages:\n${recentUserMessages}` : "",
+    conversationContext ? `Recent conversation:\n${conversationContext}` : "",
+    resolvedPeopleContext,
+    localFailureForAi ? `Local tool attempt failed with: ${localFailureForAi}` : "",
+  ];
+  if (profileContextText) aiPromptParts.push(profileContextText);
+  const dnaContextText = await buildDnaContextForPrompt(prompt, contextProfileKey, conversationContext);
+  if (dnaContextText) aiPromptParts.push(dnaContextText);
+  const pageContextText = buildPageContextForPrompt(prompt, contextProfileKey, profileBioMissing);
+  if (pageContextText) aiPromptParts.push(pageContextText);
+  if (pronounHintText) aiPromptParts.push(pronounHintText);
+  // "Compare Philip with his son Philip" names the page person, so "his son" is
+  // theirs too; the AI said the son's details weren't given (live, 2026-10-04).
+  const pageRootForRelatives = getProfileSubjectRoot();
+  const relativesRoot =
+    pronounHintText || (pageRootForRelatives?.wtId && contextProfileKey === pageRootForRelatives.wtId) ? pageRootForRelatives : null;
+  const relativesContextText = await buildRelativeBiosContextForAi(prompt, relativesRoot);
+  if (relativesContextText) aiPromptParts.push(relativesContextText);
+  aiPromptParts.push(`Current user request: ${prompt}`);
+
+  const aiPrompt = aiPromptParts.filter(Boolean).join("\n\n");
+  console.debug("wbe: general AI fallback outbound prompt", {
+    prompt,
+    aiPrompt,
+    hasProfileBio: aiPrompt.includes("BIO:"),
+    hasProfileContext: Boolean(profileContextText),
+    promptLength: aiPrompt.length,
+  });
+
+  const response = await chrome.runtime.sendMessage({
+    action: "chatWithAI",
+    prompt: aiPrompt,
+    provider,
+    key,
+    model,
+    includeApiDocContext: true,
+    apiDocUserQuery: prompt,
+    apiDocMaxChars: 4500,
+    pageContext: {
+      url: window.location.href,
+      title: document.title,
+    },
+  });
+
+  if (response?.success) {
+    const answer = parseAiAnswer(response.response || "");
+    rememberResolvedPeopleFromMessage(answer.text);
+    lastAnswerSubject = nextAnswerSubject(lastAnswerSubject, pickAnswerSubject(answer.text, null, lastSubjectPrompt), lastSubjectPrompt) || chosenSubject();
+    if (answer.cannot) {
+      recordUnanswered(prompt, answer.text.split("\n")[0].slice(0, 160));
+      awaitingDetailFor = prompt;
     }
-    // ...existing code...
-
-    const aiPromptParts = [
-      "You are assisting inside the WikiTree Browser Extension chat.",
-      WIKITREE_GLOSSARY_FOR_AI,
-      AI_CHAT_CLAIM_RULES,
-      AI_ANSWER_FORMAT_RULES,
-      recentUserMessages ? `Recent user messages:\n${recentUserMessages}` : "",
-      conversationContext ? `Recent conversation:\n${conversationContext}` : "",
-      resolvedPeopleContext,
-      localFailureForAi ? `Local tool attempt failed with: ${localFailureForAi}` : "",
-    ];
-    if (profileContextText) aiPromptParts.push(profileContextText);
-    const dnaContextText = await buildDnaContextForPrompt(prompt, contextProfileKey, conversationContext);
-    if (dnaContextText) aiPromptParts.push(dnaContextText);
-    const pageContextText = buildPageContextForPrompt(prompt, contextProfileKey, profileBioMissing);
-    if (pageContextText) aiPromptParts.push(pageContextText);
-    if (pronounHintText) aiPromptParts.push(pronounHintText);
-    // "Compare Philip with his son Philip" names the page person, so "his son" is
-    // theirs too; the AI said the son's details weren't given (live, 2026-10-04).
-    const pageRootForRelatives = getProfileSubjectRoot();
-    const relativesRoot =
-      pronounHintText || (pageRootForRelatives?.wtId && contextProfileKey === pageRootForRelatives.wtId) ? pageRootForRelatives : null;
-    const relativesContextText = await buildRelativeBiosContextForAi(prompt, relativesRoot);
-    if (relativesContextText) aiPromptParts.push(relativesContextText);
-    aiPromptParts.push(`Current user request: ${prompt}`);
-
-    const aiPrompt = aiPromptParts.filter(Boolean).join("\n\n");
-    console.debug("wbe: general AI fallback outbound prompt", {
-      prompt,
-      aiPrompt,
-      hasProfileBio: aiPrompt.includes("BIO:"),
-      hasProfileContext: Boolean(profileContextText),
-      promptLength: aiPrompt.length,
+    appendMessage("assistant", answer.text || "No response text returned.", {
+      badge: answer.cannot ? "Couldn't answer" : "AI answer",
+      // Only follow-ups Genie's own code runs; when the AI couldn't answer,
+      // fill up with requests on the same topic for the person asked about.
+      actions: suggestionActions(
+        vetSuggestions(answer.suggestions, {
+          question: prompt,
+          id: lastAnswerSubject?.wtId || getProfileRootPerson()?.wtId || "",
+          want: answer.cannot ? 3 : Math.min(2, answer.suggestions.length),
+        })
+      ).map((action) => ({
+        ...action,
+        onClick: () => sendClarifiedPrompt(action.prompt, { newSearch: true }),
+      })),
     });
+  } else {
+    appendMessage("assistant", localFailureForAi || `Error: ${response?.error || "AI request failed."}`);
+  }
+}
 
-    const response = await chrome.runtime.sendMessage({
-      action: "chatWithAI",
-      prompt: aiPrompt,
-      provider,
-      key,
-      model,
-      includeApiDocContext: true,
-      apiDocUserQuery: prompt,
-      apiDocMaxChars: 4500,
-      pageContext: {
-        url: window.location.href,
-        title: document.title,
-      },
-    });
+async function sendChatPrompt() {
+  const $input = $(`#${CHAT_INPUT_ID}`);
+  if ($input.length === 0) return;
 
-    if (response?.success) {
-      const answer = parseAiAnswer(response.response || "");
-      rememberResolvedPeopleFromMessage(answer.text);
-      lastAnswerSubject = nextAnswerSubject(lastAnswerSubject, pickAnswerSubject(answer.text, null, lastSubjectPrompt), lastSubjectPrompt) || chosenSubject();
-      if (answer.cannot) {
-        recordUnanswered(prompt, answer.text.split("\n")[0].slice(0, 160));
-        awaitingDetailFor = prompt;
-      }
-      appendMessage("assistant", answer.text || "No response text returned.", {
-        badge: answer.cannot ? "Couldn't answer" : "AI answer",
-        // Only follow-ups Genie's own code runs; when the AI couldn't answer,
-        // fill up with requests on the same topic for the person asked about.
-        actions: suggestionActions(
-          vetSuggestions(answer.suggestions, {
-            question: prompt,
-            id: lastAnswerSubject?.wtId || getProfileRootPerson()?.wtId || "",
-            want: answer.cannot ? 3 : Math.min(2, answer.suggestions.length),
-          })
-        ).map((action) => ({
-          ...action,
-          onClick: () => sendClarifiedPrompt(action.prompt, { newSearch: true }),
-        })),
-      });
-    } else {
-      appendMessage("assistant", localFailureForAi || `Error: ${response?.error || "AI request failed."}`);
+  const rawPrompt = stripPromptListDecorations(String($input.val() || ""));
+  const editInsert = pendingEditInsert;
+  pendingEditInsert = null;
+  if (!rawPrompt) {
+    // Enter again after "add birth": insert what it wrote.
+    if (editInsert) void editInsert();
+    return;
+  }
+  promptHistory.add(rawPrompt);
+  historyStepper.reset();
+  const frontDoor = frontDoorStep(rawPrompt);
+  if (frontDoor) {
+    console.debug(`wbe: genie step ${frontDoor.step.name}`);
+    $input.val("");
+    await frontDoor.step.run(rawPrompt, frontDoor.match);
+    return;
+  }
+
+  await finishAppsSignIn();
+  // (a login that ran out while the page sat open is said before the answer that misses what it would have shown)
+  await refreshAppsLoginState({ warn: true });
+  // Normalize compact suggestion formats like "dbe803" to "Suggestions=803"
+  // "John Theodore Weatherall's (Weatherall-113) bio" → "Weatherall-113's bio";
+  // "How about his agrandparents?" → "his grandparents?" (live, 2026-10-08).
+  const normalizedPrompt = tidyKinFollowUp(preferBracketedIds(parseSuggestionNumberFromPrompt(rawPrompt)));
+
+  // Stage B of .chat-lab/send-pipeline-plan.md: each step may rewrite rewrite.prompt, or end the turn.
+  const rewrite = {
+    raw: rawPrompt,
+    normalized: normalizedPrompt,
+    prompt: normalizedPrompt,
+    retryRequested: isRetryPrompt(rawPrompt),
+    note: "",
+    nameGrouping: false,
+  };
+  for (const step of REWRITE_STEPS) {
+    const before = rewrite.prompt;
+    if (await step.run(rewrite)) {
+      console.debug(`wbe: genie step ${step.name}`);
+      $input.val("");
+      refreshWtPlusSuggestionPickerForCurrentPopup();
+      return;
     }
+    if (rewrite.prompt !== before) console.debug(`wbe: genie step ${step.name} rewrote the prompt`, { before, after: rewrite.prompt });
+  }
+  let prompt = rewrite.prompt;
+  const { retryRequested, note: followupOfferNote } = rewrite;
+
+  const previousStructuredResult = lastStructuredResult;
+  // If the user chose "New search", discard previous result context before routing
+  const newQueryContext = document.querySelector('input[name="wbe-chat-context"]:checked')?.value === "new";
+  if (newQueryContext) {
+    setPersistedLastStructuredResult(null);
+  }
+
+  appendMessage("user", normalizedPrompt);
+  if (followupOfferNote) {
+    appendMessage("assistant", followupOfferNote, { shouldPersist: false });
+  }
+  if (!retryRequested) {
+    // ("try again" after "Taking that as: …" or an accepted offer asks that question again, not the
+    // typed "No, I meant her adoptive parents", 2026-10-31)
+    lastNonRetryUserPrompt = followupOfferNote ? lastRoutedPrompt : rawPrompt;
+  }
+  $input.val("");
+  refreshWtPlusSuggestionPickerForCurrentPopup();
+  setPendingState(true);
+  // Show global chat loader while processing
+  try {
+    showChatShaky("Working...", "center");
+  } catch (e) {
+    /* ignore if shaky helper unavailable */
+  }
+
+  try {
+    // Stage D of .chat-lab/send-pipeline-plan.md: each step may answer (and end the turn) or rewrite turn.prompt.
+    const turn = { prompt, answerWithAi: false, previousStructuredResult, newQueryContext, jsonBatchPayload: extractJsonBatchPayload(prompt) };
+    for (const step of BEFORE_ROUTING_STEPS) {
+      const before = turn.prompt;
+      if (await step.run(turn)) {
+        console.debug(`wbe: genie step ${step.name}`);
+        return;
+      }
+      if (turn.prompt !== before) console.debug(`wbe: genie step ${step.name} rewrote the prompt`, { before, after: turn.prompt });
+    }
+    prompt = turn.prompt;
+    const answerWithAi = turn.answerWithAi;
+
+    await answerTurn(prompt, answerWithAi);
   } catch (error) {
     // (the stack, for whoever reports it)
     console.error("Genie:", error);

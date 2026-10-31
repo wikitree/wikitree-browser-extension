@@ -5,7 +5,7 @@ import { pickByBirth, sortByBirth } from "./chat_kin_order";
 import { shownSpouses } from "./chat_marriage_display";
 import { shownGender } from "./chat_gender_display";
 import { applyKinFilter, kinFilterPhrase } from "./chat_kin_filter";
-import { asksForBirthRelation, birthParentIds, isBirthChildOf, separateBirthParentIds } from "./chat_birth_family";
+import { adoptiveParentIds, asksForAdoptiveRelation, asksForBirthRelation, birthParentIds, isBirthChildOf, separateBirthParentIds } from "./chat_birth_family";
 import {
   describeRelationChain,
   NIECE_NEPHEW_RE,
@@ -232,6 +232,11 @@ export function createChatRelationHandlers({
     // "biological parents", "birth mother", "bio siblings" (user, 2026-10-13): the birth family, not the one who raised them
     if (spec && ["parents", "children", "siblings"].includes(spec.group) && asksForBirthRelation(value, spec.pattern)) {
       return { ...spec, biological: true, singular: `biological ${spec.singular}`, plural: `biological ${spec.plural}` };
+    }
+    // "adoptive parents", "her adopted father" (user, 2026-10-31): an adoptee's Father and Mother can be the
+    // adoptive parents, marked non-biological or with a BioFather/BioMother apart from them.
+    if (spec?.group === "parents" && asksForAdoptiveRelation(value, spec.pattern)) {
+      return { ...spec, adoptive: true, singular: `adoptive ${spec.singular}`, plural: `adoptive ${spec.plural}` };
     }
     return spec;
   }
@@ -1405,6 +1410,13 @@ export function createChatRelationHandlers({
     if (relationSpec.biological) {
       return await collectBirthRelatives(personKey, relationSpec.group);
     }
+    if (relationSpec.adoptive) {
+      const { father, mother } = adoptiveParentIds(await birthRecordOf(personKey));
+      const ids = [father, mother].filter((id) => id > 0);
+      if (!ids.length) return [];
+      const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, ids, RELATION_PERSON_FIELDS, {});
+      return Object.values(people || {}).filter(Boolean);
+    }
 
     if (relationSpec.group === "siblings") {
       const [entry] = await getRelativesOrEmpty(WBE_CHAT_APP_ID, personKey, `${RELATION_PERSON_FIELDS},Siblings`, {
@@ -1735,6 +1747,10 @@ export function createChatRelationHandlers({
       return `I couldn't match "${relationRaw}" to a supported relation type yet. Try siblings, parents, children, spouses, aunts, uncles, grandparents, granduncles, or grandaunts.`;
     }
     const relationSpec = relationSteps[relationSteps.length - 1];
+    // ("her adoptive father's siblings": the chain walk follows plain links, so the AI answers)
+    if (relationSteps.slice(0, -1).some((step) => step.adoptive)) {
+      return `I couldn't follow an adoptive parent's relatives through WikiTree's links.`;
+    }
 
     const subject = await resolveRelationSubject(
       {
@@ -1786,6 +1802,11 @@ export function createChatRelationHandlers({
           : describeRelationChain(subject.label, hops)
         : subject.label;
       const labelIsUser = subject.isUser && !hops.length;
+      // Linked parents who are all birth parents: who adopted them, if anyone, is in the biography (Heard-171,
+      // 2026-10-31). "I couldn't…" passes the question on to the AI, which reads it.
+      if (!count && relationSpec.adoptive) {
+        return `I couldn't find adoptive ${relationSpec.plural.replace(/^adoptive /, "")} linked to ${labelIsUser ? "you" : chainLabel} on WikiTree: the linked parents aren't marked non-biological, and no separate birth parents are recorded.`;
+      }
       if (!count) {
         const appsLoginHint =
           subject.isUser && (await isLoggedOutOfAppsServer())

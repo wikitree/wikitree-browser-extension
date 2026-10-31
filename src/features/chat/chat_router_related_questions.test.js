@@ -41,3 +41,24 @@ test.each([
     filter: { kind: "birthYearRange", start, end },
   });
 });
+
+// Foster families and adoptive kin other than parents aren't WikiTree links Genie follows (Heard-171, 2026-10-31).
+test.each(["who were her foster parents?", "list the adopted children of Smith-123", "who were her adoptive siblings?"])(
+  "not a relation list: %s",
+  (prompt) => {
+    expect(routeChatPrompt(prompt, { hasStructuredResult: false })?.intent).not.toBe(ChatIntent.RELATION_COUNT);
+  }
+);
+
+// An adoptee's Father and Mother can be their adoptive parents: the relation list reads them (user, 2026-10-31).
+test.each([
+  "Who are the adoptive parents of Ann (Heard) Prévost (Heard-171)?",
+  "Who were Ann (Heard) Prévost (Heard-171)'s adoptive parents?",
+  "Who was the adopted father of Heard-171?",
+])("adoptive parents are a relation list: %s", (prompt) => {
+  expect(routeChatPrompt(prompt, { hasStructuredResult: false })?.intent).toBe(ChatIntent.RELATION_COUNT);
+});
+
+test("plain parents still are", () => {
+  expect(routeChatPrompt("Who are the parents of Heard-171?", { hasStructuredResult: false })?.intent).toBe(ChatIntent.RELATION_COUNT);
+});

@@ -403,8 +403,9 @@ function parseWatchlistPrompt(prompt) {
 }
 
 // ("biological parents", "birth mother", "bio siblings": the birth family, for parents, children and siblings; 2026-10-13)
+// ("adoptive parents", "adopted father": an adoptee's Father/Mother links, 2026-10-31; not foster parents, who aren't linked)
 const RELATION_WORDS_RE =
-  /^(?:grand\s*aunts?|grand\s*uncles?|grand\s*mothers?|grand\s*fathers?|grand\s*parents?|aunts?|uncles?|mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|wives|wife|husbands?|spouses?|brothers?|sisters?|siblings?|(?:biological|birth|bio)\s+(?:mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|brothers?|sisters?|siblings?))$/i;
+  /^(?:grand\s*aunts?|grand\s*uncles?|grand\s*mothers?|grand\s*fathers?|grand\s*parents?|aunts?|uncles?|mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|wives|wife|husbands?|spouses?|brothers?|sisters?|siblings?|(?:biological|birth|bio)\s+(?:mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|brothers?|sisters?|siblings?)|(?:adoptive|adopted)\s+(?:mothers?|moms?|fathers?|dads?|parents?))$/i;
 
 // E1/E2 (live, 2026-10-03): "who were her grandparents?", "how many siblings
 // did she have?" fell to the AI. Tried only after the family routes, so forms
@@ -552,6 +553,15 @@ function parseRelationPrompt(prompt) {
   // Ancestor generations belong to the ancestor list (getPeople, 2^g slots); the
   // relation path collapsed "5th great-grandparents" to "grandparents".
   if (/\bgreat[\s-]*grand[\s-]*parents?\b|\d+\s*x\s*great/i.test(normalized)) {
+    return null;
+  }
+  // "adoptive parents" go on (the relation list reads Father/Mother marked non-biological). Foster families and
+  // adoptive kin other than parents aren't links Genie follows: "the adoptive parents of Heard-171" were once listed
+  // as her birth parents (live, 2026-10-31). The biography says who they were (the AI reads it).
+  if (
+    /\bfoster[\s-]+(?:parents?|fathers?|mothers?|famil(?:y|ies)|sons?|daughters?|children|child|siblings?|brothers?|sisters?)\b/i.test(normalized) ||
+    /\b(?:adoptive|adopted)[\s-]+(?:famil(?:y|ies)|sons?|daughters?|children|child|siblings?|brothers?|sisters?)\b/i.test(normalized)
+  ) {
     return null;
   }
 

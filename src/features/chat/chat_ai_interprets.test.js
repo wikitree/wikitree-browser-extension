@@ -60,6 +60,9 @@ describe("Search mode hands family-relation prompts to the main flow", () => {
     "who is in my CC7?",
     "me to stephen fry",
     "Murray Maloney to Stephen Fry",
+    "Who were Heard-171's adoptive parents?",
+    "who were her foster parents?",
+    "his birth mother",
   ])("family: %s", (prompt) => {
     expect(isLikelyFamilyRelationPrompt(prompt)).toBe(true);
   });

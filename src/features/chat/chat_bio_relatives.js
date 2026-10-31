@@ -132,6 +132,7 @@ const NAMED_PEOPLE_RES = [
   new RegExp(String.raw`^(?:is|are)\s+there\s+(?:a\s+|any\s+)?(?:wikitree\s+)?profiles?\s+(?:of|for)\s+${COUPLE_WORDS}${PERSON_NAMES}${ON_WIKITREE}$`, "iu"),
 ];
 const NOT_A_PERSON_RE = /^(?:wikitree|genie|this|that|these|those|his|her|their|my|the|profile|profiles|bio|biography)$/i;
+const hasNonNameWord = (name) => name.split(/\s+/).some((word) => NOT_A_PERSON_RE.test(word));
 
 const PROFILE_ASK_RE =
   /\b(?:have|has|got)\s+(?:a\s+|any\s+)?(?:wikitree\s+)?profiles?\b|\b(?:locate|find|search\s+for|look\s+for|look\s+up)\b[^.?!]{0,40}\bprofiles?\b|\b(?:are|is)\s+(?:they|those\s+(?:people|two)|these\s+(?:people|two)|both(?:\s+of\s+them)?)\s+(?:on|in)\s+wikitree\b/i;
@@ -146,7 +147,7 @@ export function asksWhetherPeopleHaveProfiles(prompt) {
   const text = String(prompt || "");
   if (!PROFILE_ASK_RE.test(text)) return false;
   if (parseFindNamedPeoplePrompt(text)) return true;
-  const names = (text.match(new RegExp(PERSON_NAME, "gu")) || []).filter((name) => !name.split(/\s+/).some((word) => NOT_A_PERSON_RE.test(word)));
+  const names = (text.match(new RegExp(PERSON_NAME, "gu")) || []).filter((name) => !hasNonNameWord(name));
   return names.length > 0 || THOSE_PEOPLE_RE.test(text);
 }
 
@@ -164,7 +165,7 @@ export function parseFindNamedPeoplePrompt(prompt) {
     const names = match[1].split(/\s*,\s*(?:and\s+|&\s*)?|\s+(?:and|&)\s+/).map((name) => name.trim()).filter(Boolean);
     // (case-insensitive patterns: every name must really start with a capital, and none be a pronoun)
     if (!names.length || names.length > 6) return null;
-    if (names.some((name) => !/^\p{Lu}/u.test(name) || name.split(/\s+/).some((word) => NOT_A_PERSON_RE.test(word)))) return null;
+    if (names.some((name) => !/^\p{Lu}/u.test(name) || hasNonNameWord(name))) return null;
     const couple = /\b(?:couple|husband\s+and\s+wife)\b/i.test(text) && names.length === 2;
     return { names, couple };
   }
@@ -219,15 +220,14 @@ export function relativeFromName(name, { partnerKey = "" } = {}) {
  */
 export function namedPeopleAsRelatives(names, bioRelatives = [], { couple = false } = {}) {
   const used = new Set();
-  const firstOf = (name) => fold(splitName(name).given[0]);
+  const wanted = names.map(splitName).map((parts) => ({ ...parts, first: fold(parts.given[0]) }));
   const sameFirst = (relative, first) => fold(relative.given?.[0]) === first;
-  const byName = names.map((name) => {
-    const wanted = splitName(name);
-    const last = [wanted.surname, wanted.birthSurname].map(fold).filter(Boolean);
+  const byName = wanted.map(({ surname, birthSurname, first }) => {
+    const last = [surname, birthSurname].map(fold).filter(Boolean);
     const known = bioRelatives.find(
       (relative) =>
         !used.has(relative) &&
-        sameFirst(relative, firstOf(name)) &&
+        sameFirst(relative, first) &&
         [relative.surname, relative.birthSurname, ...(relative.surnames || [])].map(fold).some((surname) => surname && last.includes(surname))
     );
     if (known) used.add(known);
@@ -238,13 +238,13 @@ export function namedPeopleAsRelatives(names, bioRelatives = [], { couple = fals
   const people = names.map((name, index) => {
     let known = byName[index];
     if (!known) {
-      const sameFirstName = bioRelatives.filter((relative) => sameFirst(relative, firstOf(name)));
+      const sameFirstName = bioRelatives.filter((relative) => sameFirst(relative, wanted[index].first));
       if (sameFirstName.length === 1 && !used.has(sameFirstName[0])) known = sameFirstName[0];
     }
     if (!known) return relativeFromName(name);
     used.add(known);
     // (her surname as asked is searched for too)
-    const asked = splitName(name).surname;
+    const asked = wanted[index].surname;
     const surnames = asked && !(known.surnames || []).some((surname) => fold(surname) === fold(asked)) ? [...(known.surnames || []), asked].slice(0, 3) : known.surnames;
     return { ...known, surnames, asked: true };
   });

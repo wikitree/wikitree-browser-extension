@@ -17,15 +17,25 @@ export function separateBirthParentIds(person) {
   return { father: apart("BioFather", "Father"), mother: apart("BioMother", "Mother") };
 }
 
-/** Ids among Father/Mother that the person wasn't born to (marked non-biological, or a different BioFather/BioMother). */
-export function raisedNotBornToIds(person) {
+/**
+ * {father, mother}: each Father/Mother the person wasn't born to (marked non-biological, or a different
+ * BioFather/BioMother), 0 where the link is a birth parent or there is none. An adoptee's Father and Mother
+ * can be their adoptive parents (Help:Adoption).
+ */
+export function adoptiveParentIds(person) {
   const notBorn = (bio, raised) => {
     const raisedId = idOf(person?.[raised]);
     if (!raisedId) return 0;
     const bioId = idOf(person?.[bio]);
     return statusOf(person, raised) === "5" || (bioId && bioId !== raisedId) ? raisedId : 0;
   };
-  return [notBorn("BioFather", "Father"), notBorn("BioMother", "Mother")].filter(Boolean);
+  return { father: notBorn("BioFather", "Father"), mother: notBorn("BioMother", "Mother") };
+}
+
+/** Ids among Father/Mother that the person wasn't born to (marked non-biological, or a different BioFather/BioMother). */
+export function raisedNotBornToIds(person) {
+  const { father, mother } = adoptiveParentIds(person);
+  return [father, mother].filter(Boolean);
 }
 
 /** Whether `child` was born to the person with Id `parentId`. */
@@ -42,4 +52,9 @@ export function isBirthChildOf(child, parentId) {
  */
 export function asksForBirthRelation(text, relationPattern) {
   return new RegExp(`\\b(?:biological|birth|bio)\\s+(?:${relationPattern.source})`).test(String(text || "").toLowerCase());
+}
+
+/** "adoptive parents", "adopted mother": the parent word asked for with "adoptive" (or "adopted") in front. */
+export function asksForAdoptiveRelation(text, relationPattern) {
+  return new RegExp(`\\b(?:adoptive|adopted)\\s+(?:${relationPattern.source})`).test(String(text || "").toLowerCase());
 }

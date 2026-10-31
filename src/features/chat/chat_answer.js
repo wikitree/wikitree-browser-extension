@@ -66,6 +66,9 @@ export function parseAiAnswer(reply) {
     cannot = true;
     text = text.replace(/\s*\[CANNOT\]\s*/gi, " ").trim();
   }
+  // Wiki links copied from a biography ("[[Provost-489|Jean Provost]]", Heard-171, 2026-10-31) read as
+  // "Jean Provost (Provost-489)", which shows as a link to the profile.
+  text = text.replace(/\[\[\s*([A-Za-z][^\]|]*?-\d+)\s*\|\s*([^\]]+?)\s*\]\]/g, "$2 ($1)").replace(/\[\[\s*([A-Za-z][^\]|]*?-\d+)\s*\]\]/g, "$1");
   return { text, cannot, suggestions: [...new Set(suggestions)].slice(0, 3) };
 }
 

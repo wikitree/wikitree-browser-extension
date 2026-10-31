@@ -75,3 +75,8 @@ describe("names in a request", () => {
     expect(promptNameCandidates("what is a gedcom?")).toEqual([]);
   });
 });
+
+test("wiki links copied from a biography read as name (ID)", () => {
+  expect(parseAiAnswer("Possibly [[Provost-489|Jean Provost]] and [[Leblanc-147]].").text).toBe("Possibly Jean Provost (Provost-489) and Leblanc-147.");
+  expect(parseAiAnswer("See [[Category:Acadians]].").text).toBe("See [[Category:Acadians]].");
+});

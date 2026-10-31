@@ -44,15 +44,39 @@ export function plannerDriftsFromOneProfile(prompt, planned) {
   return /\b(?:need(?:s)?\s+help|tree\s+overview|completeness|gold\s+standard)\b/i.test(target);
 }
 
+// A restatement must still ask the same thing (Heard-171, 2026-10-31): "Who were Heard-171's adoptive
+// parents?" came back as "find her family on WikiTree" (a check of the whole bio for profiles). It drifts
+// when it drops a word that says which relatives (adoptive, foster, step, half, god: "parents"
+// alone are the birth parents), or turns a question that never asked about profiles into that check.
+// ("mother-in-law" may rightly become "wife's mother": in-laws aren't kept)
+const KIN = String.raw`(?:parents?|fathers?|mothers?|children|child|sons?|daughters?|siblings?|brothers?|sisters?|famil(?:y|ies)|kids?)`;
+const KIN_QUALIFIERS = [
+  new RegExp(String.raw`\badopt(?:ive|ed)\b`, "i"),
+  new RegExp(String.raw`\bfoster`, "i"),
+  new RegExp(String.raw`\bstep[-\s]?${KIN}\b`, "i"),
+  new RegExp(String.raw`\bhalf[-\s]?${KIN}\b`, "i"),
+  new RegExp(String.raw`\bgod[-\s]?${KIN}\b`, "i"),
+];
+export function plannerRewriteDrifts(prompt, planned) {
+  if (planned?.intent !== "rewrite") return false;
+  const original = String(prompt || "");
+  const target = String(planned.params?.prompt || "");
+  if (!target) return false;
+  if (KIN_QUALIFIERS.some((re) => re.test(original) && !re.test(target))) return true;
+  const profileCheck = /\b(?:find|are|is)\b.*\bon\s+wikitree\b/i.test(target);
+  return profileCheck && !/\b(?:profiles?|wikitree|find|check|search|look(?:ing)?\s+(?:for|up)|missing|attached|connected|locate)\b/i.test(original);
+}
+
 // "Do any of the people in the bio have WT profiles?" came back with target "null", so
 // Genie looked for a person called null (2026-10-07). A placeholder means "not given".
 const PLACEHOLDER_RE = /^(?:null|undefined|none|n\/a|unknown|nil|)$/i;
 // "Please locate profiles of Jean Prévost and Françoise Lamontagne", on Heard-171, became a connection between
 // Heard-171 and herself ("That's the same person twice", 2026-10-31). A connection answers only a question
 // about how people are related; one that asks for profiles and says nothing of relationships isn't that.
+const ASKS_FOR_PROFILES_RE = /\b(?:profiles?|on\s+wikitree|locate)\b/i;
 export function plannerDriftsToConnection(prompt, planned) {
   if (planned?.intent !== "connectionLookup") return false;
-  if (!/\b(?:profiles?|on\s+wikitree|locate|find)\b/i.test(String(prompt || ""))) return false;
+  if (!ASKS_FOR_PROFILES_RE.test(String(prompt || "")) && !/\bfind\b/i.test(String(prompt || ""))) return false;
   return !/\b(?:relat(?:ed|ion|ionship)|connect(?:ed|ion|ions)?|cousins?|kin|path|link(?:ed)?|how\s+(?:am|is|are|was|were)\b)/i.test(String(prompt || ""));
 }
 
@@ -63,7 +87,7 @@ export function plannerDriftsToConnection(prompt, planned) {
 export function plannedSearchAsNamedPeople(prompt, planned) {
   if (planned?.intent !== "profileSearch") return null;
   const original = String(prompt || "");
-  if (!/\b(?:profiles?|on\s+wikitree|locate)\b/i.test(original)) return null;
+  if (!ASKS_FOR_PROFILES_RE.test(original)) return null;
   const query = String(planned.params?.query || "").replace(/\s+or\s+/gi, " and ").trim();
   const parsed = query ? parseFindNamedPeoplePrompt(`find profiles for ${query}`) : null;
   if (!parsed || parsed.names.length < 2) return null;
@@ -208,7 +232,8 @@ export function createChatAiPlannerHandlers({
       planned.intent === ChatIntent.FALLBACK_AI ||
       plannerDriftsToBios(prompt, planned) ||
       plannerDriftsFromOneProfile(prompt, planned) ||
-      plannerDriftsToConnection(prompt, planned)
+      plannerDriftsToConnection(prompt, planned) ||
+      plannerRewriteDrifts(prompt, planned)
     ) {
       return null;
     }

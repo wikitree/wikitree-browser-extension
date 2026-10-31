@@ -1,6 +1,6 @@
 // Birth family answers (user, 2026-10-13: biological parents step 4). The example is Luker-573 (Patty), raised by
 // John Simon and Ila Curry (marked non-biological), born to Riley Luker and Frances Johnson.
-import { asksForBirthRelation, birthParentIds, isBirthChildOf, separateBirthParentIds } from "./chat_birth_family";
+import { adoptiveParentIds, asksForAdoptiveRelation, asksForBirthRelation, birthParentIds, isBirthChildOf, separateBirthParentIds } from "./chat_birth_family";
 import { createChatRelationHandlers } from "./chat_relations";
 
 const person = (Id, Name, FirstName, Gender, extra = {}) => ({ Id, Name, FirstName, LastNameAtBirth: Name.split("-")[0], Gender, ...extra });
@@ -32,6 +32,15 @@ describe("birth parents from a profile", () => {
     expect(asksForBirthRelation("bio siblings", /siblings?|sibs?/)).toBe(true);
     expect(asksForBirthRelation("parents bios", /parents?/)).toBe(false);
     expect(asksForBirthRelation("parents", /parents?/)).toBe(false);
+  });
+
+  test("adoptive parents: Father/Mother marked non-biological or apart from BioFather/BioMother", () => {
+    expect(adoptiveParentIds(PATTY)).toEqual({ father: 2960, mother: 3468 });
+    expect(adoptiveParentIds(RANDY)).toEqual({ father: 0, mother: 0 });
+    expect(adoptiveParentIds({ Father: 1, Mother: 2, BioMother: 3 })).toEqual({ father: 0, mother: 2 });
+    expect(asksForAdoptiveRelation("adoptive parents", /parents?/)).toBe(true);
+    expect(asksForAdoptiveRelation("adopted father", /fathers?|dads?/)).toBe(true);
+    expect(asksForAdoptiveRelation("parents", /parents?/)).toBe(false);
   });
 });
 
@@ -107,6 +116,30 @@ describe("birth family answers", () => {
     expect(text).toMatch(/WikiTree also records 1 biological sibling through their birth parents: Earl .*\(Tyree-375\)\. Ask for "biological siblings"/);
     const sisters = await ask("sisters");
     expect(typeof sisters === "string" ? sisters : sisters.message).not.toMatch(/biological/);
+  });
+});
+
+// WikiTree's Father and Mother can be the adoptive parents (user, 2026-10-31).
+describe("adoptive parent answers", () => {
+  test("adoptive parents are the Father/Mother she wasn't born to", async () => {
+    const result = await ask("adoptive parents");
+    expect(result.message).toMatch(/adoptive parents/);
+    expect(names(result)).toMatch(/Simon-2960/);
+    expect(names(result)).toMatch(/Curry-3468/);
+    expect(names(result)).not.toMatch(/Luker-574|Johnson-92386/);
+    const father = names(await ask("adopted father"));
+    expect(father).toMatch(/Simon-2960/);
+    expect(father).not.toMatch(/Curry-3468/);
+  });
+
+  test("linked parents who are birth parents: a failure the AI takes on (it reads the biography)", async () => {
+    const { handlers } = makeHandlers({ resolveConnectionTargetPerson: jest.fn(async () => RANDY) });
+    const result = await handlers.tryHandleRelationCountPrompt({ mode: "list", relationRaw: "adoptive parents", subjectMode: "named", subjectName: "Randy" }, "Randy's adoptive parents");
+    expect(result).toMatch(/^I couldn't find adoptive parents linked to .*on WikiTree: the linked parents aren't marked non-biological/);
+  });
+
+  test("an adoptive parent's relatives aren't walked", async () => {
+    expect(await ask("adoptive father's siblings")).toMatch(/^I couldn't follow an adoptive parent's relatives/);
   });
 });
 

@@ -57,6 +57,20 @@ Use AI to parse free text and provide broader explanatory output.
 
 - AI only after local routing is attempted or when the user explicitly chose `AI`
 
+## How a prompt is handled
+
+`sendChatPrompt` in `chat.js` runs a prompt through five stages, in order. Each stage is a list of named steps; a step that answers ends the turn, and one that rewrites the prompt passes the rewrite on. The console says which step did it: `wbe: genie step <name>` (answered) or `wbe: genie step <name> rewrote the prompt` (with before/after).
+
+- **A. Front door** (`FRONT_DOOR_STEPS`, raw prompt): help, apps sign-out, the tour, edit-page checks (missing fields, form vs bio, categories, change explanation) and edit commands.
+- **B. Rewrites** (`REWRITE_STEPS`): relation chain, "try again", accepted follow-up offer, `mergeWithEarlierQuestion` (a correction or an answer to "which one?" is merged by AI with the earlier question and shown as "Taking that as: …", `chat_followup_merge.js`), remembered names, pronouns, connection follow-up.
+- **C. Commit**: the user's message is shown, the spinner starts, and the prompt "try again" would replay is set.
+- **D. Before routing** (`BEFORE_ROUTING_STEPS`, sharing a `turn` object): JSON batch, century/decade, columns, "which one" reply, export, WT+ narrowing, unanswered list, explicit search mode (`handleExplicitSearchMode`), connection correction, pronoun follow-up, person bio.
+- **E. Answer** (`answerTurn`): the router (`routeChatPrompt`, logged as `wbe: genie step routed <intent>`); then, unless the intent is in `DETERMINISTIC_INTENTS`, the AI planner (`tryHandleAiPlannedIntent`, whose "rewrite" runs once more through the local handlers in `runRewrittenPrompt`); then the routed tool (`executeRoutedIntent`); then `answerWithGeneralAi`, which tells the AI about the profile `findProfileContextForAi` picks and any local tool failure.
+
+The planner's choices are checked before they run: the drift guards in `chat_planner.js` (`plannerDriftsToBios`, `plannerDriftsFromOneProfile`, `plannerDriftsToConnection`, `plannerRewriteDrifts`) reject a plan that changes what was asked, such as a rewrite that drops "adoptive" or turns a question into a profile check.
+
+To find who answered a wrong reply, read the `genie step` lines in the console first.
+
 ## Current Structural Problem
 
 `chat.js` currently mixes too many responsibilities:
@@ -168,6 +182,7 @@ When editing Chat going forward:
 3. If the change is `Search` mode behavior, make the selected mode explicit before execution.
 4. If the change is AI context or AI parsing, keep it out of the deterministic execution functions.
 5. Do not duplicate parsing helpers between `chat.js` and helper modules.
+6. A handler that must run before routing goes in the right stage list in `chat.js` (front door, rewrites or before routing) with a `name`, not as a new `if` in `sendChatPrompt`. Put it after the steps that must see the prompt first.
 
 ## Current Refactor Progress
 
@@ -204,6 +219,8 @@ Biography popup and relative-bio execution now also lives in `chat_bio.js`, incl
 Chat history persistence and message rendering now also lives in `chat_history.js`, including session restore/clear, retry-request tracking, inline "show more" expansion, and reconstruction of saved Connections/Table/Show Bio actions.
 
 AI-assisted planning and disambiguation now also lives in `chat_planner.js`. This includes `parsePlannerJson` (JSON extraction from AI responses), `tryHandleAiPlannedIntent` (sends the full planner prompt and routes the parsed intent), `tryAiDisambiguateConnectionTarget` (AI-ranked candidate resolution for connection targets), `tryAiParseCategoryName` (canonical category-query extraction), and `tryAiExpandConnectionTarget` (alternate search-name / WikiTree ID suggestion). All five are wired into `chat.js` via `createChatAiPlannerHandlers`. Note that `executeRoutedIntent` is injected as a thunk because it is defined after the factory call.
+
+`sendChatPrompt` is now the staged pipeline described in "How a prompt is handled" (849 → 113 lines); routing and the AI answer live in `answerTurn` and `answerWithGeneralAi`.
 
 Shared DRY helpers:
 

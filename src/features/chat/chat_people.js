@@ -1484,10 +1484,12 @@ export function createChatPeopleHandlers({
   // The people asked about, by name alone: no profile to read them from.
   async function searchNamedPeople({ names, couple }) {
     const relatives = namedPeopleAsRelatives(names, [], { couple });
-    notify(`Searching WikiTree for ${relatives.length === 1 ? names[0] : `${relatives.length} people`}…`);
+    notify(searchingForNames(names));
     const results = await searchRelativesOnWikiTree({ Id: 0 }, relatives, []);
     return { subjectLabel: "", results, readBy: "", duplicates: null };
   }
+
+  const searchingForNames = (names) => `Searching WikiTree for ${names.length === 1 ? names[0] : `${names.length} people`}…`;
 
   // "Check my in-laws" (2026-10-18): the people married into the family with a parent missing on WikiTree, each
   // run through checkBioRelatives (their parents and siblings only), two at a time.
@@ -1629,8 +1631,8 @@ export function createChatPeopleHandlers({
     // Full names, not "Edward (Rowland-18000)" (the user, 2026-10-12).
     const subjectLabel = `${fullName({ name: profile.RealName || profile.FirstName, lnab: profile.LastNameAtBirth, wtid: profile.Name })} (${profile.Name})`;
     const bio = profile.Bio || profile.bio || ""; // the API returns "bio"
-    if (askedNames && !bio.replace(/\[\[Category:[^\]]*\]\]|==[^=]+==|<references\s*\/>/g, "").trim()) return await searchNamedPeople(params);
     if (!bio.replace(/\[\[Category:[^\]]*\]\]|==[^=]+==|<references\s*\/>/g, "").trim()) {
+      if (askedNames) return await searchNamedPeople(params);
       // (the duplicates still count for "check my in-laws": a duplicate may have the parents)
       return { text: `${subjectLabel} has no biography, so there are no relatives to read from it.`, subjectLabel, noBio: true, duplicates: await duplicatesPromise };
     }
@@ -1709,7 +1711,7 @@ export function createChatPeopleHandlers({
 
     say(
       askedNames
-        ? `Searching WikiTree for ${askedNames.length === 1 ? askedNames[0] : `${askedNames.length} people`}…`
+        ? searchingForNames(askedNames)
         : `Searching WikiTree for ${relatives.length} relative${relatives.length === 1 ? "" : "s"}…`
     );
     const results = await searchRelativesOnWikiTree(profile, relatives, attached);

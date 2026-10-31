@@ -347,10 +347,11 @@ const BARE_CONNECTION_PROMPT_RE =
 const NOT_BARE_CONNECTION_RE =
   /\b(?:who|that|which|were|was|emigrat\w*|immigrat\w*|migrat\w*|moved|went|came|sailed|travell?ed|born|died|married|deported|transported)\b/i;
 
+// ("Who were Heard-171's adoptive parents?" fell through to a WT+ search, which can't say: 2026-10-31)
 export function isLikelyFamilyRelationPrompt(prompt) {
   const text = String(prompt || "");
   if (BARE_CONNECTION_PROMPT_RE.test(text) && !NOT_BARE_CONNECTION_RE.test(text)) return true;
-  return /\b(?:cousins?|ancestors?|descendants?|generations?|cc\d+|siblings?|brothers?\s+and\s+sisters?|step-?(?:mother|father|parents?|sons?|daughters?|children|brothers?|sisters?)|(?:connected|related)\s+(?:to|with)|(?:connection|relationship)\s+(?:to|between|with)|connect\s+\S+.*\bwith)\b|['’]s?\s+(?:father|mother|parents?|wife|husband|spouses?|children|sons?|daughters?)['’]s\b/i.test(
+  return /\b(?:cousins?|ancestors?|descendants?|generations?|cc\d+|siblings?|brothers?\s+and\s+sisters?|step-?(?:mother|father|parents?|sons?|daughters?|children|brothers?|sisters?)|(?:adoptive|adopted|foster|birth|biological)\s+(?:mothers?|fathers?|parents?|famil(?:y|ies)|sons?|daughters?|children|child|siblings?|brothers?|sisters?)|(?:connected|related)\s+(?:to|with)|(?:connection|relationship)\s+(?:to|between|with)|connect\s+\S+.*\bwith)\b|['’]s?\s+(?:father|mother|parents?|wife|husband|spouses?|children|sons?|daughters?)['’]s\b/i.test(
     String(prompt || "")
   );
 }
