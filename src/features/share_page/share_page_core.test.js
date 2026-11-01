@@ -669,3 +669,66 @@ describe("fileIdFor", () => {
     expect(fileIdFor("space", '/wiki/Space:A:B*C?D"E<F>G|H I')).toBe("A_B_C_D_E_F_G_H_I");
   });
 });
+
+describe("G2G posts", () => {
+  test.each([
+    "/g2g/2098490/play-this-weeks-indigenous-peoples-connection-checkers-game",
+    "/g2g/2098490",
+    "/g2g/2098490/",
+  ])("%s is a G2G post", (path) => {
+    expect(detectPageKind(path)).toBe("g2g");
+  });
+  test.each(["/g2g/questions", "/g2g/tags", "/g2g/user/Robinson-27225", "/g2g/", "/g2g/unanswered", "/g2g/tag/wbe"])(
+    "%s is a list or other page, not a post",
+    (path) => {
+      expect(detectPageKind(path)).toBe("other");
+    }
+  );
+  test("the address shared ends at the post's number, with no title, page of answers or answer anchor", () => {
+    expect(shareUrlFor("g2g", "https://www.wikitree.com/g2g/2098490/the-title?start=20#a2098999")).toBe(
+      "https://www.wikitree.com/g2g/2098490"
+    );
+    expect(shareUrlFor("g2g", "https://www.wikitree.com/g2g/2098490/the-title?show=2098999#c2099000")).toBe(
+      "https://www.wikitree.com/g2g/2098490"
+    );
+    expect(shareUrlFor("g2g", "https://www.wikitree.com/g2g/2098490")).toBe("https://www.wikitree.com/g2g/2098490");
+  });
+  test("the saved card is named for the post's number", () => {
+    expect(fileIdFor("g2g", "/g2g/2098490/the-title")).toBe("G2G-2098490");
+  });
+  test("the suggested post invites people to the conversation and carries the link, tag and hashtags", () => {
+    const url = "https://www.wikitree.com/g2g/2098490";
+    const text = buildText("g2g", "Question of the Week: Do you have ancestors?", url, getChannel("x"));
+    expect(text).toContain("Join the conversation on G2G");
+    expect(text).toContain("Question of the Week: Do you have ancestors?");
+    expect(text).toContain(url);
+    expect(text).toContain("@WikiTreers");
+    expect(text).toContain(BRAND_HASHTAGS);
+  });
+  test("the card summary has the opening text, the category, the answers and up to three tags", () => {
+    const summary = pageSummary("g2g", {
+      paragraphs: [
+        "Do you have ancestors who belonged to an Indigenous people? Tell us about them.",
+        "More text here.",
+      ],
+      category: "The Tree House",
+      answers: 31,
+      votes: 27,
+      tags: ["question_of_the_week", "greeters", "ambassadors", "first_peoples"],
+    });
+    expect(summary.bio).toContain("Do you have ancestors who belonged to an Indigenous people?");
+    expect(summary.fields.map((f) => [f.label, f.lines])).toEqual([
+      ["Asked in", ["The Tree House"]],
+      ["Answers", ["31"]],
+      ["Votes", ["27"]],
+      ["Tags", ["question_of_the_week,", "greeters, ambassadors"]],
+    ]);
+  });
+  test("a post with no answers, category or tags shows only its text", () => {
+    const summary = pageSummary("g2g", {
+      paragraphs: ["A question that nobody has answered yet, so there is nothing else to show on its card."],
+    });
+    expect(summary.fields).toEqual([]);
+    expect(summary.bio).toContain("A question that nobody has answered yet");
+  });
+});
