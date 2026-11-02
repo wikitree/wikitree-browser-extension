@@ -1,5 +1,5 @@
 import { plainWords } from "./chat_text_utils";
-import { historicalPlace } from "./chat_historical_places";
+import { historicalPlace, withoutAsides } from "./chat_historical_places";
 // Town-level birthplaces for the migration maps (2026-10-03, the user's ask:
 // "Wem → Birkenhead", not England → Wales). WikiTree has no coordinates, so
 // each birthplace text is looked up on OpenStreetMap data: first on komoot's
@@ -46,10 +46,12 @@ function storage() {
   return typeof chrome !== "undefined" && chrome?.storage?.local ? chrome.storage.local : null;
 }
 
-/** The cache key for a WikiTree location: "Wem, Shropshire, England, United Kingdom" → "wem, shropshire, england, united kingdom". */
+/**
+ * The cache key for a WikiTree location: "Wem, Shropshire, England, United Kingdom" → "wem, shropshire, england, united kingdom".
+ * A town's own bracket stays ("neustadt (hessen), …"), so the key changed for those and earlier wrong namesakes are looked up again.
+ */
 export function locationKey(location) {
-  return String(location || "")
-    .replace(/\([^)]*\)/g, " ")
+  return withoutAsides(location)
     .replace(/\s+/g, " ")
     .replace(/\s*,\s*/g, ", ")
     .replace(/^[\s,]+|[\s,]+$/g, "")
