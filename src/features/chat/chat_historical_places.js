@@ -456,6 +456,22 @@ export function plainName(text) {
     .trim();
 }
 
+// Words that open an aside in brackets rather than a town's own name: "(now Ukraine)", "(St Chad)".
+const ASIDE =
+  /^(?:now|today|present|modern|formerly|former|later|then|was|probably|possibly|prob|poss|perhaps|maybe|likely|unknown|unk|near|nr|see|aka|also|known|called|parish|st|ste|saint|sainte|ca|circa|abt|about|before|after|bef|aft|or)\b/i;
+
+/**
+ * The location without its asides in brackets, but with a town's own bracket, which tells namesakes
+ * apart: "Neustadt (Hessen), Erzbistum Mainz, …" keeps "(Hessen)"; without it Andreas's ancestors went
+ * to Neustadt an der Weinstraße (G2G, 2026-11-02). "Wem, Shropshire, England (probably)" loses its aside.
+ */
+export function withoutAsides(location) {
+  const text = String(location || "");
+  const own = text.match(/^([^,()]*[^,()\s])\s*\(([\p{L}.'-]+(?: [\p{L}.'-]+)?)\)\s*(?=,|$)/u);
+  if (!own || ASIDE.test(own[2])) return text.replace(/\([^)]*\)/g, " ");
+  return `${own[1]} (${own[2]})${text.slice(own[0].length).replace(/\([^)]*\)/g, " ")}`;
+}
+
 // "Governorate of Yekaterinoslav", "Ukrainian SSR", "Provinz Posen": the name alone.
 const PREFIX =
   /^(?:the )?(?:(?:kingdom|grand duchy|duchy|archduchy|principality|electorate|margraviate|landgraviate|province|governorate|government|gubernia|guberniya|vilayet|eyalet|mutasarrifate|crown land|free state|oblast|land) of (?:the )?|(?:konigreich|grossherzogtum|herzogtum|erzherzogtum|kurfurstentum|furstentum|markgrafschaft|provinz|freistaat|gouvernement) )/;
@@ -577,8 +593,7 @@ function findProvince(states, name) {
  * is its own dot, with nothing to look up: "Neuendorf (Chortitza)".
  */
 export function historicalPlace(location) {
-  const parts = String(location || "")
-    .replace(/\([^)]*\)/g, " ")
+  const parts = withoutAsides(location)
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);

@@ -1,5 +1,5 @@
-import { englishCountry, historicalPlace, plainName } from "./chat_historical_places";
-import { cachedPoint, geocodeLocations, isGeocodable, pickHistoricalTown, pickWikidataTown, wikidataTowns } from "./chat_geocode";
+import { englishCountry, historicalPlace, plainName, withoutAsides } from "./chat_historical_places";
+import { cachedPoint, distanceKm, geocodeLocations, isGeocodable, locationKey, pickHistoricalTown, pickPhotonTown, pickWikidataTown, wikidataTowns } from "./chat_geocode";
 import { buildMigration, placeOf, placeRegion } from "./chat_migration_data";
 
 // 2026-10-23: Russian Empire ancestors weren't on the map (Friesen-1686).
@@ -319,4 +319,33 @@ test("the saved lookups of v7 are kept, except in states that no longer exist", 
     jest.useRealTimers();
     delete global.chrome;
   }
+});
+
+// 2026-11-02, G2G: Andreas's ancestors (Bicker-268) were born in "Neustadt (Hessen), Erzbistum Mainz,
+// Heiliges Römisches Reich", and the map put them in Neustadt an der Weinstraße, 170 km away: the
+// "(Hessen)" was dropped as an aside. Checked against the point he gave, not just that a town was found.
+describe("a town's own bracket tells namesakes apart", () => {
+  const andreasPoint = [9.1158, 50.8503]; // 50° 51′ 1″ N, 9° 6′ 57″ E
+  const weinstrasse = { name: "Neustadt an der Weinstraße", area: "Rhineland-Palatinate", country: "Germany", point: [8.136, 49.3536], settlement: true };
+  const hessen = { name: "Neustadt (Hessen)", area: "Hesse", country: "Germany", point: [9.1173, 50.8515], settlement: true };
+
+  test("the bracket is kept; asides aren't", () => {
+    expect(withoutAsides("Neustadt (Hessen), Erzbistum Mainz, Heiliges Römisches Reich")).toBe("Neustadt (Hessen), Erzbistum Mainz, Heiliges Römisches Reich");
+    expect(withoutAsides("Frankfurt (Oder), Brandenburg, Preußen")).toBe("Frankfurt (Oder), Brandenburg, Preußen");
+    expect(withoutAsides("Kiev (now Kyiv), Ukraine").replace(/\s+/g, " ")).toBe("Kiev , Ukraine");
+    expect(withoutAsides("Shrewsbury (St Chad), Shropshire, England").replace(/\s+/g, " ")).toBe("Shrewsbury , Shropshire, England");
+    expect(withoutAsides("Stogi, Pomerania, Poland (Heubuden, Gross Werder, Prussia)").trim()).toBe("Stogi, Pomerania, Poland");
+    expect(locationKey("Neustadt (Hessen), Kurfürstentum Hessen")).toBe("neustadt (hessen), kurfürstentum hessen");
+    // (the same key from a key: the maps look up keys again)
+    expect(locationKey(locationKey("Neustadt (Hessen), Kurfürstentum Hessen"))).toBe("neustadt (hessen), kurfürstentum hessen");
+  });
+
+  test("Bicker-268's Neustadt is in Hesse", () => {
+    const place = historicalPlace("Neustadt (Hessen), Erzbistum Mainz, Heiliges Römisches Reich");
+    expect(place).toMatchObject({ key: "Holy Roman Empire", query: "neustadt (hessen)" });
+    const found = pickHistoricalTown([weinstrasse, hessen], place);
+    expect(distanceKm(found.point, andreasPoint)).toBeLessThan(5);
+    // (and in a state of today, where Photon may list the other Neustadt first)
+    expect(distanceKm(pickPhotonTown([weinstrasse, hessen], "Neustadt (Hessen), Kurfürstentum Hessen").point, andreasPoint)).toBeLessThan(5);
+  });
 });
