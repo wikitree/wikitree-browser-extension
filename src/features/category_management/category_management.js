@@ -1160,7 +1160,7 @@ function AddCheckboxesWikiTreePlus() {
       const profileLink = bold.childNodes[0];
       if (profileLink != null) {
         // no tr of an inline table for challenges
-        const profileId = profileLink.innerHTML;
+        const profileId = profileLink.href.split("/wiki/")[1];
         profileLink.style.pointerEvents = "none";
         tableData.innerHTML =
           '<input type="checkbox" id="cb' +
