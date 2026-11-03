@@ -20,7 +20,7 @@ import { interpolateYlOrRd, interpolateBlues } from "d3-scale-chromatic";
 import { easeCubicOut } from "d3-ease";
 import { feature } from "topojson-client";
 import { REGION_POINTS, SPLIT_COUNTRIES } from "./chat_migration_data";
-import { cachedPoint, geocodeLocations, loadGeocodeCache, pendingLookups } from "./chat_geocode";
+import { cachedPoint, geocodeLocations, loadGeocodeCache, loadOwnPoints, pendingLookups } from "./chat_geocode";
 import { chartLinkButtons, chartPopupControls, escapeText, injectChartStyles, tipMoreHint, handleChartPopupButton, createChartPopup, mountChartPopup } from "./chat_chart_common";
 
 const WIDTH = 960;
@@ -92,6 +92,8 @@ function mainCentroid(countryFeature) {
  */
 export async function showMigrationMapPopup(firstMigration, options = {}) {
   const [countries] = await Promise.all([loadWorld(), loadGeocodeCache()]);
+  // (our own location data first: the Locations Helper's, then its server; no Photon or Nominatim for those)
+  if (firstMigration.refine) await loadOwnPoints(firstMigration.locations).catch(() => 0);
   // (built before the saved towns loaded: build again with them)
   let migration = firstMigration.refine ? firstMigration.refine(cachedPoint) : firstMigration;
   chartCounter += 1;

@@ -1,5 +1,6 @@
 import { plainWords } from "./chat_text_utils";
 import { historicalPlace, withoutAsides } from "./chat_historical_places";
+import { countryCodeMap } from "../locationsHelper/country_codes";
 // Town-level birthplaces for the migration maps (2026-10-03, the user's ask:
 // "Wem → Birkenhead", not England → Wales). WikiTree has no coordinates, so
 // each birthplace text is looked up on OpenStreetMap data: first on komoot's
@@ -34,6 +35,18 @@ const SETTLEMENT_TYPES = new Set(["city", "town", "village", "hamlet", "suburb",
 const cache = new Map();
 // location key → its county, shown while Nominatim still looks for the town
 const provisional = new Map();
+// location key → {name, area, country, point} from the Locations Helper's own database
+// (WTLocationSuggestionsDB, on www.wikitree.com): checked first, never saved, so it always wins
+const local = new Map();
+const LOCAL_DB = "WTLocationSuggestionsDB";
+// For testing: logs where each place's latitude and longitude came from (console, "wbe geocode").
+const LOG_SOURCES = true;
+
+function logSource(key, source, place) {
+  if (!LOG_SOURCES) return;
+  const where = place?.point ? `${place.point[1]}, ${place.point[0]} (${[place.name, place.area, place.country].filter(Boolean).join(", ")})` : "not found";
+  console.log(`wbe geocode: "${key}" ← ${source}: ${where}`);
+}
 let loadPromise = null;
 let saveTimer = null;
 let lastRequest = 0;
@@ -75,10 +88,11 @@ export function loadGeocodeCache() {
       const area = storage();
       if (!area) return resolve();
       try {
-        area.remove?.(["museGeocodeCache", "museGeocodeCache2", "museGeocodeCache3", "museGeocodeCache4", "museGeocodeCache5", "museGeocodeCache6"]);
+        area.remove?.(["museGeocodeCache", "museGeocodeCache2", "museGeocodeCache3", "museGeocodeCache4", "museGeocodeCache5", "museGeocodeCache6", "museServerMisses"]);
         area.get([STORAGE_KEY, PREVIOUS_KEY], (stored) => {
           const saved = stored?.[STORAGE_KEY];
-          if (saved && typeof saved === "object") Object.entries(saved).forEach(([key, value]) => cache.has(key) || cache.set(key, value));
+          // (the server's answers by older matching rules are asked again: SERVER_MATCH)
+          if (saved && typeof saved === "object") Object.entries(saved).forEach(([key, value]) => cache.has(key) || (value?.src === "server" && value.v !== SERVER_MATCH) || cache.set(key, value));
           const previous = stored?.[PREVIOUS_KEY];
           if (previous && typeof previous === "object") {
             Object.entries(previous).forEach(([key, value]) => historicalPlace(key) || cache.has(key) || cache.set(key, value));
@@ -113,13 +127,400 @@ export function cachedPoint(location) {
   const key = locationKey(location);
   // (not looked up any more: a colony village is its own dot, whatever an earlier build found)
   if (!isGeocodable(key)) return null;
-  const hit = cache.get(key) || provisional.get(key);
+  const hit = local.get(key) || cache.get(key) || provisional.get(key);
   return hit && hit.point ? hit : null;
 }
 
 /** For tests. */
 export function setCachedPoint(location, value) {
   cache.set(locationKey(location), value || 0);
+}
+
+// As the Locations Helper keys its places (locations_common normalise): lower case, no accents.
+function localKey(key) {
+  const letters = { ł: "l", ø: "o", ß: "ss" };
+  return key
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[łøß]/g, (letter) => letters[letter])
+    .normalize("NFC");
+}
+
+// The Locations Helper's database, if this browser has one: never created here
+// (an upgrade means it didn't exist, so that's abandoned).
+function openLocalDb() {
+  return new Promise((resolve) => {
+    if (typeof indexedDB === "undefined") return resolve(null);
+    let request;
+    try {
+      request = indexedDB.open(LOCAL_DB);
+    } catch (error) {
+      return resolve(null);
+    }
+    request.onupgradeneeded = (event) => event.target.transaction.abort();
+    request.onsuccess = (event) => {
+      const db = event.target.result;
+      resolve(db.objectStoreNames.contains("locations") ? db : (db.close(), null));
+    };
+    request.onerror = () => resolve(null);
+    request.onblocked = () => resolve(null);
+  });
+}
+
+// How far apart the Locations Helper's rows for one place may be and still be one place.
+const LOCAL_SAME_KM = 25;
+
+// The ways a town may be spelt in the Locations Helper: "graaff reinet" is "graaff-reinet".
+function townSpellings(town) {
+  return [...new Set([town, town.replace(/-/g, " "), town.replace(/ /g, "-")])];
+}
+
+// A location with each spelling of its town.
+function keySpellings(key) {
+  const [town, ...rest] = key.split(", ");
+  return townSpellings(town).map((name) => [name, ...rest].join(", "));
+}
+
+function dbRows(db, indexName, query) {
+  return new Promise((resolve) => {
+    try {
+      const store = db.transaction(["locations"], "readonly").objectStore("locations");
+      if (!store.indexNames.contains(indexName)) return resolve([]);
+      const request = store.index(indexName).getAll(query);
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => resolve([]);
+    } catch (error) {
+      resolve([]);
+    }
+  });
+}
+
+// Every place this location may be, for choosePlace: its exact path ("aan de doorns, kaapkolonie"),
+// every place called the town, alone ("cape colony") or with more after it ("aan de doorns, …"),
+// and the places with the town as an alias; each spelling of the town. And the places that are
+// its last part ("nederland"), for the country check.
+async function localRows(db, key) {
+  const towns = townSpellings(key.split(", ")[0]);
+  const all = (indexName, queries) => Promise.all(queries.map((query) => dbRows(db, indexName, query))).then((lists) => lists.flat());
+  const region = key.split(", ").slice(-1)[0];
+  const [exact, byTown, byAlias, regionRows] = await Promise.all([
+    all("byPath", keySpellings(key)),
+    all("byPath", towns.flatMap((name) => [name, IDBKeyRange.bound(`${name}, `, `${name}, ￿`)])),
+    all("byAlias", towns),
+    all("byPath", [region]).then(async (rows) => [...rows, ...(await all("byAlias", [region]))]),
+  ]);
+  return { rows: [...exact, ...byTown, ...byAlias], regionRows };
+}
+
+const pathParts = (path) =>
+  localKey(String(path || "").toLowerCase())
+    .split(",")
+    .map((part) => part.replace(/-/g, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+// A row's aliases, as names: the downloaded datasets have them normalised (na), the server as "|Kaapstad|Cape Town" (a).
+const aliasNames = (row) =>
+  (Array.isArray(row?.na) ? row.na : String(row?.a || "").split("|"))
+    .map((alias) => pathParts(alias).join(", "))
+    .filter(Boolean);
+
+// Whether a row is a place called the town (asked[0]), by its own name or an alias.
+const calledTown = (row, town) => pathParts(row?.np || row?.p)[0] === town || aliasNames(row).includes(town);
+
+/**
+ * Whether a Locations Helper row is the place asked for (key, as localKey): the same town (or an
+ * alias of it, "kaapstad" for Cape Town), and the rest of one is all in the other, give or take a
+ * county or country ("aan de doorns, cape colony" is "aan de doorns, cape colony, south africa").
+ * The row's aliases count as its names too.
+ */
+export function localRowMatches(row, key) {
+  const asked = pathParts(key);
+  const path = pathParts(row?.np || row?.p);
+  if (!asked.length || !calledTown(row, asked[0])) return false;
+  const rowNames = new Set(path.slice(1));
+  aliasNames(row).forEach((alias) => rowNames.add(alias));
+  const askedNames = new Set(asked.slice(1));
+  return asked.slice(1).every((part) => rowNames.has(part)) || path.slice(1).every((part) => askedNames.has(part));
+}
+
+const hasPoint = (item) => Number.isFinite(Number(item?.x)) && Number.isFinite(Number(item?.y)) && Boolean(Number(item?.x) || Number(item?.y));
+
+/**
+ * A Locations Helper place as a found town: {name, area, country, point}. key: only rows
+ * that match it, and only when they all agree where it is (two Aan de Doorns: Photon decides).
+ */
+export function localPlace(rows, key = "") {
+  const placed = (rows || []).filter((item) => hasPoint(item) && (!key || localRowMatches(item, key)));
+  const row = placed[0];
+  if (!row) return null;
+  const point = [Number(Number(row.x).toFixed(4)), Number(Number(row.y).toFixed(4))];
+  if (placed.some((item) => distanceKm(point, [Number(item.x), Number(item.y)]) > LOCAL_SAME_KM)) return null;
+  const parts = String(row.p || "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return {
+    name: parts[0] || "",
+    area: parts.length > 2 ? parts[1] : "",
+    country: parts.length > 1 ? parts[parts.length - 1] : "",
+    point,
+  };
+}
+
+// Words that say what kind of place, not which: no help in telling two colonies apart.
+const KIND_WORDS = new Set(["de", "der", "den", "des", "di", "du", "het", "la", "le", "les", "of", "the", "van", "von", "colony", "county", "province", "provincie", "state", "republic", "republiek", "kingdom", "union", "unie", "district", "region", "dutch", "british"]);
+const nameWordsOf = (text) => plain(text).split(" ").filter((word) => word.length > 2 && !KIND_WORDS.has(word));
+
+/**
+ * The town on its own, when the rest of the location names its colony some other way
+ * ("tulbagh, de caep de goede hoop": the rows say Cabo de Goede Hoop, Cape Colony, Kaapkolonie…).
+ * Only when every row for the town is in one place, and the rest of the location isn't somewhere else:
+ * - where the database knows the last part (regionRows: its rows by that path or alias), it's in the town's country;
+ * - otherwise it shares a word with the town's own names ("caep de goede hoop" and "cabo de goede hoop": hoop, goede),
+ *   so "Richmond, Virginia" isn't put at a Cape Richmond.
+ * Returns {place, why} or {place: null, why}.
+ */
+export function localTownPlace(rows, key, regionRows = []) {
+  const asked = pathParts(key);
+  const townRows = (rows || []).filter((row) => calledTown(row, asked[0]));
+  const place = localPlace(townRows);
+  if (!place) return { place: null, why: townRows.some(hasPoint) ? "its rows aren't all in one place" : "no rows with x, y" };
+  const countries = new Set(townRows.filter(hasPoint).map((row) => row.c).filter(Boolean));
+  const regionCountries = new Set((regionRows || []).map((row) => row.c).filter(Boolean));
+  if (regionCountries.size) {
+    const same = [...regionCountries].some((country) => countries.has(country));
+    return same ? { place, why: `"${asked[asked.length - 1]}" is in ${[...countries].join("/")} too` } : { place: null, why: `"${asked[asked.length - 1]}" is in ${[...regionCountries].join("/")}, the town in ${[...countries].join("/")}` };
+  }
+  const rowWords = new Set();
+  townRows.forEach((row) => {
+    pathParts(row.np || row.p).slice(1).forEach((part) => nameWordsOf(part).forEach((word) => rowWords.add(word)));
+    aliasNames(row).forEach((alias) => nameWordsOf(alias).forEach((word) => rowWords.add(word)));
+  });
+  const shared = asked.slice(1).flatMap(nameWordsOf).filter((word) => rowWords.has(word));
+  return shared.length ? { place, why: `shares "${[...new Set(shared)].join(", ")}"` } : { place: null, why: `"${asked.slice(1).join(", ")}" shares no word with the town's rows` };
+}
+
+// Today's countries by name (as localKey), for when the Locations Helper's data doesn't have the country itself:
+// "orleans, france" isn't Orléans in Nouvelle-France (Canada) just because both say France.
+const COUNTRY_CODES = new Map(
+  [
+    ...Object.entries(countryCodeMap).map(([code, name]) => [name, code]),
+    ...Object.entries({
+      GB: ["England", "Scotland", "Wales", "Northern Ireland", "Great Britain", "UK"],
+      US: ["USA", "United States of America"],
+      NL: ["Nederland", "Holland"],
+      DE: ["Deutschland"],
+      BE: ["België", "Belgique"],
+      ZA: ["Suid-Afrika", "Republic of South Africa"],
+    }).flatMap(([code, names]) => names.map((name) => [name, code])),
+  ].map(([name, code]) => [pathParts(name).join(", "), code])
+);
+
+/**
+ * Where a location is, from the Locations Helper rows that may be it (the downloaded dataset's or the
+ * server's): its exact path, then a row that matches it (localRowMatches), then the town on its own
+ * (localTownPlace). key as localKey. Returns {place, how}, or {place: null, why} for the log.
+ */
+export function choosePlace(rows, key, regionRows = []) {
+  const asked = pathParts(key).join(", ");
+  // (a country the data doesn't have, but we know: its code, for the country check)
+  const last = pathParts(asked).slice(-1)[0];
+  if (COUNTRY_CODES.has(last)) regionRows = [...(regionRows || []), { r: last, c: COUNTRY_CODES.get(last) }];
+  const spellings = new Set(keySpellings(asked));
+  const exact = (rows || []).filter((row) => spellings.has(pathParts(row.np || row.p).join(", ")));
+  let place = localPlace(exact);
+  if (place) return { place, how: "exact path" };
+  place = localPlace(rows, asked);
+  // (unless the database knows its last part is in another country: "Cape Town, Cape Colony, Nederland")
+  const regionCountries = new Set((regionRows || []).map((row) => row.c).filter(Boolean));
+  const matchedCountries = (rows || []).filter((row) => hasPoint(row) && localRowMatches(row, asked)).map((row) => row.c);
+  if (place && regionCountries.size && !matchedCountries.some((country) => regionCountries.has(country))) {
+    return { place: null, why: `matches, but "${pathParts(asked).slice(-1)[0]}" is in ${[...regionCountries].join("/")}` };
+  }
+  if (place) return { place, how: "town match" };
+  const town = localTownPlace(rows, asked, regionRows);
+  if (town.place) return { place: town.place, how: `town alone (${town.why})` };
+  return { place: null, why: `${whyNot(rows, asked)}; town alone: ${town.why}` };
+}
+
+// For the log: why the rows found weren't used.
+function whyNot(rows, key) {
+  if (!rows.length) return "no rows";
+  const placed = rows.filter(hasPoint);
+  const count = `${rows.length} row${rows.length === 1 ? "" : "s"}`;
+  if (!placed.length) return `${count}, none with x, y`;
+  const matching = placed.filter((item) => localRowMatches(item, key));
+  if (!matching.length) return `${count}, ${placed.length} with x, y, none matching: ${[...new Set(placed.map((item) => item.p))].slice(0, 4).join(" | ")}`;
+  return `${count}, ${matching.length} matching but more than ${LOCAL_SAME_KM} km apart`;
+}
+
+/**
+ * Looks these locations up in our own location data: the Locations Helper's database on this
+ * browser, then (for the rest) the server it's downloaded from. The ones found there are placed
+ * from it, before Photon or Nominatim. Resolves with how many were found.
+ */
+export async function loadOwnPoints(locations) {
+  const all = [...new Set((locations || []).filter(isGeocodable).map(locationKey))];
+  if (LOG_SOURCES) all.filter((key) => local.has(key)).forEach((key) => logSource(key, "local DB, found earlier this session", local.get(key)));
+  let found = 0;
+  try {
+    found += await lookUpLocally(all.filter((key) => !local.has(key)));
+    found += await lookUpOnServer(all.filter((key) => !local.has(key)));
+  } finally {
+    // (the rest, for testing: the ones already placed, and the ones a lookup isn't needed for)
+    if (LOG_SOURCES) {
+      all.forEach((key) => {
+        if (local.has(key) || fromServer(cache.get(key))) return;
+        if (cache.has(key)) logSource(key, "saved from an earlier Photon/Nominatim lookup", cache.get(key) || null);
+        else console.log(`wbe geocode: "${key}" ← to look up on Photon/Nominatim`);
+      });
+    }
+  }
+  return found;
+}
+
+async function lookUpLocally(keys) {
+  if (!keys.length) return 0;
+  const db = await openLocalDb();
+  if (!db) {
+    if (LOG_SOURCES) console.log(`wbe geocode: no ${LOCAL_DB} on this site, so nothing from it`);
+    return 0;
+  }
+  let found = 0;
+  try {
+    await Promise.all(
+      keys.map(async (key) => {
+        const { rows, regionRows } = await localRows(db, localKey(key));
+        const { place, how, why } = choosePlace(rows, localKey(key), regionRows);
+        if (place) {
+          local.set(key, place);
+          found += 1;
+          logSource(key, `local DB, ${how}`, place);
+        } else logSource(key, `local DB (${why})`, null);
+      })
+    );
+  } finally {
+    db.close();
+  }
+  return found;
+}
+
+// ---- The server the Locations Helper's datasets come from (locations repo, src/lookup_places.php) ----
+// Only the places not in the downloaded datasets go there, all in one request (a few if many).
+// Found places are saved with the other lookups (src: "server"); places it doesn't have are
+// remembered for SERVER_RECHECK_DAYS, so the server isn't asked again every time a map opens.
+const SERVER_LOOKUP = "https://wikitreebee.com/suggest/locations/index.php?view=lookup";
+// (v2: a country we know by name is checked too; v1 put "La Motte, Provence, France" in Bas-Canada)
+const SERVER_MATCH = 2;
+const SERVER_MISSES_KEY = `museServerMisses${SERVER_MATCH}`;
+const SERVER_RECHECK_DAYS = 30;
+const SERVER_BATCH = 40;
+const SERVER_TIMEOUT_MS = 8000;
+let serverMisses = null;
+
+const fromServer = (hit) => hit?.src === "server" && hit.v === SERVER_MATCH;
+
+function loadServerMisses() {
+  if (serverMisses) return Promise.resolve(serverMisses);
+  return new Promise((resolve) => {
+    const area = storage();
+    const done = (saved) => {
+      const since = Date.now() - SERVER_RECHECK_DAYS * 86400000;
+      serverMisses = new Map(Object.entries(saved && typeof saved === "object" ? saved : {}).filter(([, when]) => when > since));
+      resolve(serverMisses);
+    };
+    if (!area) return done(null);
+    try {
+      area.get([SERVER_MISSES_KEY], (stored) => done(stored?.[SERVER_MISSES_KEY]));
+    } catch (error) {
+      done(null);
+    }
+  });
+}
+
+function saveServerMisses() {
+  try {
+    storage()?.set({ [SERVER_MISSES_KEY]: Object.fromEntries(serverMisses) });
+  } catch (error) {
+    // (storage full or gone: asked again next time)
+  }
+}
+
+// The names to ask the server for: each location's town (every spelling, with and without accents) and last part.
+export function serverQuery(keys) {
+  const towns = new Set();
+  const regions = new Set();
+  keys.forEach((key) => {
+    const parts = key.split(", ");
+    townSpellings(parts[0]).forEach((town) => towns.add(town).add(localKey(town)));
+    if (parts.length > 1) regions.add(parts[parts.length - 1]).add(localKey(parts[parts.length - 1]));
+  });
+  return { towns: [...towns], regions: [...regions] };
+}
+
+async function serverLookup(keys) {
+  const controller = typeof AbortController === "undefined" ? null : new AbortController();
+  const timer = controller && setTimeout(() => controller.abort(), SERVER_TIMEOUT_MS);
+  try {
+    // (text/plain: no CORS preflight)
+    const response = await fetch(SERVER_LOOKUP, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify(serverQuery(keys)),
+      credentials: "omit",
+      signal: controller?.signal,
+    });
+    if (!response.ok) throw new Error(`server ${response.status}`);
+    const json = await response.json();
+    return { places: Array.isArray(json?.places) ? json.places : [], regions: Array.isArray(json?.regions) ? json.regions : [] };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** The server's answer for one location: its rows from all the places and regions returned. */
+export function serverChoice(answer, key) {
+  const asked = localKey(key);
+  const town = pathParts(asked)[0];
+  const region = pathParts(asked).slice(-1)[0];
+  const rows = answer.places.filter((row) => calledTown(row, town));
+  const regionRows = answer.regions.filter((row) => pathParts(row.r || row.p).join(", ") === region);
+  return choosePlace(rows, asked, regionRows);
+}
+
+async function lookUpOnServer(keys) {
+  await Promise.all([loadGeocodeCache(), loadServerMisses()]);
+  const todo = keys.filter((key) => !fromServer(cache.get(key)) && !serverMisses.has(key));
+  if (LOG_SOURCES) keys.filter((key) => fromServer(cache.get(key))).forEach((key) => logSource(key, "server DB, saved from an earlier lookup", cache.get(key)));
+  if (!todo.length) return 0;
+  let found = 0;
+  for (let start = 0; start < todo.length; start += SERVER_BATCH) {
+    const batch = todo.slice(start, start + SERVER_BATCH);
+    let answer;
+    try {
+      answer = await serverLookup(batch);
+    } catch (error) {
+      // (down, slow or blocked: Photon and Nominatim, and the server again next time)
+      if (LOG_SOURCES) console.log(`wbe geocode: server lookup failed (${error?.message || error}), so Photon/Nominatim for ${todo.length - start} places`);
+      break;
+    }
+    batch.forEach((key) => {
+      const { place, how, why } = serverChoice(answer, key);
+      if (place) {
+        cache.set(key, { ...place, src: "server", v: SERVER_MATCH });
+        serverMisses.delete(key);
+        found += 1;
+        logSource(key, `server DB, ${how}`, place);
+      } else {
+        serverMisses.set(key, Date.now());
+        // (the server only sends places with coordinates, so "no rows" there means none with x, y)
+        logSource(key, `server DB (${why.replace(/^no rows/, "no rows with x, y")})`, null);
+      }
+    });
+  }
+  saveSoon();
+  saveServerMisses();
+  return found;
 }
 
 function wait(ms) {
@@ -366,11 +767,14 @@ async function geocodeOne(location) {
   let found = null;
   // (in a state that no longer exists: in today's country, by any of its names)
   const historical = historicalPlace(key);
+  let source = "Nominatim";
   if (historical) found = pickHistoricalTown(await search(historical.query, 10, { box: historical.box, allNames: true }), historical);
+  if (found) source = "Nominatim, as today's place";
   // (renamed, and OpenStreetMap doesn't have the old name: Wikidata may, near the province)
   if (historical && !found && historical.near) {
     try {
       found = await wikidataSearch(historical);
+      if (found) source = "Wikidata";
     } catch (error) {
       // (Wikidata down or busy: the province's dot)
     }
@@ -389,6 +793,7 @@ async function geocodeOne(location) {
     delete found.names;
   }
   const result = found || provisional.get(key) || null;
+  logSource(key, found ? source : result ? "Photon, its county (town not found)" : "Photon and Nominatim", result);
   cache.set(key, result || 0);
   provisional.delete(key);
   saveSoon();
@@ -403,7 +808,7 @@ async function geocodeOne(location) {
  * everything have finished, each resolving with how many towns were new.
  */
 export function geocodeLocations(locations, { onFound = () => {}, isWanted = () => true } = {}) {
-  const todo = [...new Set((locations || []).filter(isGeocodable).map(locationKey))].filter((key) => !cache.has(key));
+  const todo = [...new Set((locations || []).filter(isGeocodable).map(locationKey))].filter((key) => !cache.has(key) && !local.has(key));
   let found = 0;
   let done = 0;
   const missed = [];
@@ -437,6 +842,7 @@ export function geocodeLocations(locations, { onFound = () => {}, isWanted = () 
         }
         if (town) {
           delete town.settlement;
+          logSource(key, historical ? "Photon, as today's place" : "Photon", town);
           cache.set(key, town);
           saveSoon();
           found += 1;
@@ -472,5 +878,5 @@ export function geocodeLocations(locations, { onFound = () => {}, isWanted = () 
 
 /** How many of these locations still need a lookup. */
 export function pendingLookups(locations) {
-  return new Set((locations || []).filter(isGeocodable).map(locationKey).filter((key) => !cache.has(key))).size;
+  return new Set((locations || []).filter(isGeocodable).map(locationKey).filter((key) => !cache.has(key) && !local.has(key))).size;
 }
