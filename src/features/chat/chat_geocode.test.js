@@ -1,4 +1,4 @@
-import { cachedPoint, distanceKm, geocodeLocations, geocodeQueries, isGeocodable, choosePlace, localPlace, localRowMatches, localTownPlace, serverChoice, serverQuery, locationKey, namesMatch, parentCountyName, pendingLookups, pickParentCounty, pickPhotonCounty, pickPhotonTown, pickTown, pickWholeCounty, setCachedPoint } from "./chat_geocode";
+import { cachedPoint, distanceKm, geocodeLocations, geocodeQueries, isGeocodable, choosePlace, farmTown, localPlace, localRowMatches, localTownPlace, serverChoice, serverQuery, locationKey, namesMatch, parentCountyName, pendingLookups, pickParentCounty, pickPhotonCounty, pickPhotonTown, pickTown, pickWholeCounty, setCachedPoint } from "./chat_geocode";
 import { buildMigration, placeOf } from "./chat_migration_data";
 
 describe("town lookups for the migration map", () => {
@@ -215,6 +215,15 @@ describe("Cumberland is Cumberland", () => {
     expect(serverChoice(answer, "mönchsroth, bayern").place.point).toEqual([10.36, 49.02]);
     expect(serverChoice(answer, "cape town, cape colony, nederland").place).toBeNull();
     // (a country the data doesn't have: France isn't Nouvelle-France; the user's map put La Motte and St-Onge in Canada)
+    // (a farm's nearest town: before 1910 the second-last part, since then the one after the farm)
+    expect(farmTown("seekoegat, prins albert, cape colony")).toBe("prins albert, cape colony");
+    expect(farmTown("hoekplaas, bossiesveld, worcester, cape of good hope colony")).toBe("worcester, cape of good hope colony");
+    expect(farmTown("schietvantijn, roggeveld, distr tulbagh, cape colony")).toBe("tulbagh, cape colony");
+    expect(farmTown("seekoegat, prins albert, cape province, south africa")).toBe("prins albert, cape province, south africa");
+    expect(farmTown("uitenhage, cape province, union of south africa")).toBe("");
+    expect(farmTown("tulbagh, cabo de goede hoop, south africa")).toBe("");
+    expect(farmTown("paarl, cape colony")).toBe("");
+    expect(serverChoice({ places: [{ p: "Paarl, Cape Colony", c: "ZA", x: 18.97, y: -33.73 }], regions: [] }, "paarl, cape colony").place.code).toBe("ZA");
     const canada = { places: [{ p: "St-Onge, Canada, Nouvelle-France", a: null, c: "CA", x: -75.29, y: 45.27 }, { p: "La Motte, Bas-Canada", a: null, c: "CA", x: -78.11, y: 48.33 }], regions: [] };
     expect(serverChoice(canada, "saint onge, saintonge, france").place).toBeNull();
     expect(serverChoice(canada, "st-onge, saintonge, france").place).toBeNull();

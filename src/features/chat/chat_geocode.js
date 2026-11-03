@@ -264,6 +264,8 @@ export function localPlace(rows, key = "") {
     area: parts.length > 2 ? parts[1] : "",
     country: parts.length > 1 ? parts[parts.length - 1] : "",
     point,
+    // (its country code: a South African farm's town is only taken from South Africa)
+    ...(row.c ? { code: row.c } : {}),
   };
 }
 
@@ -366,6 +368,8 @@ export async function loadOwnPoints(locations) {
   try {
     found += await lookUpLocally(all.filter((key) => !local.has(key)));
     found += await lookUpOnServer(all.filter((key) => !local.has(key)));
+    // (not where Photon or Nominatim already found the place itself)
+    found += await placeAtTowns(all.filter((key) => !local.has(key) && !cache.get(key)?.point));
   } finally {
     // (the rest, for testing: the ones already placed, and the ones a lookup isn't needed for)
     if (LOG_SOURCES) {
@@ -376,6 +380,44 @@ export async function loadOwnPoints(locations) {
       });
     }
   }
+  return found;
+}
+
+// South Africa since 1910, as a location ends: before that it was a colony (Cape Colony, De Caep de Goede Hoop…).
+const SOUTH_AFRICA_SINCE_1910 = /(?:south africa|suid-afri[ck]a)$/;
+
+/**
+ * The town a South African place we couldn't find is nearest, with the rest of its location (the user,
+ * 2026-11-04): before 1910 (a colony at the end), the second-last part ("Seekoegat, Prins Albert,
+ * Cape Colony" → "prins albert, cape colony"; "Hoekplaas, Bossiesveld, Worcester, Cape Colony" →
+ * "worcester, cape colony"); since, the third-last ("Buffelskraal, Hexriver, Cape of Good Hope,
+ * South Africa" → "hexriver, …"; in "Uitenhage, Cape Province, South Africa" Cape Province is no town,
+ * and Uitenhage no farm). "Distr. Tulbagh" is Tulbagh. "" when there's no farm before a town.
+ */
+export function farmTown(key) {
+  const parts = key.split(", ");
+  const since1910 = SOUTH_AFRICA_SINCE_1910.test(parts[parts.length - 1]);
+  if (parts.length < (since1910 ? 4 : 3)) return "";
+  const at = parts.length - (since1910 ? 3 : 2);
+  const town = parts[at].replace(/^(?:distr\.?|district|distrik)\s+|\s+(?:district|distrik)$/, "").trim();
+  return town ? [town, ...parts.slice(at + 1)].join(", ") : "";
+}
+
+async function placeAtTowns(keys) {
+  const towns = new Map(keys.map((key) => [key, farmTown(key)]).filter(([, town]) => town));
+  const unknown = [...new Set(towns.values())].filter((town) => !local.has(town) && !fromServer(cache.get(town)));
+  if (unknown.length) {
+    await lookUpLocally(unknown);
+    await lookUpOnServer(unknown.filter((town) => !local.has(town)));
+  }
+  let found = 0;
+  towns.forEach((town, key) => {
+    const place = local.get(town) || (fromServer(cache.get(town)) ? cache.get(town) : null);
+    if (place?.code !== "ZA") return;
+    local.set(key, { ...place });
+    found += 1;
+    logSource(key, `its nearest town, "${town}" (a South African place we couldn't find)`, place);
+  });
   return found;
 }
 
@@ -411,7 +453,8 @@ async function lookUpLocally(keys) {
 // remembered for SERVER_RECHECK_DAYS, so the server isn't asked again every time a map opens.
 const SERVER_LOOKUP = "https://wikitreebee.com/suggest/locations/index.php?view=lookup";
 // (v2: a country we know by name is checked too; v1 put "La Motte, Provence, France" in Bas-Canada)
-const SERVER_MATCH = 2;
+// (v3: with the country code, for placeAtTowns)
+const SERVER_MATCH = 3;
 const SERVER_MISSES_KEY = `museServerMisses${SERVER_MATCH}`;
 const SERVER_RECHECK_DAYS = 30;
 const SERVER_BATCH = 40;
