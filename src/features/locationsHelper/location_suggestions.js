@@ -798,14 +798,20 @@ function insertCountrySelectAbove(inputfield, sid) {
 }
 
 const DATASET_BASE_URL = "https://raw.githubusercontent.com/udjeni/wikitree-location-datasets/main";
-const MANIFEST_URL = `${DATASET_BASE_URL}/manifest.json`;
+// manifest-v2.json also lists the datasets that are only available gzipped (e.g. US). manifest.json is kept for
+// older WBE versions and only lists datasets that have a plain .json file. Fall back to it until v2 is published.
+const MANIFEST_URLS = [`${DATASET_BASE_URL}/manifest-v2.json`, `${DATASET_BASE_URL}/manifest.json`];
 
 let cachedManifest;
 async function fetchRemoteManifest() {
-  const res = await fetch(MANIFEST_URL, { cache: "no-store" });
-  if (!res.ok) throw new Error("Manifest fetch failed");
-  cachedManifest = await res.json();
-  return cachedManifest;
+  for (const url of MANIFEST_URLS) {
+    const res = await fetch(url, { cache: "no-store" });
+    if (res.ok) {
+      cachedManifest = await res.json();
+      return cachedManifest;
+    }
+  }
+  throw new Error("Manifest fetch failed");
 }
 
 async function openLocationDialog(popupEl, event) {
@@ -865,7 +871,9 @@ function openCountryFilterDialog(popupEl, event) {
 
 function renderTable(manifest, localDatasets, tbody) {
   tbody.innerHTML = "";
+  const canGunzip = typeof DecompressionStream === "function"; // Safari < 16.4 does not have it
   Object.entries(manifest.countries).forEach(([country, meta]) => {
+    if (!meta.file && !canGunzip) return; // Only available gzipped, which this browser cannot unzip
     const local = localDatasets[country];
     const loaded = Boolean(local);
     const upToDate = !loaded || local.version === meta.version;
@@ -915,6 +923,37 @@ function renderTable(manifest, localDatasets, tbody) {
 
 const CHUNK_SIZE = 4000;
 
+/**
+ * Download a dataset described by a manifest entry and return the parsed array.
+ * Datasets are published as gzipped JSON (meta.gzFile) and, if small enough for GitHub, also as
+ * plain JSON (meta.file). Large datasets (e.g. US) only exist as .gz.
+ */
+async function fetchDataset(meta) {
+  const canGunzip = typeof DecompressionStream === "function"; // Safari < 16.4 does not have it
+  if (meta.gzFile && (canGunzip || !meta.file)) {
+    if (!canGunzip) {
+      throw new Error("this browser cannot unzip the dataset (Safari 16.4 or later is needed)");
+    }
+    const res = await fetch(`${DATASET_BASE_URL}/${meta.gzFile}`, { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    // If a server ever sends the file with Content-Encoding: gzip, the browser has already unzipped it
+    const isGzip = bytes[0] === 0x1f && bytes[1] === 0x8b;
+    const text = isGzip
+      ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).text()
+      : new TextDecoder().decode(bytes);
+    return JSON.parse(text);
+  }
+
+  const res = await fetch(`${DATASET_BASE_URL}/${meta.file}`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 async function fetchAndLoadCountry(country, statusEl) {
   if (!cachedManifest) {
     statusEl.textContent = "Fetching manifest from GitHub";
@@ -926,16 +965,10 @@ async function fetchAndLoadCountry(country, statusEl) {
     throw new Error(`Country ${country} not found in manifest`);
   }
 
-  const fileURL = `${DATASET_BASE_URL}/${meta.file}`;
-
   let data;
   try {
     statusEl.textContent = `Fetching ${country} file from GitHub`;
-    const res = await fetch(fileURL, { cache: "no-store" });
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
-    data = await res.json();
+    data = await fetchDataset(meta);
   } catch (err) {
     throw new Error(`Failed to fetch ${country}: ${err.message}`);
   }

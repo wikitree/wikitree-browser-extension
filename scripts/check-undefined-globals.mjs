@@ -89,6 +89,7 @@ const KNOWN_GLOBALS = new Map([
     "CSS",
     "CustomEvent",
     "DOMParser",
+    "DecompressionStream",
     "DocumentFragment",
     "Element",
     "Event",
