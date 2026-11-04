@@ -604,14 +604,13 @@ function insertCountrySelectAbove(inputfield, sid) {
       if (!confirm("This will remove all existing place data. Continue?")) {
         return;
       }
-      statusEl.textContent = "Clearing all local place data and fetching selected countries from GitHub …";
-
-      await clearAllPlaces();
-      for (const c of countries) {
-        await fetchAndLoadCountry(c, statusEl);
-      }
-      await updateCountrySelectors();
-      await openLocationDialog(popupEl);
+      await runDatasetLoad(popupEl, statusEl, countries, async () => {
+        statusEl.textContent = "Clearing all local place data…";
+        await clearAllPlaces();
+        for (const c of countries) {
+          await fetchAndLoadCountry(c, statusEl);
+        }
+      });
     });
 
     popupEl.querySelector(".wbe-loc-load").addEventListener("click", async (e) => {
@@ -624,14 +623,13 @@ function insertCountrySelectAbove(inputfield, sid) {
         return;
       }
 
-      statusEl.textContent = "Clearing selected local countries and fetching them from GitHub …";
-
-      for (const c of countries) {
-        await clearCountry(c);
-        await fetchAndLoadCountry(c, statusEl);
-      }
-      await updateCountrySelectors();
-      await openLocationDialog(popupEl);
+      await runDatasetLoad(popupEl, statusEl, countries, async () => {
+        for (const c of countries) {
+          statusEl.textContent = `${c}: Clearing local place data…`;
+          await clearCountry(c);
+          await fetchAndLoadCountry(c, statusEl);
+        }
+      });
     });
   }
 
@@ -838,6 +836,7 @@ async function openLocationDialog(popupEl, event) {
   const statusEl = popupEl.querySelector(".wbe-loc-status");
   const tbody = popupEl.querySelector("tbody");
 
+  statusEl.classList.remove("is-error", "is-done");
   statusEl.textContent = "Loading available datasets…";
   popupEl.style.display = "block";
 
@@ -848,6 +847,7 @@ async function openLocationDialog(popupEl, event) {
     manifest = await fetchRemoteManifest();
     localDatasets = await readLocalDatasets();
   } catch (err) {
+    statusEl.classList.add("is-error");
     statusEl.textContent = "Failed to load dataset information.";
     console.error(err);
     return;
@@ -954,9 +954,42 @@ async function fetchDataset(meta) {
   return res.json();
 }
 
+/**
+ * Run a dataset download/load action with the status line highlighted and the buttons disabled,
+ * then refresh the dialog and report the outcome in the status line.
+ */
+async function runDatasetLoad(popupEl, statusEl, countries, action) {
+  const buttons = popupEl.querySelectorAll(".wbe-loc-clear-load, .wbe-loc-load");
+  buttons.forEach((b) => (b.disabled = true));
+  statusEl.classList.remove("is-red", "is-error", "is-done");
+  statusEl.classList.add("is-busy");
+
+  let error;
+  try {
+    await action();
+    await updateCountrySelectors();
+  } catch (err) {
+    console.error(err);
+    error = err;
+  } finally {
+    buttons.forEach((b) => (b.disabled = false));
+  }
+
+  // Refresh the table (this also resets the status text), then show the outcome
+  await openLocationDialog(popupEl);
+  statusEl.classList.remove("is-busy");
+  if (error) {
+    statusEl.classList.add("is-error");
+    statusEl.textContent = error.message;
+  } else {
+    statusEl.classList.add("is-done");
+    statusEl.textContent = `Loaded ${countries.join(", ")}.`;
+  }
+}
+
 async function fetchAndLoadCountry(country, statusEl) {
   if (!cachedManifest) {
-    statusEl.textContent = "Fetching manifest from GitHub";
+    statusEl.textContent = `${country}: Fetching manifest from GitHub…`;
     await fetchRemoteManifest();
   }
 
@@ -967,7 +1000,7 @@ async function fetchAndLoadCountry(country, statusEl) {
 
   let data;
   try {
-    statusEl.textContent = `Fetching ${country} file from GitHub`;
+    statusEl.textContent = `${country}: Downloading file from GitHub…`;
     data = await fetchDataset(meta);
   } catch (err) {
     throw new Error(`Failed to fetch ${country}: ${err.message}`);
@@ -993,7 +1026,7 @@ async function fetchAndLoadCountry(country, statusEl) {
     const start = i * CHUNK_SIZE;
     const end = start + CHUNK_SIZE;
     const chunk = data.slice(start, end);
-    statusEl.textContent = `Inserting chunk ${i + 1} of ${totalChunks} into the local store...`;
+    statusEl.textContent = `${country}: Inserting chunk ${i + 1} of ${totalChunks} into the local store…`;
 
     await insertChunk(chunk);
   }

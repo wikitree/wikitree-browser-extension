@@ -164,6 +164,54 @@ body.wbe-location-exclusive-active .autocomplete-suggestions {
   color: var(--wbe-cb-danger, red) !important;
 }
 
+/* While datasets are being downloaded and stored, make the status line stand out */
+.wbe-loc-status.is-busy,
+.wbe-loc-status.is-error,
+.wbe-loc-status.is-done {
+  padding: 6px 8px;
+  border-left: 4px solid;
+  border-radius: 3px;
+  font-weight: bold;
+  font-size: 0.95em;
+}
+.wbe-loc-status.is-busy {
+  background: var(--wbe-cb-warning-bg, #fff3cd);
+  color: var(--wbe-cb-warning-text, #533f03) !important;
+  border-left-color: var(--wbe-cb-warning, #e0a800);
+}
+.wbe-loc-status.is-busy::before {
+  content: "";
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  margin-right: 6px;
+  vertical-align: -0.1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: wbe-loc-spin 0.8s linear infinite;
+}
+.wbe-loc-status.is-error {
+  background: var(--wbe-cb-danger-bg, #f8d7da);
+  color: var(--wbe-cb-danger-text, #58151c) !important;
+  border-left-color: var(--wbe-cb-danger, #dc3545);
+}
+.wbe-loc-status.is-done {
+  background: var(--wbe-cb-success-bg, #d1e7dd);
+  color: var(--wbe-cb-success-text, #0a3622) !important;
+  border-left-color: var(--wbe-cb-success, #198754);
+}
+@keyframes wbe-loc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wbe-loc-status.is-busy::before {
+    animation: none;
+  }
+}
+
 .wbe-country-filter-popup {
   display: none;
   position: absolute;
