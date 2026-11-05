@@ -1,5 +1,5 @@
 import $ from "jquery";
-import { restoreOptions, restoreData } from "./upload";
+import { restoreOptions, restoreData, restoreAll } from "./upload";
 
 if (window.location.hash) {
   (function (hash, dialog) {
@@ -33,18 +33,56 @@ function showUpload(hash, dialog) {
     exit();
   }
 
-  function failed(result) {
-    $("#btnLaunch").show();
-    $("#errorMessage").text("The file was not valid. Click the button to try another one.").fadeIn();
+  // Anything other than a bad file used to be reported as "The file was not valid",
+  // which sent people off hunting for a problem with a perfectly good backup.
+  function messageFor(result) {
+    // "Restore Everything" puts the settings back before the feature data, so a failure can leave
+    // half the backup restored. This is empty for the other two, which only ever do one half.
+    const half = result?.settingsRestored ? "Your settings were restored, but your feature data was not. " : "";
+    return half + reasonFor(result);
   }
 
-  if (window.location.hash === "#UploadOptions") {
-    dialog.find(".dialog-header").text("Restore Options");
+  function reasonFor(result) {
+    switch (result?.nak) {
+      case "STORAGE_ERROR":
+        return "Your settings could not be saved, so nothing was restored. The backup may be too large for the browser's sync storage.";
+      case "NO_TABS":
+        return (
+          "The restore failed because no WikiTree page responded. " +
+          "Open a WikiTree page in another tab, then click the button to try again."
+        );
+      case "RESTORE_FAILED":
+        return `The restore failed: ${result.message}`;
+      case "EMPTY_FILE":
+        return "That file was empty. Click the button to try another one.";
+      case "INVALID_FORMAT":
+        return "The file was not valid. Click the button to try another one.";
+      default:
+        return `The restore failed: ${result?.nak ?? JSON.stringify(result ?? "no response")}`;
+    }
+  }
+
+  function failed(result) {
+    $("#btnLaunch").show();
+    if (result?.nak === "CANCELLED") {
+      $("#errorMessage").hide();
+      return;
+    }
+    $("#errorMessage").text(messageFor(result)).fadeIn();
+  }
+
+  if (window.location.hash === "#UploadAll") {
+    dialog.find(".dialog-header").text("Restore Everything");
+    launch = function () {
+      restoreAll().then(done).catch(failed);
+    };
+  } else if (window.location.hash === "#UploadOptions") {
+    dialog.find(".dialog-header").text("Restore Settings");
     launch = function () {
       restoreOptions().then(done).catch(failed);
     };
   } else if (window.location.hash === "#UploadData") {
-    dialog.find(".dialog-header").text("Restore Data");
+    dialog.find(".dialog-header").text("Restore Feature Data");
     launch = function () {
       restoreData().then(done).catch(failed);
     };

@@ -39,7 +39,7 @@ span.qa-q-item-meta a.qa-q-item-what:visited .checkmark {
 
 .checkmark {
   position: absolute;
-  margin-left: -0.75em;
+  margin-left: -1em;
 }
 
 span.qa-q-item-meta a.qa-q-item-what:visited .checkmark {

@@ -8,6 +8,7 @@ import "jquery-ui/ui/widgets/sortable";
 import "jquery-ui/ui/widgets/draggable";
 import "./clipboard_and_notes.css";
 import { htmlEntities, extensionContextInvalidatedCheck, setHighestZIndex } from "../../core/common";
+import { insertIntoEnhancedEditor } from "../../core/enhancedEditor";
 import { shouldInitializeFeature, checkIfFeatureEnabled } from "../../core/options/options_storage";
 import {
   isAddUnrelatedPerson,
@@ -22,7 +23,20 @@ import {
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 import { copyToClipboard } from "../../core/clipboard.js";
 
-let lastTextboxSelection = { start: 0, end: 0 }; // Store the last selection in the text box
+// Store the last caret/selection in an editable field, tagged with the field's id
+// so a paste only restores a selection that actually belongs to the target field.
+let lastTextboxSelection = { id: null, start: 0, end: 0 };
+
+// The fields we track a caret position for, so a clipping can be inserted at the caret.
+const TRACKED_FIELD_IDS = ["wpTextbox1", "newUser_mBio", "wpSummary"];
+const TRACKED_FIELD_SELECTOR = TRACKED_FIELD_IDS.map((id) => `#${id}`).join(", ");
+
+// Whether the Change Explanation field (#wpSummary) was the focused element at the moment
+// the clipboard was opened. This is read from document.activeElement on button mousedown
+// (before focus moves to the popup), which is reliable even when the biography uses the
+// CodeMirror editor — CodeMirror's editable is an id-less contenteditable div, so it never
+// looks like #wpSummary and never fires our field-focus handlers.
+let summaryWasActiveOnClipboardOpen = false;
 
 const CB_DB_NAME = "Clipboard";
 const CB_DB_VERSION = 1;
@@ -104,27 +118,30 @@ export async function appendClipboardButtons(clipboardButtons = $()) {
 // Remember the last selection in the text box
 
 // Update whenever the textarea is interacted with
+function rememberSelection(field) {
+  // selectionStart/End are non-numeric for field types that don't support a caret,
+  // and can be unreliable on blur in some browsers; guard against both.
+  if (field && typeof field.selectionStart === "number" && typeof field.selectionEnd === "number") {
+    lastTextboxSelection.id = field.id;
+    lastTextboxSelection.start = field.selectionStart;
+    lastTextboxSelection.end = field.selectionEnd;
+  }
+}
+
 function updateLastTextboxSelection() {
-  // Place this outside any function, after your lastTextboxSelection declaration.
-  $(document).on("focus click keyup select blur", "#wpTextbox1, #newUser_mBio", function (e) {
-    // For blur: only store if this was the active element
-    if (e.type === "blur" || e.type === "focusout") {
-      // Defensive: in some browsers, selectionStart/End is still valid on blur, in others it's 0.
-      if (typeof this.selectionStart === "number" && typeof this.selectionEnd === "number") {
-        lastTextboxSelection.start = this.selectionStart;
-        lastTextboxSelection.end = this.selectionEnd;
-      }
-    } else {
-      lastTextboxSelection.start = this.selectionStart;
-      lastTextboxSelection.end = this.selectionEnd;
-    }
+  // Track the caret in any editable field a clipping can be pasted into, including
+  // the Change Explanation field (#wpSummary), so a paste lands where the user left it.
+  $(document).on("focus click keyup select blur", TRACKED_FIELD_SELECTOR, function () {
+    rememberSelection(this);
   });
-  // Insurance: Save on clipboard button mousedown
+  // The instant a clipboard button is pressed (before the popup steals focus), record
+  // which field was focused: whether it was the Change Explanation field, and — for a
+  // tracked field — its caret position.
   $(document).on("mousedown", ".aClipboardButton", function () {
-    const $t = $("#wpTextbox1, #newUser_mBio");
-    if ($t.length) {
-      lastTextboxSelection.start = $t[0].selectionStart;
-      lastTextboxSelection.end = $t[0].selectionEnd;
+    const active = document.activeElement;
+    summaryWasActiveOnClipboardOpen = !!(active && active.id === "wpSummary");
+    if (active && TRACKED_FIELD_IDS.includes(active.id)) {
+      rememberSelection(active);
     }
   });
 }
@@ -158,7 +175,7 @@ shouldInitializeFeature("clipboardAndNotes").then((result) => {
     window.clipboardClicker = $();
     window.lastClipboardClicker = $();
 
-    console.log("[clipboard_and_notes] Initializing clipboard and notes feature");
+    //console.log("[clipboard_and_notes] Initializing clipboard and notes feature");
     if ($("body.Special_EditPerson").length || isSpacePage) {
       setTimeout(function () {
         if ($(".clipboardButtons").length == 0) {
@@ -206,22 +223,6 @@ function decodeHTMLEntities(text) {
   return textArea.value;
 }
 
-function htmlEntitiesReverse(str) {
-  return String(str)
-    .replaceAll(/&amp;/g, "&")
-    .replaceAll(/&lt;/g, "<")
-    .replaceAll(/&gt;/g, ">")
-    .replaceAll(/&quot;/g, '"')
-    .replaceAll(/$apos;/g, "'");
-}
-
-function display2real(element) {
-  return htmlEntitiesReverse($(element).html());
-}
-function original2real(val) {
-  return htmlEntitiesReverse(val);
-}
-
 function itemOrderNameForGroup(groupKey, type) {
   return `clipboard_${type}_order${groupKey}`;
 }
@@ -240,16 +241,14 @@ function activeTabVarNameFor(type) {
 
 function focusOnGroup(group) {
   const groupKey = makeKeyFrom(group);
-  const $li = $(`#tab-list .tab[data-groupkey="${groupKey}"]`);
-  if ($li.length) {
-    $li.addClass("active");
-  } else {
+  if (!$(`#tab-list .tab[data-groupkey="${groupKey}"]`).length) {
     // The group has not been loaded yet. Assume it will be loaded and add it's tab item
     // so long so we can mark it as active for the next refresh
     addGroupTab(groupKey, htmlEntities(group));
-    $("#tab-list .tab").removeClass("active");
-    $(`#tab-list .tab[data-groupkey="${groupKey}"]`).addClass("active");
   }
+  // Clear the old active tab too: the refresh reopens the first .active tab it finds
+  $("#tab-list .tab").removeClass("active");
+  $(`#tab-list .tab[data-groupkey="${groupKey}"]`).addClass("active");
 }
 
 async function addClipping(type, e) {
@@ -306,19 +305,43 @@ async function deleteClipping(key, type, groupTBody, e) {
   }
 }
 
-async function renameGroup(currentKey, newName, type, e) {
-  const records = [];
-  $(`.tab-content[data-groupkey="${currentKey}"] tr`).each((i, tr) => {
-    const $tr = $(tr);
-    records.push({
-      key: $tr.data("key"),
-      value: { type: type, text: original2real($tr.data("original")), group: newName },
-    });
-  });
+// The saved orders are filed under the group's key, so move them to the new key. Renaming onto
+// a group that already exists merges the two: its items come first, then the renamed group's.
+function keepOrderThroughRename(currentKey, newKey, type) {
+  // The rows on screen are in the order the user set
+  const rowKeys = (groupKey) =>
+    $(`${tableBodyForGroup(groupKey)} > tr`)
+      .map((i, tr) => $(tr).attr("data-key"))
+      .get();
+  const itemOrder = [...rowKeys(newKey), ...rowKeys(currentKey)];
+  localStorage.removeItem(itemOrderNameForGroup(currentKey, type));
+  localStorage.setItem(itemOrderNameForGroup(newKey, type), itemOrder.join("|"));
 
+  // Keep the tab where it was, or where the existing group's tab is when merging
+  const groupsOrderName = groupsOrderNameFor(type);
+  if (localStorage[groupsOrderName]) {
+    const groups = localStorage[groupsOrderName].split("|");
+    const renamed = groups.includes(newKey)
+      ? groups.filter((g) => g != currentKey)
+      : groups.map((g) => (g == currentKey ? newKey : g));
+    localStorage.setItem(groupsOrderName, [...new Set(renamed)].join("|"));
+  }
+}
+
+async function renameGroup(currentKey, newName, type, e) {
   try {
     const dbh = await initializeDatabase();
-    await dbh.multiPut("Clipboard", records);
+    // Rewrite the stored records with only the group changed, so the title and text come through
+    // as they were. Rebuilding them from the table rows lost the title.
+    const records = [];
+    await dbh.openCursor(CB_DB_STORE, (value, key) => {
+      if (value.type == type && makeKeyFrom(value.group || "") == currentKey) {
+        records.push({ key: key, value: { ...value, group: newName } });
+      }
+      return true;
+    });
+    await dbh.multiPut(CB_DB_STORE, records);
+    keepOrderThroughRename(currentKey, makeKeyFrom(newName), type);
     focusOnGroup(newName);
     clipboard(type, e, "edit");
     $("#groupInput").val("");
@@ -342,15 +365,9 @@ async function editClipping(key, type, e) {
   }
 }
 
-async function copyClippingToClipboard(element) {
-  const $temp = $("<textarea>");
-  $("body").append($temp);
-  let theText = "";
-  if (typeof element == "string") {
-    theText = original2real(element);
-  } else {
-    theText = display2real(element);
-  }
+// theText is the clipping exactly as saved. It is not decoded again here, or a clipping that
+// contains markup such as &nbsp; or &lt;ref&gt; would go in as the characters those stand for.
+async function copyClippingToClipboard(theText) {
   // Modern clipboard API with fallback
   try {
     await copyToClipboard(theText); // uses background script
@@ -373,6 +390,19 @@ async function copyClippingToClipboard(element) {
   }
 
   const enhancedEditorButton = $("#toggleMarkupColor");
+  // The Change Explanation field (#wpSummary) is a plain <input>, independent of the
+  // biography editor. When the enhanced editor (CodeMirror) is on, none of the bio-based
+  // conditions below match this page, so we must recognise a #wpSummary target on its own
+  // — otherwise a clipping only reaches the system clipboard and is never inserted. We
+  // only treat it as the target when it was genuinely the focused field as the clipboard
+  // opened, so clicking a clipping while editing the biography still copies (as before).
+  const summaryIsTarget = summaryWasActiveOnClipboardOpen && $("#wpSummary").length;
+  if (!summaryIsTarget && !isMergeEdit && $("#wpTextbox1 + .CodeMirror:visible").length) {
+    // The enhanced editor is on and holds the biography. If the insert fails, the clipping is
+    // still on the system clipboard, which is all that clicking one here used to do.
+    await insertIntoEnhancedEditor(theText);
+    return;
+  }
   if (
     enhancedEditorButton.attr("value") == "turn on enhanced editor" ||
     enhancedEditorButton.attr("value") == "Turn On Enhanced Editor" || //toggles once used
@@ -383,11 +413,15 @@ async function copyClippingToClipboard(element) {
     $("h1:contains('Edit Marriage Information')").length ||
     $("#mSources").length ||
     isSpecialTrustedList ||
-    isMergeEdit
+    isMergeEdit ||
+    summaryIsTarget
   ) {
     const box = window.activeFormElement;
     let el = $();
-    if ($("#photo_upload").length) {
+    if (summaryIsTarget) {
+      // The Change Explanation field was focused as the clipboard opened; paste there.
+      el = $("#wpSummary");
+    } else if ($("#photo_upload").length) {
       el = $("#wpUploadDescription");
     } else if ($("h1:contains('Edit Marriage Information')").length) {
       el = $();
@@ -417,27 +451,31 @@ async function copyClippingToClipboard(element) {
       el = $("input[name='add_email']");
     } else if (isMergeEdit && $("#newUser_mBio").length) {
       el = $("#newUser_mBio");
-    } else if ($("#wpTextbox1").length && lastTextboxSelection) {
+    } else if (box && TRACKED_FIELD_IDS.includes(box) && $("#" + box).length) {
+      // Honor the field the user last focused (e.g. the Change Explanation field,
+      // #wpSummary) instead of always defaulting to the main #wpTextbox1 body.
+      el = $("#" + box);
+    } else if ($("#wpTextbox1").length) {
       el = $("#wpTextbox1");
     } else {
       el = $("#" + box);
     }
     if (el[0]) {
       let selStart;
+      const elId = el.attr("id");
 
-      // Check if we have a meaningful stored selection (not just the default 0,0)
-      const hasMeaningfulSelection =
-        lastTextboxSelection &&
-        (lastTextboxSelection.start !== 0 ||
-          lastTextboxSelection.end !== 0 ||
-          ((el.attr("id") === "wpTextbox1" || el.attr("id") === "newUser_mBio") && el[0] === document.activeElement));
+      // Do we have a saved caret that belongs to the field we're pasting into?
+      // Matching on id means a saved position of 0 is still honored (caret at start),
+      // and a caret saved for one field is never applied to another.
+      const hasSavedSelectionForField =
+        lastTextboxSelection && lastTextboxSelection.id === elId && typeof lastTextboxSelection.start === "number";
 
-      if ((el.attr("id") === "wpTextbox1" || el.attr("id") === "newUser_mBio") && hasMeaningfulSelection) {
+      if (TRACKED_FIELD_IDS.includes(elId) && hasSavedSelectionForField) {
         el[0].focus();
         el[0].selectionStart = lastTextboxSelection.start;
         el[0].selectionEnd = lastTextboxSelection.end;
         selStart = lastTextboxSelection.start;
-      } else if (el.attr("id") === "newUser_mBio" && isMergeEdit) {
+      } else if (elId === "newUser_mBio" && isMergeEdit) {
         // If it's the merge edit textarea but no meaningful selection is stored, paste at the end on a new line
         el[0].focus();
         const currentContent = el.val();
@@ -446,7 +484,7 @@ async function copyClippingToClipboard(element) {
         selStart = textLength;
 
         // Add a newline before the content if there's already content and it doesn't end with a newline
-        const textToInsert = decodeHTMLEntities(theText);
+        const textToInsert = theText;
         const needsNewline = currentContent.length > 0 && !currentContent.endsWith("\n");
         const finalText = currentContent + (needsNewline ? "\n" : "") + textToInsert;
 
@@ -457,10 +495,12 @@ async function copyClippingToClipboard(element) {
         el[0].focus();
         return; // Exit early since we've handled the insertion manually
       } else {
-        selStart = el[0].selectionStart;
+        // No saved caret for this field: use its own caret, or the end of its
+        // content when the field can't report one (avoids a NaN split below).
+        selStart = typeof el[0].selectionStart === "number" ? el[0].selectionStart : (el.val() || "").length;
       }
 
-      const textToInsert = decodeHTMLEntities(theText);
+      const textToInsert = theText;
       const before = el.val().substring(0, selStart);
       const after = el.val().substring(selStart);
 
@@ -517,8 +557,6 @@ async function clipboard(type, e, action = false) {
 
   if ($("#clipboard").length) {
     activeTab = $("#tab-list .tab.active").data("groupkey");
-    $("#clipboard #clippings").html("");
-    $("#clipboard #tab-list").html("");
   } else {
     let h1 = "";
     if (type == "clipboard") {
@@ -614,9 +652,6 @@ async function clipboard(type, e, action = false) {
 
   window.lastClipboardClicker = window.clipboardClicker;
 
-  $("#groupTabs p").remove();
-  $("#clippings").html("");
-
   $(document).off("keydown", keyDownListener).on("keydown", keyDownListener);
   $(document).off("mousemove", mouseListener).on("mousemove", mouseListener);
 
@@ -637,6 +672,12 @@ async function clipboard(type, e, action = false) {
     console.error(`Failed to retrieve clipboard items`, error);
   }
 
+  // Only now swap out the old list, so the browser never draws the popup empty while the
+  // database is read. From here to the end there is no waiting, so it redraws in one go.
+  const scrollTop = $("#clipboard").scrollTop();
+  $("#groupTabs p").remove();
+  $("#clippings, #tab-list").html("");
+
   // We've collected them all, now render them
   if (groupedItems.size > 0) $("#clipboard p").remove();
   for (const group of [...groupedItems.keys()].sort()) {
@@ -649,7 +690,7 @@ async function clipboard(type, e, action = false) {
     addGroupTab(groupKey, groupName);
     const grpTable = $(
       `<div class="tab-content" data-groupkey="${groupKey}" data-group="${groupName}">` +
-        "<table><tbody class='group'></tbody></table></dev>"
+        "<table><tbody class='group'></tbody></table></div>"
     );
 
     let index = 0;
@@ -663,11 +704,13 @@ async function clipboard(type, e, action = false) {
           htmlText = htmlText.replaceAll(/(\bhttps?:\/\/.*\b)/g, "<a href='$1'>$1</a>");
         }
 
-        const titleSpan = item.value.title ? `<span class="titleSpan">${item.value.title}</span>` : "";
+        // Escaped because clippings can come from someone else's backup file. The browser undoes
+        // the escaping when it reads the attribute, so .attr("data-original") etc. give back the
+        // exact text. (.data() doesn't: it turns text that looks like a number or JSON into one.)
+        const title = htmlEntities(item.value.title ?? "");
+        const titleSpan = title ? `<span class="titleSpan">${title}</span>` : "";
         const row = $(
-          `<tr data-key="${item.key}" data-original="${oText}" data-group="${groupName}" data-title="${
-            item.value.title
-          }">${groupName.replaceAll(/'/g, "'").replaceAll(/"/g, '"')}">
+          `<tr data-key="${item.key}" data-original="${oText}" data-group="${groupName}" data-title="${title}">
                   <td class="index">${index}</td>
                   <td class="clippingCell">${titleSpan}
                     <pre class="clipping">${htmlText}</pre>
@@ -694,7 +737,9 @@ async function clipboard(type, e, action = false) {
             // The above check prevents misbehaviour due to legacy sort orders always having an
             // extra blank key value at the end (which used to have no effect, but here will
             // result in moving the non-grouped group of items to the end of this named group)
-            $(`#clippings tr[data-key="${itemKey}"]`).prependTo($(tableBodyForGroup(groupKey)));
+            // Only reorder this group's own rows. An order restored from a backup can name a key
+            // that belongs to another group here, and that row must not be pulled into this one.
+            $(`${tableBodyForGroup(groupKey)} > tr[data-key="${itemKey}"]`).prependTo($(tableBodyForGroup(groupKey)));
           }
         });
       renumberClipboardGroup(groupKey);
@@ -709,7 +754,7 @@ async function clipboard(type, e, action = false) {
     $(".clippingCell")
       .off("click")
       .on("click", function () {
-        copyClippingToClipboard($(this).closest("tr").data("original"));
+        copyClippingToClipboard($(this).closest("tr").attr("data-original"));
         closeClipboard();
       });
   }
@@ -739,11 +784,9 @@ async function clipboard(type, e, action = false) {
         $("#clipboard table tr").removeClass("editing");
         $(this).closest("tr").addClass("editing");
 
-        $("#clippingBox").val(original2real($(this).closest("tr").data("original")));
-        $("#groupInput").val(original2real($(this).closest(".tab-content").data("group")));
-        $("#thingTitle").val(
-          $(this).closest("tr").data("title") != "undefined" ? original2real($(this).closest("tr").data("title")) : ""
-        );
+        $("#clippingBox").val($(this).closest("tr").attr("data-original"));
+        $("#groupInput").val($(this).closest(".tab-content").attr("data-group"));
+        $("#thingTitle").val($(this).closest("tr").attr("data-title"));
 
         const key = $(this).closest("tr").data("key");
 
@@ -811,7 +854,14 @@ async function clipboard(type, e, action = false) {
   $(".tab-content tbody.group").sortable({
     containment: $("#clipboard"),
     revert: true,
-    helper: "clone",
+    // The row being dragged is lifted out of the table, so keep its cells as wide as they were
+    helper: function (event, $row) {
+      const $helper = $row.clone();
+      $helper.children().each(function (i) {
+        $(this).width($row.children().eq(i).width());
+      });
+      return $helper;
+    },
     stop: function (event, ui) {
       // Record the current sort order within this group
       let rowNum = 0;
@@ -827,7 +877,14 @@ async function clipboard(type, e, action = false) {
       localStorage.setItem(itemOrderNameForGroup(groupKey, type), order.join("|"));
     },
   });
-  $(`#tab-list .tab[data-groupkey="${activeTab}"] .tab-name`).trigger("click");
+  // Every group's items are hidden until its tab is clicked, so if the remembered tab is gone
+  // (its group was deleted or renamed, or a restored backup has different groups) fall back to
+  // the first tab. Otherwise the popup shows a tab and no items, and looks empty.
+  let $activeTab = $(`#tab-list .tab[data-groupkey="${activeTab}"]`);
+  if (!$activeTab.length) $activeTab = $("#tab-list .tab").first();
+  $activeTab.find(".tab-name").trigger("click");
+  // Stay where the user was, so deleting an item doesn't jump the list back to the top
+  $("#clipboard").scrollTop(scrollTop);
 }
 
 function mouseListener() {
@@ -941,9 +998,9 @@ function addGroupTab(groupKey, groupName) {
   const tab = $(
     `<li class="tab" data-groupkey="${groupKey}">` +
       `<span class="tab-handle" title="Grab here to re-order the tabs (if there is more than one)">☰</span>` +
-      `<span class="tab-name" title="${
+      `<span class="tab-name${isNoGroup ? " no-group" : ""}" title="${
         isNoGroup ? "Click to see non-grouped items" : "Click to see this group of items"
-      }">${isNoGroup ? "&nbsp;" : groupName}</span></li>`
+      }">${isNoGroup ? "No group" : groupName}</span></li>`
   );
   tab.appendTo("#tab-list");
 }
@@ -1026,7 +1083,7 @@ function showGroup($tab) {
   localStorage.setItem(activeTabVarNameFor($("#clipboard").data("type")), groupKey);
   $("#clippings div").hide();
   const groupDiv = $(`#clippings div[data-groupkey="${groupKey}"]`);
-  $("#groupInput").val(original2real(groupDiv.data("group")));
+  $("#groupInput").val(groupDiv.attr("data-group"));
   groupDiv.show();
 }
 
@@ -1035,7 +1092,7 @@ function setClipboardText() {
   let clipboardInfoText = "";
   if ($("#toggleMarkupColor").val().match("Turn Off")) {
     clipboardInfoText =
-      "<a class='btn btn-secondary btn-sm'>ON</a>: Click a clipping to copy it to your system's clipboard.";
+      "<a class='btn btn-secondary btn-sm'>ON</a>: Click a clipping to insert it at your cursor.";
   } else {
     clipboardInfoText = "<a class='btn btn-secondary btn-sm'>OFF</a>: Click a clipping to paste it into the textbox.";
   }

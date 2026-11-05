@@ -6,7 +6,7 @@ import * as $ from "jquery";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isOK } from "../../core/common";
-
+import { addItems } from "../scissors/scissors";
 shouldInitializeFeature("editFamilyData").then((result) => {
   if (
     result &&
@@ -42,6 +42,10 @@ shouldInitializeFeature("editFamilyData").then((result) => {
 async function addInfoAboutOtherPerson() {
   const h1Link = $("#addEditHeadline a:first");
   const wtid = h1Link.attr("href").split("/").pop();
+  // Grab the page's own scissors box now, before the API calls below. Other
+  // features (shareable sources) add .copy--buttons containers of their own
+  // later, and appending there would give their box a stray "Link" button.
+  const copyPosition = $(".copy--buttons").not(".referenceBox .copy--buttons");
   const fields = ["Id", "Name", "BirthDate", "BirthLocation", "DeathDate", "DeathLocation"];
   console.log("Fetching person data for wtid:", wtid);
   WikiTreeAPI.getPerson("edit_family_data", wtid, fields).then(async (data) => {
@@ -77,15 +81,22 @@ async function addInfoAboutOtherPerson() {
       let theDeathButtons = "";
       if (options.copyLocations) {
         theBirthButtons = `
-          <button class='copyLocation ${birthButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efBlocation}'>as birth location</button>
-          <button class='copyLocation ${birthButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efBlocation}'>as death location</button>
+          <button class='copyLocation ${birthButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location="${efBlocation}">as birth location</button>
+          <button class='copyLocation ${birthButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location="${efBlocation}">as death location</button>
         `;
         theDeathButtons = `
-          <button class='copyLocation ${deathButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location='${efDlocation}'>as birth location</button>
-          <button class='copyLocation ${deathButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location='${efDlocation}'>as death location</button>
+          <button class='copyLocation ${deathButtonClass}' data-to='birth location' data-to-id='mBirthLocation' data-location="${efDlocation}">as birth location</button>
+          <button class='copyLocation ${deathButtonClass}' data-to='death location' data-to-id='mDeathLocation' data-location="${efDlocation}">as death location</button>
         `;
       }
 
+      if (options.scissors) {
+        let name = h1Link.text();
+        let copyItems = [];
+        copyItems.push({ label: "Link", text: `[[${wtid}|${name}]]` });
+        const displayOptions = { classic: true, image: false };
+        addItems(copyItems, copyPosition, displayOptions);
+      }
       const efHTML = `
         <ul id='EFdates'>
           ${

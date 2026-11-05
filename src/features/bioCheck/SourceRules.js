@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2025 Kathryn J Knight
+Copyright (c) 2026 Kathryn J Knight
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -49,6 +49,7 @@ class SourceRules {
     "biography",
     "biographie",
     "biografia",
+    "biografía",
     "biografie",
     "biografi",
     "elämäntarina",
@@ -170,6 +171,8 @@ class SourceRules {
   #projectBox = [];
   // loads from templates, each is name and status
   #sticker = [];
+  // loads from templates, each is name and status
+  #formattingTemplate = [];
 
   // recommended HTML tags
   #recommendedTagsStart = [
@@ -179,6 +182,7 @@ class SourceRules {
     "<br",
     "<center",
     "</center",
+    "<i>",       // not recommended but used a lot
     "<includeonly",
     "</includeonly",
     "<noinclude",
@@ -189,10 +193,26 @@ class SourceRules {
     "</onlyinclude",
     "<ref",
     "</ref",
+    "<s>",
+    "</s>",
     "<sub",
     "</sub",
     "<sup",
     "</sup",
+    "<u>",
+    "</u>",
+    "<0",
+    "<1",
+    "<2",
+    "<3",
+    "<4",
+    "<5",
+    "<6",
+    "<7",
+    "<0",
+    "<9",
+    "<http", // some ancestry citations have <https
+    "< ", // okay with spaces
   ];
   // strings that identify a census source
   // when used by itself or with nothing other than
@@ -200,6 +220,7 @@ class SourceRules {
   // sequence to be able to remove these from source line
   #censusStrings = [
     "united states federal census",
+    "rhode island state census",
     "england and wales census",
     "new york state census",
     "united states census",
@@ -266,8 +287,11 @@ class SourceRules {
     "source required",
     "title: marriage",
     "'''see also:'''",
+    "well documented",
+    "www.ancestry.au",
     "www.ancestry.ca",
     "www.bms2000.org",
+    "cemetery records",
     "confirmed by dna",
     "dna confirmation",
     "familysearch.org",
@@ -280,10 +304,13 @@ class SourceRules {
     "personal records",
     "parish registers",
     "scotlands people",
+    "the renall years",
     "research records",
     "various archives",
     "www.ancestry.com",
+    "www.wikitree.com",
     "acknowledgements:",
+    "ash.howison.co.nz",
     "familysearch.com",
     "ancestry research",
     "drouin collection",
@@ -293,6 +320,7 @@ class SourceRules {
     "family tree files",
     "family search lds",
     "fellow researcher",
+    "legacy nfs source",
     "my family records",
     "on going research",
     "scotland's people",
@@ -313,10 +341,12 @@ class SourceRules {
     "personal documents",
     "source information",
     "title: death index",
+    "well documented on",
     "wwwfamilysearchorg",
     "www.ancestry.co.uk",
     "www.gencircles.com",
     "www.myheritage.com",
+    "well documented on",
     "{{citation needed}}",
     "citing this record:",
     "another family tree",
@@ -340,6 +370,7 @@ class SourceRules {
     "family search website",
     "freereg baptism entry",
     "maternal dna matches:",
+    "military grave marker",
     "mormon church records",
     "paternal dna matches:",
     "replace this citation",
@@ -358,24 +389,29 @@ class SourceRules {
     "thanks to family search",
     "geneanet community trees",
     "https://familysearch.org",
+    "information available on",
     "ohio marriages 1800-1958",
     "scotlandspeople database",
     "ancestry tree and sources",
     "family search family tree",
     "scotland's people website",
+    "tmplt  field  name:  page",
     "us census, public records",
     "ancestry and family search",
     "dna confirmation statement",
     "family bible, certificates",
+    "mentioned in or has a will",
     "michigan deaths, 1867-1996",
     "new york census, 1790-1890",
     "texas marriages, 1966-2010",
+    "data: text: date of import:",
     "www.scotlandspeople.gov.uk",
     "family tree on familysearch",
     "library and archives canada",
     "social security death index",
     "torrey's marriages database",
     "ftdna confirmation statement",
+    "personal family recollection",
     "sources are on my family tree",
     "ancestry.com familysearch.org",
     "familysearch.org ancestry.com",
@@ -385,23 +421,30 @@ class SourceRules {
     "geneanet community trees index",
     "'''footnotes and citations:'''",
     ":'''footnotes and citations:'''",
+    "cross checking various websites",
     "dna confirmed with ancestrydna:",
     "family search files on internet",
     "other vital statistic documents",
     "victorian death index 1921-1985",
+    "rhode island birth registrations",
     "california birth index, 1905-1995",
     "california death index, 1940-1997",
+    "https://www.freebmd.org.uk/search",
     "iowa, select marriages, 1809-1992",
     "research on ancestry and wikitree",
+    "well documented in public records",
     "dna confirmed through ancestrydna:",
     "minnesota birth certificates index",
     "personal knowledge , census reports",
     "new zealand, birth index, 1840-1950",
+    "birth registration or baptism record",
+    "scotland select marriages, 1561-1910",
     "canada births and baptisms, 1661-1959",
     "queensland births, deaths & marriages",
     "maternal relationship is confirmed by:",
     "paternal relationship is confirmed by:",
     "a source is still needed for this data",
+    "england select births and christenings",
     "maryland births and christenings index",
     "social security applications and claims",
     "a source for this information is needed",
@@ -417,6 +460,7 @@ class SourceRules {
     "u.s., new england marriages prior to 1700",
     "geneanet community trees index on ancestry",
     "marriage records and ancestry.com research",
+    "england select deaths and burials 1538-1991",
     "north carolina, marriage records, 1741-2011",
     "illinois statewide marriage index, 1763–1900",
     "maternal relationship confirmed by dna match",
@@ -432,6 +476,8 @@ class SourceRules {
     "from behind the ancestry.com subscription wall:",
     "personal knowledge, newspaper and bible records",
     "us and international marriage records 1560-1900", 
+    "england select births and christenings 1538-1975",
+    "england and wales civil registration birth index",
     "massachusetts, town and vital records, 1620-1988",
     "paternal & maternal relationship is confirmed by:",
     "replace this citation if there is another source",
@@ -448,6 +494,7 @@ class SourceRules {
     "us federal census mortality schedules index 1850-1880",
     "u.s., world war i draft registration cards, 1917-1918",
     "u.s., civil war draft registrations records, 1863-1865",
+    "england & wales civil registration death index 1837-1915",
     "u.s., new england marriages prior to 1700 (ancestry.com)",
     "maternal relationship is confirmed by dna as described above",
     "paternal relationship is confirmed by dna as described above",
@@ -512,6 +559,7 @@ class SourceRules {
   // anywhere in a line not a valid source
   #invalidPartialSourceList = [
     "through the import of",
+    ".ged",
     "add sources here",
     "add [[sources]] here",
     "family tree maker",
@@ -520,6 +568,7 @@ class SourceRules {
     "replace this citation",
     "family member and primary source",
     "i am a primary source",
+    "olmste(a)d files of",
   ];
 
   // anywhere on a line is a valid source
@@ -535,6 +584,7 @@ class SourceRules {
     "entered by",
     "no sources.",
     "uploaded by",
+    "repository:",
     "no repo record found",
     "source will be added by",
     "no sour record found",
@@ -591,6 +641,7 @@ class SourceRules {
     "firsthand knowledge",
     "immediate family member", 
     "as remembered by",
+    "personal recollection",
     "selon la mémoire de",
     "zoals herinnerd door",
     "eigen kennis",
@@ -708,6 +759,7 @@ class SourceRules {
     "ancestry.com-oneworld tree",
     "árbol de familia",
     "arbre généalogique",
+    "as remembered by",
     "družinsko drevo",
     "drzewo rodzinne",
     "familie træ",
@@ -719,6 +771,7 @@ class SourceRules {
     "family-tree",
     "familysearch.org/tree",
     "family search profile",
+    "familysearch profile",
     "gedbas",
     "gencircles.com",
     //"genealogie.quebec",
@@ -742,11 +795,14 @@ class SourceRules {
     "thepeerage.com",
     "trees.ancestry.com",
     "unsourced family tree handed down",
+    "wc.rootsweb",
+    "worldconnect.rootsweb",
     "world family tree",
     "www.geni.com/people",
     // compilations (typically from family trees)
     "ancestral file",
     "derbund wft",
+    "derbund software",
     "family data collection",
     "family group sheet",
     "international genealogical index",
@@ -754,6 +810,8 @@ class SourceRules {
     "pedigree resource file",
     "u.s. and international marriage records",
     "us and international marriages",
+    "american genealogical biographical index",
+    "american genealogical-biographical index",
     // other items
     "burkes peerage",
     "burkes dormant and extinct peerages",
@@ -762,6 +820,7 @@ class SourceRules {
     "cracofts peerage",
     "cracroftspeerage.co.uk",
     "daughters of the american revolution",
+    "douglashistory.co.uk",
     "dictionnaire universel de la noblesse de france",
     "dictionary of the peerages of england, ireland, and scotland",
     "fabpedigree.com",
@@ -796,9 +855,11 @@ class SourceRules {
 
   // List of short strings that are not by themselves a valid source
   // to use for pulling apart a "source" that is a combination of these
-  // list of sources not valid by themselves that are < 15 characterse
+  // list of sources not valid by themselves that are < 15 characters
   // but you want to find these in reverse order to remove from the source
   #invalidSourceListShort = [
+  //123456789012345
+    "personal knowledge",
     "ancestry.co.uk",
     "ancestrydotcom",
     "billion graves",
@@ -820,6 +881,7 @@ class SourceRules {
     "family member",
     "family papers",
     "family search",
+    "kmm genealogy",
     "needs sources",
     ":source list:",
     "source needed",
@@ -835,8 +897,10 @@ class SourceRules {
     "ancestrycom",
     "ancestry.uk",
     "ancestry.ca",
+    "birth index",
     "bmd records",
     "bdm records",
+    "death index",
     "my heritage",
     "my research",
     "will follow",
@@ -865,6 +929,10 @@ class SourceRules {
     "bmd",
     "bdm",
     "---",
+    "at",
+    "in",
+    "of",
+    "on",
 //   1234567890
   ];
 
@@ -963,6 +1031,15 @@ class SourceRules {
           projectBox.name = templates[i].name.toLowerCase().trim();
           projectBox.status = templates[i].status.toLowerCase().trim();
           this.#projectBox.push(projectBox);
+        }
+        if (templates[i].type.toLowerCase().trim() === 'formatting template') {
+          let formattingTemplate = {
+            name: "",
+            status: "",
+          };
+          formattingTemplate.name = templates[i].name.toLowerCase().trim();
+          formattingTemplate.status = templates[i].status.toLowerCase().trim();
+          this.#formattingTemplate.push(formattingTemplate);
         }
         if (templates[i].type.toLowerCase().trim() === 'sticker') {
           let sticker = {
@@ -1075,6 +1152,11 @@ class SourceRules {
     });
     return stat;
   }
+
+// TODO testing
+getNavBox() {
+    return this.#navBox;
+}
   /**
    * Return status value for Nav Box
    * assumes the leading {{ removed and line is lower case
@@ -1157,6 +1239,25 @@ class SourceRules {
   }
 
   /**
+   * Determine if line is a Notability template
+   * Do not want to look at all formatting templates, at present
+   * assumes the leading {{ removed and line is lower case
+   * @param {String} line to test
+   * @returns {Boolean} true if notability else false
+   */
+  isNotabilityTemplate(line) {
+    let isFound = false;
+    if (line === 'notability') {
+      this.#formattingTemplate.find((element) => {
+        if (element.name === line) {
+          isFound = true;
+        }
+      });
+    }
+    return isFound;
+  }
+
+  /**
    * Determine if a line is a valid Sticker
    * assumes the leading {{ removed and line is lower case
    * @param {String} line to test
@@ -1173,14 +1274,15 @@ class SourceRules {
   }
 
   /** 
-   * Determine if a line starts with an HTML tag
+   * Determine if a line contains with an HTML tag
    * that is recommended for use on WikiTree. 
    * Typically used for a line that starts with <
    * @param {String} line to test
    * @returns {Boolean} true if recommended else false
    */
   isRecommendedTag(line) {
-    return this.lineStartsWithListEntry(line, this.#recommendedTagsStart);
+    return this.lineContainsListEntry(line, this.#recommendedTagsStart);
+    //return this.lineStartsWithListEntry(line, this.#recommendedTagsStart);
   }
 
   /**

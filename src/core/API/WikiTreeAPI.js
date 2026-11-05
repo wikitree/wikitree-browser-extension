@@ -14,6 +14,10 @@ if (typeof API_URL === "undefined") {
 }
 
 const dateTokenCache = {};
+const apiLoginStatusCache = new Map(); // userNumId → {status: Promise<boolean>, at}
+// The Apps login runs out while a page sits open: an answer older than this is asked again (Murray, 2026-10-13:
+// "If you go away for a while and come back to it, it doesn't work, and doesn't tell you why").
+const API_LOGIN_STATUS_MAX_AGE_MS = 5 * 60 * 1000;
 
 /**
  * Serializes WikiTree fuzzy date using formatting string
@@ -422,6 +426,87 @@ WikiTreeAPI.getPeople = async function (appId, IDs, fields, options = {}) {
 };
 
 /**
+ * Search person profiles using API filters similar to Special:SearchPerson.
+ *
+ * @param {*} appId An application id (any string). 'WBE_' will be prepended if not present already
+ * @param {*} searchParams Object containing search filters (e.g. FirstName, LastName, RealName, BirthDate)
+ * @param {*} fields Optional array or comma separated string of fields to return for matches
+ * @param {*} options Optional search options (e.g. dateInclude, dateSpread, sort, limit, start)
+ * @returns a Promise for [status, matches, total, start, limit]
+ */
+WikiTreeAPI.searchPerson = async function (appId, searchParams = {}, fields = "", options = {}) {
+  const VALID_SEARCH_ARGS = new Set([
+    "FirstName",
+    "LastName",
+    "BirthDate",
+    "DeathDate",
+    "RealName",
+    "LastNameCurrent",
+    "BirthLocation",
+    "DeathLocation",
+    "Gender",
+    "fatherFirstName",
+    "fatherLastName",
+    "motherFirstName",
+    "motherLastName",
+    "watchlist",
+    "dateInclude",
+    "dateSpread",
+    "centuryTypo",
+    "isLiving",
+    "skipVariants",
+    "lastNameMatch",
+    "sort",
+    "secondarySort",
+    "limit",
+    "start",
+  ]);
+
+  const parameters = { ...options };
+  parameters.appId = appId;
+  parameters.action = "searchPerson";
+
+  Object.entries(searchParams || {}).forEach(([key, value]) => {
+    if (!VALID_SEARCH_ARGS.has(key)) {
+      return;
+    }
+    if (value === undefined || value === null || value === "") {
+      return;
+    }
+    parameters[key] = value;
+  });
+
+  if (fields && commaSeparatedString(fields) !== "") {
+    parameters.fields = commaSeparatedString(fields);
+  }
+
+  const result = await WikiTreeAPI.postToAPI(parameters);
+  return [result[0].status, result[0].matches || [], result[0].total || 0, result[0].start || 0, result[0].limit || 0];
+};
+
+/**
+ * Find the connection path between two profiles.
+ *
+ * @param {*} appId An application id (any string). 'WBE_' will be prepended if not present already
+ * @param {*} keys Two IDs as an array or comma-separated string
+ * @param {*} fields Optional fields to include for each visible profile in the path
+ * @param {*} options Optional parameters for getConnections (e.g., relation, ignoreIds, nopath)
+ * @returns The first object in the API response array with status, path/pathLength, etc.
+ */
+WikiTreeAPI.getConnections = async function (appId, keys, fields = [], options = {}) {
+  const parameters = { ...options };
+  parameters.appId = appId;
+  parameters.action = "getConnections";
+  parameters.keys = commaSeparatedString(keys);
+  if (fields && commaSeparatedString(fields) !== "") {
+    parameters.fields = commaSeparatedString(fields);
+  }
+
+  const result = await WikiTreeAPI.postToAPI(parameters);
+  return result[0];
+};
+
+/**
  * To get the Watchlist for the logged in user, we POST to the API's getWatchlist action. When we get a result back,
  * we leave the result as an array of objects
  * Note that postToAPI returns the Promise from JavaScript's fetch() call.
@@ -478,21 +563,168 @@ function condLog(message, ...optionalParams) {
   }
 }
 
+WikiTreeAPI.isLikelyAppsServerAccessError = function (error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  return (
+    error?.name === "TypeError" ||
+    message.includes("failed to fetch") ||
+    message.includes("load failed") ||
+    message.includes("networkerror") ||
+    message.includes("cors") ||
+    message.includes("cross-origin") ||
+    message.includes("waf challenge") ||
+    message.includes("empty api response") ||
+    message.includes("http error! status: 403")
+  );
+};
+
+WikiTreeAPI.getAppsServerAccessErrorMessage = function (featureName = "This feature") {
+  return `${featureName} is unavailable because the apps server appears to be rejecting or blocking requests from this browser or IP address. Please try again later.`;
+};
+
+WikiTreeAPI.setCachedApiLoginStatus = function (userNumId, loggedIn) {
+  if (!userNumId) return;
+  apiLoginStatusCache.set(String(userNumId), { status: Promise.resolve(Boolean(loggedIn)), at: Date.now() });
+};
+
+WikiTreeAPI.clearCachedApiLoginStatus = function (userNumId) {
+  if (!userNumId) return;
+  apiLoginStatusCache.delete(String(userNumId));
+};
+
 // Function to check login status
 WikiTreeAPI.isLoggedIntoAPI = async function (userNumId, appId = "WBE_check_login") {
   if (!userNumId) return false;
-  const loginStatus = await WikiTreeAPI.postToAPI({
-    appId: appId,
-    action: "clientLogin",
-    checkLogin: userNumId,
-  });
-  console.log("API Login Status: ", loginStatus);
+  const cacheKey = String(userNumId);
+  const cached = apiLoginStatusCache.get(cacheKey);
+  if (!cached || Date.now() - cached.at > API_LOGIN_STATUS_MAX_AGE_MS) {
+    apiLoginStatusCache.set(cacheKey, {
+      at: Date.now(),
+      status: WikiTreeAPI.postToAPI({
+        appId: appId,
+        action: "clientLogin",
+        checkLogin: userNumId,
+      })
+        .then((loginStatus) => loginStatus?.clientLogin?.result == "ok")
+        .catch((error) => {
+          apiLoginStatusCache.delete(cacheKey);
+          throw error;
+        }),
+    });
+  }
 
-  return loginStatus?.clientLogin?.result == "ok";
+  return await apiLoginStatusCache.get(cacheKey).status;
 };
 
+// api.wikitree.com sometimes answers a perfectly good request with a 5xx (or a 429 when it is
+// busy). Those are transient: the request reached the API and the server fell over, so trying
+// again usually works. Statuses that are a real answer (401, 403, 404...) are thrown straight
+// away, as are the WAF/network failures isLikelyAppsServerAccessError recognises - retrying
+// those just delays a message the user needs to see.
+const RETRYABLE_HTTP_STATUSES = [429, 500, 502, 503, 504];
+const MAX_API_ATTEMPTS = 3;
+const API_RETRY_BASE_DELAY_MS = 500;
+const MAX_LOGGED_ERROR_BODY = 500;
+const MAX_LOGGED_KEYS = 200;
+
+function abortError() {
+  const error = new Error("The operation was aborted.");
+  error.name = "AbortError";
+  return error;
+}
+
+function isRetryableApiError(error) {
+  return error?.name !== "AbortError" && RETRYABLE_HTTP_STATUSES.includes(error?.status);
+}
+
 /**
- * This is just a wrapper for JavaScript's fetch() call, sending along necessary options for the WikiTree API.
+ * Wait before the next attempt, backing off so we do not hammer an API that is already
+ * struggling. Rejects immediately if the caller aborts while we are waiting.
+ */
+function apiRetryDelay(attempt, signal) {
+  const delay = API_RETRY_BASE_DELAY_MS * Math.pow(3, attempt - 1);
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(abortError());
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener?.("abort", onAbort);
+      resolve();
+    }, delay);
+    signal?.addEventListener?.("abort", onAbort, { once: true });
+  });
+}
+
+/**
+ * Describe the request that failed, so a bug report says which call died rather than just
+ * "Status: 500".
+ */
+function describeApiRequest(postData) {
+  const bits = [];
+  if (postData?.action) {
+    bits.push(`action ${postData.action}`);
+  }
+  const keys = postData?.keys ?? postData?.key;
+  if (keys !== undefined && keys !== null && `${keys}` !== "") {
+    const keyString = Array.isArray(keys) ? keys.join(",") : `${keys}`;
+    bits.push(
+      `keys ${keyString.length > MAX_LOGGED_KEYS ? `${keyString.slice(0, MAX_LOGGED_KEYS)}\u2026` : keyString}`
+    );
+  }
+  return bits.join(", ") || "no action given";
+}
+
+/**
+ * The API often explains a 500 in the response body (a PHP error, or an HTML error page).
+ * Reading it costs us nothing on a request we have already given up on, and it is the
+ * difference between a useful bug report and a useless one.
+ */
+async function readErrorBody(response) {
+  try {
+    const text = await response.text();
+    if (!text) {
+      return "";
+    }
+    const collapsed = text.replace(/\s+/g, " ").trim();
+    return collapsed.length > MAX_LOGGED_ERROR_BODY ? `${collapsed.slice(0, MAX_LOGGED_ERROR_BODY)}\u2026` : collapsed;
+  } catch (error) {
+    return "";
+  }
+}
+
+async function fetchFromAPI(options, postData) {
+  const response = await fetch(API_URL, options);
+  if (!response.ok) {
+    const body = await readErrorBody(response);
+    const error = new Error(
+      `HTTP error! Status: ${response.status}: ${response.statusText}` +
+        ` (${describeApiRequest(postData)})` +
+        (body ? `\nResponse body: ${body}` : "")
+    );
+    error.status = response.status;
+    throw error;
+  }
+  // The API sits behind AWS WAF, which answers unchallenged requests with 202 and an empty body
+  // (plus an x-amzn-waf-action header) rather than an error status. response.ok is true for those,
+  // so without these checks the caller only ever sees a JSON parse failure.
+  const wafAction = (response.headers.get("x-amzn-waf-action") || "").toLowerCase();
+  if (wafAction === "challenge" || wafAction === "captcha") {
+    throw new Error(
+      `WAF challenge: api.wikitree.com is challenging this request (${wafAction}, status ${response.status}). ` +
+        `This browser has no valid aws-waf-token for api.wikitree.com.`
+    );
+  }
+  const text = await response.text();
+  if (!text) {
+    throw new Error(`Empty API response (status ${response.status}) for action ${postData.action}.`);
+  }
+  return JSON.parse(text);
+}
+
+/**
+ * This is just a wrapper for JavaScript's fetch() call, sending along necessary options for the
+ * WikiTree API, retrying the handful of statuses that mean "try me again in a moment".
  *
  * @param {*} postData
  * @param {*} signal (optional) The AbortController.signal to listen on for aborting the call
@@ -533,12 +765,17 @@ WikiTreeAPI.postToAPI = async function (postData, signal) {
     options["signal"] = signal;
   }
 
-  const response = await fetch(API_URL, options);
-  if (!response.ok) {
-    // condLog(" ${response.status}: ${response.statusText} ");
-    throw new Error(`HTTP error! Status: ${response.status}: ${response.statusText}`);
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fetchFromAPI(options, postData);
+    } catch (error) {
+      if (attempt >= MAX_API_ATTEMPTS || signal?.aborted || !isRetryableApiError(error)) {
+        throw error;
+      }
+      condLog(`postToAPI ${postData.action}: ${error.message} - retrying (attempt ${attempt + 1})`);
+      await apiRetryDelay(attempt, signal);
+    }
   }
-  return await response.json();
 };
 
 WikiTreeAPI.lookupProfile = function (wtId, resultByKey, people) {

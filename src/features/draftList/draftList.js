@@ -6,6 +6,7 @@ import $ from "jquery";
 import { showDraftList, updateDraftList } from "../../core/common";
 import { addDataMenuAttributes } from "../my_menu/my_menu";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { isProfileEdit, isSpaceEdit } from "../../core/pageType";
 
 shouldInitializeFeature("draftList").then((result) => {
   if (result && $("#draftsLink").length == 0) {
@@ -16,7 +17,7 @@ shouldInitializeFeature("draftList").then((result) => {
     if ($("a.drafts").length == 0) {
       addDraftsToFindMenu();
     }
-    if ($("body.edit-person").length && $("a.drafts").length) {
+    if ((isProfileEdit || isSpaceEdit) && $("a.drafts").length) {
       saveDraftList();
     }
   }

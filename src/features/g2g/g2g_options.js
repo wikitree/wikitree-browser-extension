@@ -37,13 +37,13 @@ const g2g = {
     {
       id: "scissors",
       type: OptionType.CHECKBOX,
-      label: "Copy ID / URL / Question links (Scissors)",
+      label: "Copy ID / URL / Question / G2GLink template (Scissors)",
       defaultValue: true,
     },
     {
       id: "scissors_answers",
       type: OptionType.CHECKBOX,
-      label: "Copy preview / url links for answers (Scissors)",
+      label: "Copy preview / url / template links for answers (Scissors)",
       defaultValue: true,
     },
     {
@@ -59,9 +59,21 @@ const g2g = {
       defaultValue: true,
     },
     {
+      id: "tagPicker",
+      type: OptionType.CHECKBOX,
+      label: "Tag picker: a searchable list of all G2G tags on the Tags page",
+      defaultValue: true,
+    },
+    {
       id: "bigButtons",
       type: OptionType.CHECKBOX,
       label: "Big Comment and Reply buttons",
+      defaultValue: true,
+    },
+    {
+      id: "reverseAnswers",
+      type: OptionType.CHECKBOX,
+      label: "Button to reverse the order of answers (newest first), keeping any 'Best answer' at the top",
       defaultValue: true,
     },
     {
@@ -87,6 +99,12 @@ const g2g = {
       type: OptionType.CHECKBOX,
       label: "Remove Ads",
       defaultValue: true,
+    },
+    {
+      id: "compact",
+      type: OptionType.CHECKBOX,
+      label: "Compact",
+      defaultValue: false,
     },
   ],
 };

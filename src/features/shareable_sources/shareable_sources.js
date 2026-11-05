@@ -22,10 +22,16 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { isProfileEdit, isProfileAddRelative } from "../../core/pageType";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { profilePerson } from "../../core/common";
+import { addItems } from "../scissors/scissors";
+import {
+  readEnhancedEditor,
+  insertIntoEnhancedEditor,
+  DeactivateEnhancedEditorIfPresent,
+  ReactivateEnhancedEditorIfNeeded,
+} from "../../core/enhancedEditor";
 
 const WBE_SHAREABLE_SOURCES_APP_ID = "WBE_shareable_sources";
 
-let enhanced = false;
 let theID;
 let options;
 let selectionEnd = 0;
@@ -166,33 +172,6 @@ function getSources(person, active = 0) {
 
   let refArr = basicSourcesArray(person.bio);
 
-  let enhancedEditorButton = $("#toggleMarkupColor");
-  enhanced = false;
-  if (enhancedEditorButton.attr("value") === "Turn Off Enhanced Editor") {
-    enhanced = true;
-  }
-
-  window.sourceButtonEnhancedClickedCount = 0;
-
-  enhancedEditorButton.on("click", function () {
-    setTimeout(function () {
-      if (enhancedEditorButton.attr("value") === "Turn Off Enhanced Editor") {
-        enhanced = true;
-      } else {
-        enhanced = false;
-      }
-      if ($(".referenceBox").length) {
-        $(".referenceBox button.inline, .referenceBox button.copyInline").each(function () {
-          if (enhanced) {
-            $(this).removeClass("inline").addClass("copyInline").text("Copy Inline Citation");
-          } else {
-            $(this).removeClass("copyInline").addClass("inline").text("Add Inline Citation");
-          }
-        });
-      }
-    }, 100);
-  });
-
   let efProfile = person;
   if (person.bio) {
     let efBio = person.bio;
@@ -206,6 +185,8 @@ function getSources(person, active = 0) {
     /* pick arrow markup only if we are NOT on profile edit page */
     const arrowHtml = isProfileEdit ? "" : "<span class='showSources'>&#9660;</span>";
 
+    const copyButtonsBox = $("<span class='copy--buttons'></span>");
+
     let referenceBox = $(` 
       <div class='referenceBox active ${refBoxClass}' data-id=${efProfile.Name} tabindex='-1'>
         <button class='seeBiography' class='small'>Bio</button>
@@ -216,13 +197,20 @@ function getSources(person, active = 0) {
       </div>
     `);
 
+    if (isProfileAddRelative) {
+      let copyItems = [];
+      copyItems.push({ label: "Link", text: `[[${efProfile.Name}|${displayName(efProfile)[0]}]]` });
+      const displayOptions = { classic: true, image: false, style: "color: green" };
+      // referenceBox is still detached here, so check inside it, not the document.
+      if (referenceBox.find(".copy--buttons").length === 0) {
+        referenceBox.append(copyButtonsBox);
+        addItems(copyItems, copyButtonsBox, displayOptions);
+      }
+    }
+
     refArr.forEach(function (aRef, index) {
       let button1 = `<button data-ref=${index} class='small paste'>Add to Sources</button>`;
       let button2 = `<button data-ref=${index} class='small inline'>Add Inline Citation</button>`;
-      let button3 = `<button data-ref='${index}' class='small copyInline'>Copy Inline Citation</button>`;
-      if (enhanced === true) {
-        button2 = button3;
-      }
       referenceBox.append(
         "<div>" + button1 + button2 + "<textarea data-ref=" + index + ">" + aRef + "</textarea></div>"
       );
@@ -239,16 +227,24 @@ function getSources(person, active = 0) {
       referenceBox.draggable();
     } else {
       $("#sourcesLabel").after(referenceBox);
-      setTimeout(function () {
-        referenceBox.find("h3").trigger("click");
-      }, 1000);
+      // Start collapsed, without animation. The box may be inserted after the
+      // sources area is already visible (the profile API call can finish after
+      // the user has moved past the first step), so the old delayed, animated
+      // collapse played out on screen.
+      referenceBox.find("div").hide();
+      referenceBox.removeClass("active");
     }
 
     if (activeSources === 1 && !isProfileAddRelative) {
       $("div.referenceBox div").slideDown("swing");
     }
 
-    focusFirstButton(referenceBox);
+    // Focus only the floating box on profile edit pages. On add-relative pages
+    // the box is in the normal page flow, and focusing a button inside it
+    // scrolls the page down to the box.
+    if (isProfileEdit) {
+      focusFirstButton(referenceBox);
+    }
 
     $("#previewButton").on("click", function () {
       if ($(".referenceBox").hasClass("active")) {
@@ -261,69 +257,71 @@ function getSources(person, active = 0) {
       }
     });
 
-    $(".referenceBox button.paste, .referenceBox button.inline, .referenceBox button.copyInline").on(
-      "click",
-      function (e) {
-        e.preventDefault();
-        if (enhanced) {
-          window.clickedSourceButton = true;
-        }
-        let ref = $(this).data("ref");
-        let thePerson = $(this).closest("div.referenceBox").data("id");
-        let theTextarea = $(`.referenceBox[data-id="${thePerson}"] textarea[data-ref="${ref}"]`);
-        let theText = theTextarea.html();
-        let box;
-        if ($(this).hasClass("paste")) {
-          box = "mSources";
-          if (theText.charAt(0) !== "*") {
-            theText = "* " + theText + "\n";
-          }
-        }
-        if ($(this).hasClass("inline")) {
-          box = "mBioWithoutSources";
-          if ($("#" + box).length === 0) {
-            box = "mSources";
-          }
-          theText = "<ref>" + theText + "</ref>";
-        }
-        if (isProfileEdit) {
-          if (enhanced === true) {
-            enhancedEditorButton.trigger("click");
-          }
-          box = "wpTextbox1";
-        }
-        let selStart = $("#" + box)[0].selectionStart;
-        let partA = $("#" + box)
-          .val()
-          .substr(0, selStart);
-        let partB = $("#" + box)
-          .val()
-          .substr(selStart);
-        if ($(this).hasClass("copyInline")) {
-          copyToClipboard3($("<a>" + theText + "</a>")[0]);
-        } else {
-          console.log("Inserting text into box:", box);
-          if (selStart > 0 && $(this).hasClass("inline")) {
-            if (partA.substr(partA.length - 1) !== "\n" && !theText.includes("<ref>")) {
-              theText = "\n" + theText;
-            }
-            $("#" + box).val(partA + decodeHTMLEntities(theText) + partB);
-            const valNew = $("#" + box).val();
-            selectionEnd = valNew.indexOf(partB);
-          } else {
-            let optionalTrailingNewLine = "\n";
-            if ($("#" + box).val() === "") {
-              optionalTrailingNewLine = "";
-            }
-            $("#" + box).val($("#" + box).val() + optionalTrailingNewLine + decodeHTMLEntities(theText) + "\n");
-            selectionEnd = selStart;
-          }
-        }
-        if (isProfileEdit && enhanced === true) {
-          enhancedEditorButton.trigger("click");
+    $(".referenceBox button.paste, .referenceBox button.inline").on("click", async function (e) {
+      e.preventDefault();
+      let ref = $(this).data("ref");
+      let thePerson = $(this).closest("div.referenceBox").data("id");
+      let theTextarea = $(`.referenceBox[data-id="${thePerson}"] textarea[data-ref="${ref}"]`);
+      let theText = theTextarea.html();
+      const isInline = $(this).hasClass("inline");
+      let box;
+      if ($(this).hasClass("paste")) {
+        box = "mSources";
+        if (theText.charAt(0) !== "*") {
+          theText = "* " + theText + "\n";
         }
       }
-    );
+      if (isInline) {
+        box = "mBioWithoutSources";
+        if ($("#" + box).length === 0) {
+          box = "mSources";
+        }
+        theText = "<ref>" + theText + "</ref>";
+      }
+      if (isProfileEdit) {
+        box = "wpTextbox1";
+      }
+
+      // With the enhanced editor on, the biography and the cursor are in the editor, and the textarea
+      // behind it is hidden and out of date. Switching the editor off and on to use the textarea
+      // rebuilt the editor, which lost Undo, the cursor and the scroll position, so read and insert
+      // into the editor itself. Only if it can't be reached, switch it off for the edit as before.
+      const editorIsOn = isProfileEdit && $("#wpTextbox1 + .CodeMirror:visible").length > 0;
+      const editor = editorIsOn ? await readEnhancedEditor() : null;
+      const switchedOff = editorIsOn && !editor && DeactivateEnhancedEditorIfPresent();
+
+      const value = editor ? editor.text : $("#" + box).val();
+      const selStart = editor ? editor.from : $("#" + box)[0].selectionStart;
+      const partA = value.substr(0, selStart);
+      const partB = value.substr(selStart);
+      // An inline citation goes at the cursor. A source, or a citation when there's no cursor, goes at the end.
+      const atEnd = !(selStart > 0 && isInline);
+      let inserted;
+      console.log("Inserting text into box:", box);
+      if (!atEnd) {
+        if (partA.substr(partA.length - 1) !== "\n" && !theText.includes("<ref>")) {
+          theText = "\n" + theText;
+        }
+        inserted = decodeHTMLEntities(theText);
+        selectionEnd = partA.length + inserted.length;
+      } else {
+        let optionalTrailingNewLine = "\n";
+        if (value === "") {
+          optionalTrailingNewLine = "";
+        }
+        inserted = optionalTrailingNewLine + decodeHTMLEntities(theText) + "\n";
+        selectionEnd = selStart;
+      }
+
+      if (editor) {
+        await insertIntoEnhancedEditor(inserted, atEnd);
+        // Keep the focus in the sources box, as with the plain textarea, so the keyboard shortcuts still work
+        $(this).trigger("focus");
+      } else {
+        $("#" + box).val(atEnd ? value + inserted : partA + inserted + partB);
+      }
+      ReactivateEnhancedEditorIfNeeded(switchedOff);
+    });
 
     /* collapse / expand – add this handler only for add person pages */
     if (!isProfileEdit) {
@@ -386,27 +384,6 @@ function focusFirstButton(referenceBox) {
     console.debug("first button focus");
     firstButton.trigger("focus");
   }
-}
-
-/**
- * Copy text to the clipboard using a temporary textarea element.
- *
- * @param {Element} element - The element containing the text to copy.
- * @param {number} [refs=1] - If 1, wraps the text in <ref> tags.
- */
-function copyToClipboard3(element, refs = 1) {
-  const $temp = $("<textarea>");
-  const brRegex = /<br\s*[\/]?>/gi;
-  $("body").append($temp);
-  let ref1 = "";
-  let ref2 = "";
-  if (refs === 1) {
-    ref1 = "<ref>";
-    ref2 = "</ref>";
-  }
-  $temp.val(ref1 + decodeHTMLEntities($(element).html().replace(brRegex, "\r\n")) + ref2).select();
-  document.execCommand("copy");
-  $temp.remove();
 }
 
 /**
@@ -487,7 +464,7 @@ $(document).on("keydown.shareableSourcesPopup", function (e) {
   // If the family dropdown is still open, it gets first dibs.
   if ($("#familyDropdown .custom-dropdown-menu").is(":visible")) return;
   const activeButton = $(":focus");
-  let activeButtonIsInline = activeButton.length && activeButton.get(0).className.includes("nline");
+  let activeButtonIsInline = activeButton.length && activeButton.get(0).className?.includes("nline");
   if (e.key === "Escape") {
     let popups = $("div.referenceBox, #relativeBiography, #otherPersonLabel").filter(function () {
       return $(this).css("display") !== "none";

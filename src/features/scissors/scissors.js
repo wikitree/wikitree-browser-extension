@@ -18,6 +18,7 @@ import {
   isNetworkFeed,
   isCategoryEdit,
   isHelpPage,
+  isWikiPage,
 } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
 import { showCopyMessage } from "../access_keys/access_keys.js";
@@ -25,6 +26,7 @@ import { copyToClipboard } from "../../core/clipboard.js";
 
 shouldInitializeFeature("scissors").then((result) => {
   if (result) {
+    fixYearsWhenCopyingProfileLinkFromPreview();
     import("./scissors.css");
 
     $(document).on("click", ".copy--buttons button", async function (e) {
@@ -40,12 +42,63 @@ shouldInitializeFeature("scissors").then((result) => {
       }
     });
 
-    if ($("#helpScissors").length === 0) {
+    if (
+      $("#helpScissors").length === 0 &&
+      (isWikiPage ||
+        isProfileEdit ||
+        isSpaceEdit ||
+        isProfileHistoryDetail ||
+        isNetworkFeed ||
+        isCategoryEdit ||
+        isCategoryPage ||
+        isImagePage)
+    ) {
       helpScissors();
     }
   }
 });
 
+async function fixYearsWhenCopyingProfileLinkFromPreview() {
+  const options = await getFeatureOptions("scissors");
+  if (!options.removeDates) {
+    return;
+  }
+
+  const observer = new MutationObserver((mutationsList, observerInstance) => {
+    for (const mutation of mutationsList) {
+      if (mutation.addedNodes.length > 0) {
+        for (const node of mutation.addedNodes) {
+          if (node.id === "pagePreviewInner") {
+            handleFoundElement(node);
+            return;
+          }
+
+          if (node.querySelector) {
+            const nestedTarget = node.querySelector("#pagePreviewInner");
+            if (nestedTarget) {
+              handleFoundElement(nestedTarget);
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    function handleFoundElement(pagePreviewInner) {
+      if (pagePreviewInner) {
+        const copyButtons = pagePreviewInner.getElementsByTagName("ul")[0];
+        if (copyButtons) {
+          removeDatesFromWikiButtons(copyButtons);
+        }
+      }
+    }
+  });
+
+  observer.observe(document.body || document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+}
 async function helpScissors() {
   const options = await getFeatureOptions("scissors");
   const displayOptions = {};
@@ -204,13 +257,24 @@ async function helpScissors() {
 
   attachScissorsEvent();
 }
+function removeDatesFromWikiButtons(elements) {
+  const $buttons = $(elements)
+    .find("button[aria-label='Copy Wiki Link']")
+    .addBack("button[aria-label='Copy Wiki Link']");
 
+  $buttons.each(function () {
+    const $this = $(this);
+    const originalText = $this.data("copy-text");
+
+    if (originalText) {
+      const dateless = originalText.replace(/\s\([^\s]*[0-9]{3,4}.*\)/, "");
+      $this.data("copy-text", dateless).attr("data-copy-text", dateless);
+    }
+  });
+}
 function modifyLinkButtons(options) {
   if ((isProfilePage || isProfileEdit) && options.removeDates) {
-    const dateless = $("button[aria-label='Copy Wiki Link']")
-      .data("copy-text")
-      .replace(/\s\([^\s]*[0-9]{3,4}.*\)/, ""); //year brackets might contain abt., two years or one, but never a blank
-    $("button[aria-label='Copy Wiki Link']").data("copy-text", dateless).attr("data-copy-text", dateless);
+    removeDatesFromWikiButtons("button[aria-label='Copy Wiki Link']");
   }
 
   if (isSpacePage || isSpaceEdit) {
@@ -305,6 +369,9 @@ function AddToOneSection(section, url, copyPosition) {
 }
 
 export function addItems(copyItems, copyPosition, options = {}) {
+  const $copyPosition = $(copyPosition);
+  const listLike = $copyPosition.is("ul, ol");
+
   if (options.classic) {
     for (let i = 0; i < copyItems.length; i++) {
       const item = copyItems[i];
@@ -315,7 +382,7 @@ export function addItems(copyItems, copyPosition, options = {}) {
       button.setAttribute("class", "copyWidget helpScissors mono-b");
       button.setAttribute("data-copy-text", item.text);
       button.setAttribute("data-bs-toggle", "tooltip");
-      button.setAttribute("data-bs-title", "Copy User ID");
+      button.setAttribute("data-bs-title", `Copy ${item.label}`);
 
       if (item.image) {
         button.innerHTML = '<img src="/images/icons/scissors.png">';
@@ -328,9 +395,9 @@ export function addItems(copyItems, copyPosition, options = {}) {
       if (item.label == "User ID" || item.label.match("Title")) {
         const li = document.createElement("li");
         li.append(button);
-        copyPosition.append(li);
+        $copyPosition.append(li);
       } else {
-        copyPosition.append(button);
+        $copyPosition.append(button);
       }
     }
   } else {
@@ -341,7 +408,7 @@ export function addItems(copyItems, copyPosition, options = {}) {
     imageLI.append(image);
     aUL.append(imageLI);
 
-    copyItems.forEach((item, index) => {
+    copyItems.forEach((item) => {
       const aLI = $("<li></li>");
       let theLabel = item.label == "UserID" ? "User ID" : item.label;
       const button = $(`
@@ -368,12 +435,35 @@ export function addItems(copyItems, copyPosition, options = {}) {
       });
     }
 
+    const addToTarget = (node) => {
+      if (listLike) {
+        const wrapper = $('<li class="wbe-copy-list-item"></li>');
+        wrapper.append(node);
+        $copyPosition.append(wrapper);
+        return;
+      }
+
+      $copyPosition.append(node);
+    };
+
     if (options.positioning == "before") {
-      copyPosition.before(aUL);
+      if (listLike) {
+        const wrapper = $('<li class="wbe-copy-list-item"></li>');
+        wrapper.append(aUL);
+        $copyPosition.before(wrapper);
+      } else {
+        $copyPosition.before(aUL);
+      }
     } else if (options.positioning == "prepend") {
-      copyPosition.prepend(aUL);
+      if (listLike) {
+        const wrapper = $('<li class="wbe-copy-list-item"></li>');
+        wrapper.append(aUL);
+        $copyPosition.prepend(wrapper);
+      } else {
+        $copyPosition.prepend(aUL);
+      }
     } else {
-      copyPosition.append(aUL);
+      addToTarget(aUL);
     }
   }
 }

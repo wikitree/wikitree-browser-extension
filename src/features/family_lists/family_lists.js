@@ -5,31 +5,25 @@ import { showCopyMessage } from "../access_keys/access_keys";
 import "../../core/common.css";
 import { profilePerson } from "../../core/common";
 import { addLoginButton } from "../../core/loginButton";
-import {
-  WBE_AUTO_BIO_APP_ID,
-  getBiographySpouseParents,
-  getFormData,
-  buildFamilyForPrivateProfiles,
-  assignPersonNames,
-  setOrderBirthDate,
-  convertDate,
-  buildBirth,
-  buildDeath,
-  buildSpouses,
-  siblingList,
-  getNameVariants,
-  getPronouns,
-  sourcesArray,
-  splitBioIntoSections,
-  addWorking,
-  removeWorking,
-} from "../auto_bio/auto_bio";
+import { loadAutoBioModule } from "../auto_bio/auto_bio_loader";
 import { isOK, familyArray } from "../../core/common";
 import { copyToClipboard, readFromClipboard } from "../../core/clipboard";
 
 const WBE_FAMILY_LISTS_APP_ID = "WBE_family_lists";
 
 async function getFamily() {
+  const {
+    WBE_AUTO_BIO_APP_ID,
+    getBiographySpouseParents,
+    getFormData,
+    buildFamilyForPrivateProfiles,
+    assignPersonNames,
+    setOrderBirthDate,
+    convertDate,
+    getNameVariants,
+    getPronouns,
+  } = await loadAutoBioModule();
+
   let profileID;
   if (!window.profileID) {
     profileID = profilePerson.Name;
@@ -97,10 +91,8 @@ async function getFamily() {
         nuclear: 1,
         minGeneration: 1,
       });
-      const biographySpouseParentsKeys = Object.keys(people);
-      biographySpouseParentsKeys.forEach(function (key) {
-        const person = people[key];
-        assignPersonNames(person);
+      Object.keys(people || {}).forEach(function (key) {
+        assignPersonNames(people[key]);
       });
     }
     if (isOK(window.profilePerson.MiddleName)) {
@@ -146,7 +138,22 @@ async function pasteResult() {
   }
 }
 
-async function getList(functionName) {
+/**
+ * The text one Family Lists item would add, without copying or pasting it (Genie shows it first,
+ * 2026-10-14): {text, message, otherMessage}, or {error} when there's no profile to build from.
+ */
+export async function buildFamilyListText(functionName) {
+  const {
+    splitBioIntoSections,
+    sourcesArray,
+    addWorking,
+    removeWorking,
+    buildBirth,
+    buildDeath,
+    buildSpouses,
+    siblingList,
+  } = await loadAutoBioModule();
+
   await getFamily();
   let result;
   let message;
@@ -154,9 +161,7 @@ async function getList(functionName) {
   let otherMessage = false;
 
   if (!window.profilePerson) {
-    message = "No profile found on the apps server. Please try again a little later.";
-    showCopyMessage(message, true);
-    return;
+    return { error: "No profile found on the apps server. Please try again a little later." };
   }
 
   if (functionName == "death" && !window.references) {
@@ -206,6 +211,15 @@ async function getList(functionName) {
     default:
       break;
   }
+  return { text: result, message, otherMessage };
+}
+
+async function getList(functionName) {
+  const { text: result, message, otherMessage, error } = await buildFamilyListText(functionName);
+  if (error) {
+    showCopyMessage(error, true);
+    return;
+  }
   copyToClipboard(result).catch((err) => console.error("Copy failed:", err));
   if (
     document.querySelector("#toggleMarkupColor").value == "turn on enhanced editor" ||
@@ -218,7 +232,15 @@ async function getList(functionName) {
 }
 export async function getFamilyList(args) {
   if (args.functionName) {
-    getList(args.functionName);
+    try {
+      return await getList(args.functionName);
+    } catch (error) {
+      if (WikiTreeAPI.isLikelyAppsServerAccessError(error)) {
+        showCopyMessage(WikiTreeAPI.getAppsServerAccessErrorMessage("Family Lists"), true);
+        return;
+      }
+      throw error;
+    }
   }
 }
 

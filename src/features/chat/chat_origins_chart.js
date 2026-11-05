@@ -1,0 +1,773 @@
+// Ancestral origins streamgraph (2026-10-03, the "Wow!" visuals): ancestors'
+// birth countries by generation, oldest on the left, flowing to the parents
+// on the right. The stream is revealed left to right "through time"; "Share"
+// morphs it into 100% bands; hovering a band (or its legend entry) shows that
+// country's count in each generation. Data comes from chat_origins_data.js.
+
+import $ from "jquery";
+import { select, pointer } from "d3-selection";
+import "d3-transition";
+import { area, curveMonotoneX, stack, stackOffsetExpand, stackOffsetWiggle, stackOrderInsideOut } from "d3-shape";
+import { scaleLinear, scalePoint } from "d3-scale";
+import { easeCubicInOut } from "d3-ease";
+import { OTHER_COUNTRIES } from "./chat_origins_data";
+import { mergeNames, setMainName, spellingsText, takeOutName, ungroupNames } from "./chat_name_variants";
+import { chartLinkButtons, chartPopupControls, chartSwitchHtml, escapeText, injectChartStyles, tipMoreHint, textColourFor, createChartPopup, mountChartPopup, handleChartPopupButton } from "./chat_chart_common";
+
+const WIDTH = 900;
+const HEIGHT = 470;
+const MARGIN = { top: 24, right: 36, bottom: 64, left: 36 };
+const FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+const OTHER_COLOUR = "#a5a5a5";
+// d3's Tableau 10 without its grey (too like the "rarer" band), then the paler
+// Category 20 partners: 15 streams the surname river can tell apart.
+const STREAM_COLOURS = [
+  "#4e79a7",
+  "#f28e2c",
+  "#e15759",
+  "#76b7b2",
+  "#59a14f",
+  "#edc949",
+  "#af7aa1",
+  "#ff9da7",
+  "#9c755f",
+  "#aec7e8",
+  "#ffbb78",
+  "#98df8a",
+  "#ff9896",
+  "#c5b0d5",
+  "#c49c94",
+];
+
+// y at x on d3's curveMonotoneX through (xs, ys): the same Hermite segments
+// (tangents per d3-shape's monotone.js), so a dot sits where its band is drawn.
+function monotoneAt(xs, ys, px) {
+  const n = xs.length;
+  if (n === 1) return ys[0];
+  let i = 0;
+  while (i < n - 2 && px > xs[i + 1]) i += 1;
+  const h = xs[i + 1] - xs[i];
+  const u = h ? Math.max(0, Math.min(1, (px - xs[i]) / h)) : 0;
+  if (n === 2) return ys[0] + (ys[1] - ys[0]) * u;
+  const sign = (v) => (v < 0 ? -1 : 1);
+  const slope3 = (k) => {
+    const h0 = xs[k] - xs[k - 1];
+    const h1 = xs[k + 1] - xs[k];
+    const s0 = (ys[k] - ys[k - 1]) / h0;
+    const s1 = (ys[k + 1] - ys[k]) / h1;
+    const p = (s0 * h1 + s1 * h0) / (h0 + h1);
+    return (sign(s0) + sign(s1)) * Math.min(Math.abs(s0), Math.abs(s1), 0.5 * Math.abs(p)) || 0;
+  };
+  const tangent = (k) => {
+    if (k > 0 && k < n - 1) return slope3(k);
+    const j = k === 0 ? 1 : n - 2;
+    const hk = k === 0 ? xs[1] - xs[0] : xs[n - 1] - xs[n - 2];
+    const dy = k === 0 ? ys[1] - ys[0] : ys[n - 1] - ys[n - 2];
+    return (3 * (dy / hk) - slope3(j)) / 2;
+  };
+  const dx = h / 3;
+  const c1 = ys[i] + dx * tangent(i);
+  const c2 = ys[i + 1] - dx * tangent(i + 1);
+  const v = 1 - u;
+  return v * v * v * ys[i] + 3 * v * v * u * c1 + 3 * v * u * u * c2 + u * u * u * ys[i + 1];
+}
+
+// Past those, golden-angle hues, alternating deeper and paler so neighbours differ.
+function streamColour(index) {
+  if (index < STREAM_COLOURS.length) return STREAM_COLOURS[index];
+  const n = index - STREAM_COLOURS.length;
+  const hue = Math.round((n * 137.508 + 20) % 360);
+  return n % 2 ? `hsl(${hue}, 45%, 72%)` : `hsl(${hue}, 50%, 52%)`;
+}
+const MODES = [
+  { key: "stream", label: "Stream" },
+  { key: "share", label: "Share (100%)" },
+];
+let chartCounter = 0;
+// The key under the chart: largest first, or A–Z (2026-10-16; kept while the page is open, so a regroup keeps it).
+let legendAlphabetical = false;
+
+/**
+ * series: from buildOriginsSeries (or buildSurnameRiver). options: {title, placeWord: "birth"|"death",
+ * kind: "surname" for the surname river, links and rootKey: the Charts menu, onRegroup: redraw after you group or ungroup surnames
+ * (drag a legend entry onto another, or Shift-click both; Ungroup in a band's pinned tip)}.
+ */
+export function showOriginsPopup(series, options = {}) {
+  if (!series?.generations?.length) return null;
+  chartCounter += 1;
+  const uid = `wbe-origins-${chartCounter}`;
+  const popupId = options.kind === "surname" ? "wbe-surname-river-popup" : "wbe-origins-popup";
+  injectChartStyles();
+
+  const placeWord = options.placeWord === "death" ? "death" : "birth";
+  // kind "surname": the surname river (keys are surnames at birth, not countries).
+  const surnames = options.kind === "surname";
+  // A dot for each ancestor when the series says who they are.
+  const hasPeople = series.generations.some((gen) => Object.keys(gen.people || {}).length);
+  const OTHER = series.otherKey || OTHER_COUNTRIES;
+  const withoutWord = surnames ? "have no surname recorded" : `have no ${placeWord}place`;
+  const state = { mode: "stream", highlight: null, picked: null };
+  // Oldest generation on the left, so the stream flows towards the present.
+  const generations = [...series.generations].sort((a, b) => b.generation - a.generation);
+  const keys = series.keys;
+  const colourOf = new Map(keys.map((key, index) => [key, key === OTHER ? OTHER_COLOUR : streamColour(index)]));
+
+  const popup = createChartPopup({
+    id: popupId,
+    html: `
+    <div class="chat-popup-header ui-draggable-handle">
+      <strong class="wbe-chart-title"></strong>
+      <div class="chat-popup-controls">
+        <button type="button" class="small" data-act="replay" title="Play the reveal again">Replay</button>
+        ${chartLinkButtons(options.links)}
+        ${chartPopupControls()}
+      </div>
+    </div>
+    <div class="chat-popup-body">
+      <div class="wbe-chart-toolbar">
+        ${MODES.map((m) => `<button type="button" class="wbe-chart-mode" data-mode="${m.key}">${m.label}</button>`).join("")}
+        ${
+          options.onGenerations
+            ? `<span class="wbe-river-generations" style="display:inline-flex;align-items:center;gap:4px;margin-left:10px">
+          <button type="button" class="small" data-act="fewer" title="One generation fewer"${options.generations <= (options.minGenerations || 2) ? " disabled" : ""}>−</button>
+          <span class="wbe-river-generations-text">${options.generations} generations</span>
+          <button type="button" class="small" data-act="more" title="Go back one more generation"${options.generations >= (options.maxGenerations || 10) ? " disabled" : ""}>+</button>
+        </span>`
+            : ""
+        }
+        ${
+          options.onGroupVariants && series.groupable
+            ? chartSwitchHtml({
+                act: "variants",
+                label: "Group spellings",
+                on: series.grouped,
+                title: series.grouped
+                  ? "On: spellings of one surname share a band (One Name Study variants, accents, your own groupings)"
+                  : "Off: each spelling has its own band",
+              })
+            : ""
+        }
+        ${chartSwitchHtml({ act: "sort", label: "A–Z", on: legendAlphabetical, title: "The key below the chart in alphabetical order (Off: largest first)" })}
+        <span class="wbe-chart-spacer"></span>
+        <span style="opacity:.65">Oldest generation on the left · hover a band for its numbers</span>
+      </div>
+      <div class="wbe-chart-stage"><div class="wbe-chart-tip"></div></div>
+      <div class="wbe-chart-footer">
+        <div class="wbe-chart-stats"></div>
+        <div class="wbe-chart-legend"></div>
+      </div>
+    </div>`,
+  });
+  popup.querySelector(".wbe-chart-title").textContent = options.title || "Ancestral origins";
+
+  const stage = popup.querySelector(".wbe-chart-stage");
+  const tip = popup.querySelector(".wbe-chart-tip");
+  const svg = select(stage)
+    .append("svg")
+    .attr("xmlns", "http://www.w3.org/2000/svg")
+    .attr("font-family", FONT)
+    .attr("viewBox", `0 0 ${WIDTH} ${HEIGHT}`)
+    .attr("preserveAspectRatio", "xMidYMid meet")
+    .style("cursor", "default");
+  const root = svg.append("g");
+  const clipRect = svg
+    .append("defs")
+    .append("clipPath")
+    .attr("id", `${uid}-clip`)
+    .append("rect")
+    .attr("x", 0)
+    .attr("y", 0)
+    .attr("height", HEIGHT)
+    .attr("width", WIDTH);
+  const bandsLayer = root.append("g").attr("clip-path", `url(#${uid}-clip)`);
+  // A dot for each ancestor, in their band at their generation.
+  const dotsLayer = root.append("g");
+  const labelsLayer = root.append("g").attr("pointer-events", "none");
+  const axisLayer = root.append("g");
+  const guide = root
+    .append("line")
+    .attr("stroke", "#222")
+    .attr("stroke-opacity", 0.35)
+    .attr("stroke-dasharray", "3 3")
+    .attr("y1", MARGIN.top)
+    .attr("y2", HEIGHT - MARGIN.bottom + 6)
+    .attr("opacity", 0);
+
+  const x = scalePoint()
+    .domain(generations.map((gen) => gen.generation))
+    .range([MARGIN.left, WIDTH - MARGIN.right]);
+  const tableRows = generations.map((gen) => ({ generation: gen.generation, ...gen.counts }));
+
+  function layout() {
+    const stacker = stack()
+      .keys(keys)
+      .order(stackOrderInsideOut)
+      .offset(state.mode === "share" ? stackOffsetExpand : stackOffsetWiggle);
+    const layers = stacker(tableRows);
+    const low = Math.min(...layers.flatMap((layer) => layer.map((point) => point[0])));
+    const high = Math.max(...layers.flatMap((layer) => layer.map((point) => point[1])));
+    const y = scaleLinear()
+      .domain([low, high === low ? low + 1 : high])
+      .range([HEIGHT - MARGIN.bottom, MARGIN.top]);
+    const shape = area()
+      // (Monotone, not basis: a basis curve misses the points, so a thin generation
+      // was drawn as wide as its neighbours.)
+      .curve(curveMonotoneX)
+      .x((point) => x(point.data.generation))
+      .y0((point) => y(point[0]))
+      .y1((point) => y(point[1]));
+    return { layers, y, shape };
+  }
+
+  function nearestGeneration(px, key = null) {
+    const inBand = key ? generations.filter((gen) => gen.counts[key]) : [];
+    const candidates = inBand.length ? inBand : generations;
+    let best = candidates[0];
+    candidates.forEach((gen) => {
+      if (Math.abs(x(gen.generation) - px) < Math.abs(x(best.generation) - px)) best = gen;
+    });
+    return best;
+  }
+
+  // The people behind a band (the surname river knows them): hover lists this
+  // generation's; a click pins the tip with every generation's, as links.
+  let pinned = false;
+  const personLink = (person, key) => {
+    const spelling = person.lnab && series.variants?.[key] && !String(person.name).includes(person.lnab) ? ` · ${person.lnab}` : "";
+    const place = !surnames && person.place ? ` · ${person.place}` : "";
+    const label = `${person.name}${spelling}${person.year ? ` (b. ${person.year})` : ""}${place}`;
+    return person.wtid
+      ? `<a href="/wiki/${encodeURIComponent(person.wtid)}" target="_blank" rel="noopener" title="Open ${escapeText(person.wtid)} in a new tab">${escapeText(label)}</a>`
+      : escapeText(label);
+  };
+  function peopleHtml(gen, key, all) {
+    if (!all) {
+      const people = gen.people?.[key] || [];
+      if (!people.length) return "";
+      const shown = people.slice(0, 6);
+      return `<div style="margin-top:4px">${shown.map((person) => `<div>${personLink(person, key)}</div>`).join("")}</div>
+        ${people.length > shown.length ? tipMoreHint(people.length - shown.length) : `<div class="wbe-chart-tip-hint">${surnames ? "Click to list everyone with this name" : "Click to list them all"}</div>`}`;
+    }
+    const groups = generations
+      .filter((g) => g.people?.[key]?.length)
+      .map((g) => `<div class="wbe-chart-tip-rel" style="margin-top:6px">${escapeText(g.name)}</div>${g.people[key].map((person) => `<div>${personLink(person, key)}</div>`).join("")}`);
+    return groups.join("");
+  }
+
+  // The names folded into "Other": the first 14 in the hover tip, all of them once pinned.
+  function otherNamesHtml(gen, key, all) {
+    if (key !== OTHER || !gen.otherNames?.length) return "";
+    const shown = all ? gen.otherNames : gen.otherNames.slice(0, 14);
+    return `<div style="margin-top:4px">${shown.map(([name, n]) => escapeText(n > 1 ? `${name} (${n})` : name)).join(", ")}</div>${all ? "" : tipMoreHint(gen.otherNames.length - shown.length)}`;
+  }
+
+  // The spellings a grouped band holds; once pinned, each with a × to take it out of the group (2026-10-16).
+  function spellingsHtml(key, pinnedTip = false) {
+    const list = series.variants?.[key];
+    if (!list) return "";
+    const heading = series.yours?.includes(key) ? "Your grouping" : "Spellings";
+    if (!pinnedTip || !options.onRegroup) return `<div style="margin-top:2px;opacity:.8">${heading}: ${escapeText(spellingsText(list))}</div>`;
+    const items = list.map(
+      ([name, count]) =>
+        `<span style="white-space:nowrap">${escapeText(spellingsText([[name, count]]))}<button type="button" data-act="takeout" data-key="${escapeText(key)}" data-name="${escapeText(name)}" title="Count ${escapeText(name)} on its own in all your charts" aria-label="Take ${escapeText(name)} out of this group" style="border:0;background:none;padding:0 4px;margin:0;cursor:pointer;color:#a33;font-size:14px;line-height:1">×</button></span>`
+    );
+    return `<div style="margin-top:2px">${heading}: ${items.join(" ")}</div>`;
+  }
+
+  function pinTip(event, key) {
+    const gen = nearestGeneration(pointer(event, svg.node())[0]);
+    if (!gen.people?.[key] && !generations.some((g) => g.people?.[key]?.length) && !otherNamesHtml(gen, key, true)) return;
+    const overall = series.totals.find(([name]) => name === key)?.[1] || 0;
+    pinned = true;
+    tip.classList.add("wbe-chart-tip-pinned");
+    tip.style.pointerEvents = "auto";
+    tip.innerHTML = `<b>${escapeText(key)}</b><div>${overall} ${overall === 1 ? "ancestor" : "ancestors"}</div>${spellingsHtml(key, true)}${otherNamesHtml(gen, key, true)}${peopleHtml(gen, key, true)}
+      ${series.variants?.[key] && options.onRegroup ? `<button type="button" class="small" data-act="ungroup" data-key="${escapeText(key)}" title="Count each spelling on its own in all your charts" style="margin-top:6px">Ungroup</button>${series.variants[key]
+              .slice(1)
+              .map(([name]) => ` <button type="button" class="small" data-act="main" data-name="${escapeText(name)}" title="Show this surname as ${escapeText(name)} in all your charts">Show as ${escapeText(name)}</button>`)
+              .join("")}` : ""}
+      <div class="wbe-chart-tip-hint">Click a name to open the profile · click the chart to close</div>`;
+    const rect = stage.getBoundingClientRect();
+    tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 290)}px`;
+    tip.style.top = `${Math.max(4, Math.min(event.clientY - rect.top + 14, rect.height * 0.3))}px`;
+    tip.style.opacity = 1;
+  }
+
+  // The card for a band picked in the key: beside the band where it's thickest.
+  function pinTipAtBand(key) {
+    const layer = drawn?.layers.find((candidate) => candidate.key === key);
+    if (!layer) return;
+    let best = layer[0];
+    layer.forEach((point) => {
+      if (point[1] - point[0] > best[1] - best[0]) best = point;
+    });
+    const matrix = svg.node().getScreenCTM();
+    if (!matrix) return;
+    const clientX = matrix.a * x(best.data.generation) + matrix.e;
+    const clientY = matrix.d * ((drawn.y(best[0]) + drawn.y(best[1])) / 2) + matrix.f;
+    pinTip({ clientX, clientY }, key);
+  }
+
+  function unpinTip() {
+    if (!pinned) return;
+    pinned = false;
+    tip.classList.remove("wbe-chart-tip-pinned");
+    tip.style.pointerEvents = "";
+    hideTip();
+  }
+
+  function showTip(event, key) {
+    if (pinned) return;
+    const [px] = pointer(event, svg.node());
+    // A band tapers to nothing between generations, so pointing at its thin end would describe a generation it
+    // isn't in ("0 of 4"): use the nearest generation it is in.
+    const gen = nearestGeneration(px, key);
+    const count = gen.counts[key] || 0;
+    const percent = gen.total ? Math.round((count / gen.total) * 100) : 0;
+    const overall = series.totals.find(([country]) => country === key)?.[1];
+    const overallCount = key === OTHER ? series.totals.slice(keys.length - 1).reduce((sum, [, n]) => sum + n, 0) : overall || 0;
+    tip.innerHTML = `<div class="wbe-chart-tip-rel">${escapeText(gen.name)}${gen.meanYear ? ` · born about ${gen.meanYear}` : ""}</div>
+      <b>${escapeText(key)}</b>
+      ${spellingsHtml(key)}
+      <div>${count} of ${gen.total} ${escapeText(gen.name.toLowerCase())} (${percent}%)</div>
+      ${gen.unknown ? `<div style="opacity:.75">${gen.unknown} more ${withoutWord}</div>` : ""}
+      ${otherNamesHtml(gen, key, false)}
+      ${peopleHtml(gen, key, false)}
+      <div class="wbe-chart-tip-hint">${overallCount} ${overallCount === 1 ? "ancestor" : "ancestors"} in all generations</div>`;
+    const rect = stage.getBoundingClientRect();
+    tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 290)}px`;
+    tip.style.top = `${Math.min(event.clientY - rect.top + 14, rect.height - 120)}px`;
+    tip.style.opacity = 1;
+    guide.attr("x1", x(gen.generation)).attr("x2", x(gen.generation)).attr("opacity", 1);
+  }
+
+  function hideTip() {
+    if (pinned) return;
+    tip.style.opacity = 0;
+    guide.attr("opacity", 0);
+  }
+
+  function applyHighlight() {
+    bandsLayer
+      .selectAll("path")
+      .transition("hl")
+      .duration(150)
+      .attr("fill-opacity", (layer) => (!state.highlight || state.highlight === layer.key ? 0.92 : 0.18));
+    dotsLayer
+      .selectAll("circle")
+      .transition("hl")
+      .duration(150)
+      .attr("opacity", (d) => (!state.highlight || state.highlight === d.key ? 1 : 0.25));
+    labelsLayer
+      .selectAll("text")
+      .transition("hl")
+      .duration(150)
+      .attr("opacity", (d) => (!state.highlight || state.highlight === d.key ? 1 : 0.15));
+  }
+
+  function drawLabels(layers, y, delay) {
+    // Each country's name sits where its band is thickest, if it fits.
+    const labelData = layers
+      .map((layer) => {
+        let best = null;
+        layer.forEach((point) => {
+          const thickness = y(point[0]) - y(point[1]);
+          if (!best || thickness > best.thickness) best = { thickness, point };
+        });
+        const minimum = surnames ? 10 : 15;
+        if (!best || best.thickness < minimum) return null;
+        const mid = (point) => (y(point[0]) + y(point[1])) / 2;
+        const size = (thickness) => Math.min(15, Math.min(thickness - 1, 9 + thickness / 10));
+        const label = { key: layer.key, x: x(best.point.data.generation), y: mid(best.point), size: size(best.thickness) };
+        if (!hasPeople) return label;
+        // The generation columns hold the dots, so a band's name goes halfway to
+        // its thicker neighbour; a one-generation band gets it beside the dots.
+        const index = layer.indexOf(best.point);
+        const neighbour = [layer[index - 1], layer[index + 1]]
+          .filter(Boolean)
+          .map((point) => ({ point, thickness: y(point[0]) - y(point[1]) }))
+          .sort((a, b) => b.thickness - a.thickness)[0];
+        if (neighbour && neighbour.thickness >= minimum) {
+          return {
+            ...label,
+            x: (label.x + x(neighbour.point.data.generation)) / 2,
+            y: (label.y + mid(neighbour.point)) / 2,
+            size: size(Math.min(best.thickness, neighbour.thickness)),
+            between: true,
+          };
+        }
+        return { ...label, beside: true };
+      })
+      .filter(Boolean)
+      .map((d) => {
+        if (d.between) return { ...d, anchor: "middle" };
+        if (d.beside) return d.x >= WIDTH - MARGIN.right - 1 ? { ...d, anchor: "end", x: d.x - 8 } : { ...d, anchor: "start", x: d.x + 8 };
+        // Keep the end labels inside the chart.
+        return {
+          ...d,
+          anchor: d.x <= MARGIN.left + 1 ? "start" : d.x >= WIDTH - MARGIN.right - 1 ? "end" : "middle",
+          x: d.x <= MARGIN.left + 1 ? d.x + 6 : d.x >= WIDTH - MARGIN.right - 1 ? d.x - 6 : d.x,
+        };
+      });
+    labelsLayer.selectAll("text").remove();
+    labelsLayer
+      .selectAll("text")
+      .data(labelData)
+      .join("text")
+      .attr("x", (d) => d.x)
+      .attr("y", (d) => d.y)
+      .attr("dy", "0.35em")
+      .attr("text-anchor", (d) => d.anchor)
+      .attr("font-size", (d) => d.size)
+      .attr("font-weight", 600)
+      .attr("fill", (d) => textColourFor(colourOf.get(d.key)))
+      .text((d) => d.key)
+      .attr("opacity", 0)
+      .transition()
+      .delay(delay)
+      .duration(400)
+      .attr("opacity", 1);
+  }
+
+  // Birth year → x: straight between the generations' average years. A dot stays
+  // within half a column of its own generation, where its band is drawn.
+  const columnX = generations.map((gen) => x(gen.generation));
+  function yearX(year, genIndex) {
+    const own = columnX[genIndex];
+    const half = generations.length > 1 ? (columnX[1] - columnX[0]) * 0.45 : 0;
+    const meanYear = generations[genIndex].meanYear;
+    if (!year || !meanYear) return own;
+    const neighbourIndex = year < meanYear ? genIndex - 1 : genIndex + 1;
+    const neighbour = generations[neighbourIndex];
+    if (!neighbour?.meanYear || neighbour.meanYear === meanYear) return own;
+    const fraction = Math.max(0, Math.min(1, (year - meanYear) / (neighbour.meanYear - meanYear)));
+    const px = own + (columnX[neighbourIndex] - own) * fraction;
+    return Math.max(own - half, Math.min(own + half, px));
+  }
+
+  function drawDots(layers, y, delay, morph) {
+    if (!hasPeople) return;
+    const dots = [];
+    layers.forEach((layer) => {
+      const lows = layer.map((point) => y(point[0]));
+      const highs = layer.map((point) => y(point[1]));
+      layer.forEach((point, genIndex) => {
+        const gen = generations[genIndex];
+        const people = gen?.people?.[layer.key] || [];
+        people.forEach((person, index) => {
+          const cx = yearX(person.year, genIndex);
+          const bottom = monotoneAt(columnX, lows, cx);
+          const top = monotoneAt(columnX, highs, cx);
+          const step = (bottom - top) / Math.max(1, people.length);
+          dots.push({
+            id: `${gen.generation}:${person.wtid || person.name}`,
+            key: layer.key,
+            gen,
+            person,
+            cx,
+            cy: top + step * (index + 0.5),
+            r: Math.max(1.8, Math.min(4.2, step * 0.32)),
+          });
+        });
+      });
+    });
+    const circles = dotsLayer
+      .selectAll("circle")
+      .data(dots, (d) => d.id)
+      .join("circle")
+      .attr("fill", "#fff")
+      .attr("stroke", (d) => colourOf.get(d.key))
+      .attr("stroke-width", 1.4)
+      .style("cursor", (d) => (d.person.wtid ? "pointer" : "default"))
+      .on("mouseenter", (event, d) => {
+        if (pinned) return;
+        state.highlight = d.key;
+        applyHighlight();
+        tip.innerHTML = `<div class="wbe-chart-tip-rel">${escapeText(d.gen.name)}</div>
+          <b>${escapeText(d.person.name)}</b>
+          ${d.person.year ? `<div>Born ${d.person.year}</div>` : ""}
+          ${!surnames && d.person.place ? `<div>${escapeText(d.person.place)}</div>` : ""}
+          <div class="wbe-chart-tip-hint">${surnames ? `${escapeText(d.key)} at birth` : escapeText(d.key)}${d.person.wtid ? " · click to open the profile" : ""}</div>`;
+        const rect = stage.getBoundingClientRect();
+        tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 290)}px`;
+        tip.style.top = `${Math.min(event.clientY - rect.top + 14, rect.height - 120)}px`;
+        tip.style.opacity = 1;
+      })
+      .on("mouseleave", () => {
+        if (pinned) return;
+        state.highlight = null;
+        applyHighlight();
+        hideTip();
+      })
+      .on("click", (event, d) => {
+        event.stopPropagation();
+        if (d.person.wtid) window.open(`/wiki/${encodeURIComponent(d.person.wtid)}`, "_blank", "noopener");
+      });
+    if (morph) {
+      circles.transition().duration(750).ease(easeCubicInOut).attr("cx", (d) => d.cx).attr("cy", (d) => d.cy).attr("r", (d) => d.r);
+    } else {
+      circles
+        .attr("cx", (d) => d.cx)
+        .attr("cy", (d) => d.cy)
+        .attr("r", 0)
+        .transition()
+        .delay((d) => delay + (d.cx / WIDTH) * 500)
+        .duration(300)
+        .attr("r", (d) => d.r);
+    }
+  }
+
+  function drawAxis() {
+    axisLayer.selectAll("*").remove();
+    const ticks = axisLayer
+      .selectAll("g")
+      .data(generations)
+      .join("g")
+      .attr("transform", (gen) => `translate(${x(gen.generation)},${HEIGHT - MARGIN.bottom + 18})`);
+    ticks
+      .append("text")
+      .attr("text-anchor", (gen, index) => (index === 0 ? "start" : index === generations.length - 1 ? "end" : "middle"))
+      .attr("font-size", 13)
+      .attr("font-weight", 600)
+      .attr("fill", "#333")
+      .text((gen) => (gen.meanYear ? `~${gen.meanYear}` : "—"));
+    ticks
+      .append("text")
+      .attr("text-anchor", (gen, index) => (index === 0 ? "start" : index === generations.length - 1 ? "end" : "middle"))
+      .attr("dy", 15)
+      .attr("font-size", 10)
+      .attr("fill", "#666")
+      .text((gen) => (gen.generation <= 3 ? gen.name : `Gen ${gen.generation}`));
+    axisLayer
+      .append("text")
+      .attr("x", WIDTH / 2)
+      .attr("y", HEIGHT - 8)
+      .attr("text-anchor", "middle")
+      .attr("font-size", 10)
+      .attr("fill", "#888")
+      .text("Average birth year of each generation (oldest on the left)");
+  }
+
+  // Bands that are empty in a generation still draw a hairline there (their outline), and the pointer can land on
+  // one of those: the band really under the pointer is the one whose drawn edges are either side of it.
+  let drawn = null;
+  function bandUnder(event, fallback) {
+    if (!drawn) return fallback;
+    const [px, py] = pointer(event, svg.node());
+    let best = null;
+    drawn.layers.forEach((layer) => {
+      const top = monotoneAt(columnX, layer.map((point) => drawn.y(point[1])), px);
+      const bottom = monotoneAt(columnX, layer.map((point) => drawn.y(point[0])), px);
+      if (bottom - top > 0.5 && py >= top - 0.5 && py <= bottom + 0.5 && (!best || bottom - top > best.size)) best = { key: layer.key, size: bottom - top };
+    });
+    return best?.key ?? null;
+  }
+
+  function render({ reveal = true } = {}) {
+    const { layers, y, shape } = layout();
+    drawn = { layers, y };
+    const paths = bandsLayer
+      .selectAll("path")
+      .data(layers, (layer) => layer.key)
+      .join("path")
+      .attr("fill", (layer) => colourOf.get(layer.key))
+      .attr("fill-opacity", 0.92)
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 0.6)
+      .on("mousemove", function (event, layer) {
+        if (pinned) return;
+        // (null: only the hairline of a band that's empty here, so nothing to describe)
+        const key = bandUnder(event, layer.key);
+        state.highlight = key;
+        applyHighlight();
+        if (key) showTip(event, key);
+        else hideTip();
+      })
+      .on("mouseleave", () => {
+        if (pinned) return;
+        state.highlight = null;
+        applyHighlight();
+        hideTip();
+      })
+      .on("click", (event, layer) => {
+        event.stopPropagation();
+        pinned = false;
+        const key = bandUnder(event, layer.key);
+        state.highlight = key;
+        applyHighlight();
+        if (key) pinTip(event, key);
+        else hideTip();
+      });
+    if (reveal) {
+      paths.attr("d", shape);
+      clipRect.interrupt().attr("width", 0).transition().duration(1700).ease(easeCubicInOut).attr("width", WIDTH);
+      drawLabels(layers, y, 1300);
+      drawDots(layers, y, 900, false);
+    } else {
+      // Morph between Stream and Share: same points, so the paths interpolate.
+      paths.transition().duration(750).ease(easeCubicInOut).attr("d", shape);
+      drawLabels(layers, y, 650);
+      drawDots(layers, y, 0, true);
+    }
+    popup.querySelectorAll(".wbe-chart-mode[data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === state.mode));
+  }
+
+  function drawFooter() {
+    const stats = popup.querySelector(".wbe-chart-stats");
+    stats.innerHTML = `<strong>${series.totals.length}</strong>${surnames ? (series.totals.length === 1 ? "surname" : "surnames") : series.totals.length === 1 ? "country" : "countries"} · ${series.known.toLocaleString()} ancestors${
+      series.unknown ? `<br><span style="opacity:.7">${series.unknown.toLocaleString()} ${withoutWord.replace(/^have /, "with ")}</span>` : ""
+    }`;
+    const legend = popup.querySelector(".wbe-chart-legend");
+    legend.innerHTML = "";
+    // (A surname for every band can mean dozens of entries: scroll rather than squeeze the chart.)
+    legend.style.maxHeight = "92px";
+    legend.style.overflowY = "auto";
+    const label = (key) => series.variants?.[key]?.[0]?.[0] || key;
+    const order = legendAlphabetical
+      ? [...keys].sort((a, b) => (a === OTHER) - (b === OTHER) || label(a).localeCompare(label(b), undefined, { sensitivity: "base" }))
+      : keys;
+    order.forEach((key) => {
+      const count =
+        key === OTHER
+          ? series.totals.slice(keys.length - 1).reduce((sum, [, n]) => sum + n, 0)
+          : series.totals.find(([country]) => country === key)?.[1] || 0;
+      const span = document.createElement("span");
+      span.innerHTML = `<i style="background:${colourOf.get(key)}"></i>`;
+      // A grouped band names its first spellings: "Kool/Cole/Cool (6)".
+      const spellings = series.variants?.[key]?.map(([name]) => name) || [key];
+      span.appendChild(document.createTextNode(`${spellings.slice(0, 3).join("/")}${spellings.length > 3 ? "/…" : ""} (${count})`));
+      span.title = [
+        spellings.length > 1 ? `${series.yours?.includes(key) ? "Your grouping" : "Counted as one surname"}: ${spellingsText(series.variants[key])}` : "",
+        options.onRegroup && key !== OTHER ? "Drag onto another surname (or Shift-click both) to count them as one" : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+      // Your own groupings (2026-10-15): drop one surname on another, or Shift-click both.
+      if (options.onRegroup && key !== OTHER) {
+        span.draggable = true;
+        span.style.cursor = "grab";
+        span.addEventListener("dragstart", (event) => {
+          event.dataTransfer.setData("text/plain", key);
+          event.dataTransfer.effectAllowed = "move";
+        });
+        span.addEventListener("dragover", (event) => {
+          event.preventDefault();
+          span.style.outline = "2px dashed currentColor";
+        });
+        span.addEventListener("dragleave", () => (span.style.outline = ""));
+        span.addEventListener("drop", (event) => {
+          event.preventDefault();
+          span.style.outline = "";
+          const from = event.dataTransfer.getData("text/plain");
+          if (from && from !== key && keys.includes(from)) mergeNames("surname", key, from).then(() => options.onRegroup());
+        });
+        span.addEventListener("click", (event) => {
+          if (!event.shiftKey) return;
+          event.stopPropagation();
+          if (state.picked && state.picked !== key) {
+            mergeNames("surname", key, state.picked).then(() => options.onRegroup());
+            return;
+          }
+          state.picked = state.picked === key ? null : key;
+          legend.querySelectorAll("span").forEach((other) => (other.style.outline = ""));
+          if (state.picked) span.style.outline = "2px solid currentColor";
+        });
+      }
+      // A click shows the band's card, as clicking the band does (2026-10-16).
+      span.addEventListener("click", (event) => {
+        if (event.shiftKey) return;
+        if (pinned && state.highlight === key) {
+          unpinTip();
+          state.highlight = null;
+          applyHighlight();
+          return;
+        }
+        unpinTip();
+        state.highlight = key;
+        applyHighlight();
+        pinTipAtBand(key);
+      });
+      span.addEventListener("mouseenter", () => {
+        if (pinned) return;
+        state.highlight = key;
+        applyHighlight();
+      });
+      span.addEventListener("mouseleave", () => {
+        if (pinned) return;
+        state.highlight = null;
+        applyHighlight();
+      });
+      legend.appendChild(span);
+    });
+  }
+
+  popup.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    // (the reveal's clip stops, so the saved chart is whole)
+    const saved = () => (clipRect.interrupt().attr("width", WIDTH), svg.node());
+    if (handleChartPopupButton(popup, button, { svg: saved, fileBase: options.fileBase || "ancestral-origins", links: options.links, rootKey: options.rootKey })) return;
+    if (button.dataset.mode && button.dataset.mode !== state.mode) {
+      state.mode = button.dataset.mode;
+      render({ reveal: false });
+    } else if (button.dataset.act === "replay") render({ reveal: true });
+    else if (button.dataset.act === "sort") {
+      legendAlphabetical = !legendAlphabetical;
+      button.setAttribute("aria-checked", String(legendAlphabetical));
+      drawFooter();
+    } else if (button.dataset.act === "variants" && options.onGroupVariants) options.onGroupVariants(!series.grouped);
+    else if (button.dataset.act === "takeout" && options.onRegroup && series.variants?.[button.dataset.key]) {
+      takeOutName("surname", button.dataset.name, series.variants[button.dataset.key].map(([name]) => name)).then(() => options.onRegroup());
+    } else if (button.dataset.act === "main" && options.onRegroup && button.dataset.name) setMainName("surname", button.dataset.name).then(() => options.onRegroup());
+    else if (button.dataset.act === "ungroup" && options.onRegroup && series.variants?.[button.dataset.key]) {
+      ungroupNames("surname", series.variants[button.dataset.key].map(([name]) => name)).then(() => options.onRegroup());
+    }
+    else if ((button.dataset.act === "more" || button.dataset.act === "fewer") && options.onGenerations) {
+      const wanted = options.generations + (button.dataset.act === "more" ? 1 : -1);
+      popup.querySelectorAll(".wbe-river-generations button").forEach((b) => (b.disabled = true));
+      popup.querySelector(".wbe-river-generations-text").textContent = `Loading ${wanted} generations…`;
+      Promise.resolve(options.onGenerations(wanted)).catch((error) => {
+        popup.querySelector(".wbe-river-generations-text").textContent = `Couldn't load (${error?.message || error})`;
+      });
+    }
+  });
+
+  svg.on("click.unpin", () => {
+    if (!pinned) return;
+    unpinTip();
+    state.highlight = null;
+    applyHighlight();
+  });
+
+  mountChartPopup(popup, () => {
+    clipRect.interrupt();
+    svg.selectAll("*").interrupt();
+  });
+  drawAxis();
+  drawFooter();
+  render({ reveal: true });
+  return popup;
+}
+
+/**
+ * The origins chart with − / + generations (the user, 2026-10-17). loadSeries(wanted) gives the series
+ * for that many generations (null when there's nothing to draw); the chart redraws itself with it.
+ */
+export function showOriginsChart(series, { generations, loadSeries, minGenerations = 2, maxGenerations = 10, ...options }) {
+  const reloadable = generations && typeof loadSeries === "function";
+  return showOriginsPopup(series, {
+    ...options,
+    ...(reloadable
+      ? {
+          generations,
+          minGenerations,
+          maxGenerations,
+          onGenerations: async (wanted) => {
+            const next = await loadSeries(wanted);
+            if (!next) throw new Error(`no ${options.placeWord === "death" ? "death" : "birth"}places`);
+            showOriginsChart(next, { generations: wanted, loadSeries, minGenerations, maxGenerations, ...options });
+          },
+        }
+      : {}),
+  });
+}

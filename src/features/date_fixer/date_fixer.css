@@ -26,7 +26,7 @@
   font-size: 1em;
 }
 #dateWarning {
-  color: red;
+  color: var(--wbe-cb-danger, red);
   font-weight: bold;
   display: inline-block;
   width: fit-content;

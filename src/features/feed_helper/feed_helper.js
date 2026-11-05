@@ -2,7 +2,7 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
-import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { theSourceRules } from "../bioCheck/SourceRules.js";
@@ -12,6 +12,19 @@ import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { getUserWtId } from "../../core/common.js";
 
 const WBE_RANGERS_APP_ID = "WBE_rangers";
+
+// Bump whenever the managed-profiles lookup changes what it can resolve, so cached results from
+// the previous logic are discarded instead of being served for the rest of their TTL.
+// 2: space pages resolved via TrustedList/IsManager.
+const MANAGED_PROFILES_CACHE_VERSION = 2;
+
+// States for the "Only Activity by New Members" / "Only Activity by Newly-Badged People" button.
+// The third state is only reachable when the newMemberThreeWayFilter option is on.
+const NEW_MEMBER_FILTER_STATES = {
+  inactive: "inactive",
+  only: "only",
+  exclude: "exclude",
+};
 
 const rangers = [
   "Ikeler-28",
@@ -343,7 +356,12 @@ const bioCheckFields = [
 
 // Define the class FeedHelper
 class FeedHelper {
-  constructor() {
+  constructor(featureOptions = {}) {
+    this.featureOptions = featureOptions || {};
+    this.newMemberThreeWayFilterEnabled = !!this.featureOptions.newMemberThreeWayFilter;
+    this.newMemberFilterState = NEW_MEMBER_FILTER_STATES.inactive;
+    this.newMemberFilterButtonId = null;
+
     // Initialize variables
     this.config = {
       pre1700: {
@@ -422,9 +440,24 @@ class FeedHelper {
     this.anomaliesStorageKey = "FeedHelper-anomalies";
     this.activityWarningsStorageKey = "FeedHelper-activity-warnings";
     this.dismissedWarningsStorageKey = "FeedHelper-dismissed-warnings"; // Global dismissed warnings
+    this.hideWhitelistActivityStorageKey = "FeedHelper-hideWhitelistActivity";
+    this.hideFilterStatesStorageKey = "FeedHelper-hideFilterStates";
+    // v2: cached sets from before space pages were included would otherwise keep
+    // suppressing them for the length of the TTL after an upgrade.
+    this.managedProfilesCacheStorageKey = "FeedHelper-managedProfilesCache-v2";
+    this.managedProfilesCacheHours = 1;
     this.lastActiveKey = "FeedHelper-last-active";
     this.sessionTimeoutHours = 2; // Clean up data older than 2 hours
     this.storedActivityWarnings = {}; // Rapid activity alerts restored from storage
+    this.hideFilterStates = this.getStoredHideFilterStates();
+    this.hideWhitelistActivityEnabled = !!this.hideFilterStates.whitelistActivity;
+    this.watchlistOwnerWtId = this.getWatchlistOwnerWtId();
+    this.currentUserWtId = getUserWtId();
+    this.activeManagerLabel = this.getProfilesNotManagedLabel();
+    this.managedProfilesSet = null;
+    this.managedProfilesFetchPromise = null;
+    this.userInitiatedManagedProfilesFetch = false;
+    this.isFeedItemMetadataPrepared = false;
 
     // Set up localStorage with time-based cleanup
     this.setupBioStorage();
@@ -654,7 +687,7 @@ class FeedHelper {
    */
   showConfirmDialog(message, onConfirm, onCancel = null) {
     const $dialog = $(
-      '<dialog id="confirmDialog">' +
+      '<dialog id="confirmDialog" class="wbe">' +
         '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Confirmation</div>' +
         '<div class="dialog-content">' +
         '<p style="margin: 20px 0; font-size: 16px; line-height: 1.4;">' +
@@ -718,6 +751,9 @@ class FeedHelper {
       whitelist.push(userID);
       localStorage.setItem("FeedHelper-activityWhitelist", JSON.stringify(whitelist));
       this.debug(`Added ${userID} to activity whitelist`);
+      if (this.hideWhitelistActivityEnabled) {
+        this.applyWhitelistActivityVisibility();
+      }
     }
   }
 
@@ -728,6 +764,7 @@ class FeedHelper {
       whitelist.splice(index, 1);
       localStorage.setItem("FeedHelper-activityWhitelist", JSON.stringify(whitelist));
       this.debug(`Removed ${userID} from activity whitelist`);
+      this.applyWhitelistActivityVisibility();
     }
   }
 
@@ -758,6 +795,685 @@ class FeedHelper {
     });
   }
 
+  ensureWhitelistActivityHideStyle() {
+    if (document.getElementById("feedHelperWhitelistHideStyle")) {
+      return;
+    }
+
+    const style = document.createElement("style");
+    style.id = "feedHelperWhitelistHideStyle";
+    style.textContent = `.feed-item.feed-helper-whitelist-hidden, .feed-item.feed-helper-filter-hidden { display: none !important; }`;
+    document.head.appendChild(style);
+  }
+
+  getFeedItemActorId($item) {
+    if (!$item || typeof $item.find !== "function") {
+      return null;
+    }
+
+    const actorLink = $item.find("a[href*='/wiki/']").first();
+    if (!actorLink || actorLink.length === 0) {
+      return null;
+    }
+
+    const href = actorLink.attr("href") || "";
+    const match = href.match(/\/wiki\/([^/?#]+)/i);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  getDefaultHideFilterStates() {
+    return {
+      whitelistActivity: false,
+      allProfiles: false,
+      profilesNotManagedBy: false,
+      profilesManagedBy: false,
+      spacePages: false,
+      g2g: false,
+    };
+  }
+
+  getStoredHideFilterStates() {
+    const defaults = this.getDefaultHideFilterStates();
+    let parsed = {};
+    const raw = localStorage.getItem(this.hideFilterStatesStorageKey);
+    if (raw) {
+      try {
+        parsed = JSON.parse(raw) || {};
+      } catch (error) {
+        console.error("FeedHelper: Unable to parse hide filter states", error);
+      }
+    }
+
+    const legacyWhitelistState = localStorage.getItem(this.hideWhitelistActivityStorageKey) === "true";
+    const states = {
+      ...defaults,
+      ...parsed,
+      whitelistActivity: parsed.whitelistActivity !== undefined ? !!parsed.whitelistActivity : !!legacyWhitelistState,
+    };
+
+    // These filters require an API lookup; start disabled on each page load
+    // and only load data after an explicit button click.
+    states.profilesNotManagedBy = false;
+    states.profilesManagedBy = false;
+
+    return states;
+  }
+
+  persistHideFilterStates() {
+    localStorage.setItem(this.hideFilterStatesStorageKey, JSON.stringify(this.hideFilterStates));
+    localStorage.setItem(this.hideWhitelistActivityStorageKey, String(!!this.hideFilterStates.whitelistActivity));
+  }
+
+  setHideFilterState(filterKey, value) {
+    this.hideFilterStates[filterKey] = !!value;
+    this.hideWhitelistActivityEnabled = !!this.hideFilterStates.whitelistActivity;
+    this.persistHideFilterStates();
+  }
+
+  getWatchlistOwnerWtId() {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("watchlist")) {
+      return null;
+    }
+
+    const who = url.searchParams.get("who");
+    return who ? decodeURIComponent(who) : null;
+  }
+
+  getProfilesNotManagedLabel() {
+    const managerId = this.watchlistOwnerWtId;
+    if (!managerId) {
+      return "Profiles Not Managed";
+    }
+
+    if (this.currentUserWtId && String(this.currentUserWtId).toLowerCase() === String(managerId).toLowerCase()) {
+      return "Profiles Not Managed by Me";
+    }
+
+    return `Profiles Not Managed by ${managerId}`;
+  }
+
+  getProfilesManagedLabel() {
+    const managerId = this.watchlistOwnerWtId;
+    if (!managerId) {
+      return "Profiles Managed";
+    }
+
+    if (this.currentUserWtId && String(this.currentUserWtId).toLowerCase() === String(managerId).toLowerCase()) {
+      return "Profiles Managed by Me";
+    }
+
+    return `Profiles Managed by ${managerId}`;
+  }
+
+  isWatchlistFeedPage() {
+    const url = new URL(window.location.href);
+    const title = url.searchParams.get("title") || "";
+    return title.includes("Special:NetworkFeed") && url.searchParams.get("watchlist") === "1";
+  }
+
+  isProfilesNotManagedFilterAvailable() {
+    return this.isWatchlistFeedPage() && !!this.watchlistOwnerWtId;
+  }
+
+  isManagedByFilterActive() {
+    const states = this.hideFilterStates || {};
+    return !!states.profilesNotManagedBy || !!states.profilesManagedBy;
+  }
+
+  async ensureManagedProfilesSet(allowFetch = false) {
+    if (!this.isProfilesNotManagedFilterAvailable()) {
+      this.managedProfilesSet = new Set();
+      return this.managedProfilesSet;
+    }
+
+    if (!this.isManagedByFilterActive()) {
+      // Guard against any non-button/background invocation.
+      return null;
+    }
+
+    if (!allowFetch && !this.managedProfilesSet) {
+      // Defensive guard: never fetch manager data implicitly.
+      return null;
+    }
+
+    if (allowFetch && !this.userInitiatedManagedProfilesFetch && !this.managedProfilesSet) {
+      // Hard guard: fetches must originate from explicit user interaction.
+      return null;
+    }
+
+    if (this.managedProfilesSet) {
+      return this.managedProfilesSet;
+    }
+
+    if (this.managedProfilesFetchPromise) {
+      return this.managedProfilesFetchPromise;
+    }
+
+    this.managedProfilesFetchPromise = this.loadManagedProfilesSet().finally(() => {
+      this.managedProfilesFetchPromise = null;
+    });
+
+    return this.managedProfilesFetchPromise;
+  }
+
+  getManagedProfilesCache() {
+    const raw = localStorage.getItem(this.managedProfilesCacheStorageKey);
+    if (!raw) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(raw) || {};
+    } catch (error) {
+      console.error("FeedHelper: Unable to parse managed profiles cache", error);
+      return {};
+    }
+  }
+
+  setManagedProfilesCache(cache) {
+    localStorage.setItem(this.managedProfilesCacheStorageKey, JSON.stringify(cache));
+  }
+
+  getManagedProfilesCacheKey(managerId) {
+    if (!managerId) {
+      return null;
+    }
+    return `${String(managerId).toLowerCase()}::${this.getCurrentPageIdentifier()}`;
+  }
+
+  getCachedManagedProfileSet(managerId) {
+    if (!managerId) {
+      return null;
+    }
+
+    const cache = this.getManagedProfilesCache();
+    const cacheKey = this.getManagedProfilesCacheKey(managerId);
+    const cachedEntry = cache[cacheKey];
+
+    if (!cachedEntry || !Array.isArray(cachedEntry.names) || !cachedEntry.expiresAt) {
+      return null;
+    }
+
+    // Entries written by an older version of the lookup describe a different world (e.g. before
+    // space pages were resolved at all), so discard them rather than serving a stale miss for
+    // the rest of the TTL.
+    if (cachedEntry.version !== MANAGED_PROFILES_CACHE_VERSION) {
+      delete cache[cacheKey];
+      this.setManagedProfilesCache(cache);
+      return null;
+    }
+
+    if (Date.now() > cachedEntry.expiresAt) {
+      delete cache[cacheKey];
+      this.setManagedProfilesCache(cache);
+      return null;
+    }
+
+    return new Set(cachedEntry.names.map((name) => String(name).toLowerCase()));
+  }
+
+  cacheManagedProfileSet(managerId, profileSet, source) {
+    if (!managerId || !(profileSet instanceof Set)) {
+      return;
+    }
+
+    const cache = this.getManagedProfilesCache();
+    const cacheKey = this.getManagedProfilesCacheKey(managerId);
+    cache[cacheKey] = {
+      source,
+      version: MANAGED_PROFILES_CACHE_VERSION,
+      names: Array.from(profileSet),
+      expiresAt: Date.now() + this.managedProfilesCacheHours * 60 * 60 * 1000,
+    };
+    this.setManagedProfilesCache(cache);
+  }
+
+  normalizeManagersCollection(managers) {
+    if (!managers) {
+      return [];
+    }
+
+    if (Array.isArray(managers)) {
+      return managers;
+    }
+
+    if (typeof managers === "object") {
+      return Object.values(managers);
+    }
+
+    return [managers];
+  }
+
+  isProfileManagedBy(managerId, managers) {
+    if (!managerId) {
+      return false;
+    }
+
+    const managerLookup = String(managerId).toLowerCase();
+    return this.normalizeManagersCollection(managers).some((managerEntry) => {
+      const managerName =
+        typeof managerEntry === "string"
+          ? managerEntry
+          : managerEntry?.Name || managerEntry?.name || managerEntry?.WikiTreeId || managerEntry?.WikiTreeID;
+      return managerName && String(managerName).toLowerCase() === managerLookup;
+    });
+  }
+
+  /**
+   * Free-space pages expose no Manager/Managers fields at all - getProfile returns their
+   * managers inside TrustedList, flagged with IsManager. Trusted-list-only entries
+   * (IsManager 0) are not managers and must not match.
+   * @param {string} managerId - WikiTree ID of the watchlist owner
+   * @param {Array} trustedList - The profile's TrustedList
+   * @returns {boolean} True if managerId manages this space page
+   */
+  isSpacePageManagedBy(managerId, trustedList) {
+    if (!managerId) {
+      return false;
+    }
+
+    const managerLookup = String(managerId).toLowerCase();
+    return this.normalizeManagersCollection(trustedList).some((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return false;
+      }
+      if (Number(entry.IsManager) !== 1) {
+        return false;
+      }
+      return entry.Name && String(entry.Name).toLowerCase() === managerLookup;
+    });
+  }
+
+  getFeedProfileIdsForManagedCheck() {
+    this.prepareFeedItemsForFiltering();
+    const ids = new Set();
+
+    $("span.feed-item").each((_, element) => {
+      const $item = $(element);
+      const profileIds = $item.data("feedHelperProfileIds") || [];
+      profileIds.forEach((profileId) => {
+        if (profileId) {
+          ids.add(String(profileId));
+        }
+      });
+    });
+
+    return Array.from(ids);
+  }
+
+  getFeedSpaceIdsForManagedCheck() {
+    this.prepareFeedItemsForFiltering();
+    const ids = new Set();
+
+    $("span.feed-item").each((_, element) => {
+      const $item = $(element);
+      const spaceIds = $item.data("feedHelperSpaceIds") || [];
+      spaceIds.forEach((spaceId) => {
+        if (spaceId) {
+          ids.add(String(spaceId));
+        }
+      });
+    });
+
+    return Array.from(ids);
+  }
+
+  /**
+   * Resolves managers for free-space pages. getPeople is person-only and space pages carry no
+   * Manager/Managers fields, so each needs a getProfile call for its TrustedList. Feeds contain
+   * few distinct space pages, so a small concurrency cap keeps this cheap.
+   * @param {string} managerId - WikiTree ID of the watchlist owner
+   * @param {string[]} spaceIds - "Space:"-prefixed page ids
+   * @param {Set} managedProfiles - Set to add matches to (lowercased, prefix retained)
+   */
+  async addManagedSpacePages(managerId, spaceIds, managedProfiles) {
+    const concurrency = 5;
+    for (let i = 0; i < spaceIds.length; i += concurrency) {
+      const batch = spaceIds.slice(i, i + concurrency);
+      const results = await Promise.all(
+        batch.map(async (spaceId) => {
+          try {
+            const [profile] = await WikiTreeAPI.getProfile(WBE_RANGERS_APP_ID, spaceId, ["PageId", "TrustedList"], {
+              resolveRedirect: 0,
+            });
+            return { spaceId, profile };
+          } catch (error) {
+            this.debug(`FeedHelper: Unable to fetch space page ${spaceId}`, error);
+            return { spaceId, profile: null };
+          }
+        })
+      );
+
+      results.forEach(({ spaceId, profile }) => {
+        if (profile && this.isSpacePageManagedBy(managerId, profile.TrustedList)) {
+          // Key on the id we extracted from the feed link, so it lines up with feedHelperSpaceIds.
+          managedProfiles.add(String(spaceId).toLowerCase());
+        }
+      });
+    }
+  }
+
+  async fetchManagedProfilesFromFeedProfiles(managerId) {
+    const profileIds = this.getFeedProfileIdsForManagedCheck();
+    const spaceIds = this.getFeedSpaceIdsForManagedCheck();
+    if (profileIds.length === 0 && spaceIds.length === 0) {
+      return new Set();
+    }
+
+    const managedProfiles = new Set();
+    const batchSize = 1000;
+    for (let i = 0; i < profileIds.length; i += batchSize) {
+      const batch = profileIds.slice(i, i + batchSize);
+      const peopleResponse = await WikiTreeAPI.getPeople(WBE_RANGERS_APP_ID, batch, ["Name", "Managers"], {
+        resolveRedirect: 0,
+      });
+      const people = peopleResponse?.[2] || {};
+
+      Object.values(people).forEach((person) => {
+        if (person?.Name && this.isProfileManagedBy(managerId, person.Managers)) {
+          managedProfiles.add(String(person.Name).toLowerCase());
+        }
+      });
+    }
+
+    if (spaceIds.length > 0) {
+      await this.addManagedSpacePages(managerId, spaceIds, managedProfiles);
+    }
+
+    return managedProfiles;
+  }
+
+  async loadManagedProfilesSet() {
+    if (!this.userInitiatedManagedProfilesFetch && !this.managedProfilesSet) {
+      return null;
+    }
+
+    const managerId = this.watchlistOwnerWtId;
+    const cachedSet = this.getCachedManagedProfileSet(managerId);
+    if (cachedSet) {
+      this.managedProfilesSet = cachedSet;
+      return cachedSet;
+    }
+
+    let managedProfiles = new Set();
+    const isOwnWatchlist =
+      this.currentUserWtId && String(this.currentUserWtId).toLowerCase() === String(managerId).toLowerCase();
+
+    try {
+      this.showShaky(`Loading managed profiles for ${this.activeManagerLabel.toLowerCase()}...`, "corner");
+      managedProfiles = await this.fetchManagedProfilesFromFeedProfiles(managerId);
+      this.cacheManagedProfileSet(managerId, managedProfiles, isOwnWatchlist ? "feed-profiles-me" : "feed-profiles");
+    } catch (error) {
+      console.error("FeedHelper: Unable to fetch managed profiles", error);
+      managedProfiles = new Set();
+    } finally {
+      this.hideShaky();
+    }
+
+    this.managedProfilesSet = managedProfiles;
+    return managedProfiles;
+  }
+
+  prepareFeedItemsForFiltering() {
+    if (this.isFeedItemMetadataPrepared) {
+      return;
+    }
+
+    $("span.feed-item").each((_, element) => {
+      const $item = $(element);
+      const itemText = ($item.text() || "").toLowerCase();
+      const hasSpaceLink =
+        $item.find("a[href*='/wiki/Space:'], a[href*='/wiki/Space%3A'], a[href*='/wiki/Space%3a']").length > 0;
+      const hasG2GLink = $item.find("a[href*='/g2g/']").length > 0;
+      const isG2G = hasG2GLink && (itemText.includes("asked a question") || itemText.includes("answered a question"));
+
+      const allIds = this.getProfileIdsFromHistoryItem($item).map((id) => String(id));
+      const profileIds = allIds.filter((id) => id && !id.toLowerCase().startsWith("space:"));
+      const spaceIds = allIds.filter((id) => id && id.toLowerCase().startsWith("space:"));
+
+      const hasProfileActivity = !hasSpaceLink;
+      const hasSpaceActivity = hasSpaceLink;
+
+      $item.data("feedHelperHasProfileActivity", hasProfileActivity);
+      $item.data("feedHelperHasSpaceActivity", hasSpaceActivity);
+      $item.data("feedHelperIsG2G", isG2G);
+      $item.data("feedHelperProfileIds", profileIds);
+      $item.data("feedHelperSpaceIds", spaceIds);
+
+      // Preserve old classes to support existing styles/logic.
+      $item.toggleClass("feed-item--space", hasSpaceActivity).toggleClass("feed-item--profile", hasProfileActivity);
+    });
+
+    this.isFeedItemMetadataPrepared = true;
+  }
+
+  updateHideFilterButtons() {
+    const filterButtons = $("#feedHelperHideFilters .feed-helper-filter-btn");
+    filterButtons.each((_, element) => {
+      const $button = $(element);
+      const filterKey = $button.data("filter-key");
+      const isEnabled = !!this.hideFilterStates[filterKey];
+      $button.toggleClass("active", isEnabled);
+      $button.attr("aria-pressed", isEnabled ? "true" : "false");
+    });
+
+    // These two only work on watchlist activity feed pages. Hide them elsewhere rather than
+    // showing permanently greyed-out buttons.
+    const available = this.isProfilesNotManagedFilterAvailable();
+
+    const managedByButton = $("#hideProfilesNotManagedByButton");
+    if (managedByButton.length > 0) {
+      managedByButton.text(this.activeManagerLabel);
+      managedByButton.prop("disabled", !available).removeClass("disabled").toggle(available);
+      if (available) {
+        managedByButton.attr("title", `Hide profiles not managed by ${this.watchlistOwnerWtId}`);
+      }
+    }
+
+    const managedByTargetButton = $("#hideProfilesManagedByButton");
+    if (managedByTargetButton.length > 0) {
+      managedByTargetButton.text(this.getProfilesManagedLabel());
+      managedByTargetButton.prop("disabled", !available).removeClass("disabled").toggle(available);
+      if (available) {
+        managedByTargetButton.attr("title", `Hide profiles managed by ${this.watchlistOwnerWtId}`);
+      }
+    }
+  }
+
+  /**
+   * The link classes that mark a feed item as being activity by a new and/or newly-badged member,
+   * for the filter button shown on the current page.
+   */
+  getNewMemberFilterSelector(buttonId = this.newMemberFilterButtonId) {
+    if (buttonId === "onlyNewestBadges") {
+      if (this.currentConfig.name === "Pre-1700") {
+        return "a.newestPre1700s";
+      }
+      if (this.currentConfig.name === "Pre-1500") {
+        return "a.recentPre1500s";
+      }
+      if (this.currentConfig.name === "Project Feed") {
+        return "a.newestProjectBadged, a.newt";
+      }
+      return "";
+    }
+    if (buttonId === "onlyNewts") {
+      return "a.newt";
+    }
+    return "";
+  }
+
+  /**
+   * Advance the new/newly-badged member filter. Two states by default (all activity <-> only theirs);
+   * the "everyone else" state is added when the newMemberThreeWayFilter option is on.
+   */
+  cycleNewMemberFilter(buttonId) {
+    this.newMemberFilterButtonId = buttonId;
+
+    if (this.newMemberFilterState === NEW_MEMBER_FILTER_STATES.inactive) {
+      this.newMemberFilterState = NEW_MEMBER_FILTER_STATES.only;
+    } else if (this.newMemberFilterState === NEW_MEMBER_FILTER_STATES.only && this.newMemberThreeWayFilterEnabled) {
+      this.newMemberFilterState = NEW_MEMBER_FILTER_STATES.exclude;
+    } else {
+      this.newMemberFilterState = NEW_MEMBER_FILTER_STATES.inactive;
+    }
+
+    this.syncNewMemberFilterButton(buttonId);
+  }
+
+  /**
+   * Labels for each state of the new/newly-badged member filter button, by page type.
+   */
+  getNewMemberFilterLabels(buttonId = this.newMemberFilterButtonId) {
+    if (buttonId === "onlyNewestBadges") {
+      if (this.currentConfig.name === "Project Feed") {
+        return {
+          subject: "new or newly-badged members",
+          inactive: "Only New and Newly-Badged Members",
+          exclude: "Only Activity NOT by New or Newly-Badged Members",
+        };
+      }
+      return {
+        subject: "newly-badged people",
+        inactive: "Only Activity by Newly-Badged People",
+        exclude: "Only Activity NOT by Newly-Badged People",
+      };
+    }
+    return {
+      subject: "new members",
+      inactive: "Only Activity by New Members",
+      exclude: "Only Activity NOT by New Members",
+    };
+  }
+
+  syncNewMemberFilterButton(buttonId = this.newMemberFilterButtonId) {
+    const button = $(`#${buttonId}`);
+    if (button.length === 0) {
+      return;
+    }
+
+    const labels = this.getNewMemberFilterLabels(buttonId);
+    const threeWay = this.newMemberThreeWayFilterEnabled;
+    let text = labels.inactive;
+    let title = `Show only activity by ${labels.subject}`;
+
+    if (this.newMemberFilterState === NEW_MEMBER_FILTER_STATES.only) {
+      // In two-state mode the next click shows everything again, so say so on the button.
+      text = threeWay ? labels.inactive : "Show All Activity";
+      title = threeWay ? `Click again to show only activity NOT by ${labels.subject}` : "Show all activity";
+    } else if (this.newMemberFilterState === NEW_MEMBER_FILTER_STATES.exclude) {
+      text = labels.exclude;
+      title = "Click again to show all activity";
+    }
+
+    button
+      .text(text)
+      .attr("title", title)
+      .toggleClass("active", this.newMemberFilterState !== NEW_MEMBER_FILTER_STATES.inactive);
+  }
+
+  async applyFeedFilters() {
+    this.ensureWhitelistActivityHideStyle();
+    this.prepareFeedItemsForFiltering();
+
+    const whitelistSet = new Set(this.getWhitelist().map((id) => String(id).toLowerCase()));
+    const activeFilters = this.hideFilterStates || this.getDefaultHideFilterStates();
+
+    let managedProfileSet = null;
+    if (this.isProfilesNotManagedFilterAvailable() && (activeFilters.profilesNotManagedBy || activeFilters.profilesManagedBy)) {
+      managedProfileSet = this.managedProfilesSet;
+    }
+
+    const newMemberSelector =
+      this.newMemberFilterState === NEW_MEMBER_FILTER_STATES.inactive ? "" : this.getNewMemberFilterSelector();
+
+    let hiddenCount = 0;
+    $("span.feed-item").each((_, element) => {
+      const $item = $(element);
+      let shouldHide = false;
+
+      if (newMemberSelector) {
+        const isNewMemberActivity = $item.find(newMemberSelector).length > 0;
+        if (this.newMemberFilterState === NEW_MEMBER_FILTER_STATES.only ? !isNewMemberActivity : isNewMemberActivity) {
+          shouldHide = true;
+        }
+      }
+
+      if (!shouldHide && activeFilters.whitelistActivity && whitelistSet.size > 0) {
+        const actorId = this.getFeedItemActorId($item);
+        if (actorId && whitelistSet.has(String(actorId).toLowerCase())) {
+          shouldHide = true;
+        }
+      }
+
+      if (!shouldHide && activeFilters.allProfiles && $item.data("feedHelperHasProfileActivity")) {
+        shouldHide = true;
+      }
+
+      if (!shouldHide && activeFilters.spacePages && $item.data("feedHelperHasSpaceActivity")) {
+        shouldHide = true;
+      }
+
+      if (!shouldHide && activeFilters.g2g && $item.data("feedHelperIsG2G")) {
+        shouldHide = true;
+      }
+
+      if (
+        !shouldHide &&
+        activeFilters.profilesNotManagedBy &&
+        this.isProfilesNotManagedFilterAvailable() &&
+        ($item.data("feedHelperHasProfileActivity") || $item.data("feedHelperHasSpaceActivity")) &&
+        managedProfileSet
+      ) {
+        const profileIds = ($item.data("feedHelperProfileIds") || []).concat($item.data("feedHelperSpaceIds") || []);
+        if (profileIds.length > 0) {
+          const hasManagedProfile = profileIds.some((profileId) =>
+            managedProfileSet.has(String(profileId).toLowerCase())
+          );
+          if (!hasManagedProfile) {
+            shouldHide = true;
+          }
+        }
+      }
+
+      if (
+        !shouldHide &&
+        activeFilters.profilesManagedBy &&
+        this.isProfilesNotManagedFilterAvailable() &&
+        ($item.data("feedHelperHasProfileActivity") || $item.data("feedHelperHasSpaceActivity")) &&
+        managedProfileSet
+      ) {
+        const profileIds = ($item.data("feedHelperProfileIds") || []).concat($item.data("feedHelperSpaceIds") || []);
+        if (profileIds.length > 0) {
+          const hasManagedProfile = profileIds.some((profileId) =>
+            managedProfileSet.has(String(profileId).toLowerCase())
+          );
+          if (hasManagedProfile) {
+            shouldHide = true;
+          }
+        }
+      }
+
+      $item.toggleClass("feed-helper-filter-hidden", shouldHide);
+      if (shouldHide) {
+        hiddenCount++;
+      }
+    });
+
+    this.updateHideFilterButtons();
+    this.debug(`Feed filters applied: hiddenItems=${hiddenCount}`);
+  }
+
+  applyWhitelistActivityVisibility() {
+    this.applyFeedFilters();
+  }
+
+  toggleWhitelistActivityVisibility() {
+    this.setHideFilterState("whitelistActivity", !this.hideFilterStates.whitelistActivity);
+    this.applyFeedFilters();
+  }
+
   showWhitelistManager() {
     const whitelist = this.getWhitelist();
 
@@ -777,7 +1493,7 @@ class FeedHelper {
     }
 
     const popup = $(`
-      <div id="whitelistManagerPopup">
+      <div id="whitelistManagerPopup" class="wbe">
         <div class="popup-header">
           <h3>Activity Whitelist Manager</h3>
           <button id="closeWhitelistManager">&times;</button>
@@ -2147,7 +2863,7 @@ class FeedHelper {
     const existed = $popup.length > 0;
     if (!existed) {
       $popup = $(
-        `<div class="anomalies-popup"><div class="anomalies-messages"><div class="anomalies-line">${message}</div></div></div>`
+        `<div class="anomalies-popup wbe"><div class="anomalies-messages"><div class="anomalies-line">${message}</div></div></div>`
       );
       $container.append($popup);
     } else {
@@ -2186,7 +2902,7 @@ class FeedHelper {
 
     // Diagnostic log: trace when the table creation function is invoked
     try {
-      console.debug("WBE: showActivityWarningsTable called, existingTable length=", existingTable.length);
+      // console.debug("WBE: showActivityWarningsTable called, existingTable length=", existingTable.length);
     } catch (e) {
       /* swallow in environments without console */
     }
@@ -2194,7 +2910,7 @@ class FeedHelper {
     if (existingTable.length === 0) {
       // Create the table container (initially hidden)
       const tableHtml = `
-        <div id="activityWarningsTable" style="display: none;">
+        <div id="activityWarningsTable" class="wbe" style="display: none;">
           <div class="table-header">
             <h3>⚠️ Rapid Activity (<span id="warningsCount">0</span>)</h3>
             <div class="header-buttons">
@@ -2415,6 +3131,7 @@ class FeedHelper {
    */
   addWarningToTable(userID, message, historyItemsToHighlight = [], sequenceKey = null) {
     // Diagnostic log: trace call and parameters
+    /*
     try {
       console.debug("WBE: addWarningToTable called", {
         userID,
@@ -2422,6 +3139,7 @@ class FeedHelper {
         messageSnippet: (message || "").slice(0, 80),
       });
     } catch (e) {}
+    */
 
     const table = this.showActivityWarningsTable();
     // Locate tbody within the created table to avoid selecting nothing if the global
@@ -2645,7 +3363,7 @@ class FeedHelper {
       count = 0;
     }
     try {
-      console.debug("WBE: updateWarningsCount", { count });
+      //console.debug("WBE: updateWarningsCount", { count });
     } catch (e) {}
 
     // Update visible badges only if elements exist
@@ -2709,7 +3427,7 @@ class FeedHelper {
     }
 
     const popup = $(`
-      <div class="rapid-merge-popup">
+      <div class="rapid-merge-popup wbe">
         ${message}
         <span class="close-popup">&times;</span>
         <button class="highlight-btn small">Highlight</button>
@@ -2793,6 +3511,33 @@ class FeedHelper {
       </button>`
     ).appendTo(this.feedHelperButtons);
     whitelistButton.on("click", () => this.showWhitelistManager());
+  }
+
+  addWhitelistActivityToggleButton() {
+    this.addHideFiltersSection();
+  }
+
+  addHideFiltersSection() {
+    if ($("#feedHelperHideFilters").length > 0) {
+      this.updateHideFilterButtons();
+      return;
+    }
+
+    const hideFilterSection = $(
+      `<div id="feedHelperHideFilters" class="feed-helper-hide-filters wbe" aria-label="Feed helper hide filters">
+        <span class="feed-helper-hide-label">Hide:</span>
+        <button type="button" class="button small feed-helper-filter-btn" data-filter-key="whitelistActivity" aria-pressed="false" title="Hide activity by whitelisted users">Whitelist Activity</button>
+        <button type="button" class="button small feed-helper-filter-btn" data-filter-key="allProfiles" aria-pressed="false" title="Hide profile activity">All Profiles</button>
+        <button type="button" id="hideProfilesNotManagedByButton" class="button small feed-helper-filter-btn" data-filter-key="profilesNotManagedBy" aria-pressed="false"></button>
+        <button type="button" id="hideProfilesManagedByButton" class="button small feed-helper-filter-btn" data-filter-key="profilesManagedBy" aria-pressed="false"></button>
+        <button type="button" class="button small feed-helper-filter-btn" data-filter-key="spacePages" aria-pressed="false" title="Hide space page activity">Space Pages</button>
+        <button type="button" class="button small feed-helper-filter-btn" data-filter-key="g2g" aria-pressed="false" title="Hide G2G items">G2G</button>
+      </div>`
+    );
+
+    this.feedHelperButtons.append(hideFilterSection);
+    this.updateHideFilterButtons();
+    this.applyFeedFilters();
   }
 
   getCurrentConfig() {
@@ -3064,7 +3809,7 @@ class FeedHelper {
 
     // Show loading popup first
     $("main#main").prepend(
-      `<div class="bioPopup" data-id="${bioId}">
+      `<div class="bioPopup wbe" data-id="${bioId}">
         <x class="closeBioPopup">&times;</x>
         <div class="bio-section">
           <p><strong>Loading bio for ${bioId}...</strong></p>
@@ -3154,10 +3899,13 @@ class FeedHelper {
 
           // Update the popup with the actual bio
           const highlightedBio = this.highlightMarkup(person.bio).replace(/\n/g, "<br>");
+          const bioCheckIssues = this.buildBioCheckIssues(person);
           $(`.bioPopup[data-id="${bioId}"]`).html(
             `<x class="closeBioPopup">&times;</x>
-            ${highlightedBio}`
+              ${highlightedBio}
+              ${bioCheckIssues.html}`
           );
+          this.applyBioCheckHighlights($(`.bioPopup[data-id="${bioId}"]`), bioCheckIssues.issues);
         } else {
           // No bio content available
           $(`.bioPopup[data-id="${bioId}"]`).html(
@@ -3508,6 +4256,11 @@ class FeedHelper {
     // Escape HTML characters
     let escapedText = this.escapeHtml(text);
 
+    const extractRefName = (refTag) => {
+      const nameMatch = refTag.match(/name\s*=\s*(?:&quot;|&#039;|["'“”])?([^"'“”&>\s\/]+)(?:&quot;|&#039;|["'“”])?/i);
+      return nameMatch ? nameMatch[1] : "";
+    };
+
     // Highlight headings (== Heading == to ===== Heading =====)
     escapedText = escapedText.replace(/(={2,5})([^=]+)\1/g, function (match, p1, p2) {
       let level = p1.length; // Heading level based on number of '='
@@ -3515,17 +4268,28 @@ class FeedHelper {
     });
 
     // Highlight self-closing <ref/> tags first
-    escapedText = escapedText.replace(/(&lt;ref\b[^&]*?\/&gt;)/gi, function (match) {
-      return '<span class="reference"><span class="ref-tag">' + match + "</span></span>";
+    escapedText = escapedText.replace(/(&lt;ref\b[\s\S]*?\/&gt;)/gi, (match) => {
+      if (match.includes("ref-tag") || match.includes("reference")) {
+        return match;
+      }
+      const refName = extractRefName(match);
+      const refAttr = refName ? ` data-ref-name="${this.escapeHtml(refName)}"` : "";
+      return `<span class="reference"><span class="ref-tag"${refAttr}>${match}</span></span>`;
     });
 
     // Highlight paired <ref>...</ref> tags, ensuring they are matched separately
-    escapedText = escapedText.replace(/(&lt;ref\b[^&]*?&gt;)([\s\S]*?)(&lt;\/ref&gt;)/gi, function (match, p1, p2, p3) {
+    escapedText = escapedText.replace(/(&lt;ref\b[\s\S]*?&gt;)([\s\S]*?)(&lt;\/ref&gt;)/gi, (match, p1, p2, p3) => {
       // Ensure self-closing tags inside p2 are not treated as part of a match
-      if (p2.includes('<span class="ref-tag">')) {
+      if (p2.includes('<span class="ref-tag">') || match.includes("reference") || match.includes("ref-tag")) {
         return match; // Return unchanged if there's already highlighted content
       }
-      return `<span class="reference"><span class="ref-tag">${p1}</span>${p2}<span class="ref-tag">${p3}</span></span>`;
+      // Avoid greedy matches that swallow multiple refs or huge spans
+      if (p2.includes("&lt;ref") || p2.includes('<span class="h') || p2.length > 400) {
+        return match;
+      }
+      const refName = extractRefName(p1);
+      const refAttr = refName ? ` data-ref-name="${this.escapeHtml(refName)}"` : "";
+      return `<span class="reference"><span class="ref-tag"${refAttr}>${p1}</span>${p2}<span class="ref-tag">${p3}</span></span>`;
     });
 
     // Highlight lines starting with '*' in the '== Sources ==' section, including the '*'
@@ -3578,12 +4342,15 @@ class FeedHelper {
 
       if (bio && bio.bio) {
         const highlightedBio = this.highlightMarkup(bio.bio).replace(/\n/g, "<br>");
+        const bioCheckIssues = this.buildBioCheckIssues(bio);
         $("main#main").prepend(
-          `<div class="bioPopup" data-id="${bioId}">
+          `<div class="bioPopup wbe" data-id="${bioId}">
             <x class="closeBioPopup">&times;</x>
             ${highlightedBio}
+            ${bioCheckIssues.html}
           </div>`
         );
+        this.applyBioCheckHighlights($(`.bioPopup[data-id="${bioId}"]`), bioCheckIssues.issues);
       } else {
         // Bio content not available, fetch it automatically
         this.debug(`Bio not found in cache for ${bioId}, fetching...`);
@@ -3614,60 +4381,44 @@ class FeedHelper {
     });
 
     $(document).on("click", "#onlyNewestBadges,#onlyNewts", async function () {
-      self.debug(`WBE: Button clicked: ${$(this).attr("id")}, current config: ${self.currentConfig.name}`);
+      const buttonId = $(this).attr("id");
+      self.debug(`WBE: Button clicked: ${buttonId}, current config: ${self.currentConfig.name}`);
 
-      // Find all span.HISTORY-ITEM rows not containing links with the class newestPre1700s and toggle them
-      const allItems = $("span.feed-item:not(.HISTORY-HIDDEN)");
       if (self.currentConfig.name === "Merges" && Object.keys(self.memberData).length == 0) {
         await self.getMemberCreatedDates(true);
       }
 
-      // Determine which CSS classes to look for based on current configuration and button clicked
-      let targetClasses = "";
-      if ($(this).attr("id") === "onlyNewestBadges") {
-        if (self.currentConfig.name === "Pre-1700") {
-          targetClasses = "a.newestPre1700s";
-        } else if (self.currentConfig.name === "Pre-1500") {
-          targetClasses = "a.recentPre1500s";
-        } else if (self.currentConfig.name === "Project Feed") {
-          targetClasses = "a.newestProjectBadged, a.newt";
-        }
-      } else if ($(this).attr("id") === "onlyNewts") {
-        targetClasses = "a.newt";
+      self.cycleNewMemberFilter(buttonId);
+      await self.applyFeedFilters();
+    });
+
+    $(document).on("click", "#feedHelperHideFilters .feed-helper-filter-btn", async (event) => {
+      const button = $(event.currentTarget);
+      const filterKey = button.data("filter-key");
+      const isManagedFilter = filterKey === "profilesNotManagedBy" || filterKey === "profilesManagedBy";
+      if (!filterKey || (isManagedFilter && !this.isProfilesNotManagedFilterAvailable())) {
+        return;
       }
 
-      self.debug(`WBE: Looking for elements with class: ${targetClasses}`);
-      self.debug(`WBE: Found ${$(targetClasses).length} highlighted elements`);
+      const nextValue = !this.hideFilterStates[filterKey];
 
-      allItems.each(function () {
-        if ($(this).find(targetClasses).length == 0) {
-          $(this).toggle();
-        }
-      });
-      $(this).toggleClass("active");
+      if (isManagedFilter && nextValue) {
+        const oppositeFilterKey = filterKey === "profilesNotManagedBy" ? "profilesManagedBy" : "profilesNotManagedBy";
+        this.setHideFilterState(oppositeFilterKey, false);
+      }
 
-      // Toggle the button text based on current state
-      if ($(this).hasClass("active")) {
-        // Currently filtering - show "Show all" text
-        if ($(this).attr("id") === "onlyNewestBadges") {
-          $(this).text("Show All Activity");
-        } else if ($(this).attr("id") === "onlyNewts") {
-          $(this).text("Show All Activity");
-        }
-      } else {
-        // Currently showing all - show filter text
-        if ($(this).attr("id") === "onlyNewestBadges") {
-          if (self.currentConfig.name === "Pre-1700") {
-            $(this).text("Only Activity by Newly-Badged People");
-          } else if (self.currentConfig.name === "Pre-1500") {
-            $(this).text("Only Activity by Newly-Badged People");
-          } else if (self.currentConfig.name === "Project Feed") {
-            $(this).text("Only New and Newly-Badged Members");
-          }
-        } else if ($(this).attr("id") === "onlyNewts") {
-          $(this).text("Only Activity by New Members");
+      this.setHideFilterState(filterKey, nextValue);
+
+      if (isManagedFilter && nextValue) {
+        this.userInitiatedManagedProfilesFetch = true;
+        try {
+          await this.ensureManagedProfilesSet(true);
+        } finally {
+          this.userInitiatedManagedProfilesFetch = false;
         }
       }
+
+      this.applyFeedFilters();
     });
   }
 
@@ -3774,6 +4525,7 @@ class FeedHelper {
       this.mergesStorageKey,
       this.memberDataStorageKey,
       this.anomaliesStorageKey,
+      this.managedProfilesCacheStorageKey,
       // Removed "pre1700" and "pre1500Recent" to preserve new people highlights
       "excludedNames",
       "warningsShown",
@@ -3812,6 +4564,9 @@ class FeedHelper {
 
     // Reset internal state
     this.people = null;
+    this.managedProfilesSet = null;
+    this.managedProfilesFetchPromise = null;
+    this.isFeedItemMetadataPrepared = false;
     // Log bio check results being cleared
     const bioResultsCount = Object.keys(this.bioCheckResults || {}).length;
     this.debug(`WBE: Clearing ${bioResultsCount} cached bio check results from memory`);
@@ -3889,6 +4644,7 @@ class FeedHelper {
     }
 
     // Add management buttons on the right
+    this.addWhitelistActivityToggleButton(); // Management button - right side
     this.addClearCacheButton(); // Management button - right side
     this.addWhitelistButton(); // Management button - right side
 
@@ -3899,22 +4655,26 @@ class FeedHelper {
           `<button id="onlyNewestBadges" title="Show only activity by the 200 newest Pre-1700 badged people" class="button small">Only Activity by Newly-Badged People</button>`
         );
         this.feedHelperButtons.append(onlyNewestBadgesButton);
+        this.newMemberFilterButtonId = "onlyNewestBadges";
       } else if (this.currentConfig.name === "Pre-1500") {
         const onlyNewestBadgesButton = $(
           `<button id="onlyNewestBadges" title="Show only activity by newly-badged Pre-1500 people (last six months)" class="button small">Only Activity by Newly-Badged People</button>`
         );
         this.feedHelperButtons.append(onlyNewestBadgesButton);
+        this.newMemberFilterButtonId = "onlyNewestBadges";
       } else if (this.currentConfig.name === "Project Feed") {
         const onlyNewestBadgesButton = $(
           `<button id="onlyNewestBadges" title="Show only activity by people who recently received project badges or joined less than 6 months ago" class="button small">Only New and Newly-Badged Members</button>`
         );
         this.feedHelperButtons.append(onlyNewestBadgesButton);
+        this.newMemberFilterButtonId = "onlyNewestBadges";
       } else {
         // All other feed types get the new members filter
         const onlyNewtsButton = $(
           `<button id="onlyNewts" title="Show only activity by people who joined less than 6 months ago" class="button small">Only Activity by New Members</button>`
         );
         this.feedHelperButtons.append(onlyNewtsButton);
+        this.newMemberFilterButtonId = "onlyNewts";
       }
     }
   }
@@ -3947,6 +4707,742 @@ class FeedHelper {
       bioCheckPassed = !biography.hasProblems() && !duplicateBirthResult;
     }
     return bioCheckPassed;
+  }
+
+  buildBioCheckIssues(person) {
+    try {
+      if (!person || !person.bio) {
+        return { html: "", issues: [] };
+      }
+
+      const thePerson = new BioCheckPerson();
+      const canUseThis = thePerson.canUse(person, false, false, false, 0);
+      if (!canUseThis) {
+        this.debug("Bio Check: profile not fully usable by BioCheckPerson; proceeding with limited data.");
+      }
+
+      const biography = new Biography(theSourceRules);
+      biography.parse(person.bio, thePerson, "");
+      biography.validate();
+
+      const invalidSources = biography.getInvalidSources() || [];
+      const invalidDnaSources = biography.getInvalidDnaSources() || [];
+      const sectionMessages = biography.getSectionMessages() || [];
+      const styleMessages = biography.getStyleMessages() || [];
+      const duplicateBirthResult = this.checkForDuplicateBirthInfo(
+        person.bio,
+        thePerson.person?.profileId,
+        thePerson.person?.wikiTreeId,
+        thePerson.person?.firstName
+      );
+
+      let issuesHtml = "";
+      const issues = [];
+      const addItem = (text) => {
+        issuesHtml += `<li>${this.escapeHtml(text)}</li>`;
+        issues.push({ type: "message", value: text });
+      };
+
+      const hasProblems = biography.hasProblems() || !!duplicateBirthResult;
+
+      if (!biography.hasSources()) {
+        addItem("Profile may be unsourced");
+      } else {
+        addItem("Profile appears to have sources");
+      }
+
+      if (typeof biography.getScore === "function") {
+        const score = biography.getScore();
+        if (score !== undefined && score !== null) {
+          addItem(`Bio Score: ${score}`);
+        }
+      }
+
+      if (invalidSources.length > 0) {
+        const reliabilityNote = thePerson.isPre1700() ? "reliable or " : "";
+        const sourcesList = invalidSources.map((source) => `<li>${this.escapeHtml(source)}</li>`).join("");
+        issuesHtml += `<li>Bio Check found sources that are not ${reliabilityNote}clearly identified.`;
+        issuesHtml += `<ul class="bio-check-sublist">${sourcesList}</ul></li>`;
+        invalidSources.forEach((source) => issues.push({ type: "source", value: source }));
+      }
+
+      if (invalidDnaSources.length > 0) {
+        const dnaSourcesList = invalidDnaSources.map((source) => `<li>${this.escapeHtml(source)}</li>`).join("");
+        issuesHtml += `<li>Bio Check found DNA sources that may not be complete.`;
+        issuesHtml += `<ul class="bio-check-sublist">${dnaSourcesList}</ul></li>`;
+        invalidDnaSources.forEach((source) => issues.push({ type: "source", value: source }));
+      }
+
+      sectionMessages.forEach((message) => addItem(message));
+      styleMessages.forEach((message) => addItem(message));
+
+      if (duplicateBirthResult && duplicateBirthResult.message) {
+        addItem(duplicateBirthResult.message);
+      }
+
+      if (!issuesHtml && hasProblems) {
+        addItem("Bio Check flagged issues but no detailed messages were generated.");
+      }
+
+      if (!issuesHtml) {
+        return { html: "", issues: [] };
+      }
+
+      return {
+        html: `
+        <div class="bio-check-results">
+          <h3>Bio Check:</h3>
+          <ul>${issuesHtml}</ul>
+        </div>
+      `,
+        issues,
+      };
+    } catch (error) {
+      this.debug("Bio Check issue extraction failed:", error);
+      return { html: "", issues: [] };
+    }
+  }
+
+  applyBioCheckHighlights($popup, issues) {
+    if (!$popup || $popup.length === 0 || !issues || issues.length === 0) {
+      return;
+    }
+
+    const normalize = (text) => String(text).toLowerCase().replace(/\s+/g, " ").trim();
+
+    const normalizeForMatch = (text) =>
+      String(text)
+        .toLowerCase()
+        .replace(/\[\[[^\]|]+\|([^\]]+)\]\]/g, "$1")
+        .replace(/\[\[([^\]]+)\]\]/g, "$1")
+        .replace(/\{\{[^}]+\}\}/g, " ")
+        .replace(/[^a-z0-9]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const extractIds = (text) => {
+      const ids = new Set();
+      if (!text) {
+        return ids;
+      }
+      const matches = String(text).match(/\b[SR]-\d+\b/g);
+      if (matches) {
+        matches.forEach((id) => ids.add(id));
+      }
+      return ids;
+    };
+
+    const stripIdTokens = (text) =>
+      String(text)
+        .replace(/\b[SR]-\d+\b/gi, " ")
+        .replace(/\bspan\b/gi, " ")
+        .replace(/\bid\b/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const matchesSourceText = (lineTextRaw, sourceRaw) => {
+      const lineText = normalize(lineTextRaw);
+      const sourceText = String(sourceRaw || "").trim();
+      if (!sourceText) {
+        return false;
+      }
+      const sourceIds = extractIds(sourceText);
+      if (sourceIds.size > 0) {
+        for (const id of sourceIds) {
+          const idNorm = normalize(id);
+          if (idNorm && lineText.includes(idNorm)) {
+            return true;
+          }
+        }
+      }
+      const urlMatch = sourceText.match(/https?:\/\/[^\s\]\)]+/i);
+      if (urlMatch && urlMatch[0]) {
+        const urlText = normalize(urlMatch[0]);
+        if (urlText && lineText.includes(urlText)) {
+          return true;
+        }
+        return false;
+      }
+      const normalizedSource = normalize(sourceText);
+      if (normalizedSource.length <= 200 && lineText.includes(normalizedSource)) {
+        return true;
+      }
+      if (/^(source|repository)\b/i.test(sourceText)) {
+        const lineMatchStripped = stripIdTokens(normalizeForMatch(lineTextRaw));
+        const sourceMatchStripped = stripIdTokens(normalizeForMatch(sourceText));
+        if (lineMatchStripped && sourceMatchStripped && lineMatchStripped.startsWith(sourceMatchStripped)) {
+          return true;
+        }
+      }
+      const lineMatchText = normalizeForMatch(lineTextRaw);
+      const sourceMatchText = normalizeForMatch(sourceText);
+      if (!sourceMatchText) {
+        return false;
+      }
+      const sourceTokens = sourceMatchText.split(" ").filter((t) => t.length > 3);
+      const lineTokens = lineMatchText.split(" ").filter((t) => t.length > 3);
+      if (sourceTokens.length === 0 || lineTokens.length === 0) {
+        return false;
+      }
+      const phraseTokens = sourceTokens.slice(0, 5);
+      const phrase = phraseTokens.join(" ").trim();
+      const linePrefix = lineTokens.slice(0, 5).join(" ").trim();
+      if (!phrase || !linePrefix || phrase !== linePrefix) {
+        return false;
+      }
+      const tokens = Array.from(new Set(sourceMatchText.split(" ").filter((t) => t.length > 3)));
+      if (tokens.length === 0) {
+        return false;
+      }
+      let matches = 0;
+      let requiredMatches = 0;
+      tokens.forEach((token) => {
+        if (token.length >= 7) {
+          requiredMatches += 1;
+        }
+      });
+      tokens.forEach((token) => {
+        if (lineMatchText.includes(token)) {
+          matches += 1;
+        }
+      });
+      const threshold = Math.max(3, Math.ceil(tokens.length * 0.7));
+      if (matches < threshold) {
+        return false;
+      }
+      if (requiredMatches > 0 && matches < requiredMatches) {
+        return false;
+      }
+      return true;
+    };
+
+    const escapeRegExp = (text) => String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const matchers = [];
+    issues.forEach((issue) => {
+      if (!issue || !issue.value) {
+        return;
+      }
+      if (issue.type === "source") {
+        matchers.push({ type: "sourceText", value: issue.value });
+        // Also check if this source is an "Entered by" source
+        if (/^Entered by\b/i.test(issue.value)) {
+          matchers.push({ type: "enteredBy", value: issue.value });
+        }
+        return;
+      }
+
+      const message = issue.value;
+      if (/^Entered by\b/i.test(message)) {
+        matchers.push({ type: "enteredBy", value: message });
+      }
+      if (/Acknowledgements subsection instead of section/i.test(message)) {
+        matchers.push({ type: "heading", value: "Acknowledgement" });
+      }
+      const htmlNotRecommendedMatch = message.match(/Biography contains HTML tag that is not recommended\s*(.*)$/i);
+      if (htmlNotRecommendedMatch && htmlNotRecommendedMatch[1]) {
+        const snippet = htmlNotRecommendedMatch[1].trim();
+        if (snippet) {
+          matchers.push({ type: "htmlNotRecommended", value: snippet });
+        }
+      }
+      const refMatch = message.match(/Inline <ref>\s*([^\s]+)\s+has no citation/i);
+      if (refMatch && refMatch[1]) {
+        matchers.push({ type: "ref", value: refMatch[1] });
+      }
+      const refDupMatch = message.match(/Inline <ref>\s*([^\s]+)\s+defined more than once/i);
+      if (refDupMatch && refDupMatch[1]) {
+        matchers.push({ type: "ref", value: refDupMatch[1] });
+      }
+      const refNoEndMatch = message.match(/Inline <ref> tag with no ending/i);
+      if (refNoEndMatch) {
+        matchers.push({ type: "refAny" });
+      }
+      const headingMatch = message.match(/Wrong level heading\s*==\s*([^=]+)\s*==/i);
+      if (headingMatch && headingMatch[1]) {
+        matchers.push({ type: "heading", value: headingMatch[1] });
+      }
+      const missingHeadingMatch = message.match(/Missing\s+([^\n]+?)\s+heading/i);
+      if (missingHeadingMatch && missingHeadingMatch[1]) {
+        matchers.push({ type: "headingMissing", value: missingHeadingMatch[1] });
+      }
+      const multipleHeadingMatch = message.match(/Multiple\s+([^\n]+?)\s+headings/i);
+      if (multipleHeadingMatch && multipleHeadingMatch[1]) {
+        matchers.push({ type: "heading", value: multipleHeadingMatch[1] });
+      }
+      const starIndex = message.indexOf("*");
+      if (starIndex !== -1) {
+        const snippet = message.slice(starIndex + 1).trim();
+        if (snippet) {
+          matchers.push({ type: "snippet", value: snippet });
+        }
+      }
+      const spanIdMatch = message.match(
+        /(?:<|&lt;)span\s+id\s*=\s*(?:&quot;|&#039;|["'“”])?([^"'“”>\s]+)(?:&quot;|&#039;|["'“”])?/i
+      );
+      if (spanIdMatch && spanIdMatch[1]) {
+        matchers.push({ type: "spanId", value: spanIdMatch[1] });
+      }
+      const spanIdPrefixMatch = message.match(/(?:<|&lt;)span\s+id\s*=\s*(?:&quot;|&#039;|["'“”])?([SR]-\d+)/i);
+      if (spanIdPrefixMatch && spanIdPrefixMatch[1]) {
+        matchers.push({ type: "spanIdPrefix", value: spanIdPrefixMatch[1] });
+      }
+
+      const categoryMatch = message.match(/\[\[Category:\s*([^\]]+)\]\]/i);
+      if (categoryMatch && categoryMatch[1]) {
+        const categoryName = categoryMatch[1].trim();
+        matchers.push({ type: "snippet", value: `[[Category: ${categoryName}]]` });
+      }
+
+      const templateMatch = message.match(/Research Note Box:\s*([^\s]+)/i);
+      if (templateMatch && templateMatch[1]) {
+        matchers.push({ type: "template", value: templateMatch[1] });
+      }
+      const navBoxMatch = message.match(/Navigation Box:\s*([^\s]+)/i);
+      if (navBoxMatch && navBoxMatch[1]) {
+        matchers.push({ type: "template", value: navBoxMatch[1] });
+      }
+      const projectBoxMatch = message.match(/Project Box:\s*([^\s]+)/i);
+      if (projectBoxMatch && projectBoxMatch[1]) {
+        matchers.push({ type: "template", value: projectBoxMatch[1] });
+      }
+    });
+
+    // First, try precise element-based matching (id, id-prefix, Entered by) to avoid fuzzy over-highlighting
+    const matchedMatcherIdx = new Set();
+    matchers.forEach((matcher, idx) => {
+      if (!matcher || !matcher.type) return;
+      if (matcher.type === "spanId") {
+        const spanId = String(matcher.value || "").trim();
+        if (!spanId) return;
+        // find element with exact id
+        const $el = $popup.find(`[id='${spanId}']`);
+        let matchedLine = false;
+        if ($el.length) {
+          $el.addClass("bio-check-issue-inline");
+          const $line = $el.closest(".source-line");
+          if ($line.length) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            matchedLine = true;
+          }
+        }
+        if (matchedLine) {
+          matchedMatcherIdx.add(idx);
+        }
+      }
+
+      if (matcher.type === "spanIdPrefix") {
+        const prefix = String(matcher.value || "").trim();
+        if (!prefix) return;
+        // find elements whose id starts with the prefix
+        const $els = $popup.find(`[id^='${prefix}']`);
+        let matchedLine = false;
+        if ($els.length) {
+          $els.each(function () {
+            const $el = $(this);
+            $el.addClass("bio-check-issue-inline");
+            const $line = $el.closest(".source-line");
+            if ($line.length) {
+              $line.addClass("bio-check-issue-line");
+              $line.find(".bullet").addClass("bio-check-issue-bullet");
+              matchedLine = true;
+            }
+          });
+        }
+        if (matchedLine) {
+          matchedMatcherIdx.add(idx);
+        }
+      }
+
+      if (matcher.type === "enteredBy") {
+        // highlight any source-line or reference that contains 'Entered by'
+        const found = [];
+        $popup.find(".source-line, .reference").each(function () {
+          const $el = $(this);
+          const text = normalize($el.text() || "");
+          if (text.includes("entered by")) {
+            if ($el.hasClass("reference")) {
+              $el.addClass("bio-check-issue-reference");
+              $el.find(".ref-tag").addClass("bio-check-issue-ref");
+            } else {
+              $el.addClass("bio-check-issue-line");
+              $el.find(".bullet").addClass("bio-check-issue-bullet");
+              $el.find(".ref-tag").addClass("bio-check-issue-ref");
+            }
+            found.push($el);
+          }
+        });
+        if (found.length) {
+          matchedMatcherIdx.add(idx);
+        }
+      }
+    });
+
+    // Then continue to per-line matching, but skip matchers already handled precisely above
+    const sourceLines = $popup.find(".source-line");
+    sourceLines.each(function () {
+      const $line = $(this);
+      const lineText = normalize($line.text());
+      const lineHtml = $line.html() || "";
+
+      for (let m = 0; m < matchers.length; m++) {
+        if (matchedMatcherIdx.has(m)) continue;
+        const matcher = matchers[m];
+
+        if (matcher.type === "snippet") {
+          const snippetText = normalize(matcher.value);
+          if (snippetText && lineText.includes(snippetText)) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            $line.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+        }
+
+        if (matcher.type === "sourceText") {
+          if (matchesSourceText($line.text(), matcher.value)) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            $line.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+        }
+
+        if (matcher.type === "spanId") {
+          const spanId = matcher.value;
+          const spanIdRegex = new RegExp(`id\\s*=\\s*[\"'“”]?${escapeRegExp(spanId)}[\"'“”]?`, "i");
+          if (spanIdRegex.test(lineHtml)) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            $line.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+        }
+
+        if (matcher.type === "spanIdPrefix") {
+          const spanIdPrefix = String(matcher.value || "").trim();
+          if (!spanIdPrefix) {
+            continue;
+          }
+          const spanIdPrefixRegex = new RegExp(`id\\s*=\\s*[\"'“”]?${escapeRegExp(spanIdPrefix)}`, "i");
+          if (spanIdPrefixRegex.test(lineHtml)) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            $line.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+        }
+
+        if (matcher.type === "ref") {
+          const refName = matcher.value;
+          const refNameNormalized = normalize(refName);
+          const refRegex = new RegExp(`id\\s*=\\s*[\"'“”]?${escapeRegExp(refName)}[\"'“”]?`, "i");
+          const refHashRegex = new RegExp(`#${escapeRegExp(refName)}`, "i");
+          if (refRegex.test(lineHtml) || refHashRegex.test(lineHtml)) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            $line.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+        }
+
+        if (matcher.type === "refAny") {
+          if (/(<ref|&lt;ref)/i.test(lineHtml)) {
+            $line.addClass("bio-check-issue-line");
+            $line.find(".bullet").addClass("bio-check-issue-bullet");
+            $line.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+        }
+      }
+    });
+
+    // Highlight inline <ref>...</ref> blocks that match invalid source text
+    const referenceBlocks = $popup.find(".reference");
+    referenceBlocks.each(function () {
+      const $ref = $(this);
+      const refText = normalize($ref.text());
+      for (const matcher of matchers) {
+        if (matcher.type === "enteredBy") {
+          if (normalize(refText).startsWith("entered by")) {
+            $ref.addClass("bio-check-issue-reference");
+            $ref.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+          continue;
+        }
+        if (matcher.type === "sourceText") {
+          const rawSource = String(matcher.value || "").trim();
+          if (!rawSource) {
+            continue;
+          }
+          const isEnteredBySource = /^entered by\b/i.test(rawSource);
+          if (refText.length > 800) {
+            continue;
+          }
+          if (isEnteredBySource) {
+            if (!refText.startsWith("entered by")) {
+              continue;
+            }
+          }
+          const urlMatch = rawSource.match(/https?:\/\/[^\s\]\)]+/i);
+          if (urlMatch && urlMatch[0]) {
+            const urlText = normalize(urlMatch[0]);
+            if (urlText && refText.includes(urlText)) {
+              $ref.addClass("bio-check-issue-reference");
+              $ref.find(".ref-tag").addClass("bio-check-issue-ref");
+              break;
+            }
+          }
+          const sourceText = normalize(rawSource);
+          if (sourceText.length <= 400 && refText.includes(sourceText)) {
+            $ref.addClass("bio-check-issue-reference");
+            $ref.find(".ref-tag").addClass("bio-check-issue-ref");
+            break;
+          }
+          // Fuzzy matching for longer sources in references
+          const sourceMatchText = normalizeForMatch(rawSource);
+          const refMatchText = normalizeForMatch(refText);
+          if (sourceMatchText && refMatchText && sourceMatchText.length > 20) {
+            const tokens = sourceMatchText.split(" ").filter((t) => t.length > 4);
+            if (tokens.length >= 3) {
+              let matches = 0;
+              tokens.forEach((token) => {
+                if (refMatchText.includes(token)) {
+                  matches += 1;
+                }
+              });
+              const threshold = Math.max(3, Math.ceil(tokens.length * 0.6));
+              if (matches >= threshold) {
+                $ref.addClass("bio-check-issue-reference");
+                $ref.find(".ref-tag").addClass("bio-check-issue-ref");
+                break;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Highlight plain bullet lines (e.g., See also) that match invalid source text
+    const highlightBulletLines = (html, matcher) => {
+      const lines = html.split(/<br\s*\/?>(?![^<]*>)/i);
+      const updated = lines.map((line) => {
+        if (!line || line.includes("bio-check-issue-line") || line.includes("bio-check-results")) {
+          return line;
+        }
+        const plain = line
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        const isBullet = plain.startsWith("*");
+        const withoutBullet = isBullet ? plain.replace(/^\*\s*/, "") : plain;
+        if (matcher.type === "sourceText") {
+          const sourceRaw = String(matcher.value || "").trim();
+          if (!sourceRaw) {
+            return line;
+          }
+          const isEnteredBy = /^entered by\b/i.test(sourceRaw);
+          let matched = false;
+          if (!isBullet) {
+            if (isEnteredBy) {
+              const normalizedLine = normalize(withoutBullet);
+              const normalizedSource = normalize(sourceRaw);
+              // For "Entered by" sources, check if the line contains key parts of the message
+              if (
+                normalizedLine.includes("entered by") &&
+                (normalizedLine.includes(normalizedSource.split(" ").slice(0, 3).join(" ")) ||
+                  normalizedLine.includes("entered"))
+              ) {
+                matched = true;
+              } else {
+                return line;
+              }
+            }
+            // For non-entered-by sources, continue to check matchesSourceText even for non-bullets
+          }
+          // Skip highlighting lines that contain references, to avoid over-highlighting when the ref is already highlighted
+          if (line.includes('<span class="reference">') || line.includes("&lt;ref")) {
+            return line;
+          }
+          if (!matched && !matchesSourceText(withoutBullet, sourceRaw)) {
+            return line;
+          }
+        } else if (matcher.type === "htmlNotRecommended") {
+          const snippet = String(matcher.value || "").trim();
+          if (!snippet) {
+            return line;
+          }
+          const normalizedSnippet = normalize(snippet);
+          const normalizedLine = normalize(withoutBullet);
+          const lineHasSpan = /(?:<|&lt;)span[^>]*\bid\s*=/i.test(line);
+          const spanIdPrefixInLine = (line.match(/\bid\s*=\s*(?:&quot;|&#039;|["'“”])?([SR]-\d+)/i) || [])[1];
+          const lineIsSource = normalizedLine.startsWith("source:");
+          const lineIsRepository = normalizedLine.startsWith("repository:");
+          const lineHasDisambiguation = normalizedLine.includes("disambiguation note");
+          if (!lineHasSpan && !lineIsSource && !lineIsRepository && !lineHasDisambiguation) {
+            return line;
+          }
+          if (normalizedSnippet.startsWith("repository:")) {
+            if (!lineIsRepository) {
+              return line;
+            }
+          } else if (normalizedSnippet.startsWith("* repository:")) {
+            if (!lineIsRepository) {
+              return line;
+            }
+          } else if (normalizedSnippet.startsWith("source:")) {
+            if (!lineIsSource) {
+              return line;
+            }
+          } else if (normalizedSnippet.startsWith("* source:")) {
+            if (!lineIsSource) {
+              return line;
+            }
+          }
+
+          if (snippet.includes("span id") || snippet.includes("<span") || snippet.includes("&lt;span")) {
+            const spanIdMatch = snippet.match(
+              /(?:<|&lt;)span\s+id\s*=\s*(?:&quot;|&#039;|["'“”])?([^"'“”>\s]+)(?:&quot;|&#039;|["'“”])?/i
+            );
+            if (spanIdMatch && spanIdMatch[1]) {
+              const spanId = spanIdMatch[1];
+              const spanIdRegex = new RegExp(`id\\s*=\\s*[\"'“”]?${escapeRegExp(spanId)}[\"'“”]?`, "i");
+              if (!spanIdRegex.test(line)) {
+                // If exact match fails, check if it's a source/repository line with any span ID
+                if ((lineIsSource || lineIsRepository) && spanIdPrefixInLine) {
+                  // Accept source/repository lines that have span IDs, even if truncated in snippet
+                } else {
+                  return line;
+                }
+              }
+            } else {
+              // Snippet mentions span but might be truncated; if line has span and is source/repository, accept it
+              if (!lineHasSpan) {
+                return line;
+              }
+              if (!lineIsSource && !lineIsRepository && !spanIdPrefixInLine) {
+                return line;
+              }
+            }
+          } else if (normalizedSnippet.startsWith("<b") || normalizedSnippet.startsWith("b>")) {
+            if (!line.includes("<b") && !line.includes("&lt;b")) {
+              return line;
+            }
+            if (!lineHasDisambiguation) {
+              return line;
+            }
+          } else {
+            return line;
+          }
+        } else if (matcher.type === "spanId") {
+          const spanId = String(matcher.value || "").trim();
+          if (!spanId) {
+            return line;
+          }
+          const spanIdRegex = new RegExp(`id\\s*=\\s*[\"'“”]?${escapeRegExp(spanId)}[\"'“”]?`, "i");
+          if (!spanIdRegex.test(line)) {
+            return line;
+          }
+        } else if (matcher.type === "spanIdPrefix") {
+          const spanIdPrefix = String(matcher.value || "").trim();
+          if (!spanIdPrefix) {
+            return line;
+          }
+          const spanIdPrefixRegex = new RegExp(`id\\s*=\\s*[\"'“”]?${escapeRegExp(spanIdPrefix)}`, "i");
+          if (!spanIdPrefixRegex.test(line)) {
+            return line;
+          }
+        } else if (matcher.type === "snippet") {
+          const snippetText = normalize(matcher.value);
+          const normalizedLine = normalize(withoutBullet);
+          if (!snippetText || !normalizedLine.includes(snippetText)) {
+            return line;
+          }
+        } else {
+          return line;
+        }
+        let updatedLine = line;
+        if (isBullet && !updatedLine.includes("bio-check-issue-bullet")) {
+          updatedLine = updatedLine.replace(/(^|>)(\s*\*)/, `$1<span class="bio-check-issue-bullet">*</span>`);
+        }
+        return `<span class="bio-check-issue-line">${updatedLine}</span>`;
+      });
+      return updated.join("<br>");
+    };
+
+    matchers
+      .filter(
+        (matcher) =>
+          matcher.type === "sourceText" ||
+          matcher.type === "htmlNotRecommended" ||
+          matcher.type === "spanId" ||
+          matcher.type === "spanIdPrefix" ||
+          matcher.type === "snippet"
+      )
+      .forEach((matcher) => {
+        $popup.html((_, html) => highlightBulletLines(html, matcher));
+      });
+
+    // Highlight inline ref tags in the bio for missing citations
+    matchers
+      .filter((matcher) => matcher.type === "ref")
+      .forEach((matcher) => {
+        const refName = matcher.value;
+        const refNameNormalized = normalize(refName);
+        $popup.find(".ref-tag[data-ref-name]").each(function () {
+          const $tag = $(this);
+          const dataName = normalize($tag.data("ref-name") || "");
+          if (dataName && dataName === refNameNormalized) {
+            $tag.addClass("bio-check-issue-ref");
+          }
+        });
+
+        // Fallback for any escaped ref tags that didn't get wrapped
+        const fallbackRegex = new RegExp(
+          `(&lt;ref[\\s\\S]*?name\\s*=\\s*(?:&quot;|&#039;|[\\"'“”])?${escapeRegExp(
+            refName
+          )}(?:&quot;|&#039;|[\\"'“”])?[\\s\\S]*?\\/&gt;)`,
+          "gi"
+        );
+        $popup.html(function (_, html) {
+          return html.replace(fallbackRegex, `<span class="ref-tag bio-check-issue-ref">$1</span>`);
+        });
+      });
+
+    // Highlight headings mentioned in messages
+    matchers
+      .filter((matcher) => matcher.type === "heading")
+      .forEach((matcher) => {
+        const headingText = normalize(matcher.value);
+        $popup.find(".h2, .h3, .h4, .h5").each(function () {
+          const $heading = $(this);
+          const normalizedHeading = normalize($heading.text());
+          // For acknowledgements, match both "acknowledgement" and "acknowledgment" variants
+          let matched = normalizedHeading.includes(headingText);
+          if (!matched && headingText.includes("acknowledgement")) {
+            matched = normalizedHeading.includes("acknowledgment");
+          }
+          if (!matched && headingText.includes("acknowledgment")) {
+            matched = normalizedHeading.includes("acknowledgement");
+          }
+          if (matched) {
+            $heading.addClass("bio-check-issue-line");
+          }
+        });
+      });
+
+    // Highlight template mentions like {{DateGuess}}
+    matchers
+      .filter((matcher) => matcher.type === "template")
+      .forEach((matcher) => {
+        const templateName = matcher.value;
+        const templateRegex = new RegExp(`(\{\{\s*${escapeRegExp(templateName)}[^}]*\}\})`, "gi");
+        $popup.html(function (_, html) {
+          return html.replace(templateRegex, `<span class="bio-check-issue-inline">$1</span>`);
+        });
+      });
   }
 
   /**
@@ -3997,31 +5493,53 @@ class FeedHelper {
     }
 
     // Look for multiple "was born" patterns in the biography section
-    // More precise pattern that looks for actual birth statements
-    const wasBornPattern = /\b\w+\s+was\s+born\s+(?:in|on|before|after|about|abt|circa|c\.)\b/gi;
-    const wasBornMatches = textToCheck.match(wasBornPattern) || [];
+    // More precise pattern that captures the name/subject before "was born"
+    const wasBornPattern = /\b(\w+)\s+was\s+born\s+(?:in|on|before|after|about|abt|circa|c\.)\b/gi;
+    const wasBornMatches = [];
+    const nameOccurrences = {};
+
+    let match;
+    while ((match = wasBornPattern.exec(textToCheck)) !== null) {
+      const fullMatch = match[0];
+      const subjectName = match[1]; // The name/subject before "was born"
+      const normalizedName = subjectName.toLowerCase();
+
+      wasBornMatches.push(fullMatch);
+
+      // Track occurrences per name
+      if (!nameOccurrences[normalizedName]) {
+        nameOccurrences[normalizedName] = [];
+      }
+      nameOccurrences[normalizedName].push(fullMatch);
+    }
 
     this.bioCheckDebug(`Birth pattern matches for ${profileInfo}:`);
     this.bioCheckDebug(`- Text being checked (first 500 chars):`, textToCheck.substring(0, 500));
     this.bioCheckDebug(`- "was born" pattern: ${wasBornMatches.length} matches`, wasBornMatches);
+    this.bioCheckDebug(`- Name occurrences:`, nameOccurrences);
+
+    // Find names that appear multiple times
+    const duplicateNames = Object.entries(nameOccurrences).filter(([name, matches]) => matches.length >= 2);
 
     // Also log in console for immediate visibility
-    if (wasBornMatches.length >= 2) {
-      console.log(`WBE: POTENTIAL DUPLICATE BIRTH INFO for ${profileInfo}:`);
+    if (duplicateNames.length > 0) {
+      console.log(`WBE: DUPLICATE BIRTH INFO DETECTED for ${profileInfo}:`);
       console.log(`WBE: Text being checked:`, textToCheck.substring(0, 500));
-      console.log(`WBE: Matches found:`, wasBornMatches);
+      console.log(`WBE: Duplicate names found:`, duplicateNames);
     }
 
-    if (wasBornMatches.length >= 2) {
+    if (duplicateNames.length > 0) {
+      const [duplicateName, duplicateMatches] = duplicateNames[0];
       this.bioCheckDebug(
-        `Found ${wasBornMatches.length} "was born" instances - indicating potential duplicate birth information for ${profileInfo}`
+        `Found ${duplicateMatches.length} "${duplicateName} was born" instances - indicating duplicate birth information for ${profileInfo}`
       );
       return {
         detected: true,
         type: "general",
-        count: wasBornMatches.length,
-        matches: wasBornMatches,
-        message: `Bio contains multiple "was born" statements. This may indicate unmerged bio content.`,
+        count: duplicateMatches.length,
+        matches: duplicateMatches,
+        duplicateName: duplicateName,
+        message: `Bio contains ${duplicateMatches.length} "${duplicateName} was born" statements. This may indicate unmerged bio content.`,
       };
     }
 
@@ -4230,13 +5748,28 @@ class FeedHelper {
       if (!href) {
         return;
       }
-      const match = href.match(/\/wiki\/([A-Za-z0-9_-]+)/);
-      if (match) {
-        const id = match[1];
-        if (!seen.has(id)) {
-          seen.add(id);
-          ids.push(id);
-        }
+      const match = href.match(/\/wiki\/([^/?#]+)/);
+      if (!match) {
+        return;
+      }
+
+      let id;
+      try {
+        id = decodeURIComponent(match[1]);
+      } catch (error) {
+        id = match[1];
+      }
+      // "Space%3AFoo" and "Space:Foo" are the same page.
+      id = id.replace(/^Space%3A/i, "Space:");
+
+      // Free-space pages, or plain person profile ids. Anything else is discarded.
+      if (!/^Space:.+/i.test(id) && !/^[A-Za-z0-9_-]+$/.test(id)) {
+        return;
+      }
+
+      if (!seen.has(id)) {
+        seen.add(id);
+        ids.push(id);
       }
     };
 
@@ -4516,7 +6049,7 @@ class FeedHelper {
 
 let feedHelper;
 
-shouldInitializeFeature("feedHelper").then((isEnabled) => {
+shouldInitializeFeature("feedHelper").then(async (isEnabled) => {
   if (isEnabled) {
     // Skip feed helper on NetworkFeed upgrade page
     const currentUrl = window.location.href;
@@ -4527,9 +6060,16 @@ shouldInitializeFeature("feedHelper").then((isEnabled) => {
       return;
     }
 
+    let options = {};
+    try {
+      options = (await getFeatureOptions("feedHelper")) || {};
+    } catch (error) {
+      console.error("FeedHelper: Unable to load feature options", error);
+    }
+
     import("./feed_helper.css");
     initBioCheck();
     $("body").addClass("feed-helper");
-    feedHelper = new FeedHelper();
+    feedHelper = new FeedHelper(options);
   }
 });

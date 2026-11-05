@@ -68,6 +68,18 @@ registerFeature({
           label: "Enable browser access keys (Shift+Alt+letter on PC, Ctrl+Option+letter on Mac)",
           defaultValue: true,
         },
+        {
+          id: "EnableSyntheticHotkeys",
+          type: OptionType.CHECKBOX,
+          label: "Enable synthetic hotkeys (prefix + key)",
+          defaultValue: true,
+        },
+        {
+          id: "EnableCheatSheetToggle",
+          type: OptionType.CHECKBOX,
+          label: "Enable cheat sheet toggle (Shift + ?)",
+          defaultValue: true,
+        },
       ],
     },
     {
@@ -109,6 +121,14 @@ registerFeature({
           id: "NavHomePage",
           type: OptionType.CHECKBOX,
           label: "Open Nav Home Page (Access key: 1)",
+          defaultValue: true,
+        },
+        {
+          id: "PrevNext",
+          type: OptionType.CHECKBOX,
+          label:
+            "Page navigation: Previous (prefix + ←), Next (prefix + →), First (prefix + ↑), Last (prefix + ↓). " +
+            "Arrow keys can't be browser access keys, so these only work as prefixed shortcuts.",
           defaultValue: true,
         },
         {
@@ -288,6 +308,26 @@ registerFeature({
           id: "FamilyDropdown",
           type: OptionType.CHECKBOX,
           label: "Open Family Dropdown/Shared Sources (Access key: y; then use shift + up or down arrow to navigate)",
+          defaultValue: true,
+        },
+      ],
+    },
+    // 5. Add Person
+    {
+      id: "AddPerson",
+      type: OptionType.GROUP,
+      label: "Add Person",
+      options: [
+        {
+          id: "DismissMatches",
+          type: OptionType.CHECKBOX,
+          label: "Dismiss Matches button (Access key: s)",
+          defaultValue: true,
+        },
+        {
+          id: "EnterBasicData",
+          type: OptionType.CHECKBOX,
+          label: "Enter Basic Data button (Access key: s)",
           defaultValue: true,
         },
       ],

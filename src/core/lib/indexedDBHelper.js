@@ -1,3 +1,52 @@
+/**
+ * Settle a promise on an open/delete request that other tabs may be holding up.
+ *
+ * "blocked" is informational, not final: every WikiTree tab holds connections to
+ * these databases, and onversionchange (below) closes them, after which the request
+ * proceeds by itself. Rejecting the moment blocked fires would fail a request that
+ * was about to succeed, so wait a while before giving up on it.
+ *
+ * @param {*} request an IDBOpenDBRequest or the request from deleteDatabase
+ * @param {*} description what is being attempted, for the message the user sees
+ */
+export function settleWhenUnblocked(request, description, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    let blockedTimer = null;
+    const settle = (settler, value) => {
+      clearTimeout(blockedTimer);
+      settler(value);
+    };
+
+    request.onsuccess = () => settle(resolve, request.result);
+    request.onerror = () => settle(reject, request.error);
+    request.onblocked = () => {
+      console.warn(`${description} is blocked by another tab; waiting for it to release the database.`);
+      blockedTimer = setTimeout(
+        () => reject(new Error(`${description} timed out. Please close your other WikiTree tabs and try again.`)),
+        timeoutMs
+      );
+    };
+  });
+}
+
+/**
+ * Delete a database that has no object stores, so that the next open recreates it
+ * properly. Nothing can ever have been stored in a database with no object stores,
+ * so there is nothing to lose.
+ * @param {*} db An open database, which this closes
+ * @returns a Promise resolving to true if the database was deleted
+ */
+export async function recreateEmptyDatabase(db) {
+  if (db.objectStoreNames.length > 0) return false;
+
+  const dbName = db.name;
+  console.warn(`IndexedDB database ${dbName} exists but has no object stores. Recreating it.`);
+  db.close();
+
+  await settleWhenUnblocked(indexedDB.deleteDatabase(dbName), `Repairing the ${dbName} database`);
+  return true;
+}
+
 export class IndexedDBHelper {
   constructor(dbName, version) {
     this.dbName = dbName;
@@ -22,13 +71,27 @@ export class IndexedDBHelper {
    *              latter case the static method, createObjectStore, below should typically be called.
    * @returns a Promise that will resolve with a reference to the database object on success
    */
-  openDB(onUpgradeNeeded) {
+  openDB(onUpgradeNeeded, isRetry = false) {
     const self = this;
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, this.version);
 
       request.onsuccess = (event) => {
-        this.db = event.target.result;
+        const opened = event.target.result;
+
+        // Repair a database that exists but has no object stores. Backing up used to
+        // open databases without a version number, which *creates* one when it does
+        // not exist yet, and for a version 1 database that is permanent: the version
+        // already matches, so onupgradeneeded never fires and the store below is
+        // never created. Every call then fails with "not a known object store name".
+        if (opened.objectStoreNames.length === 0 && !isRetry) {
+          recreateEmptyDatabase(opened)
+            .then(() => resolve(this.openDB(onUpgradeNeeded, true)))
+            .catch(reject);
+          return;
+        }
+
+        this.db = opened;
 
         // Handle the version change event - this is triggered when another thread opened the
         // database with a new (higher) version number and executed their onupgradeneeded event

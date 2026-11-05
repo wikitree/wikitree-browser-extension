@@ -32,6 +32,14 @@ function menuHover() {
     e.stopPropagation(); // Prevent closing when clicking inside
     const dropdownMenu = $(this).find(".dropdown-menu");
 
+    // A menu item was chosen: close the menu. Items that open something on this page (Haunted Tree, CC7 Changes,
+    // Drafts...) would otherwise pin it open, and clicks in WBE popups don't reach the click-outside handler below.
+    if ($(e.target).closest(".dropdown-menu a").length) {
+      clickToggledMenus.delete(this);
+      dropdownMenu.removeClass("show hovered");
+      return;
+    }
+
     if (clickToggledMenus.has(this)) {
       // If it's already open from click, remove from set and close
       clickToggledMenus.delete(this);

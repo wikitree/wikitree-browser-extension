@@ -14,7 +14,7 @@ shouldInitializeFeature("addFSId").then((result) => {
 
 async function addFamilySearchIDLink() {
   //show link to add FamilySearch ID if not present
-  const aside = $("#Research");
+  const aside = $(".col-lg-4 #Research");
   if (aside.length) {
     const lastHelp = aside.find("a").last();
 

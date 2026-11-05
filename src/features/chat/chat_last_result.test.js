@@ -1,0 +1,253 @@
+import { createLastResultOperationHandler, isUnaskedEmptyResultFilter } from "./chat_last_result";
+
+function createRows(count, overrides = {}) {
+  return Array.from({ length: count }, (_, index) => ({
+    displayName: `Person ${index + 1}`,
+    wtid: `Person-${index + 1}`,
+    firstName: `Person${index + 1}`,
+    birthLocation: overrides.birthLocation || "Birkenhead, Cheshire, England",
+    deathLocation: overrides.deathLocation || "",
+    birth: `18${String(50 + index).padStart(2, "0")}-00-00`,
+    death: "",
+    surname: overrides.surname || "Roberts",
+    gender: index % 2 === 0 ? "Male" : "Female",
+    degrees: overrides.degrees ?? 5,
+  }));
+}
+
+function createHandler(lastStructuredResult) {
+  const openResultsTable = jest.fn();
+  const setLastStructuredResult = jest.fn();
+  return createLastResultOperationHandler({
+    getLastStructuredResult: () => lastStructuredResult,
+    setLastStructuredResult,
+    openResultsTable,
+    cloneResultWithRows: (result, title, rows) => ({ ...result, title, rows }),
+    normalizeText: (value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase(),
+    normalizeDateForSort: (value) => String(value || ""),
+    normalizeNumberForSort: (value) => (Number.isFinite(Number(value)) ? Number(value) : Number.MAX_SAFE_INTEGER),
+    normalizeSurname: (value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase(),
+    extractCountryFromLocation: (value) =>
+      String(value || "")
+        .split(",")
+        .pop()
+        ?.trim() || "",
+  });
+}
+
+function createHandlerWithSpy(lastStructuredResult) {
+  const openResultsTable = jest.fn();
+  const setLastStructuredResult = jest.fn();
+  return {
+    openResultsTable,
+    setLastStructuredResult,
+    handler: createLastResultOperationHandler({
+      getLastStructuredResult: () => lastStructuredResult,
+      setLastStructuredResult,
+      openResultsTable,
+      cloneResultWithRows: (result, title, rows) => ({ ...result, title, rows }),
+      normalizeText: (value) =>
+        String(value || "")
+          .trim()
+          .toLowerCase(),
+      normalizeDateForSort: (value) => String(value || ""),
+      normalizeNumberForSort: (value) => (Number.isFinite(Number(value)) ? Number(value) : Number.MAX_SAFE_INTEGER),
+      normalizeSurname: (value) =>
+        String(value || "")
+          .trim()
+          .toLowerCase(),
+      extractCountryFromLocation: (value) =>
+        String(value || "")
+          .split(",")
+          .pop()
+          ?.trim() || "",
+    }),
+  };
+}
+
+function createStandardColumns() {
+  return [
+    { title: "WT ID", key: "wtid" },
+    { title: "First Name", key: "firstName" },
+    { title: "Last Name", key: "lnab" },
+    { title: "°", key: "degrees" },
+    { title: "Birth", key: "birth" },
+    { title: "Death", key: "death" },
+    { title: "Birth Location", key: "birthLocation" },
+    { title: "Death Location", key: "deathLocation" },
+  ];
+}
+
+describe("chat_last_result inline more", () => {
+  test("supported filters open the table with a matching column filter", async () => {
+    const rows = createRows(27);
+    const resultSet = { title: "Descendants", rows, columns: createStandardColumns() };
+    const { handler, openResultsTable, setLastStructuredResult } = createHandlerWithSpy(resultSet);
+
+    const result = await handler({
+      action: "filter",
+      filter: { kind: "birthLocation", value: "Birkenhead" },
+    });
+
+    expect(setLastStructuredResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        columnFilterContext: {
+          filters: [{ key: "birthLocation", value: "Birkenhead", label: "Birth Location" }],
+        },
+      })
+    );
+    expect(openResultsTable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        columnFilterContext: {
+          filters: [{ key: "birthLocation", value: "Birkenhead", label: "Birth Location" }],
+        },
+      }),
+      {
+        initialColumnFilters: [{ key: "birthLocation", value: "Birkenhead", label: "Birth Location" }],
+      }
+    );
+    expect(result).toEqual({
+      message:
+        'I opened the current result set in a table with the Birth Location column filter set to "Birkenhead". 27 of 27 rows match.',
+    });
+  });
+
+  test("a filter that matches nothing says so", async () => {
+    const { handler } = createHandlerWithSpy({ title: "Cornwall", rows: createRows(5), columns: createStandardColumns() });
+    const result = await handler({
+      action: "filter",
+      filter: { kind: "birthLocation", value: "Kent" },
+    });
+    expect(result.message).toMatch(/set to "Kent"\. 0 of 5 rows match\.$/);
+  });
+
+  test("supported follow-up filters merge with existing column filters", async () => {
+    const rows = createRows(27);
+    const resultSet = {
+      title: "Descendants",
+      rows,
+      columns: createStandardColumns(),
+      columnFilterContext: {
+        filters: [{ key: "birthLocation", value: "Iowa", label: "Birth Location" }],
+      },
+    };
+    const { handler, openResultsTable, setLastStructuredResult } = createHandlerWithSpy(resultSet);
+
+    const result = await handler({
+      action: "filter",
+      filter: { kind: "birthYearRange", start: 1940, end: 1950 },
+    });
+
+    const expectedFilters = [
+      { key: "birthLocation", value: "Iowa", label: "Birth Location" },
+      { key: "birth", value: "1940-1950", label: "Birth" },
+    ];
+
+    expect(setLastStructuredResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        columnFilterContext: { filters: expectedFilters },
+      })
+    );
+    expect(openResultsTable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        columnFilterContext: { filters: expectedFilters },
+      }),
+      {
+        initialColumnFilters: expectedFilters,
+      }
+    );
+    expect(result).toEqual({
+      message:
+        'I opened the current result set in a table with column filters set to Birth Location = "Iowa" and Birth = "1940-1950". 0 of 27 rows match.',
+    });
+  });
+
+  test("unsupported filters still return inlineMore instead of literal trailing more text", async () => {
+    const rows = createRows(27);
+    const handler = createHandler({ title: "Descendants", rows, columns: createStandardColumns() });
+
+    const result = await handler({
+      action: "filter",
+      filter: { kind: "country", value: "England" },
+    });
+
+    expect(result.message).toContain("Filtered the current result set down to 27 rows using country contains England.");
+    expect(result.message).not.toContain("...and 15 more.");
+    expect(result.inlineMore).toEqual({
+      count: 15,
+      text: expect.stringContaining("- Person 13 (Person-13) | degree 5 | born 1862 | Male"),
+    });
+  });
+
+  test("countBy results return inlineMore for additional grouped rows", async () => {
+    const rows = Array.from({ length: 15 }, (_, index) => ({
+      displayName: `Person ${index + 1}`,
+      wtid: `Person-${index + 1}`,
+      surname: `Surname ${index + 1}`,
+      birthLocation: "Birkenhead, Cheshire, England",
+      deathLocation: "",
+    }));
+    const handler = createHandler({ title: "Descendants", rows });
+
+    const result = await handler({
+      action: "countBy",
+      field: "surname",
+    });
+
+    expect(result.message).toContain("Grouped the current results by surname:");
+    expect(result.message).not.toContain("...and 3 more.");
+    expect(result.inlineMore).toEqual({
+      count: 3,
+      text: expect.stringContaining("- Surname 7: 1"),
+    });
+  });
+});
+
+describe("M3 year-range column filter counts", () => {
+  test("born before 1885 counts rows by year", async () => {
+    const rows = [
+      { displayName: "A", wtid: "A-1", birth: "1880" },
+      { displayName: "B", wtid: "B-1", birth: "1883-04-02" },
+      { displayName: "C", wtid: "C-1", birth: "1890" },
+      { displayName: "D", wtid: "D-1", birth: "" },
+    ];
+    const { handler } = createHandlerWithSpy({ title: "Grandchildren", rows, columns: createStandardColumns() });
+    const result = await handler({ action: "filter", filter: { kind: "birthDate", direction: "before", value: "1885" } });
+    expect(result.message).toMatch(/2 of 4 rows match\.$/);
+  });
+});
+
+describe("M3 open-ended year ranges become table bounds", () => {
+  test("0-1884 opens as < 1885", async () => {
+    const rows = [
+      { displayName: "A", wtid: "A-1", birth: "1880" },
+      { displayName: "C", wtid: "C-1", birth: "1890" },
+    ];
+    const { handler } = createHandlerWithSpy({ title: "Grandchildren", rows, columns: createStandardColumns() });
+    const result = await handler({ action: "filter", filter: { kind: "birthYearRange", start: 0, end: 1884 } });
+    expect(result.message).toBe('I opened the current result set in a table with the Birth column filter set to "< 1885". 1 of 2 rows match.');
+    const after = await handler({ action: "filter", filter: { kind: "birthYearRange", start: 1885, end: "" } });
+    expect(after.message).toMatch(/"> 1884"/);
+  });
+});
+
+describe("isUnaskedEmptyResultFilter (live, 2026-10-11)", () => {
+  const none = "No rows matched this filter in the current result set: text contains Smith Devon 1850s.";
+  test("a new search the planner made a filter goes on", () => {
+    expect(isUnaskedEmptyResultFilter(none, "Smiths born in Devon in the 1850s")).toBe(true);
+    expect(isUnaskedEmptyResultFilter({ message: none }, "Robinsons born in Devon 1850-1899")).toBe(true);
+  });
+  test("a filter the prompt asked for stays", () => {
+    expect(isUnaskedEmptyResultFilter(none, "only those born in Devon")).toBe(false);
+    expect(isUnaskedEmptyResultFilter(none, "which of them were born in the 1850s?")).toBe(false);
+  });
+  test("other answers stay", () => {
+    expect(isUnaskedEmptyResultFilter("Filtered the current result set down to 2 rows", "Smiths in Devon")).toBe(false);
+  });
+});

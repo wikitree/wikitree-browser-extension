@@ -604,11 +604,9 @@ async function initReadability(options) {
 
     // add the toggle to turn reading mode on/off while viewing the page instead of having to go into the extension for it
     let toggleElement = $(`
-        <a class="action--reading-mode wbe-button wbe-icon-glasses${
+        <a class="action--reading-mode wbe-button${
           options.readingMode_toggle ? " toggled-on" : ""
-        }" data-tooltip="Reading Mode" title="Reading Mode">
-          <span class="wbe-icon-sunglasses"></span>
-        </a>
+        }" data-tooltip="Reading Mode" title="Reading Mode"><span class="wbe-icon-glasses"></span></a>
     `);
     toggleElement.on("click", function (e) {
       e.preventDefault();
@@ -620,10 +618,16 @@ async function initReadability(options) {
     const container = $("#heading .text-end, .profile--actions.float-end").last();
     if (container.closest("#heading").length > 0) {
       container.append(toggleElement);
+      toggleElement.addClass("wbe-icon-glasses");
+      toggleElement.children("span").removeClass("wbe-icon-glasses").addClass("wbe-icon-sunglasses");
       toggleElement.removeClass("wbe-button");
       toggleElement.removeAttr("data-tooltip");
     } else {
-      container.append(toggleElement);
+      let clipboardContainer = container.children(".clipboardContainer").first();
+      if (!clipboardContainer.length) {
+        clipboardContainer = $('<span class="clipboardContainer"></span>').appendTo(container);
+      }
+      clipboardContainer.append(toggleElement);
       toggleElement.removeAttr("title");
     }
   }

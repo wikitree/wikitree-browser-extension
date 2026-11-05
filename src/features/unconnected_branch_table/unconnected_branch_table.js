@@ -4,7 +4,7 @@ import { checkIfFeatureEnabled, shouldInitializeFeature } from "../../core/optio
 import { mainDomain, isUnconnectedNotables, isProfilePage } from "../../core/pageType";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { showFamilySheet } from "../familyGroup/familyGroup";
-import { assignPersonNames } from "../auto_bio/auto_bio";
+import { assignPersonNames } from "../auto_bio/auto_bio_person";
 import { addFiltersToWikitables, repositionFilterRow } from "../table_filters/table_filters";
 import { profilePerson } from "../../core/common";
 import { isOK } from "../../core/common";

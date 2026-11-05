@@ -1,0 +1,1716 @@
+import $ from "jquery";
+import { isProfileNarrativePrompt } from "./chat_profile_narrative";
+import { describeRelationChain, pickSpouseByOrdinal, relativesBiosTitle, splitOrdinalFromRelation, rewriteInLawTerms } from "./chat_relation_chain_text";
+import { profileLinkHtml } from "./chat_profile_link";
+import { shownSpouses } from "./chat_marriage_display";
+import { profileLabel } from "./chat_text_utils";
+import { unloadedProfileMessage } from "./chat_profile_availability";
+
+export function createChatBioHandlers({
+  WBE_CHAT_APP_ID,
+  CHAT_LAST_BIO_KEY,
+  wtAPIProfileSearch,
+  WikiTreeAPI,
+  getProfilePersonInfo,
+  getProfileRootPerson,
+  setHighestZIndex,
+  escapeHtml,
+  setPopupPositionAndSize,
+  showChatShaky,
+  hideChatShaky,
+  sanitizeHtmlForPopup,
+  extractProfileBios,
+  showBioListPopup,
+  showTiledBioPopups,
+  addBioButton,
+  appendMessage,
+  resolveToWTID,
+  fetchProfilesForIds,
+  fetchPeoplePaged,
+  mapApiPersonToStandardRow,
+  makeStandardProfileTable,
+  resolveConnectionTargetPerson,
+  hasAnyApiKey,
+  buildRecentConversationForAi,
+  getLastStructuredResult,
+  getLastConnectionCandidates,
+  findSpouseProfileIdsFromDOM,
+  findChildrenProfileIdsFromDOM,
+  findSiblingProfileIdsFromDOM,
+  findParentProfileIdsFromDOM,
+  setLastBioPopupState,
+  focusIsPagePerson = () => true,
+  setPendingDisambiguationContext = () => {},
+  buildDisambiguationMessage = null,
+}) {
+  function safePageRoot() {
+    try {
+      return getProfileRootPerson?.() || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async function showBioPopupForId(id, opts = { bioFormat: "both" }) {
+    if (window.wbeSuppressAutoBioOpen) {
+      try {
+        appendMessage("assistant", "Could not load some biographies. Partial results may be shown.", {
+          shouldPersist: false,
+        });
+      } catch (error) {
+        /* ignore */
+      }
+      window.wbeSuppressAutoBioOpen = false;
+      return;
+    }
+    if (!id) return;
+
+    try {
+      const resolved = await resolveToWTID(id);
+      if (resolved) id = resolved;
+    } catch (error) {
+      /* ignore resolution failure and proceed with original id */
+    }
+
+    try {
+      showChatShaky("Loading biography...");
+      const [profile, status, page_name] = await WikiTreeAPI.getProfile(
+        WBE_CHAT_APP_ID,
+        id,
+        "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
+        {
+          bioFormat: opts.bioFormat,
+          resolveRedirect: 1,
+        }
+      );
+      console.debug("wbe: showBioPopupForId fetched profile", { id, status, page_name, profile });
+      hideChatShaky();
+      if (!profile || Object.keys(profile).length === 0) {
+        console.info("wbe: showBioPopupForId - no profile data or private", { id, profile });
+        // (a brand-new profile isn't in the API yet: say so, rather than "private")
+        appendMessage("assistant", await unloadedProfileMessage(id, { appId: WBE_CHAT_APP_ID, what: "biography", pageRoot: safePageRoot() }));
+        return;
+      }
+
+      const { wikiBio, htmlBio } = extractProfileBios(profile);
+      if (!wikiBio && !htmlBio) {
+        console.info("wbe: showBioPopupForId - profile has no biography content", { id, profile });
+        appendMessage("assistant", `No biography content found for ${profile?.Name || id}.`);
+        return;
+      }
+
+      $("#wbe-bio-popup").remove();
+      const popupWidth = Math.max(520, Math.floor(window.innerWidth * 0.85));
+      const $popup = $(
+        `<div id="wbe-bio-popup" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${popupWidth}px;left:${Math.floor(
+          (window.innerWidth - popupWidth) / 2
+        )}px">
+          <div class="chat-popup-header ui-draggable-handle">
+            <strong>Biography: ${escapeHtml(profile.Name || id)}</strong>
+            <div class="chat-popup-controls">
+              <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+            </div>
+          </div>
+          <div class="chat-popup-body chat-popup-body--columns">
+            <div class="bio-column bio-column--wiki">
+              <h4>Wiki Text</h4>
+              <pre class="bio-wiki-pre">${escapeHtml(wikiBio || "(no wiki text returned)")}</pre>
+            </div>
+            <div class="bio-column">
+              <h4>HTML</h4>
+              <div class="bio-html-container">${sanitizeHtmlForPopup(htmlBio) || "<i>(no html returned)</i>"}</div>
+            </div>
+          </div>
+        </div>`
+      ).appendTo(document.body);
+      setPopupPositionAndSize(
+        $popup.get(0),
+        Math.round((window.innerWidth - $popup.get(0).getBoundingClientRect().width) / 2),
+        110
+      );
+      $popup.find(".close-popup").on("click", () => $popup.remove());
+      setHighestZIndex($popup.get(0));
+      $popup.draggable({
+        handle: ".chat-popup-header",
+        containment: "window",
+        scroll: false,
+        start: () => {
+          $popup.get(0).style.right = "auto";
+          $popup.get(0).style.transform = "none";
+        },
+      });
+      $popup.resizable({ handles: "n,e,s,w,se,sw,ne,nw", minWidth: 520, minHeight: 260 });
+
+      const canonicalId = profile?.Name || (profile?.Id != null ? String(profile.Id) : id);
+      setLastBioPopupState({ id: canonicalId, profile });
+      try {
+        sessionStorage.setItem(CHAT_LAST_BIO_KEY, JSON.stringify({ id: canonicalId }));
+      } catch (error) {
+        /* ignore */
+      }
+      addBioButton();
+    } catch (err) {
+      hideChatShaky();
+      hideChatShaky();
+      console.error("Error loading profile:", err);
+      try {
+        const em = String(err?.message || err || "unknown error");
+        appendMessage("assistant", `Failed to load biography: ${em}`);
+      } catch (error) {
+        appendMessage("assistant", "Failed to load biography.");
+      }
+    }
+  }
+
+  async function listSpousesForId(id) {
+    if (!id) return;
+    try {
+      showChatShaky("Loading spouses...");
+      const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, id, "Spouses,Name,RealName,Id", {
+        getSpouses: 1,
+        resolveRedirect: 1,
+      });
+      console.debug("wbe: listSpousesForId fetched profile", { id, profile });
+      hideChatShaky();
+      // (not marriages the manager chose not to show: see chat_marriage_display.js)
+      const spouses = shownSpouses(profile?.Spouses).map((spouse) => ({
+        wtid: spouse.Name,
+        displayName: spouse.RealName || (spouse.Derived && spouse.Derived.ShortName) || spouse.Name,
+      }));
+
+      if (!spouses.length) {
+        console.info("wbe: listSpousesForId - no spouses", { id, profile });
+        appendMessage("assistant", `No spouses found for ${profile?.Name || id}.`);
+        return;
+      }
+
+      if (spouses.length === 1) {
+        showBioPopupForId(spouses[0].wtid);
+        return;
+      }
+
+      $("#wbe-spouses-popup").remove();
+      const popupWidth = Math.max(360, Math.floor(window.innerWidth * 0.4));
+      const $popup = $(
+        `<div id="wbe-spouses-popup" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${popupWidth}px;left:${Math.floor(
+          (window.innerWidth - popupWidth) / 2
+        )}px">
+          <div class="chat-popup-header ui-draggable-handle">
+            <strong>Spouses of ${escapeHtml(profile?.Name || id)}</strong>
+            <div class="chat-popup-controls">
+              <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+            </div>
+          </div>
+          <div class="chat-popup-body chat-popup-body--compact">
+            <ul class="spouse-list">
+              ${spouses
+                .map(
+                  (spouse) =>
+                    `<li><span>${profileLinkHtml(spouse.displayName, spouse.wtid)} (${escapeHtml(
+                      spouse.wtid
+                    )})</span><button class="open-bio" data-wtid="${escapeHtml(spouse.wtid)}">Open Bio</button></li>`
+                )
+                .join("")}
+            </ul>
+          </div>
+        </div>`
+      ).appendTo(document.body);
+      $popup.find(".close-popup").on("click", () => $popup.remove());
+      $popup.find(".open-bio").on("click", async (event) => {
+        const raw = $(event.currentTarget).attr("data-wtid");
+        if (!raw) return;
+        const resolved = await resolveToWTID(raw);
+        if (resolved) showBioPopupForId(resolved);
+      });
+      setHighestZIndex($popup.get(0));
+      $popup.draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+    } catch (err) {
+      hideChatShaky();
+      hideChatShaky();
+      console.error("Error listing spouses:", err);
+      try {
+        const em = String(err?.message || err || "unknown error");
+        appendMessage("assistant", `Failed to list spouses: ${em}`);
+      } catch (error) {
+        appendMessage("assistant", "Failed to list spouses.");
+      }
+    }
+  }
+
+  async function dumpProfileForId(id) {
+    if (!id) return;
+    try {
+      showChatShaky("Fetching profile for debug...");
+      const [profile, status, page_name] = await WikiTreeAPI.getProfile(
+        WBE_CHAT_APP_ID,
+        id,
+        "Bio,BioHtml,BioText,Biography,Spouses,Name,RealName,Id",
+        {
+          bioFormat: "both",
+          getSpouses: 1,
+          resolveRedirect: 1,
+        }
+      );
+      hideChatShaky();
+      console.log("wbe: profile dump", { id, profile, status, page_name });
+      const hasProfile = profile && Object.keys(profile).length > 0;
+      const privacy = profile?.Privacy ?? null;
+      const spouses = profile?.Spouses ? Object.keys(profile.Spouses).length : 0;
+      console.info("wbe: dumpProfileForId result", { id, hasProfile, privacy, spouses });
+      appendMessage("assistant", `Profile fetched: present=${hasProfile}, privacy=${privacy}, spouses=${spouses}.`, {
+        shouldPersist: false,
+      });
+    } catch (err) {
+      hideChatShaky();
+      console.error("wbe: dumpProfileForId error", err);
+      try {
+        const em = String(err?.message || err || "unknown error");
+        appendMessage("assistant", `Failed to fetch profile: ${em}`);
+      } catch (error) {
+        appendMessage("assistant", "Failed to fetch profile.");
+      }
+    }
+  }
+
+  async function showTiledViaApi(ids = []) {
+    return showTiledBioPopups(ids, (toOpen) =>
+      fetchProfilesForIds(toOpen, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
+        bioFormat: "both",
+        resolveRedirect: 1,
+      })
+    );
+  }
+
+  async function handleOpenFromBioList(ids = []) {
+    if (!Array.isArray(ids) || !ids.length) return;
+    const toOpen = ids.slice(0, 12);
+    try {
+      if (toOpen.length === 1) {
+        const raw = toOpen[0];
+        const wtid = await resolveToWTID(raw);
+        if (wtid) await showBioPopupForId(wtid).catch(() => {});
+        return;
+      }
+      const resolved = [];
+      for (const raw of toOpen) {
+        try {
+          const wtid = await resolveToWTID(raw);
+          if (wtid) resolved.push(wtid);
+        } catch (error) {
+          console.warn("wbe: handleOpenFromBioList resolve failed", raw, error);
+        }
+      }
+      if (resolved.length) {
+        await showTiledViaApi(resolved);
+      }
+    } catch (error) {
+      console.error("wbe: handleOpenFromBioList error", error);
+    }
+  }
+
+  async function fetchSiblingIdsForId(id, { skipDomFallback = false } = {}) {
+    if (!id) return [];
+    try {
+      showChatShaky("Loading siblings...");
+      try {
+        const relatives = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, id, "Id,Name,RealName", { getSiblings: 1 });
+        const [peopleResult] = relatives || [];
+        const profile = peopleResult?.person || {};
+        const siblingsObj = profile?.Siblings || {};
+        const siblings = Object.values(siblingsObj || [])
+          .map((sibling) => sibling?.Name || (sibling?.Id ? String(sibling.Id) : null))
+          .filter(Boolean);
+        if (siblings.length) {
+          hideChatShaky();
+          return siblings;
+        }
+      } catch (error) {
+        /* ignore and fall back to getProfile/DOM */
+      }
+      const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, id, "Siblings,Name,Id", {
+        getSiblings: 1,
+        resolveRedirect: 1,
+      });
+      hideChatShaky();
+      const siblingsObj = profile?.Siblings || {};
+      const siblings = Object.values(siblingsObj || [])
+        .map((sibling) => sibling.Name)
+        .filter(Boolean);
+      if (siblings.length) return siblings;
+
+      if (skipDomFallback) return [];
+      const domCandidates = findSiblingProfileIdsFromDOM(id);
+      if (!domCandidates.length) return [];
+      const profiles = await fetchProfilesForIds(domCandidates, "Name,Id", { resolveRedirect: 1 });
+      return profiles.map((profileData, index) => (profileData ? domCandidates[index] : null)).filter(Boolean);
+    } catch (err) {
+      hideChatShaky();
+      console.error("wbe: fetchSiblingIdsForId error", err);
+      return [];
+    }
+  }
+
+  async function fetchChildrenIdsForId(id) {
+    if (!id) return [];
+    try {
+      showChatShaky("Loading children...");
+      try {
+        const relatives = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, id, "Id,Name,RealName", { getChildren: 1 });
+        const [peopleResult] = relatives || [];
+        const profile = peopleResult?.person || {};
+        const childrenObj = profile?.Children || {};
+        const children = Object.values(childrenObj || [])
+          .map((child) => child?.Name || (child?.Id ? String(child.Id) : null))
+          .filter(Boolean);
+        if (children.length) {
+          hideChatShaky();
+          return children;
+        }
+      } catch (error) {
+        /* ignore and fall back to getProfile/DOM */
+      }
+      const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, id, "Children,Name,Id", {
+        getChildren: 1,
+        resolveRedirect: 1,
+      });
+      hideChatShaky();
+      const childrenObj = profile?.Children || {};
+      const children = Object.values(childrenObj || [])
+        .map((child) => child.Name)
+        .filter(Boolean);
+      if (children.length) return children;
+
+      const domCandidates = findChildrenProfileIdsFromDOM(id);
+      if (!domCandidates.length) return [];
+      const candidateProfiles = await fetchProfilesForIds(domCandidates, "Name,Id", { resolveRedirect: 1 });
+      return candidateProfiles.map((profileData, index) => (profileData ? domCandidates[index] : null)).filter(Boolean);
+    } catch (err) {
+      hideChatShaky();
+      console.error("wbe: fetchChildrenIdsForId error", err);
+      return [];
+    }
+  }
+
+  // "father"/"mother" must pick the specific parent, not parents[0]. Returns
+  // [] when the profile is readable but that parent is not recorded, so a
+  // chain hop fails honestly instead of silently switching to the other
+  // parent. Falls back to fetchParentIds for generic words or fetch failures.
+  // WikiTreeAPI.getPerson wraps the API row in a Person object whose fields
+  // live in ._data, so person.Father is undefined unless it is unwrapped.
+  async function getParentRow(personKey) {
+    const person = await WikiTreeAPI.getPerson("Chat", personKey, "Id,Name,Father,Mother");
+    return person?._data && typeof person._data === "object" ? person._data : person;
+  }
+
+  // A stepmother is a wife of the father who isn't the mother (and the reverse
+  // for stepfathers). "father's wife" alone would include the mother, which is
+  // how "Ellen's stepmother" opened her own mother's bio (live, 2026-10-03).
+  async function fetchStepParents(personKey, relationWord) {
+    const isStepMother = /^stepmothers?$/i.test(String(relationWord || ""));
+    const row = await getParentRow(personKey);
+    const parentId = Number(isStepMother ? row?.Father : row?.Mother);
+    const otherParentId = Number(isStepMother ? row?.Mother : row?.Father);
+    if (!(parentId > 0)) return { parentWord: isStepMother ? "father" : "mother", people: [] };
+    const result = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, parentId, "Id,Name,RealName,Gender", {
+      getSpouses: 1,
+    });
+    const spouses = shownSpouses(result?.[0]?.person?.Spouses).filter((s) => s?.Name);
+    const wantedGender = isStepMother ? "female" : "male";
+    const people = spouses
+      .filter((s) => !(otherParentId > 0 && Number(s.Id) === otherParentId))
+      .filter((s) => !s.Gender || String(s.Gender).toLowerCase() === wantedGender)
+      .map((s) => ({ wtid: s.Name, displayName: s.RealName || s.Name }));
+    return { parentWord: isStepMother ? "father" : "mother", people };
+  }
+
+  async function fetchGenderedParentIds(personKey, relationWord) {
+    const word = String(relationWord || "").toLowerCase();
+    if (word === "father" || word === "mother" || word === "fathers" || word === "mothers") {
+      try {
+        const person = await getParentRow(personKey);
+        if (person && (person.Father !== undefined || person.Mother !== undefined)) {
+          const specificId = word.startsWith("father") ? person.Father : person.Mother;
+          return Number(specificId) > 0 ? [String(specificId)] : [];
+        }
+      } catch (error) {
+        /* fall back to the generic parent lookup */
+      }
+    }
+    return fetchParentIds(personKey);
+  }
+
+  async function fetchParentIds(personKey) {
+    try {
+      const relatives = await WikiTreeAPI.getRelatives(WBE_CHAT_APP_ID, personKey, "Id,Name,RealName", {
+        getParents: 1,
+      });
+      const [peopleResult] = relatives || [];
+      const profile = peopleResult?.person || {};
+      const parentsObj = profile?.Parents || {};
+      const parentNames = Object.values(parentsObj || [])
+        .map((parent) => parent?.Name || (parent?.Id ? String(parent.Id) : null))
+        .filter(Boolean);
+      if (parentNames.length) return parentNames;
+    } catch (error) {
+      /* ignore getRelatives errors and fall back */
+    }
+
+    try {
+      const person = await getParentRow(personKey);
+      const parents = [person?.Father, person?.Mother].filter((id) => Number(id) > 0);
+      if (parents.length) return parents;
+    } catch (error) {
+      /* ignore */
+    }
+
+    try {
+      const domParents = findParentProfileIdsFromDOM(personKey);
+      if (domParents && domParents.length) {
+        const numericIds = [];
+        for (const wtid of domParents) {
+          try {
+            const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, wtid, "Id,Name", { resolveRedirect: 1 });
+            if (profile && Number(profile.Id) > 0) numericIds.push(Number(profile.Id));
+          } catch (error) {
+            /* ignore individual failures */
+          }
+        }
+        if (numericIds.length) return numericIds;
+        return domParents;
+      }
+    } catch (error) {
+      /* ignore DOM fallback errors */
+    }
+
+    return [];
+  }
+
+  async function tryHandleSpouseBioIntent(params = {}, prompt = "") {
+    const target = String(params?.target || "").trim();
+    const bioFormat = String(params?.bioFormat || "both").toLowerCase();
+    const allowLookup = params?.allowLookup !== undefined ? Boolean(params.allowLookup) : true;
+
+    if (!target) {
+      if (!allowLookup) {
+        const reply = `I don't have the wife's name or bio from the single page context you gave (${
+          getProfilePersonInfo()?.Name || "unknown"
+        }). I can't invent or assume her profile.\n\nTell me one of these and I'll fetch and return her bio:\n- The wife's WikiTree profile ID or URL (for example: Surname-1234), or\n- Her full name as shown on ${
+          getProfilePersonInfo()?.Name || "the profile"
+        }, or\n- Permission to look up ${
+          getProfilePersonInfo()?.Name || "the profile owner"
+        } and fetch their spouse's bio.`;
+        console.debug("wbe: tryHandleSpouseBioPrompt no targetRaw - asking user for clarification", {
+          profileContext: getProfilePersonInfo()?.Name,
+          reply,
+        });
+        return reply;
+      }
+      params.target = getProfileRootPerson()?.wtId || getProfileRootPerson()?.Name || getProfilePersonInfo()?.Name || "";
+    }
+
+    const resolved = await resolveConnectionTargetPerson(params.target || target, prompt);
+    if (!resolved?.Name && !resolved?.Id) {
+      return `I couldn't identify which profile you meant by "${params.target || target}".`;
+    }
+
+    // The WikiTree ID: getProfile reads a number as a page Id, a different person.
+    const personKey = resolved.Name || resolved.Id;
+    try {
+      showChatShaky("Looking up spouse(s)...");
+      const [profile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, personKey, "", {
+        getSpouses: 1,
+        resolveRedirect: 1,
+      });
+      hideChatShaky();
+      const spouses = shownSpouses(profile?.Spouses);
+      if (!spouses.length) {
+        try {
+          const domIds = findSpouseProfileIdsFromDOM(personKey);
+          console.debug("wbe: tryHandleSpouseBioPrompt DOM fallback ids", { domIds });
+          if (domIds && domIds.length) {
+            if (domIds.length === 1) {
+              const spouseId = domIds[0];
+              try {
+                showChatShaky("Loading spouse bio from page link...");
+                const [spProfile] = await WikiTreeAPI.getProfile(
+                  WBE_CHAT_APP_ID,
+                  spouseId,
+                  "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
+                  { bioFormat: "both", resolveRedirect: 1 }
+                );
+                hideChatShaky();
+                console.debug("wbe: spouse profile fetched via DOM fallback", { spouseId, spProfile });
+                const { wikiBio: domWiki } = extractProfileBios(spProfile);
+                return {
+                  message: `Biography for ${spProfile?.Name || spouseId}:`,
+                  action: {
+                    label: "Show Bio",
+                    onClick: async () => {
+                      const wtid = await resolveToWTID(spouseId);
+                      showBioPopupForId(wtid).catch(() => {});
+                    },
+                  },
+                  inlineMore: { text: domWiki },
+                };
+              } catch (err) {
+                hideChatShaky();
+                console.error("wbe: error fetching spouse profile via DOM fallback", err);
+                return `Failed to fetch spouse profile found on the page (${spouseId}).`;
+              }
+            }
+            return {
+              message: `Found spouse links on the page for ${resolved.RealName || resolved.Name}. Click to open one.`,
+              action: {
+                label: "Spouses",
+                onClick: () => {
+                  listSpousesForId(resolved.Name);
+                },
+              },
+            };
+          }
+        } catch (error) {
+          console.error("wbe: DOM fallback error", error);
+        }
+
+        return `No spouse information found for ${profileLabel(resolved)}.`;
+      }
+      if (spouses.length === 1) {
+        const spouseId = spouses[0].Name;
+        showChatShaky("Loading spouse bio...");
+        const [spProfile] = await WikiTreeAPI.getProfile(
+          WBE_CHAT_APP_ID,
+          spouseId,
+          "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
+          { bioFormat, resolveRedirect: 1 }
+        );
+        hideChatShaky();
+        const wikiBio = spProfile?.Bio || spProfile?.bio || spProfile?.BioText || spProfile?.Biography || "";
+        return {
+          message: `Biography for ${spProfile?.Name || spouseId}:`,
+          action: {
+            label: "Show Bio",
+            onClick: async () => {
+              const wtid = await resolveToWTID(spouseId);
+              showBioPopupForId(wtid).catch(() => {});
+            },
+          },
+          inlineMore: { text: wikiBio },
+        };
+      }
+      const preview = spouses.map((spouse) => `- ${profileLabel(spouse)}`).join("\n");
+      return {
+        message: `Multiple spouses found for ${resolved.RealName || resolved.Name}:\n${preview}`,
+        action: { label: "Spouses", onClick: () => listSpousesForId(personKey) },
+      };
+    } catch (err) {
+      hideChatShaky();
+      console.error("wbe: tryHandleSpouseBioIntent error", err);
+      return `Failed to lookup spouse information for ${resolved.RealName || resolved.Name}.`;
+    }
+  }
+
+  // resolvedPerson: the person chosen from a "Which one did you mean?" list
+  async function tryHandlePersonBioPrompt(prompt, { resolvedPerson = null } = {}) {
+    console.info("wbe: tryHandlePersonBioPrompt called", { prompt });
+
+    try {
+      const detectCategoryEarly = (value) => {
+        if (!value) return null;
+        const str0 = String(value).trim();
+        let match = str0.match(/["“”'‘’]([^"“”'‘’]+)["“”'‘’]\s+category/i);
+        if (match) return match[1].trim();
+        match = str0.match(/^\s*search\s+["“”'‘’]?(.*?)["“”'‘’]?\s+category\??$/i);
+        if (match) return match[1].trim();
+        match = str0.match(/\bcategory\s*[:\-]?\s*(.+)$/i);
+        if (match) return match[1].trim();
+        return null;
+      };
+
+      console.debug("wbe: early category detection start", { prompt });
+      const earlyCategory = detectCategoryEarly(prompt);
+      console.debug("wbe: early category detection result", { earlyCategory });
+      if (earlyCategory) {
+        showChatShaky(`Looking up category "${earlyCategory}" via WT+...`);
+        try {
+          let chosenCategory = earlyCategory.replace(/^\s*Search\s+[:\-]?\s*/i, "").trim();
+          let catVal = chosenCategory.replace(/,\s+/g, "__");
+          catVal = catVal.replace(/\s+/g, "_");
+          const qb = `CategoryFull=${catVal}`;
+          const encodedQ = encodeURIComponent(qb);
+          console.debug("wbe: WT+ early CategoryFull", { earlyCategory, catVal, qb, encodedQ });
+
+          console.debug("wbe: wtAPIProfileSearch calling", { qb, encodedQ });
+          let resp;
+          try {
+            resp = await wtAPIProfileSearch("ChatCategory", encodedQ, { maxProfiles: 500 });
+          } catch (apiErr) {
+            console.debug("wbe: wtAPIProfileSearch threw", { qb, apiErr });
+            hideChatShaky();
+            return `WT+ profile search failed for Category:${chosenCategory}. Error: ${apiErr?.message || apiErr}`;
+          }
+          const profiles = resp?.response?.profiles || [];
+          console.debug("wbe: wtAPIProfileSearch response", {
+            found: resp?.response?.found,
+            profilesLength: profiles.length,
+          });
+          if (!profiles.length) {
+            console.debug("wbe: wtAPIProfileSearch returned no profiles for early category", { qb, resp });
+            hideChatShaky();
+            return `I couldn't find any profiles for Category:${chosenCategory} via WT+.`;
+          }
+
+          const uniqueIds = [...new Set(profiles.map((profile) => String(profile)))].slice(0, 200);
+          showChatShaky(`Fetching ${uniqueIds.length} profiles...`);
+          const fields =
+            "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,RealName,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,DataStatus,Id,Name";
+          const [, resultByKey, peopleData] = await WikiTreeAPI.getPeople(WBE_CHAT_APP_ID, uniqueIds, fields, {
+            resolveRedirect: 1,
+          });
+
+          const people = uniqueIds
+            .map((key) => WikiTreeAPI.lookupProfile(key, resultByKey, peopleData))
+            .filter(Boolean);
+          const rows = people.map((person) => mapApiPersonToStandardRow(person, { wtId: person?.Name }));
+
+          const table = makeStandardProfileTable(`Category: ${chosenCategory}`, rows, [[0, "asc"]]);
+          table.columns = (table.columns || []).filter(
+            (column) => !["degrees", "spouse", "spouseList"].includes(column.key)
+          );
+          hideChatShaky();
+          return {
+            message: `Found ${rows.length} profiles in Category:${chosenCategory}`,
+            table,
+          };
+        } catch (error) {
+          hideChatShaky();
+          console.debug("wbe: early category search failed", error);
+          return `I couldn't complete the category lookup for "${earlyCategory}". Error: ${error?.message || error}`;
+        }
+      }
+    } catch (err) {
+      console.debug("wbe: early category detection error", err);
+    }
+
+    // Q9: "summarize her biography" is for the AI, with the page bio as context.
+    if (isProfileNarrativePrompt(prompt)) return null;
+
+    // "step-mother" / "step mother" → "stepmother", one relation word.
+    // "her husband's siblings' children": the pronoun is the profile person,
+    // so drop it and let the chain start there (live C15, 2026-10-03).
+    const str = rewriteInLawTerms(prompt)
+      .trim()
+      .replace(/\bstep[\s-]+(mothers?|fathers?)\b/gi, "step$1")
+      // "who was her father's father?" asks for the same chain (live F3).
+      .replace(/^(?:(?:who|what)\s+(?:are|were|was|is)\s+|list\s+|show(?:\s+me)?\s+|tell\s+me\s+)(?=(?:his|her|their)\s)/i, "")
+      .replace(/^(?:his|her|their)\s+(?=[a-z-]+'s?\s)/i, "");
+    let targetRaw = null;
+    let relationRaw = null;
+    let intermediateRelations = [];
+
+    // "Patty's bio siblings", "who are her biological parents?": the birth family, not a biography (live,
+    // 2026-10-13: "Patty's bio siblings" opened Patty's bio). The router's relation answers take these.
+    const birthRelationRe = /\b(?:biological|birth|bio)\s+(?:mothers?|moms?|fathers?|dads?|parents?|daughters?|sons?|children|kids?|brothers?|sisters?|siblings?)\b/gi;
+    if (birthRelationRe.test(str) && !/\bbio(?:graphy|graphies|s)?\b/i.test(str.replace(birthRelationRe, ""))) {
+      console.info("wbe: tryHandlePersonBioPrompt - a birth-family relation, deferring to main router", { prompt });
+      return null;
+    }
+
+    // "read this biography aloud", "show his bio", "this profile's biography": the bio of the person being
+    // asked about (the picker's, else the page's). It looked for a profile called "null" or "read this
+    // profile" (Murray, 2026-10-11). Reading aloud isn't done yet (wow-ideas); the bio opens.
+    const ownBioMatch = str
+      .replace(/\s+(?:aloud|out\s+loud|to\s+me|for\s+me|please)\s*[?.!]*$/i, "")
+      .replace(/[?.!]+$/, "")
+      .trim()
+      .match(
+        /^(?:(?:please\s+)?(?:can|could|would)\s+you\s+)?(?:(?:read|show|open|display|view|see|give)(?:\s+me)?\s+|let\s+me\s+see\s+)?(?:(?:this|the|his|her|their)\s+(?:(?:profile|person|page)['’]s\s+)?)?bio(?:graphy)?$/i
+      );
+    if (ownBioMatch) {
+      const root = getProfileRootPerson?.();
+      const rootId = String(root?.wtId || root?.Name || getProfilePersonInfo?.()?.Name || "").trim();
+      if (!rootId || /:/.test(rootId)) return "Open a profile, or choose someone in the About box, and I'll open their biography.";
+      targetRaw = rootId;
+      relationRaw = "self";
+    }
+
+    // "what sources does this profile have?": "profile" names the page in a
+    // question; it isn't a bio request (live D10, 2026-10-03: it showed a
+    // husband's biography).
+    if (
+      !/\bbio(?:graphy|s)?\b/i.test(str) &&
+      /^(?:what|which|how|does|do|did|is|are|has|have|when|where|why|who)\b/i.test(str) &&
+      /\b(?:this|the|her|his|their|my)\s+(?:profile|page)\b/i.test(str)
+    ) {
+      console.info("wbe: tryHandlePersonBioPrompt - question about the profile, deferring to main router", { prompt });
+      return null;
+    }
+
+    // "what did her husband do for a living?" asks something the relative's bio
+    // may answer; the AI fallback reads those bios (live F4, 2026-10-03: it just
+    // opened both husbands' bios).
+    if (
+      !/\bbio(?:graphy|s)?\b/i.test(str) &&
+      /^(?:what|when|where|why|how|did|does|do|was|were|is|which)\b/i.test(str) &&
+      /\b(?:his|her|their)\s+(?:mother|father|parents?|husbands?|wife|wives|spouses?|sons?|daughters?|children|brothers?|sisters?|siblings?)\b/i.test(
+        prompt
+      )
+    ) {
+      console.info("wbe: tryHandlePersonBioPrompt - question about a relative, deferring to main router", { prompt });
+      return null;
+    }
+
+    // "who was Ellen's first husband?" asks who, not for a bio; the router
+    // answers it (live D1, 2026-10-03: the target became "who was Ellen").
+    if (!/\bbio(?:graphy|s)?\b/i.test(str) && /^(?:who|whom)\s+(?:was|is|were|are)\s+[^']+(?:'s|’s|'|’)\s/i.test(str)) {
+      console.info("wbe: tryHandlePersonBioPrompt - 'who was X's …' question, deferring to main router", { prompt });
+      return null;
+    }
+
+    // "Are there profiles for this person's wife or children on WikiTree": a yes/no question, not a person
+    // called "Are there profiles for this person" (a tester on Rowland-18000, 2026-10-12). A name never
+    // starts with "are", "is", "does"…, so the router (or the AI) takes these.
+    if (/^(?:are|is|was|were|do|does|did|has|have|had)\s+[^']+(?:'s|’s|'|’)\s/i.test(str)) {
+      console.info("wbe: tryHandlePersonBioPrompt - a yes/no question, deferring to main router", { prompt });
+      return null;
+    }
+
+    // "Lincoln-103's parents" asks for a list, not bios: the router's relatives list answers it (live, 2026-10-11:
+    // it opened a bio list, "Found 2 parents for Abraham").
+    if (
+      !/\b(?:bio(?:graph(?:y|ies)|s)?|profiles?)\b/i.test(str) &&
+      /^[^']+(?:'s|’s|'|’)\s+(?:parents|children|siblings|brothers|sisters|sons|daughters|grandparents|grandchildren|cousins|aunts|uncles|nieces|nephews|half-siblings|step-?children|step-?parents)\??$/i.test(str.trim())
+    ) {
+      console.info("wbe: tryHandlePersonBioPrompt - a list of relatives, deferring to main router", { prompt });
+      return null;
+    }
+
+    let match = str.match(/^\s*bio(?:graphy|s)?\s+of\s+(.+?)\??$/i) || str.match(/^\s*profile(?:s)?\s+of\s+(.+?)\??$/i);
+    if (match) {
+      targetRaw = (match[1] || "").trim();
+      relationRaw = "self";
+    }
+
+    if (!targetRaw) {
+      match = str.match(/^\s*([^']+?)'s\s+(.+?)\??$/i);
+      if (match) {
+        targetRaw = (match[1] || "").trim();
+        const relPart = (match[2] || "").trim();
+        // Trailing bio/profile words often carry no possessive ("siblings
+        // bios"), which would fuse them into the last chain segment and lose
+        // the final relation — strip them before splitting.
+        const relPartClean = relPart
+          .replace(/[’`]/g, "'")
+          .replace(/\s*\b(?:bios?|biograph(?:y|ies)|profiles?)\b\s*[?.!]*$/i, "")
+          .replace(/'s?\s*$/, "")
+          .trim();
+        // Split on possessive markers to detect multi-hop chains
+        // e.g. "husband's parents' bios" → ["husband", "parents"]
+        const bioTerms = new Set(["bio", "bios", "biography", "profile", "profiles"]);
+        const chainSegments = relPartClean
+          .split(/'s?\s+/)
+          .map((s) =>
+            s
+              .replace(/[?.,!;:]/g, "")
+              .trim()
+              .toLowerCase()
+          )
+          .filter((s) => s);
+        const relChain = chainSegments.filter((s) => !bioTerms.has(s));
+        if (relChain.length > 1) {
+          // Multi-hop: e.g. ["husband", "parents"] for "husband's parents' bios"
+          intermediateRelations = relChain.slice(0, -1);
+          relationRaw = relChain[relChain.length - 1];
+        } else if (relChain.length === 1 && splitOrdinalFromRelation(relChain[0]).ordinal) {
+          // "George's second wife's bio": the ordinal spouse is a hop, and the
+          // bio wanted is that spouse's own.
+          intermediateRelations = [relChain[0]];
+          relationRaw = "self";
+        } else {
+          // Single-hop: original logic
+          const singlePart = relPartClean
+            .replace(/\b's\b/g, "")
+            .replace(/\b'\b/g, "")
+            .replace(/[\?\.!,:;]*/g, "")
+            .trim();
+          const relMatch = singlePart.match(/^([a-zA-Z]+s?)\b/i);
+          if (relMatch) {
+            relationRaw = (relMatch[1] || "").trim().toLowerCase();
+            // "Ellen's children who died young" / "… with their birth places" is a
+            // filtered or detailed list for the router, not a bio lookup (live D5,
+            // 2026-10-03: it listed all 7 children).
+            const trailing = singlePart.slice(relMatch[0].length).trim();
+            if (
+              !/\b(?:bios?|biograph(?:y|ies)|profiles?)\b/i.test(str) &&
+              // Anything but bio words after the relation is a filter or a
+              // question ("… died young", "… did she outlive", "… twins").
+              /^[a-z]/i.test(trailing)
+            ) {
+              console.info("wbe: tryHandlePersonBioPrompt - relation has a filter clause, deferring to main router", {
+                prompt,
+              });
+              return null;
+            }
+          }
+        }
+        if (!relationRaw && /\bbio(?:graphy|s)?\b/i.test(str)) {
+          relationRaw = "self";
+        }
+      }
+    }
+
+    if (!targetRaw) {
+      match = str.match(/^\s*(.+?)'s\s+bio(?:graphy|s)?\??$/i);
+      if (match) {
+        targetRaw = (match[1] || "").trim();
+        relationRaw = "self";
+      }
+    }
+
+    const relMap = {
+      wife: "spouses",
+      wives: "spouses",
+      husband: "spouses",
+      husbands: "spouses",
+      spouse: "spouses",
+      spouses: "spouses",
+      parent: "parents",
+      parents: "parents",
+      mother: "parents",
+      mothers: "parents",
+      father: "parents",
+      fathers: "parents",
+      stepmother: "stepparents",
+      stepmothers: "stepparents",
+      stepfather: "stepparents",
+      stepfathers: "stepparents",
+      child: "children",
+      children: "children",
+      kid: "children",
+      kids: "children",
+      son: "children",
+      sons: "children",
+      daughter: "children",
+      daughters: "children",
+      sibling: "siblings",
+      siblings: "siblings",
+      brother: "siblings",
+      brothers: "siblings",
+      sister: "siblings",
+      sisters: "siblings",
+      self: "self",
+    };
+
+    // A bare relation word in the subject slot ("father's wife's siblings
+    // bios") refers to the person whose profile is open — anchor the chain
+    // there and treat the word as the first hop.
+    if (targetRaw) {
+      const targetRelKey = splitOrdinalFromRelation(targetRaw)
+        .word.toLowerCase()
+        .replace(/[^a-z]/g, "");
+      if (targetRelKey !== "self" && Object.prototype.hasOwnProperty.call(relMap, targetRelKey)) {
+        const rootPersonName = getProfileRootPerson()?.wtId || getProfileRootPerson()?.Name || getProfilePersonInfo()?.Name || "";
+        if (rootPersonName) {
+          intermediateRelations = [targetRaw.trim().toLowerCase(), ...intermediateRelations];
+          targetRaw = rootPersonName;
+        }
+      }
+    }
+
+    const hasBioKeyword = /\b(bio|biography|profile|bios)\b/i.test(str);
+    const isSupportedRelationPrompt = relationRaw && Object.prototype.hasOwnProperty.call(relMap, relationRaw);
+
+    if (!targetRaw && !hasBioKeyword) {
+      console.info("wbe: tryHandlePersonBioPrompt - pattern did not match and no bio keyword, ignoring", { prompt });
+      return null;
+    }
+
+    if (targetRaw && !hasBioKeyword && !isSupportedRelationPrompt) {
+      console.info("wbe: tryHandlePersonBioPrompt - possessive prompt is not a bio/family request, ignoring", {
+        prompt,
+        relationRaw,
+      });
+      return null;
+    }
+
+    // "how is Calvin's father related to me?" asks for a connection, not a
+    // list of Calvin's parents (live, 2026-10-03).
+    if (!hasBioKeyword && /\b(?:related|connected|connection|relationship)\b/i.test(str)) {
+      console.info("wbe: tryHandlePersonBioPrompt - connection question, ignoring", { prompt });
+      return null;
+    }
+
+    console.info("wbe: tryHandlePersonBioPrompt parsed", { prompt, targetRaw, relationRaw });
+
+    // J1 (live, 2026-10-03): "how do I add a photo to a profile?" parsed no
+    // target, then the empty name matched the first spouse link on the page and
+    // showed William Burton's bio. No target, no relation and no bio word is not
+    // a bio request.
+    if (!targetRaw && !relationRaw && !/\bbio(?:graphy|graphies|s)?\b/i.test(str)) {
+      return null;
+    }
+    // P6 (live, 2026-10-03): "show Hannah Hutton's children" became a bio lookup
+    // for "show Hannah Hutton". A list or count with no bio word is the router's.
+    if (
+      /^(?:list|show|display|give\s+me|how\s+many|count)\b/i.test(String(prompt || "").trim()) &&
+      !/\bbio(?:graphy|graphies|s)?\b/i.test(str)
+    ) {
+      return null;
+    }
+
+    // "Philip Beacall's mother" with no bio word asks who she is: the router's relation answer, which
+    // names her and offers a choice when several people share the name (from Darwin-15 it opened the
+    // bio of one Philip Beacall's mother; the user, 2026-10-22).
+    if (
+      targetRaw &&
+      !intermediateRelations.length &&
+      !hasBioKeyword &&
+      /^(?:mother|father|parents|wife|husband|spouse)$/i.test(String(relationRaw || ""))
+    ) {
+      return null;
+    }
+
+    if (relationRaw && /(ancest|descend)/i.test(String(relationRaw))) {
+      console.info("wbe: tryHandlePersonBioPrompt - ancestor/descendant relation detected, deferring to main router", {
+        relationRaw,
+      });
+      return null;
+    }
+
+    const wantsBioPlural = /\bbios?\b/i.test(str) || /\bprofiles?\b/i.test(str);
+
+    // "Philip Beacall's bio" from another page opened the first of 10 Philip Beacalls' bios; ask which
+    // one, as the relation answers do (the user, 2026-10-22).
+    let resolved = resolvedPerson;
+    let namesakes = null;
+    if (!resolved && targetRaw) {
+      resolved = buildDisambiguationMessage
+        ? await resolveConnectionTargetPerson(targetRaw, prompt, { allowDisambiguation: true })
+        : await resolveConnectionTargetPerson(targetRaw, prompt);
+      if (resolved?._disambiguationNeeded) {
+        namesakes = resolved._candidates || [];
+        resolved = null;
+      }
+    }
+    console.info("wbe: tryHandlePersonBioPrompt resolved target", { resolved });
+
+    if (!resolvedPerson) try {
+      const needle = String(targetRaw || "")
+        .trim()
+        .toLowerCase();
+      const lastStructuredResult = getLastStructuredResult();
+      if (needle && lastStructuredResult?.rows?.length) {
+        const tokenMatch = (text) => {
+          if (!text) return false;
+          const lower = String(text).toLowerCase();
+          if (lower === needle) return true;
+          if (lower.startsWith(`${needle} `) || lower.startsWith(needle)) return true;
+          const parts = lower.split(/\s+/).filter(Boolean);
+          return parts.includes(needle);
+        };
+
+        const pagePerson = getProfilePersonInfo();
+        for (const row of lastStructuredResult.rows) {
+          const candidateId = String(row.wtid || row.wtId || row.id || "").trim();
+          if (pagePerson && candidateId && (candidateId === pagePerson.Name || candidateId === pagePerson.Id)) {
+            continue;
+          }
+          const display = String(row.displayName || row.wtid || row.wtId || "").trim();
+          const firstName = String(row.firstName || display.split(/\s+/)[0] || "").trim();
+          if (
+            tokenMatch(firstName) ||
+            tokenMatch(display) ||
+            tokenMatch(row.wtid) ||
+            tokenMatch(row.wtId) ||
+            tokenMatch(row.id)
+          ) {
+            resolved = { Name: candidateId || null, RealName: row.displayName || row.wtid };
+            console.info("wbe: tryHandlePersonBioPrompt overridden by lastStructuredResult match", {
+              resolved,
+              needle,
+            });
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      /* ignore */
+    }
+
+    if (!resolved?.Name && !resolved?.Id) {
+      try {
+        const needle = String(targetRaw || "")
+          .trim()
+          .toLowerCase();
+        const lastStructuredResult = getLastStructuredResult();
+        if (needle && lastStructuredResult?.rows?.length) {
+          const pagePerson = getProfilePersonInfo();
+          for (const row of lastStructuredResult.rows) {
+            const candidateId = String(row.wtid || row.wtId || row.id || "").trim();
+            if (pagePerson && candidateId && (candidateId === pagePerson.Name || candidateId === pagePerson.Id)) {
+              continue;
+            }
+            const name = String(row.displayName || row.wtid || "").toLowerCase();
+            if (name.startsWith(needle) || name === needle) {
+              resolved = { Name: candidateId || null, RealName: row.displayName || row.wtid };
+              console.info("wbe: tryHandlePersonBioPrompt resolved from lastStructuredResult", { resolved, needle });
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        /* ignore */
+      }
+    }
+
+    // (before the last connection candidates: those are the namesakes themselves)
+    if (!resolved?.Name && !resolved?.Id && namesakes?.length) {
+      setPendingDisambiguationContext({ intent: "personBio", params: {}, prompt, name: targetRaw, candidates: namesakes });
+      return buildDisambiguationMessage(namesakes, targetRaw);
+    }
+
+    if (!resolved?.Name && !resolved?.Id) {
+      try {
+        const needle = String(targetRaw || "")
+          .trim()
+          .toLowerCase();
+        const lastConnectionCandidates = getLastConnectionCandidates();
+        if (needle && lastConnectionCandidates?.length) {
+          const pagePerson = getProfilePersonInfo();
+          for (const candidate of lastConnectionCandidates) {
+            const candidateId = String(candidate?.Name || candidate?.wtid || candidate?.id || "").trim();
+            if (pagePerson && candidateId && (candidateId === pagePerson.Name || candidateId === pagePerson.Id)) {
+              continue;
+            }
+            const name = String(
+              candidate?.RealName || candidate?.Derived?.ShortName || candidate?.Name || candidate?.displayName || ""
+            ).toLowerCase();
+            const first = String(candidate?.FirstName || name.split(/\s+/)[0] || "").toLowerCase();
+            if (!name) continue;
+            if (name === needle || name.startsWith(needle) || first === needle) {
+              resolved = {
+                Name: candidateId || null,
+                RealName: candidate.RealName || candidate.displayName || candidate.Name,
+              };
+              console.info("wbe: tryHandlePersonBioPrompt resolved from lastConnectionCandidates", {
+                resolved,
+                needle,
+              });
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        /* ignore */
+      }
+    }
+
+    // (the page's spouse links, only while the question is about the page's person)
+    if (!resolved?.Name && !resolved?.Id && focusIsPagePerson()) {
+      try {
+        const needle = String(targetRaw || "")
+          .trim()
+          .toLowerCase();
+        const domSpouseEls = Array.from(
+          document.querySelectorAll(
+            "a.spouseLink[href*='/wiki/'], a[itemprop=\"spouse\"][href*='/wiki/'], .spouseEntry a[href*='/wiki/']"
+          )
+        );
+        const pagePerson = getProfilePersonInfo();
+        for (const el of domSpouseEls) {
+          const nameText = (el.textContent || "").trim();
+          const realName = nameText || (el.querySelector(".spouse-name")?.textContent || "").trim();
+          if (needle && realName && realName.toLowerCase().startsWith(needle)) {
+            const href = el.getAttribute("href") || "";
+            const hrefMatch = href.match(/\/wiki\/([^#?/]+)/);
+            const id = hrefMatch ? decodeURIComponent(hrefMatch[1]) : null;
+            if (id) {
+              if (pagePerson && (id === pagePerson.Name || id === pagePerson.Id)) {
+                continue;
+              }
+              resolved = { Name: id, RealName: realName };
+              console.info("wbe: tryHandlePersonBioPrompt resolved from DOM by name", { resolved, needle });
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        /* ignore */
+      }
+    }
+
+    if (!resolved?.Name && !resolved?.Id) {
+      try {
+        const hasKey = await hasAnyApiKey();
+        if (hasKey) {
+          showChatShaky("Asking AI to resolve the name...");
+          const conversationContext = buildRecentConversationForAi();
+          const candidates = [];
+          const lastStructuredResult = getLastStructuredResult();
+          if (lastStructuredResult?.rows?.length) {
+            for (const row of lastStructuredResult.rows.slice(0, 50)) {
+              candidates.push(`${row.displayName || row.wtid || ""} (ID: ${row.wtid || row.wtId || row.id || ""})`);
+            }
+          }
+          const lastConnectionCandidates = getLastConnectionCandidates();
+          if (lastConnectionCandidates?.length) {
+            for (const candidate of lastConnectionCandidates.slice(0, 50)) {
+              candidates.push(
+                `${candidate.displayName || candidate.Name || candidate.name || ""} (ID: ${
+                  candidate.Name || candidate.wtid || candidate.id || ""
+                })`
+              );
+            }
+          }
+          const domEls = Array.from(
+            document.querySelectorAll("a.spouseLink[href*='/wiki/'], .spouseEntry a[href*='/wiki/']")
+          );
+          for (const el of domEls.slice(0, 50)) {
+            const href = el.getAttribute("href") || "";
+            const hrefMatch = href.match(/\/wiki\/([^#?/]+)/);
+            const id = hrefMatch ? decodeURIComponent(hrefMatch[1]) : null;
+            const label = (el.textContent || "").trim();
+            if (id && label) candidates.push(`${label} (ID: ${id})`);
+          }
+
+          const aiPrompt = [
+            "You are given a short person name to match to a list of candidate WikiTree profiles.",
+            candidates.length ? `Candidates:\n${candidates.join("\n")}` : "No explicit candidates available.",
+            conversationContext ? `Recent conversation:\n${conversationContext}` : "",
+            `Which candidate best matches the name \"${targetRaw}\"? Reply ONLY with the WikiTree ID (e.g. Name-123) or NO_ID if none match.`,
+          ]
+            .filter(Boolean)
+            .join("\n\n");
+
+          try {
+            let aiResult = null;
+            if (typeof window.callAiModel === "function") {
+              aiResult = await window.callAiModel(aiPrompt);
+            }
+            if (aiResult) {
+              const value = String(aiResult || "").trim();
+              if (value && value !== "NO_ID") {
+                resolved = { Name: value, RealName: targetRaw };
+                console.info("wbe: tryHandlePersonBioPrompt resolved by AI", { resolved, aiText: aiResult });
+              } else {
+                console.info("wbe: tryHandlePersonBioPrompt AI returned NO_ID", { aiText: aiResult });
+              }
+            }
+          } catch (error) {
+            console.info("wbe: tryHandlePersonBioPrompt AI fallback failed", { error });
+          }
+          hideChatShaky();
+        }
+      } catch (error) {
+        hideChatShaky();
+      }
+    }
+
+    let personKey = resolved?.Id || resolved?.Name;
+    let subjectDisplayName = resolved?.RealName || resolved?.Name || personKey;
+    let cameFromHops = false;
+
+    // Everyone one relation step away from personKey ("husband" → every
+    // husband; an ordinal "2nd husband" → one).
+    const collectHopKeys = async (key, hopType, hopRelation, hopOrdinal) => {
+      if (hopType === "spouses") {
+        const result = await WikiTreeAPI.getRelatives(
+          WBE_CHAT_APP_ID,
+          key,
+          "Id,Name,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,Gender",
+          { getSpouses: 1 }
+        );
+        const [pr] = result;
+        const spouses = shownSpouses(pr?.person?.Spouses).filter((spouse) => spouse?.Name);
+        const hopWord = String(hopRelation).toLowerCase();
+        const wantedGender = /^(wife|wives)$/.test(hopWord) ? "female" : /^(husband|husbands)$/.test(hopWord) ? "male" : null;
+        const genderMatches = wantedGender
+          ? spouses.filter((spouse) => String(spouse?.Gender || "").toLowerCase() === wantedGender)
+          : spouses;
+        // Gender data can be missing on private profiles; any spouse
+        // beats failing the hop outright.
+        return pickSpouseByOrdinal(genderMatches.length ? genderMatches : spouses, hopOrdinal).map((spouse) => spouse.Name);
+      }
+      if (hopType === "stepparents") return (await fetchStepParents(key, hopRelation)).people.map((person) => person.wtid);
+      if (hopType === "parents") return (await fetchGenderedParentIds(key, hopRelation)) || [];
+      if (hopType === "children") return (await fetchChildrenIdsForId(key)) || [];
+      if (hopType === "siblings") return (await fetchSiblingIdsForId(key, { skipDomFallback: true })) || [];
+      return [];
+    };
+
+    // Walk intermediate relation hops (e.g. "husband" in "Rebecca's husband's
+    // parents' bios"), keeping everyone each step reaches: "her husband's
+    // siblings' children" is every child of every sibling of every husband
+    // (live C15, 2026-10-03: Ellen had two husbands).
+    let fanOutKeys = [];
+    if (intermediateRelations.length && personKey) {
+      let hopFailed = false;
+      let failedHop = "";
+      let currentKeys = [personKey];
+      for (const hop of intermediateRelations) {
+        const { ordinal: hopOrdinal, word: hopRelation } = splitOrdinalFromRelation(hop);
+        const hopType = relMap[hopRelation.toLowerCase()];
+        if (!hopType) {
+          console.info("wbe: tryHandlePersonBioPrompt unknown intermediate hop, stopping chain", { hop, personKey });
+          hopFailed = true;
+          failedHop = hop;
+          break;
+        }
+        showChatShaky(`Looking up ${hop}...`);
+        const nextKeys = [];
+        for (const key of currentKeys) {
+          try {
+            nextKeys.push(...(await collectHopKeys(key, hopType, hopRelation, hopOrdinal)));
+          } catch (hopError) {
+            console.info("wbe: tryHandlePersonBioPrompt hop threw", { hop, hopType, key, hopError });
+          }
+        }
+        hideChatShaky();
+        // A numeric person Id must become a WikiTree ID: later steps call
+        // getProfile, which reads a number as a page Id (a different person).
+        const resolvedKeys = [];
+        for (const key of [...new Set(nextKeys.map(String).filter(Boolean))]) {
+          resolvedKeys.push(/^\d+$/.test(key) ? (await resolveToWTID(key)) || key : key);
+        }
+        console.info("wbe: tryHandlePersonBioPrompt intermediate hop resolved", {
+          hop,
+          hopType,
+          fromKeys: currentKeys,
+          nextKeys: resolvedKeys,
+        });
+        if (!resolvedKeys.length) {
+          console.info("wbe: tryHandlePersonBioPrompt hop could not resolve next person", { hop, hopType, currentKeys });
+          hopFailed = true;
+          failedHop = hop;
+          break;
+        }
+        currentKeys = [...new Set(resolvedKeys)];
+      }
+      if (hopFailed) {
+        hideChatShaky();
+        return `I couldn't follow the full relationship chain in "${prompt}". I found no ${failedHop || "?"} recorded at that step.`;
+      }
+      cameFromHops = true;
+      const rootLabel = resolved?.RealName || resolved?.Name || "";
+      if (currentKeys.length > 1) {
+        fanOutKeys = currentKeys;
+        personKey = currentKeys[0];
+        subjectDisplayName = describeRelationChain(rootLabel, intermediateRelations);
+      } else {
+        personKey = currentKeys[0];
+      }
+      // Fetch the display name of the final intermediate person for accurate labelling
+      if (!fanOutKeys.length && personKey !== (resolved?.Id || resolved?.Name)) {
+        try {
+          const [hopProfile] = await WikiTreeAPI.getProfile(WBE_CHAT_APP_ID, personKey, "Id,Name,RealName", {
+            resolveRedirect: 1,
+          });
+          if (hopProfile?.RealName || hopProfile?.Name) {
+            // "Sarah Brewington (Brewington-102), Benny's father's wife": name
+            // the person the chain reached, not the one it started from.
+            subjectDisplayName = `${hopProfile.RealName || hopProfile.Name} (${
+              hopProfile.Name || personKey
+            }), ${describeRelationChain(rootLabel, intermediateRelations)}`;
+          }
+        } catch (error) {
+          /* ignore, fallback to ID */
+        }
+      }
+    }
+
+    // Several people reached: the final relation of each, merged.
+    const collectFanOutEntries = async (relationType) => {
+      const ids = [];
+      for (const key of fanOutKeys) {
+        try {
+          if (!relationType || relationType === "self") ids.push(key);
+          else ids.push(...(await collectHopKeys(key, relationType, relationRaw, null)));
+        } catch (error) {
+          console.info("wbe: tryHandlePersonBioPrompt fan-out lookup failed", { key, relationType, error });
+        }
+      }
+      const uniqueIds = [...new Set(ids.map(String).filter(Boolean))].filter(
+        (id) => !fanOutKeys.includes(id) || !relationType || relationType === "self"
+      );
+      if (!uniqueIds.length) return [];
+      const [, , peopleMap] = await fetchPeoplePaged("Chat", uniqueIds, "Id,Name,RealName", {});
+      const people = Object.values(peopleMap || {});
+      return uniqueIds.map((id) => {
+        const person = people.find((entry) => String(entry?.Id) === id || entry?.Name === id);
+        return { wtid: person?.Name || id, displayName: person?.RealName || person?.Name || id };
+      });
+    };
+
+    let relationFetchFailedIds = [];
+    try {
+      if (!personKey) {
+        return `I couldn't identify which profile you meant by "${targetRaw}". Try a WikiTree ID like Name-123, or a more specific name.`;
+      }
+
+      const mapped = relationRaw ? relMap[relationRaw.toLowerCase()] : null;
+      const relationType = mapped || null;
+
+      // After walking hops, an unrecognised final relation must not silently
+      // degrade to the hopped person's own bio.
+      if (cameFromHops && relationRaw && relationRaw !== "self" && !mapped) {
+        return `I followed the relationship chain to ${subjectDisplayName}, but I didn't understand the final relation "${relationRaw}".`;
+      }
+
+      if (fanOutKeys.length && (!relationType || relationType === "self")) {
+        const people = await collectFanOutEntries(null);
+        showBioListPopup(subjectDisplayName, people.slice(0, 50), handleOpenFromBioList);
+        return {
+          message: `${subjectDisplayName}: ${people.length} people. ${people
+            .slice(0, 12)
+            .map((person) => `${person.displayName} (${person.wtid})`)
+            .join(", ")}`,
+          action: {
+            label: "Open List",
+            onClick: () => showBioListPopup(subjectDisplayName, people.slice(0, 50), handleOpenFromBioList),
+          },
+        };
+      }
+
+      if (!relationType || relationType === "self") {
+        showChatShaky("Loading biography...");
+        try {
+          const popup = document.getElementById("wbe-shaky-tree-popup");
+          if (popup) setHighestZIndex(popup);
+        } catch (error) {
+          /* ignore */
+        }
+        console.info("wbe: tryHandlePersonBioPrompt fetching profile for self", { personKey });
+        // The WikiTree ID: getProfile reads a number as a page Id, a different person
+        // (live, 2026-10-11: Atkinson-5584's person Id is Kuehn-224's page Id).
+        const profileKey =
+          /^\d+$/.test(String(personKey)) && String(personKey) === String(resolved?.Id) && resolved?.Name
+            ? resolved.Name
+            : personKey;
+        const [profile] = await WikiTreeAPI.getProfile(
+          WBE_CHAT_APP_ID,
+          profileKey,
+          "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
+          {
+            bioFormat: "both",
+            resolveRedirect: 1,
+          }
+        );
+        hideChatShaky();
+        if (!profile) return unloadedProfileMessage(personKey, { appId: WBE_CHAT_APP_ID, what: "biography", pageRoot: safePageRoot() });
+        const result = {
+          message: `Biography for ${profile?.Name || personKey}:`,
+          action: {
+            label: "Show Bio",
+            onClick: async () => {
+              const wtid = await resolveToWTID(profile?.Name || personKey);
+              showBioPopupForId(wtid).catch(() => {});
+            },
+          },
+          inlineMore: { text: profile?.Bio || profile?.bio || profile?.BioText || null },
+        };
+        showBioPopupForId(profile?.Name || personKey).catch(() => {});
+        return result;
+      }
+
+      let entries = [];
+      if (fanOutKeys.length) {
+        entries = await collectFanOutEntries(relationType);
+      } else if (relationType === "stepparents") {
+        const { parentWord, people } = await fetchStepParents(personKey, relationRaw);
+        if (!people.length) {
+          return `I found no ${relationRaw} for ${subjectDisplayName}: no other wife or husband of their ${parentWord} is recorded.`;
+        }
+        entries = people;
+      } else if (relationType === "spouses") {
+        showChatShaky("Looking up spouse(s)...");
+        console.info("wbe: tryHandlePersonBioPrompt calling getRelatives for spouses", { personKey });
+        const relativesResult = await WikiTreeAPI.getRelatives(
+          WBE_CHAT_APP_ID,
+          personKey,
+          "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,DeathLocation,Gender",
+          { getSpouses: 1 }
+        );
+        hideChatShaky();
+        const [peopleResult] = relativesResult;
+        const profile = peopleResult?.person || {};
+        const wantedSpouseGender = /^(wife|wives)$/i.test(String(relationRaw || ""))
+          ? "female"
+          : /^(husband|husbands)$/i.test(String(relationRaw || ""))
+          ? "male"
+          : null;
+        let spouseValues = shownSpouses(profile?.Spouses);
+        if (wantedSpouseGender) {
+          const genderMatches = spouseValues.filter(
+            (s) => String(s?.Gender || "").toLowerCase() === wantedSpouseGender
+          );
+          if (genderMatches.length) spouseValues = genderMatches;
+        }
+        entries = spouseValues.map((spouse) => ({
+          wtid: spouse.Name,
+          displayName: spouse.RealName || spouse.Name,
+        }));
+        if (!entries.length && focusIsPagePerson()) {
+          try {
+            const domSpouseEls = Array.from(
+              document.querySelectorAll(
+                "a.spouseLink[href*='/wiki/'], a[itemprop=\"spouse\"][href*='/wiki/'], .spouseEntry a[href*='/wiki/']"
+              )
+            );
+            const pagePerson = getProfilePersonInfo();
+            const domSpouses = domSpouseEls
+              .map((el) => {
+                const href = el.getAttribute("href") || "";
+                const hrefMatch = href.match(/\/wiki\/([^#?/]+)/);
+                const id = hrefMatch ? decodeURIComponent(hrefMatch[1]) : null;
+                const nameText = (el.textContent || "").trim();
+                return id ? { wtid: id, displayName: nameText || id } : null;
+              })
+              .filter(Boolean)
+              .filter((spouse) => {
+                if (!spouse || !spouse.wtid) return false;
+                if (pagePerson && (spouse.wtid === pagePerson.Name || spouse.wtid === pagePerson.Id)) return false;
+                return true;
+              });
+            if (domSpouses.length) entries = domSpouses;
+          } catch (error) {
+            console.info("wbe: tryHandlePersonBioPrompt spouse DOM fallback failed", { error });
+          }
+        }
+      } else if (relationType === "children") {
+        const ids = await fetchChildrenIdsForId(personKey);
+        if (ids && ids.length) {
+          const failed = [];
+          entries = [];
+          const allNumeric = ids.every((value) => Number.isFinite(Number(value)) && Number(value) > 0);
+          if (allNumeric && ids.length > 4) {
+            const [, , peopleMap] = await fetchPeoplePaged(
+              "Chat",
+              ids,
+              "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
+              {}
+            );
+            for (const id of ids) {
+              const key = String(id);
+              const person = peopleMap[key];
+              if (person && Object.keys(person).length) {
+                entries.push({ wtid: person.Name || id, displayName: person.RealName || person.Name || id });
+              } else {
+                failed.push(id);
+              }
+            }
+          } else {
+            const profiles = await fetchProfilesForIds(ids, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
+              bioFormat: "both",
+              resolveRedirect: 1,
+            });
+            for (let index = 0; index < ids.length; index += 1) {
+              const profile = profiles[index];
+              if (profile && Object.keys(profile).length) {
+                entries.push({
+                  wtid: profile.Name || ids[index],
+                  displayName: profile.RealName || profile.Name || ids[index],
+                });
+              } else {
+                failed.push(ids[index]);
+              }
+            }
+          }
+          relationFetchFailedIds = failed.slice();
+          if (!entries.length && failed.length) {
+            return `Failed to load child profiles: ${failed.join(
+              ", "
+            )} - server errors or no data. No popups were opened.`;
+          }
+          if (relationFetchFailedIds.length) window.wbeSuppressAutoBioOpen = true;
+        }
+      } else if (relationType === "siblings") {
+        const ids = await fetchSiblingIdsForId(personKey, { skipDomFallback: cameFromHops });
+        if (ids && ids.length) {
+          const failed = [];
+          entries = [];
+          const allNumeric = ids.every((value) => Number.isFinite(Number(value)) && Number(value) > 0);
+          if (allNumeric) {
+            const [, , peopleMap] = await fetchPeoplePaged(
+              "Chat",
+              ids,
+              "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
+              {}
+            );
+            for (const id of ids) {
+              const key = String(id);
+              const person = peopleMap[key];
+              if (person && Object.keys(person).length) {
+                entries.push({ wtid: id, displayName: person.RealName || person.Name || id });
+              } else {
+                failed.push(id);
+              }
+            }
+          } else {
+            const profiles = await fetchProfilesForIds(ids, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
+              bioFormat: "both",
+              resolveRedirect: 1,
+            });
+            for (let index = 0; index < ids.length; index += 1) {
+              const profile = profiles[index];
+              if (profile && Object.keys(profile).length) {
+                entries.push({ wtid: ids[index], displayName: profile.RealName || profile.Name || ids[index] });
+              } else {
+                failed.push(ids[index]);
+              }
+            }
+          }
+          relationFetchFailedIds = failed.slice();
+          if (!entries.length && failed.length) {
+            return `Failed to load sibling profiles: ${failed.join(
+              ", "
+            )} - server errors or no data. No popups were opened.`;
+          }
+          if (relationFetchFailedIds.length) window.wbeSuppressAutoBioOpen = true;
+        }
+      } else if (relationType === "parents") {
+        const ids = await fetchGenderedParentIds(personKey, relationRaw);
+        if (ids && ids.length) {
+          const failed = [];
+          entries = [];
+          const allNumeric = ids.every((value) => Number.isFinite(Number(value)) && Number(value) > 0);
+          if (allNumeric) {
+            const [, , peopleMap] = await fetchPeoplePaged(
+              "Chat",
+              ids,
+              "Bio,BioHtml,BioText,Biography,Name,RealName,Id",
+              {}
+            );
+            for (const id of ids) {
+              const key = String(id);
+              const person = peopleMap[key];
+              if (person && Object.keys(person).length) {
+                entries.push({ wtid: id, displayName: person.RealName || person.Name || id });
+              } else {
+                failed.push(id);
+              }
+            }
+          } else {
+            const profiles = await fetchProfilesForIds(ids, "Bio,BioHtml,BioText,Biography,Name,RealName,Id", {
+              bioFormat: "both",
+              resolveRedirect: 1,
+            });
+            for (let index = 0; index < ids.length; index += 1) {
+              const profile = profiles[index];
+              if (profile && Object.keys(profile).length) {
+                entries.push({ wtid: ids[index], displayName: profile.RealName || profile.Name || ids[index] });
+              } else {
+                failed.push(ids[index]);
+              }
+            }
+          }
+          relationFetchFailedIds = failed.slice();
+          if (!entries.length && failed.length) {
+            return `Failed to load parent profiles: ${failed.join(
+              ", "
+            )} - server errors or no data. No popups were opened.`;
+          }
+          if (relationFetchFailedIds.length) window.wbeSuppressAutoBioOpen = true;
+        }
+      }
+
+      if (!entries.length) {
+        return `No ${relationType} information found for ${subjectDisplayName}.`;
+      }
+
+      if (entries.length === 1) {
+        const singleId = entries[0].wtid;
+        if (Array.isArray(relationFetchFailedIds) && relationFetchFailedIds.length) {
+          showBioListPopup(
+            `${relationType} for ${subjectDisplayName}`,
+            entries.slice(0, 50),
+            handleOpenFromBioList
+          );
+          return {
+            message: `Found ${entries.length} ${relationType} for ${
+              subjectDisplayName
+            }, but some profiles failed to load (${relationFetchFailedIds.join(
+              ", "
+            )}). Open the list to view available entries.`,
+            action: {
+              label: "Open List",
+              onClick: () =>
+                showBioListPopup(
+                  `${relationType} for ${subjectDisplayName}`,
+                  entries.slice(0, 50),
+                  handleOpenFromBioList
+                ),
+            },
+          };
+        }
+        try {
+          const resolvedWtid = await resolveToWTID(singleId);
+          showBioPopupForId(resolvedWtid).catch(() => {});
+          return {
+            message: `Opened bio for ${entries[0].displayName || resolvedWtid}.`,
+            action: {
+              label: "Show Bio",
+              onClick: async () => {
+                const wtid = await resolveToWTID(singleId);
+                showBioPopupForId(wtid).catch(() => {});
+              },
+            },
+          };
+        } catch (error) {
+          return `Failed to open bio for ${entries[0].displayName || singleId}.`;
+        }
+      }
+
+      if (wantsBioPlural) {
+        const ids = entries.map((entry) => entry.wtid).filter(Boolean);
+        try {
+          showBioListPopup(
+            relativesBiosTitle(subjectDisplayName, relationType),
+            entries.slice(0, 50),
+            handleOpenFromBioList
+          );
+          await showTiledViaApi(ids.slice(0, 9));
+          return {
+            message: `Opened ${Math.min(ids.length, 9)} bios for ${subjectDisplayName}.`,
+            action: {
+              label: "Open List",
+              onClick: () =>
+                showBioListPopup(
+                  relativesBiosTitle(subjectDisplayName, relationType),
+                  entries.slice(0, 50),
+                  handleOpenFromBioList
+                ),
+            },
+          };
+        } catch (error) {
+          console.error("wbe: tryHandlePersonBioPrompt failed to open tiled bios", error);
+        }
+      }
+
+      showBioListPopup(`${relationType} for ${subjectDisplayName}`, entries.slice(0, 50), handleOpenFromBioList);
+      return {
+        message: `Found ${entries.length} ${relationType} for ${subjectDisplayName}.`,
+        action: {
+          label: "Open List",
+          onClick: () =>
+            showBioListPopup(`${relationType} for ${subjectDisplayName}`, entries.slice(0, 50), handleOpenFromBioList),
+        },
+      };
+    } catch (err) {
+      hideChatShaky();
+      console.error("wbe: tryHandlePersonBioPrompt error", err);
+      return `Failed to lookup information for ${resolved?.RealName || resolved?.Name || targetRaw}.`;
+    }
+  }
+
+  return {
+    showBioPopupForId,
+    listSpousesForId,
+    dumpProfileForId,
+    showTiledViaApi,
+    handleOpenFromBioList,
+    fetchSiblingIdsForId,
+    fetchChildrenIdsForId,
+    fetchParentIds,
+    tryHandleSpouseBioIntent,
+    tryHandlePersonBioPrompt,
+  };
+}

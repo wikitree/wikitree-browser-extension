@@ -1,0 +1,249 @@
+# Chat Architecture Notes
+
+## Original Intent
+
+Chat should classify a free-text request, choose the right deterministic data source first, and only use AI for parsing or supplemental explanation when structured tools are not enough.
+
+The key design rule is:
+
+- Connection and relationship-path questions should use `getConnections`.
+- Ancestor, descendant, spouse, sibling, parent, child, and list/count questions should mostly use `getPeople` or other direct WikiTree API calls.
+- Prompts beginning with `Search` should respect the user-selected mode: `WT`, `WT+`, or `AI`.
+
+## Search Modes
+
+### `WT`
+
+Use standard WikiTree API search and deterministic lookups.
+
+- Prefer `searchPerson`, `getPerson`, `getPeople`, and related API endpoints.
+- Use this when the user wants profile search behavior, not category/WT+ behavior.
+
+### `WT+`
+
+Use WikiTree+ endpoints for categories and other query patterns that are awkward or unavailable via the standard API.
+
+- Some WT+ calls return profile ID lists only.
+- Some WT+ calls return HTML tables.
+- WT+ results often need follow-up enrichment through `getPeople` before answer generation.
+
+### `AI`
+
+Use AI to parse free text and provide broader explanatory output.
+
+- AI should receive bounded context from the page, recent chat, and prior structured results.
+- AI should not replace deterministic tool execution for connection, people, or search queries when a local tool can answer them.
+
+## Intent To Data-Source Map
+
+### Connection / distance / relationship path
+
+- Primary source: `WikiTreeAPI.getConnections`
+- Fallback label helper: `getRelationJSON`
+- Expected output: path, distance, relationship summary, optional popup/table view
+
+### Ancestors / descendants / family lists / counts
+
+- Primary source: `WikiTreeAPI.getPeople`
+- Use relationship expansion such as `ancestors`, `descendants`, `nuclear`, or related deterministic fetches
+- Expected output: list, count, grouped summary, or table
+
+### Direct person lookup / profile search
+
+- `WT` mode: `searchPerson` and follow-up `getPerson`/`getPeople`
+- `WT+` mode: `wtAPIProfileSearch` or other WT+ adapters, then enrich if needed
+
+### General explanation / synthesis
+
+- AI only after local routing is attempted or when the user explicitly chose `AI`
+
+## How a prompt is handled
+
+`sendChatPrompt` in `chat.js` runs a prompt through five stages, in order. Each stage is a list of named steps; a step that answers ends the turn, and one that rewrites the prompt passes the rewrite on. The console says which step did it: `wbe: genie step <name>` (answered) or `wbe: genie step <name> rewrote the prompt` (with before/after).
+
+- **A. Front door** (`FRONT_DOOR_STEPS`, raw prompt): help, apps sign-out, the tour, edit-page checks (missing fields, form vs bio, categories, change explanation) and edit commands.
+- **B. Rewrites** (`REWRITE_STEPS`): relation chain, "try again", accepted follow-up offer, `mergeWithEarlierQuestion` (a correction or an answer to "which one?" is merged by AI with the earlier question and shown as "Taking that as: …", `chat_followup_merge.js`), remembered names, pronouns, connection follow-up.
+- **C. Commit**: the user's message is shown, the spinner starts, and the prompt "try again" would replay is set.
+- **D. Before routing** (`BEFORE_ROUTING_STEPS`, sharing a `turn` object): JSON batch, century/decade, columns, "which one" reply, export, WT+ narrowing, unanswered list, explicit search mode (`handleExplicitSearchMode`), connection correction, pronoun follow-up, person bio.
+- **E. Answer** (`answerTurn`): the router (`routeChatPrompt`, logged as `wbe: genie step routed <intent>`); then, unless the intent is in `DETERMINISTIC_INTENTS`, the AI planner (`tryHandleAiPlannedIntent`, whose "rewrite" runs once more through the local handlers in `runRewrittenPrompt`); then the routed tool (`executeRoutedIntent`); then `answerWithGeneralAi`, which tells the AI about the profile `findProfileContextForAi` picks and any local tool failure.
+
+The planner's choices are checked before they run: the drift guards in `chat_planner.js` (`plannerDriftsToBios`, `plannerDriftsFromOneProfile`, `plannerDriftsToConnection`, `plannerRewriteDrifts`) reject a plan that changes what was asked, such as a rewrite that drops "adoptive" or turns a question into a profile check.
+
+To find who answered a wrong reply, read the `genie step` lines in the console first.
+
+## Current Structural Problem
+
+`chat.js` currently mixes too many responsibilities:
+
+- popup UI state
+- chat history state
+- prompt routing
+- AI prompt construction
+- connection resolution and disambiguation
+- `getPeople`/search result handling
+- WT+ adaptation
+- bio popup workflows
+
+This makes it easy for fixes to land in the wrong place and hard for future agents to see where a change belongs.
+
+## Target Module Boundaries
+
+### `chat.js`
+
+Keep as the orchestrator only.
+
+- event wiring
+- top-level state
+- mode selection
+- call router, adapters, and UI helpers
+
+### `chat_router.js`
+
+Own prompt parsing and intent classification.
+
+- keyword detection
+- target extraction
+- subject parsing
+- result-operation parsing
+
+### `chat_disambiguation.js`
+
+Own candidate-choice prompts and selection parsing.
+
+- score-gap threshold for when to ask the user to choose
+- human-readable disambiguation message formatting
+- reply parsing (number, ordinal, or explicit WikiTree ID)
+
+### `chat_connections.js`
+
+Own connection-specific execution.
+
+- target resolution
+- page-context matching
+- candidate ranking and disambiguation
+- `getConnections` execution
+- fallback relationship labeling
+
+### `chat_people.js`
+
+Own deterministic people queries.
+
+- ancestor/descendant/family list fetches
+- list/count transformations
+- `getPeople` paging and enrichment helpers
+
+### `chat_search.js`
+
+Own `Search` behavior.
+
+- mode split between `WT`, `WT+`, and `AI`
+- local search preparation
+- WT+ adapter calls
+
+Current implementation note:
+
+- explicit Search mode dispatch for `WT` and `AI` has been extracted to `chat_search_mode.js`
+- profile-search execution (`tryHandleProfileSearchPrompt`) now lives in `chat_profile_search.js`
+- `chat.js` should only initialize the search handler via dependency injection and route calls to it
+
+### `chat_ai.js`
+
+Own AI-facing helpers.
+
+- recent-conversation prompt assembly
+- structured parse helpers
+- planner/disambiguation/category extraction helpers
+- bounded page/profile context packaging
+
+Current implementation note:
+
+- shared AI helpers (`buildRecentConversationForAi`, `getChatAiConfig`, `hasAnyApiKey`) now live in `chat_ai.js`
+- `chat.js` should use these helpers via dependency wiring and avoid duplicating provider/key selection logic
+
+### Existing modules that already fit this shape
+
+- `ui.js`: popup and loader UI
+- `tables.js`: normalized tabular output
+- `chat_options.js`: settings
+- `chat_bio.js`: biography popups, spouse/relative bio flows, and family lookup helpers used by bio prompts
+- `chat_history.js`: chat history persistence, retry tracking, message rendering, and action-button reconstruction for prior messages
+- `chat_dom_lookup.js`: profile-page DOM ID extraction for spouses/children/siblings/parents
+- `chat_cc.js`: CC fetch/cache handlers and watchlist flow (`CC` summary/location + watchlist table/list output)
+- `chat_last_result.js`: result-operation refinements (`table`, `count`, `countBy`, `sort`, `filter`)
+- `chat_relations.js`: deterministic relation handlers (`siblings`, `parents`, `children`, `spouses`, `aunts/uncles`, `grand*` relations, relation-chain parsing/list/count)
+- `chat_planner.js`: AI-assisted intent planning and disambiguation — `parsePlannerJson`, `tryHandleAiPlannedIntent`, `tryAiDisambiguateConnectionTarget`, `tryAiParseCategoryName`, `tryAiExpandConnectionTarget`
+
+## Immediate Refactor Rules
+
+When editing Chat going forward:
+
+1. If the change is prompt parsing, put it in `chat_router.js`.
+2. If the change is connection lookup behavior, keep it on the `getConnections` path.
+3. If the change is `Search` mode behavior, make the selected mode explicit before execution.
+4. If the change is AI context or AI parsing, keep it out of the deterministic execution functions.
+5. Do not duplicate parsing helpers between `chat.js` and helper modules.
+6. A handler that must run before routing goes in the right stage list in `chat.js` (front door, rewrites or before routing) with a `name`, not as a new `if` in `sendChatPrompt`. Put it after the steps that must see the prompt first.
+
+## Current Refactor Progress
+
+The connection-target extraction helper is now shared from `chat_router.js` instead of being duplicated in `chat.js`, and the inferred page-profile target is now passed through the actual connection resolver.
+
+The `getConnections` workflow now lives in `chat_connections.js` rather than inside `chat.js`. That module owns:
+
+- target resolution for connection lookups
+- correction/retry handling for alternate person matches
+- `getConnections` execution and fallback relation attempts
+- legacy relationship-label parsing for no-path cases
+
+This establishes the intended direction: parsing in the router, connection execution in a dedicated module, and `chat.js` as the orchestrator.
+
+The profile-search pipeline now also lives outside `chat.js` in `chat_profile_search.js`.
+This includes search modifier parsing, optional AI query parsing, deterministic WT/WT+ category handling, spouse filtering, and table shaping.
+
+Core AI configuration and conversation-history helpers now live in `chat_ai.js`, further reducing orchestration logic in `chat.js`.
+
+Candidate disambiguation helpers also live outside `chat.js` in `chat_disambiguation.js`.
+
+Profile-page relation-link scraping helpers now live in `chat_dom_lookup.js`.
+
+CC and watchlist handlers now live in `chat_cc.js`, with CC cache state owned inside that module.
+
+Last-result refinement logic now lives in `chat_last_result.js` and is wired from `chat.js` via a dependency-injected factory.
+
+Relation query execution now also lives in `chat_relations.js` and is wired from `chat.js` via a dependency-injected factory.
+
+Deterministic people-query execution now also lives in `chat_people.js`, including ancestor/descendant list handling, spouse-list handling, age-at-death summaries, and profile-family CC matching.
+
+Biography popup and relative-bio execution now also lives in `chat_bio.js`, including direct bio prompts, spouse-bio flows, tiled/list bio opening, and shared child/sibling/parent lookup helpers.
+
+Chat history persistence and message rendering now also lives in `chat_history.js`, including session restore/clear, retry-request tracking, inline "show more" expansion, and reconstruction of saved Connections/Table/Show Bio actions.
+
+AI-assisted planning and disambiguation now also lives in `chat_planner.js`. This includes `parsePlannerJson` (JSON extraction from AI responses), `tryHandleAiPlannedIntent` (sends the full planner prompt and routes the parsed intent), `tryAiDisambiguateConnectionTarget` (AI-ranked candidate resolution for connection targets), `tryAiParseCategoryName` (canonical category-query extraction), and `tryAiExpandConnectionTarget` (alternate search-name / WikiTree ID suggestion). All five are wired into `chat.js` via `createChatAiPlannerHandlers`. Note that `executeRoutedIntent` is injected as a thunk because it is defined after the factory call.
+
+`sendChatPrompt` is now the staged pipeline described in "How a prompt is handled" (849 → 113 lines); routing and the AI answer live in `answerTurn` and `answerWithGeneralAi`.
+
+Shared DRY helpers:
+
+- `chat_filter_scope.js` owns the identical location/year scope parser used by married-no-children and sibling-birth-gap filters. Pattern order is preserved; filters with different scope rules remain separate.
+- `chat_chart_owner.js` owns the chart parsers' owner groups (`CHART_OWNER`, `CHART_OWNER_AFTER`, `RELATIVE_OWNER`) and `canonicalChartOwner`, which reads any form of a pronoun. Family timeline and the life line keep their page-profile/`me` convention in `timelineOwner`.
+- `chat_chart_common.js` supplies standard fullscreen, SVG, PNG, and close controls through `chartPopupControls()`. Charts retain their own extra controls and action handlers.
+
+- `chat_dates.js` owns partial-date parsing and whole-year age calculations. Marriage duration keeps its `{years, approx}` interface as a wrapper.
+- `chat_kin_labels.js` owns ancestor/descendant labels and generation labels. Existing module exports remain available for callers.
+- `handleChartPopupButton()` in `chat_chart_common.js` handles standard chart actions for charts without special export or fullscreen work. Charts that finish animations before exporting retain their specialized handlers.
+
+- `chat_ahnentafel.js` owns the guarded API Ahnentafel-to-generation calculation and the ancestor walk (`ahnenNumbers`) shared by people queries and profile search.
+- `chat_chart_colours.js` owns the Birth year (`birthYearColouring`) and Surname/Birth country (`topValueColouring`) colourings of the fan chart, descendant chart, spiral and fractal tree. The fractal tree's surnames and countries keep their own colours for as long as its popup is open, so only its birth years use it.
+- `chat_place_text.js` supplies location-field labels for people and relation answers.
+- `partialDateSortKey()` in `chat_dates.js` supplies partial birth/death date keys for relative selection and age comparisons. It retains unknown months/days as `00`.
+- Profile search reuses the exported tokenizer in `wt_plus_query_grammar.js`; quoted fields and phrases have one tokenization rule.
+
+- `chat_fractal_common.js` owns shared nested/spiral canvas UI: styles, reduced-motion detection, text wrapping, Enter-to-cycle search, PNG export, and ancestor/descendant switch button state. Renderers supply current search nodes and their own flight/pulse durations; colouring, zoom geometry, and expansion remain layout-specific.
+
+- `createChartPopup()`, `mountChartPopup()`, and `closeChartPopup()` share creation, dragging, optional resize observation, and close/replacement cleanup for four SVG charts and both fractal canvas layouts. SVG cleanup interrupts animations; canvas cleanup cancels frames, pulse/retry timers, and zoom transitions. Replacement also exits fullscreen and destroys the drag widget.
+
+- `chat_connection_source.js` owns connection source precedence: explicit user references, explicit named endpoints, then the current person on profile/edit pages or the user on other pages. Bare `relationship to …` routes locally, so AI planning cannot introduce an unintended `my` endpoint.
+
+### Family relationship map
+
+`chat_family_matrix_data.js` loads paginated `getPeople` ancestry and descendant branches, then groups unique profiles by their nearest shared ancestor. `chat_family_matrix.js` displays accessible count cards and full-name/date lists with hover, focus, pinning and search. The chart uses the shared chart owner resolution and popup lifecycle. Defaults are four ancestor generations and five descendant generations; controls allow 25 and 10 respectively. Collateral descendant requests start from the nearest four ancestor generations to bound requests. Counts describe fetched profiles, with full and half cousins combined.

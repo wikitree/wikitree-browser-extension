@@ -3302,6 +3302,25 @@ const testProfiles = [
     refCurrentLastName: "Karr",
   },
   {
+    // Bio has been fully cleaned up since the GEDCOM import. All the sources are inline refs in
+    // text that AGC carries over unchanged, so AGC should not add an {{Unsourced}} template.
+    profileName: "Turner-4916",
+    inBirthDate: "1772",
+    inBirthDateIsBefore: false,
+    inDeathDate: "",
+    inDeathDateIsBefore: false,
+    inPrefName: "James",
+    currentLastName: "Turner",
+    inPersonGender: "Male",
+
+    refSucceeded: true,
+    refBirthDate: "1772",
+    refBirthDateIsBefore: false,
+    refDeathDate: "",
+    refDeathDateIsBefore: false,
+    refCurrentLastName: "Turner",
+  },
+  {
     // From https://wikitree.com/wiki/Space:Current_Gedcom_Under_Review
     profileName: "Van_Urk-3",
     inBirthDate: "8 Jan 1789",

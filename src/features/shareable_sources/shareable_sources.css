@@ -10,6 +10,9 @@
   padding: 1em;
   white-space: pre-wrap;
 }
+.referenceBox .copy--buttons {
+  display: inline-block;
+}
 
 body.edit-person .referenceBox {
   width: 30em;

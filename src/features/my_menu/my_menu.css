@@ -76,6 +76,35 @@
   right: -10px;
 }
 
+/* Below Bootstrap's lg breakpoint WikiTree renders its nav twice: a desktop
+   container that is display:none, and the #offcanvasNavbar drawer. Our menu
+   group ends up in both, so the only reachable copy is the one in the drawer —
+   where `right: -10px` puts the gear 10px outside the drawer's edge and it
+   can't be tapped. Sit it inline next to the button instead. */
+@media (max-width: 991px) {
+  /* The group computes to display:block here, so the button claims the whole row
+     and pushes an inline gear past the drawer's edge. Lay them out as a row. */
+  .myMenuGroup {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .myMenuGroup .myMenuLink {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .myMenuGears {
+    position: static;
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    margin-left: 0.5em;
+    vertical-align: middle;
+  }
+}
+
 #myCustomMenuContainer > li:hover ul {
   display: block;
 }
@@ -175,11 +204,15 @@ added.addedText {
   display: none;
   text-align: left;
   max-width: 1300px;
-  min-width: 1025px;
+  /* A flat 1025px min-width overflows any window narrower than that, which is
+     easy to hit on a resized desktop window and guaranteed on a phone. Keep the
+     roomy two-column width where it fits, and give way below that. */
+  min-width: min(1025px, 90vw);
   display: flex;
   gap: 1em;
   padding-left: 0;
 }
+
 
 /* Left side: Header + Menus */
 #customMenuLeft {
@@ -298,27 +331,95 @@ body.darkMode #customMenuContainer #addLinkForm {
   border: 2px solid #e1f0b4;
 }
 
-body.darkMode #myMenuGroup.fixed,
 body.darkMode .myCustomMenu {
   background-color: #666666 !important;
 }
 
-#myMenuGroup.fixed {
-  /*  position: fixed; */
-  float: right;
-  /*top: 1em;
-  left: 50%;
-  transform: translateX(-50%);*/
-  width: 7em;
-  padding-top: 0;
-  z-index: 1000;
-  padding-bottom: 0;
-  border: 0;
-  margin-right: 1em;
-  margin-top: -0.5em;
-  background: inherit;
-}
+/* The .fixed rules that were here styled the menu group after the resize handler
+   relocated it into the mobile header. That handler has been removed (it only
+   ever moved the hidden desktop copy), and nothing applies .fixed any more. */
 
-header .justify-content-end #myMenuGroup.fixed {
-  margin-top: 0.1em;
+/* ---------------------------------------------------------------------------
+   Narrow viewports.
+
+   This block lives at the end of the file on purpose: the rules it overrides
+   (#customMenuLeft's 650px floor, #navsContainer's row layout) are plain id and
+   element selectors, so an earlier @media block of equal specificity would lose
+   on source order.
+   --------------------------------------------------------------------------- */
+@media (max-width: 1100px) {
+  #customMenuOptions {
+    flex-direction: column;
+    min-width: 0;
+    height: auto;
+    max-height: 80vh;
+    max-height: 80dvh;
+    /* The close button below is sticky, and sticky `top: 0` pins to the
+       scrollport — which starts inside this padding. Trimming the top padding is
+       what actually lifts the button towards the corner. */
+    padding-top: 0.25em;
+  }
+
+  #customMenuLeft,
+  #customMenuContainer {
+    width: 100%;
+    min-width: 0;
+    padding-left: 0;
+  }
+
+  /* The cloned nav menus lay their button groups out in a row, each with a 10em
+     floor, so the panel's contents run well past its edge and link text gets
+     clipped. Stack the clones and their groups instead. */
+  #navsContainer,
+  #navsContainer .menuClone {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    width: 100%;
+    gap: 0.5em;
+  }
+
+  #navsContainer div.btn-group,
+  #navsContainer .dropdown {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Nothing inside should be able to push the panel wider than the screen. */
+  #customMenuOptions ul,
+  #customMenuOptions li,
+  #customMenuHeader,
+  #customMenuInfo,
+  #addLinkForm {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  #customMenuOptions li a {
+    overflow-wrap: anywhere;
+  }
+
+  /* The close button was position:absolute inside a scrolling panel, so it was
+     placed against the padding box and scrolled away with the content. Sticky
+     keeps it pinned to the top of the scroll container. */
+  #customMenuOptions x {
+    position: sticky;
+    top: 0;
+    right: auto;
+    align-self: flex-end;
+    /* Pull back through the panel's right padding so it sits near the corner
+       without touching the border. */
+    margin-top: 0;
+    margin-right: -0.5em;
+    z-index: 3;
+    border-radius: 0.25em;
+    /* 19x29px is well under a comfortable touch target. Grow the hit area
+       without growing the glyph. */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
 }

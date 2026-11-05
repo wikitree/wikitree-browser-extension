@@ -16,6 +16,8 @@ import { addFiltersToWikitables } from "../table_filters/table_filters";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
+import { firstNameVariants, loadFirstNameVariants } from "../auto_bio/first_name_variants_loader.js";
+import { getNameVariantsAll } from "../auto_bio/nameUtils.js";
 
 const WBE_MYC_APP_ID = "WBE_my_connections";
 
@@ -952,8 +954,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       `<table class='peopleTable ${tableClass}' id='${tableID}' ${tableIDBit}>${aCaption}<thead><tr>${missingFather}${missingMother}${missingSibling}${missingSpouse}${missingChildren}${ahnenHeader}${relTH}<th id='firstname' data-order=''>Given name(s)</th><th id='lnab'>LNAB</th><th id='lnc' data-order=''>CLN</th><th id='birthdate' data-order=''>Birth date</th><th data-order='' id='birthlocation'>Birth place</th><th data-order='' id='deathdate'>Death date</th><th data-order='' id='deathlocation'>Death place</th>${livedForCol}${setAs}${childrenCountTH}${emptyTD}<th id='created' data-order='' >Created</th><th id='edited' data-order='' >Edited</th></tr></thead><tbody></tbody></table>`
     );
 
-    // eslint-disable-next-line no-undef
-    if (isMyUnconnecteds == true) {
+    if (window.isMyUnconnecteds == true) {
       insAfter = $("h2").eq(0);
     }
 
@@ -1513,10 +1514,9 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       }
 
       if (
-        // eslint-disable-next-line no-undef
-        isUnconnecteds == true &&
+        window.isUnconnecteds == true &&
         index == 0 &&
-        isMyUnconnecteds == false &&
+        window.isMyUnconnecteds == false &&
         $("body.edit-family").length == 0
       ) {
         aClass = "notable";
@@ -1575,7 +1575,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
           } else if (mChild.length == 1) {
             childAhnen = mChild.attr("data-ahnen");
           }
-          mPersonAhnen = "";
+          let mPersonAhnen = "";
           if (typeof childAhnen != "undefined") {
             mPersonAhnen = parseInt(childAhnen) * 2;
           }
@@ -1877,7 +1877,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       } else {
         locationFilterButton.insertBefore($(".peopleTable"));
       }
-    } else if (isUnconnecteds == false && tableID != "profileAncestors") {
+    } else if (window.isUnconnecteds == false && tableID != "profileAncestors") {
       $("h2").eq(0).append(locationFilterButton);
     }
     if (firstTime == true) {
@@ -1956,7 +1956,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
         }
       });
     }
-  } else if (isUnconnecteds == false && tableClass != "category") {
+  } else if (window.isUnconnecteds == false && tableClass != "category") {
     const locationFilterSP = $(
       "<label class='" +
         tableClass +
@@ -2015,11 +2015,11 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     } else {
       nameFilterButton.insertBefore($(".peopleTable"));
     }
-  } else if (isUnconnecteds == false && tableClass != "category" && tableID != "profileAncestors") {
+  } else if (window.isUnconnecteds == false && tableClass != "category" && tableID != "profileAncestors") {
     $("h2").eq(0).append(nameFilterButton);
   }
   if (firstTime == true) {
-    $("#nameFilter").on("click", function (e) {
+    $("#nameFilter").on("click", async function (e) {
       e.preventDefault();
       let LNAB;
       let firstName;
@@ -2038,9 +2038,15 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
           LNC = dPerson.attr("data-lnc");
           firstName = dPerson.attr("data-firstname");
         }
+        // No person to compare with (My Connections tables have no tr.main row)
+        if (!LNAB) {
+          return;
+        }
+        await loadFirstNameVariants().catch((error) => console.error("wbe: couldn't load first-name variants", error));
         let ofirstNames = [];
-        if (!window.excludeValues.includes(firstName)) {
-          ofirstNames = firstNameVariants(firstName);
+        // (window.excludeValues is set by Change Family Lists, which doesn't run on this page)
+        if (!["", null, "null", "unknown", "undefined", undefined].includes(firstName)) {
+          ofirstNames = getNameVariantsAll(firstName, firstNameVariants);
         }
         const rows = aTable.find("tbody tr");
         rows.each(function () {
@@ -2049,7 +2055,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
           let smFirstName = $(this).attr("data-firstname");
           let filterOut = true;
           let c1 = false;
-          let smFirstNames = firstNameVariants(smFirstName);
+          let smFirstNames = getNameVariantsAll(smFirstName, firstNameVariants);
           smFirstNames.forEach(function (asmfn) {
             ofirstNames.forEach(function (afn) {
               if (asmfn.toLowerCase() == afn.toLowerCase()) {
@@ -2060,6 +2066,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
 
           let c2 = smLNAB == LNAB;
           let c3;
+          let c4;
           if (typeof LNC != "undefined") {
             c3 = smLNC == LNC;
             c4 = smLNAB == LNC;
@@ -2069,7 +2076,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
           }
 
           let c5 = smLNC == LNAB;
-          let c6 = smLNAB.toLowerCase() == "unknown";
+          let c6 = (smLNAB || "").toLowerCase() == "unknown";
           let c7 = LNAB.toLowerCase() == "unknown";
 
           if (c1 && (c2 || c3 || c4 || c5 || c6 || c7)) {

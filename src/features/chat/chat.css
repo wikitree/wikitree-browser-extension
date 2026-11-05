@@ -1,0 +1,2269 @@
+/* Connections diagram view */
+.conn-diag-scroll {
+  overflow: auto;
+  max-height: calc(100vh - 180px);
+  padding: 4px;
+}
+.conn-diag-scale-layer {
+  position: relative;
+  margin: 0 auto; /* (centred when narrower than the popup) */
+}
+.conn-diag-ghost {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 10px 8px;
+  border-radius: 8px;
+  border: 2px dashed #e0a10f;
+  background: #fffaf0;
+  box-shadow: 0 0 0 3px rgba(242, 176, 30, 0.25);
+  font-size: 0.78em;
+  line-height: 1.3;
+  box-sizing: border-box;
+}
+.conn-diag-ghost-link {
+  stroke: #d39b12;
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+.conn-diag-band {
+  position: absolute;
+  left: 0;
+  box-sizing: border-box;
+  border-top: 1px dashed rgba(100, 116, 139, 0.18);
+}
+.conn-diag-band--alt {
+  background: rgba(100, 116, 139, 0.05);
+}
+.conn-diag-band-label {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  font-weight: 700;
+  color: #7b8794;
+}
+.conn-diag-card--common {
+  box-shadow: 0 0 0 3px rgba(242, 176, 30, 0.45), 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.conn-diag-badge {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: #f2b01e;
+  color: #3b2a00;
+}
+
+.conn-diag-canvas {
+  position: relative;
+  transform-origin: top left;
+}
+.conn-diag-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.conn-diag-card {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 3px solid #ccc;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  font-size: 0.78em;
+  line-height: 1.3;
+  box-sizing: border-box;
+}
+.conn-diag-avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1em;
+  color: #444;
+  align-self: flex-start;
+  margin-top: 2px;
+  overflow: hidden;
+}
+.conn-diag-avatar--photo {
+  display: block;
+  width: 36px;
+  height: 36px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+.conn-diag-body {
+  min-width: 0;
+}
+.conn-diag-name {
+  font-weight: 600;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.conn-diag-years {
+  color: #555;
+  white-space: nowrap;
+}
+.conn-diag-rel {
+  color: #777;
+  font-style: italic;
+  white-space: nowrap;
+}
+.conn-diag-place {
+  color: #6b7785;
+  font-size: 0.85em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Connections diagram motion (2026-10-03): the path draws step by step,
+   cards pop in in order, hover lifts a card and its links. Popup only; the
+   exported page has its own styles. */
+.conn-diag-link {
+  transition: stroke-width 0.15s ease;
+}
+.conn-diag-link.is-hot {
+  stroke-width: 4;
+}
+.conn-diag-card {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.conn-diag-card:hover {
+  z-index: 2;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+.connections-row {
+  cursor: pointer;
+}
+.connections-row:hover td {
+  filter: brightness(0.95);
+}
+.conn-diag-card.is-pulse {
+  z-index: 3;
+  animation: wbe-conn-card-pulse 0.6s ease-in-out 3;
+}
+@keyframes wbe-conn-card-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(47, 111, 179, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(47, 111, 179, 0.25);
+  }
+}
+.conn-diag-card--start,
+.conn-diag-card--end {
+  box-shadow: 0 0 0 3px rgba(20, 87, 153, 0.18), 0 2px 8px rgba(0, 0, 0, 0.16);
+}
+.conn-diag-scroll {
+  cursor: grab;
+}
+.conn-diag-scroll.is-panning {
+  cursor: grabbing;
+  user-select: none;
+}
+.conn-diag-scroll .conn-diag-card,
+.conn-diag-scroll .conn-diag-ghost {
+  cursor: grab;
+}
+.conn-diag-scroll.is-panning .conn-diag-card,
+.conn-diag-scroll.is-panning .conn-diag-ghost,
+.conn-diag-scroll.is-panning a {
+  cursor: grabbing;
+}
+.conn-diag-scroll--animate .conn-diag-card {
+  animation: wbe-conn-card-in 460ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+  animation-delay: calc(var(--i) * var(--step, 220ms));
+}
+.conn-diag-scroll--animate .conn-diag-link {
+  stroke-dasharray: 1;
+  animation: wbe-conn-draw calc(var(--step, 220ms) * 0.8) ease-out both;
+  animation-delay: calc((var(--i) - 1) * var(--step, 220ms) + var(--step, 220ms) * 0.35);
+}
+@keyframes wbe-conn-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes wbe-conn-draw {
+  from {
+    opacity: 0;
+    stroke-dashoffset: 1;
+  }
+  1% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+.conn-diag-scroll--animate .conn-diag-ghost {
+  animation: wbe-conn-card-in 600ms ease-out both;
+  animation-delay: calc((var(--i) + 0.6) * var(--step, 220ms));
+}
+.conn-diag-scroll--animate .conn-diag-ghost-link {
+  animation: wbe-conn-fade-in 600ms ease-out both;
+  animation-delay: calc((var(--i) + 0.6) * var(--step, 220ms));
+}
+@keyframes wbe-conn-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .conn-diag-scroll--animate .conn-diag-ghost,
+  .conn-diag-scroll--animate .conn-diag-ghost-link,
+  .conn-diag-scroll--animate .conn-diag-card,
+  .conn-diag-scroll--animate .conn-diag-link {
+    animation: none;
+  }
+}
+
+/* Connections table column spacing */
+/* Connections table cell spacing and border */
+.connections-table td,
+.connections-table th {
+  padding: 6px;
+  border: 2px solid #fff;
+  background-clip: padding-box;
+}
+.connections-table {
+  border-collapse: separate;
+  border-spacing: 4px;
+  background: #f8f8f8;
+}
+/* "X is Y's 6th great-grandmother." above the Connections Path (2026-10-17) */
+.connections-relationship {
+  margin: 0 0 8px;
+  font-weight: bold;
+  white-space: pre-line;
+}
+/* Ensure connections table fills popup width when used inside chat popups */
+.connections-table {
+  width: 100%;
+}
+
+/* Step number column */
+.connections-step-cell {
+  text-align: center;
+  font-weight: bold;
+  white-space: nowrap;
+  min-width: 1.8em;
+}
+
+/* Colour key below connections table */
+.connections-colour-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px 4px;
+  font-size: 0.82em;
+}
+.connections-colour-key-label {
+  font-weight: bold;
+  margin-right: 2px;
+}
+.connections-colour-key-swatch {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* Gender colouring for connections table (match chat-results styles) */
+.chat-results-popup .connections-table tr.background--gender-male td:first-child {
+  border-left: 5px solid #f2f1ff !important;
+}
+.chat-results-popup .connections-table tr.background--gender-female td:first-child {
+  border-left: 5px solid #ffeeee !important;
+}
+.chat-results-popup .connections-table tr.background--gender-no-gender td:first-child {
+  border-left: 5px solid #4caf50 !important;
+}
+/* Connections button styles */
+.chat-connections-button {
+  margin-left: 8px;
+  background: #4caf50;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+.chat-connections-button:hover {
+  background: #388e3c;
+}
+/* Styles for chat feature */
+
+.chat-popup {
+  position: fixed;
+  top: 90px;
+  left: 20px;
+  width: min(620px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  min-width: min(400px, calc(100vw - 20px));
+  max-height: calc(100vh - 20px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #c8c8c8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.18);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Ensure chat popups and results appear above most page elements */
+.wbe-popup,
+.chat-popup,
+.chat-results-popup,
+.chat-connections-popup {
+  z-index: 99990 !important;
+}
+
+/* Shaky tree loader should also appear above other elements */
+#wbeShakyTree,
+.wbe-shaky-tree {
+  z-index: 99991 !important;
+}
+
+.chat-popup .ui-resizable-handle {
+  position: absolute;
+  z-index: 3;
+}
+
+.chat-popup .ui-resizable-e,
+.chat-popup .ui-resizable-w {
+  width: 0;
+  top: 0;
+  height: 100%;
+  cursor: ew-resize;
+  display: none !important;
+}
+
+.chat-popup .ui-resizable-e {
+  right: 0;
+}
+
+.chat-popup .ui-resizable-w {
+  left: 0;
+}
+
+.chat-popup .ui-resizable-n,
+.chat-popup .ui-resizable-s {
+  height: 0;
+  left: 0;
+  width: 100%;
+  cursor: ns-resize;
+  display: none !important;
+}
+
+.chat-popup .ui-resizable-n {
+  top: 0;
+}
+
+.chat-popup .ui-resizable-s {
+  bottom: 0;
+}
+
+.chat-popup .ui-resizable-se,
+.chat-popup .ui-resizable-sw,
+.chat-popup .ui-resizable-ne,
+.chat-popup .ui-resizable-nw {
+  width: 12px;
+  height: 12px;
+}
+
+.chat-popup .ui-resizable-se {
+  right: 0;
+  bottom: 0;
+  cursor: nwse-resize;
+}
+
+.chat-popup .ui-resizable-sw {
+  left: 0;
+  bottom: 0;
+  cursor: nesw-resize;
+}
+
+.chat-popup .ui-resizable-ne {
+  right: 0;
+  top: 0;
+  cursor: nesw-resize;
+}
+
+.chat-popup .ui-resizable-nw {
+  left: 0;
+  top: 0;
+  cursor: nwse-resize;
+}
+
+.chat-popup-header {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid #ececec;
+  cursor: move;
+}
+
+/* "About [Ted ▾]" and the chart buttons, just above the box (2026-10-11; they were a band under the
+   header): they wrap (a sideways scrollbar looked broken). */
+.chat-chart-bar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+  padding: 0.4rem 0 0.45rem;
+  flex-shrink: 0;
+}
+
+.chat-chart-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chat-chart-bar--collapsed .chat-chart-bar-extra {
+  display: none;
+}
+
+.chat-chart-bar-more {
+  border-style: dashed;
+}
+
+.chat-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chat-who-label {
+  font-size: 0.75rem;
+  color: #5a6672;
+}
+
+.chat-who-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 16rem;
+  border: 1px solid #2f6fb3;
+  background: #eef4fb;
+  color: #1d3f66;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.chat-who-button:hover,
+.chat-who-button[aria-expanded="true"] {
+  background: #2f6fb3;
+  color: #fff;
+}
+
+.chat-who-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-who-caret {
+  font-size: 0.7rem;
+}
+
+/* Opens upward, over the messages: the box is below. */
+.chat-who-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 0.2rem);
+  z-index: 5;
+  width: min(24rem, 100%);
+  background: #fff;
+  border: 1px solid #c9d6ea;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  padding: 0.4rem;
+}
+
+.chat-who-menu[hidden] {
+  display: none;
+}
+
+.chat-who-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #c9d6ea;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.chat-who-list {
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.chat-who-item {
+  padding: 0.3rem 0.45rem;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  line-height: 1.3;
+}
+
+.chat-who-item[aria-selected="true"],
+.chat-who-item:hover {
+  background: #eef4fb;
+}
+
+.chat-who-id,
+.chat-who-note,
+.chat-who-status {
+  color: #6b7580;
+  font-size: 0.75rem;
+}
+
+.chat-who-search {
+  color: #24456e;
+  font-style: italic;
+}
+
+.chat-who-status {
+  padding: 0.3rem 0.45rem;
+}
+
+.chat-who-more {
+  color: #24456e;
+  font-weight: 600;
+  border-top: 1px solid #e3e8ee;
+}
+
+.chat-chart-bar[hidden] {
+  display: none;
+}
+
+.chat-chart-bar-label {
+  font-size: 0.75rem;
+  color: #5a6672;
+  white-space: nowrap;
+  margin-right: 0.15rem;
+  cursor: help;
+}
+
+.chat-chart-bar-button {
+  border: 1px solid #c9d6ea;
+  background: #fff;
+  color: #24456e;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+}
+
+.chat-chart-bar-button:hover {
+  background: #2f6fb3;
+  border-color: #2f6fb3;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.chat-popup-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Title and buttons share the header (the user, 2026-10-05: "PNG ×" wrapped under the rest).
+   The buttons keep one row and the title wraps beside them; when both can't fit, the whole
+   row of buttons drops below the title, and only a very narrow popup wraps the buttons. */
+.chat-popup-header {
+  flex-wrap: wrap;
+  gap: 0.3rem 0.75rem;
+}
+.chat-popup-header > strong {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+.chat-popup-header > .chat-popup-controls {
+  flex: 0 1 auto;
+  margin-left: auto;
+}
+
+/* Logged in to the apps server or not (Murray, 2026-10-13): a quiet tick, or "Logged out" and the Apps button. */
+.chat-apps-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 0.3rem;
+  font-size: 0.8rem;
+  color: #5b7d4f;
+  white-space: nowrap;
+}
+/* "Sign out" beside "Apps ✓": a quiet link-like button. */
+.chat-apps-sign-out {
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  opacity: 0.75;
+}
+.chat-apps-sign-out:hover,
+.chat-apps-sign-out:focus-visible {
+  opacity: 1;
+}
+.chat-apps-status[hidden] {
+  display: none !important;
+}
+.chat-apps-status-out {
+  color: #a4421c;
+  font-weight: 600;
+}
+
+/* "AI [switch] On/Off", like G2G's "Newest first" switch. */
+#wbe-genie-ai-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 0.4rem;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #777;
+  cursor: pointer;
+  user-select: none;
+  vertical-align: middle;
+}
+#wbe-genie-ai-toggle[hidden] {
+  display: none !important;
+}
+#wbe-genie-ai-toggle:focus-visible {
+  outline: 2px solid #4caf50;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+#wbe-genie-ai-toggle .chat-ai-switch {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 18px;
+  border-radius: 9px;
+  background: #b0b3b8;
+  transition: background 0.2s ease;
+}
+#wbe-genie-ai-toggle .chat-ai-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: left 0.2s ease;
+}
+/* "Off ◯ On": the knob points at the word that applies, which is darker. */
+#wbe-genie-ai-toggle .chat-ai-label {
+  margin-right: 0.3rem;
+  color: #555;
+}
+#wbe-genie-ai-toggle .chat-ai-state {
+  color: #bbb;
+  font-weight: 400;
+}
+#wbe-genie-ai-toggle:not(.chat-ai-on) .chat-ai-state-off {
+  color: #555;
+  font-weight: 600;
+}
+#wbe-genie-ai-toggle.chat-ai-on .chat-ai-state-on {
+  color: #2e7d32;
+  font-weight: 600;
+}
+#wbe-genie-ai-toggle.chat-ai-on .chat-ai-switch {
+  background: #4caf50;
+}
+#wbe-genie-ai-toggle.chat-ai-on .chat-ai-knob {
+  left: 18px;
+}
+
+/* "AI off" without a key: why AI helps, and how to get a key. A child of the
+   popup (inherits its colours, including dark mode), covering it. */
+.chat-popup > .chat-ai-help {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 1.25rem;
+  border-radius: inherit;
+  background: inherit;
+  color: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.chat-ai-help h3 {
+  margin: 0 2rem 0.5rem 0;
+  font-size: 1.15rem;
+}
+.chat-ai-help h4 {
+  margin: 1rem 0 0.35rem;
+  font-size: 1rem;
+}
+.chat-ai-help p,
+.chat-ai-help ul,
+.chat-ai-help ol {
+  margin: 0.35rem 0;
+}
+.chat-ai-help ul,
+.chat-ai-help ol {
+  padding-left: 1.4rem;
+}
+.chat-ai-help-close {
+  position: sticky;
+  top: 0;
+  float: right;
+  margin: -0.25rem -0.5rem 0 0;
+}
+.chat-ai-help details {
+  border: 1px solid #c8c8c8;
+  border-radius: 6px;
+  margin: 0.35rem 0;
+  padding: 0.3rem 0.6rem;
+}
+.chat-ai-help summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.chat-ai-help-note {
+  font-style: italic;
+}
+.chat-ai-help-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 1rem;
+}
+
+/* The "?" after "Genie" opens Genie Help. */
+.chat-popup-header .chat-help-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 0.35rem;
+  padding: 0;
+  border: 1px solid #9aa0a6;
+  border-radius: 50%;
+  background: none;
+  color: #555;
+  font: 700 0.8rem/1 sans-serif;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.chat-popup-header .chat-help-button:hover,
+.chat-popup-header .chat-help-button:focus-visible {
+  border-color: #4caf50;
+  color: #2e7d32;
+}
+
+/* "What can I type?": the tested no-AI examples, in the same overlay. */
+.chat-examples-help .chat-example-list {
+  list-style: none;
+  padding-left: 0;
+}
+.chat-examples-help .chat-example-list li {
+  margin: 0.45rem 0;
+}
+.chat-example-pattern {
+  font-weight: 600;
+}
+.chat-example-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+}
+
+.chat-popup-controls .wbe-conn-diagram-action[hidden] {
+  display: none !important;
+}
+
+.chat-popup-controls button.small {
+  white-space: nowrap;
+}
+
+.chat-popup-body {
+  padding: 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  gap: 0.6rem;
+}
+
+.chat-messages {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  padding: 0.25rem;
+  border: 1px solid #e6e6e6;
+  border-radius: 6px;
+  background: #f8faf8;
+  overflow-x: hidden;
+}
+
+.chat-message {
+  margin: 0.35rem 0;
+}
+
+.chat-message-label {
+  font-size: 0.72rem;
+  color: #5f6c63;
+  margin-bottom: 0.15rem;
+}
+
+.chat-message-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0 0.42rem;
+  border: 1px solid #b9c7e6;
+  border-radius: 999px;
+  background: #eef2fb;
+  color: #3a4f7a;
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1.45;
+  cursor: help;
+}
+
+.chat-message-badge--cannot {
+  border-color: #e3c99a;
+  background: #fbf3e4;
+  color: #7a5520;
+}
+
+.chat-message-body {
+  white-space: pre-wrap;
+  border-radius: 8px;
+  padding: 0.42rem 0.56rem;
+}
+
+/* "Choose" on each line of a "Which one did you mean?" list (the user, 2026-10-15) */
+.chat-message-body .wbe-chat-choose {
+  border: 1px solid #2f6fb3;
+  background: #eef4fb;
+  color: #1d3f66;
+  border-radius: 999px;
+  padding: 0 0.5rem;
+  margin: 0.1rem 0.2rem 0.1rem 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.chat-message-body .wbe-chat-choose:hover:not(:disabled) {
+  background: #2f6fb3;
+  color: #fff;
+}
+
+.chat-message-body .wbe-chat-choose:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.chat-message-body .wbe-chat-choose--chosen:disabled {
+  opacity: 1;
+  background: #2f6fb3;
+  color: #fff;
+}
+
+.chat-message-user .chat-message-body {
+  background: #e6f3ea;
+  border: 1px solid #c3ddcb;
+}
+
+.chat-message-assistant .chat-message-body {
+  background: #ffffff;
+  border: 1px solid #dde4dd;
+}
+
+.chat-query-row {
+  margin-bottom: 0.3rem;
+}
+
+.chat-query-box {
+  display: block;
+  margin: 0.2rem 0 0.25rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid #cfd8cf;
+  border-radius: 6px;
+  background: #f4f7f4;
+}
+
+.chat-query-code {
+  display: block;
+  font-family: Menlo, Consolas, Monaco, monospace;
+  font-size: 0.83rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  color: #263126;
+}
+
+.chat-query-note {
+  margin-top: 0.2rem;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 0.45rem;
+  align-items: stretch;
+  flex-direction: column;
+  flex: 0 0 auto;
+  position: relative;
+}
+
+/* The Recent list: your earlier questions. Opens upward over the messages, like the who picker. */
+.chat-recent {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 0.2rem);
+  z-index: 6;
+  background: #fff;
+  border: 1px solid #c9d6ea;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  padding: 0.4rem;
+}
+
+.chat-recent[hidden] {
+  display: none;
+}
+
+/* Recent | Most used (2026-10-18) */
+.chat-recent-views {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.3rem;
+}
+
+.chat-input-row .chat-recent-view {
+  min-width: 0;
+  width: auto;
+  border: 1px solid #c9d6ea;
+  border-radius: 999px;
+  background: #fff;
+  color: #24456e;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  padding: 0.15rem 0.6rem;
+  cursor: pointer;
+}
+
+.chat-input-row .chat-recent-view[aria-selected="true"] {
+  background: #24456e;
+  border-color: #24456e;
+  color: #fff;
+}
+
+.chat-input-row .chat-recent-pin {
+  min-width: 0;
+  width: auto;
+  border: 0;
+  background: none;
+  color: #9aa4ae;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  padding: 0 0.1rem;
+  cursor: pointer;
+}
+
+.chat-input-row .chat-recent-pin[aria-pressed="true"] {
+  color: #d39b00;
+}
+
+.chat-recent-uses {
+  color: #6b7580;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.chat-recent-filter {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #c9d6ea;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.chat-recent-list {
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.chat-recent-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.3rem 0.45rem;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.chat-recent-item[aria-selected="true"],
+.chat-recent-item:hover {
+  background: #eef4fb;
+}
+
+.chat-recent-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-input-row .chat-recent-remove {
+  min-width: 0;
+  width: auto;
+  border: 0;
+  background: none;
+  color: #6b7580;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.2rem;
+  cursor: pointer;
+  visibility: hidden;
+}
+
+.chat-recent-item:hover .chat-recent-remove,
+.chat-recent-item[aria-selected="true"] .chat-recent-remove {
+  visibility: visible;
+}
+
+.chat-recent-empty {
+  padding: 0.3rem 0.45rem;
+  color: #6b7580;
+  font-size: 0.8rem;
+}
+
+.chat-recent-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-top: 1px solid #e3e8ee;
+  margin-top: 0.3rem;
+  padding-top: 0.3rem;
+  font-size: 0.75rem;
+  color: #6b7580;
+}
+
+.chat-input-row .chat-recent-clear {
+  min-width: 0;
+  width: auto;
+  border: 0;
+  background: none;
+  color: #24456e;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+.chat-recent-clear[hidden] {
+  display: none;
+}
+
+.chat-input-row .chat-recent-button {
+  min-width: 0;
+  width: auto;
+  padding: 0.2rem 0.45rem;
+  line-height: 1;
+}
+
+.chat-input-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.chat-mode-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  min-width: 0;
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+.chat-mode-controls-title {
+  margin-bottom: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #5f6c63;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.chat-context-controls {
+  border-left: 1px solid #d8e0d8;
+  padding-left: 0.6rem;
+}
+
+.chat-mode-notice {
+  display: none;
+  margin-right: 0.2rem;
+  padding: 0.14rem 0.5rem;
+  border: 1px solid #9cc7a5;
+  border-radius: 999px;
+  background: #ecf8ee;
+  color: #1f6b3b;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.chat-mode-notice.is-visible {
+  display: inline-flex;
+  align-items: center;
+}
+
+.chat-mode-option {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0;
+  cursor: pointer;
+  padding: 0.22rem 0.55rem;
+  border: 1px solid #d8e0d8;
+  border-radius: 999px;
+  background: #f7faf7;
+}
+
+.chat-mode-option:last-child {
+  margin-bottom: 0;
+}
+
+.chat-mode-option input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
+.chat-send-column {
+  display: flex;
+  flex-direction: row;
+  gap: 0.35rem;
+  align-items: stretch;
+  justify-content: flex-start;
+  flex: 0 0 auto;
+}
+
+.chat-input-row textarea {
+  flex: 1;
+  min-height: 56px;
+  resize: none;
+  border: 1px solid #bfc8bf;
+  border-radius: 6px;
+  padding: 0.45rem;
+  font: inherit;
+}
+
+.chat-wtplus-suggestion-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.chat-wtplus-suggestion-picker label {
+  font-size: 0.72rem;
+  color: #5f6c63;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.chat-wtplus-suggestion-picker select {
+  width: 100%;
+  border: 1px solid #bfc8bf;
+  border-radius: 6px;
+  padding: 0.35rem 0.45rem;
+  font: inherit;
+  background: #fff;
+}
+
+.chat-input-row button {
+  min-width: 74px;
+}
+
+@media (max-width: 640px) {
+  .chat-popup {
+    width: calc(100vw - 20px);
+    height: min(70vh, calc(100vh - 20px));
+    min-width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+  }
+
+  .chat-popup-body {
+    padding: 0.65rem;
+  }
+
+  .chat-input-row {
+    flex-wrap: nowrap;
+  }
+
+  .chat-input-actions {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .chat-mode-controls {
+    width: 100%;
+  }
+
+  .chat-send-column {
+    width: 100%;
+  }
+
+  .chat-input-row button {
+    width: 100%;
+  }
+
+  .chat-wtplus-suggestion-picker {
+    width: 100%;
+  }
+
+  .chat-messages {
+    max-height: 40vh;
+  }
+}
+
+/* the Apps Login pill under a message that tells people to use it (styled in core/common.css) */
+.chat-message-apps-login {
+  margin-top: 0.4rem;
+}
+
+/* Buttons keep their natural width and wrap onto more rows (2026-10-08: eight
+   Tree Apps buttons in one row were squeezed into tall ovals). */
+.chat-message-actions {
+  margin-top: 0.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.chat-welcome-chips {
+  flex-wrap: wrap;
+  margin: 0.2rem 0 0.5rem;
+}
+
+.chat-wtplus-magic-ref {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.chat-wtplus-magic-ref-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #5f6c63;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.chat-wtplus-magic-ref-select {
+  width: 100%;
+  border: 1px solid #bfc8bf;
+  border-radius: 6px;
+  padding: 0.3rem 0.4rem;
+  font: inherit;
+  font-size: 0.85rem;
+  background: #f7faf7;
+  cursor: pointer;
+}
+
+/* "Genie Charts" and "Tree Apps" groups under an answer. */
+.chat-message-actions-label {
+  align-self: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #5f6c63;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.chat-message-action.chat-message-action--tree-app {
+  background: transparent;
+  border-style: dashed;
+}
+.chat-message-action.chat-message-action--tree-app::after {
+  content: " \2197";
+}
+
+.chat-message-action {
+  max-width: 100%;
+  border: 1px solid #bcc8bc;
+  background: #f2f7f2;
+  border-radius: 1rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.chat-results-filter-row th {
+  padding: 0.2rem 0.25rem;
+  background: #f3f7f3;
+}
+
+.chat-col-filter-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #bfc8bf;
+  border-radius: 4px;
+  padding: 0.2rem 0.3rem;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  background: #fff;
+}
+
+.chat-results-popup {
+  position: fixed;
+  top: 110px;
+  left: 20px;
+  width: 90vw;
+  max-width: calc(100vw - 40px);
+  min-width: 520px;
+  max-height: calc(100vh - 150px);
+  padding: 0;
+  background: #fff;
+  border: 1px solid #c8c8c8;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.chat-results-popup .ui-resizable-handle {
+  position: absolute;
+  z-index: 3;
+}
+
+.chat-results-popup .ui-resizable-e,
+.chat-results-popup .ui-resizable-w {
+  width: 10px;
+  top: 0;
+  height: 100%;
+  cursor: ew-resize;
+}
+
+.chat-results-popup .ui-resizable-e {
+  right: 0;
+}
+
+.chat-results-popup .ui-resizable-w {
+  left: 0;
+}
+
+.chat-results-popup .ui-resizable-n,
+.chat-results-popup .ui-resizable-s {
+  height: 10px;
+  left: 0;
+  width: 100%;
+  cursor: ns-resize;
+}
+
+.chat-results-popup .ui-resizable-n {
+  top: 0;
+}
+
+.chat-results-popup .ui-resizable-s {
+  bottom: 0;
+}
+
+.chat-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid #ececec;
+  background: #f6f9f6;
+  gap: 1rem;
+  cursor: move;
+}
+
+.chat-results-body {
+  padding: 0.85rem;
+  overflow: auto;
+  max-height: calc(100vh - 220px);
+}
+
+.chat-results-table {
+  width: 100%;
+}
+
+/* Connections popup: wider layout (approx 90% viewport width) */
+.chat-connections-popup {
+  width: 90vw;
+  max-width: calc(100vw - 40px);
+  min-width: 520px;
+  max-height: calc(100vh - 120px);
+}
+.chat-connections-popup .connections-table {
+  width: 100%;
+}
+/* Full screen (toggleChartFullScreen): the popup fills the window and the diagram takes the space. */
+.chat-connections-popup.wbe-chart-full,
+.chat-connections-popup:fullscreen {
+  left: 0 !important;
+  top: 0 !important;
+  right: auto !important;
+  transform: none !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  background: #fff;
+  display: flex !important;
+  flex-direction: column;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+/* Quick clicks on + / - were double/triple clicks that selected the page's text. */
+.chat-connections-popup .chat-popup-header,
+.chat-connections-popup .conn-diag-scroll {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.chat-connections-popup .chat-popup-controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.chat-connections-popup.wbe-chart-full .chat-popup-body,
+.chat-connections-popup:fullscreen .chat-popup-body {
+  flex: 1;
+  max-height: none;
+  overflow: auto;
+}
+.chat-connections-popup.wbe-chart-full .conn-diag-scroll,
+.chat-connections-popup:fullscreen .conn-diag-scroll {
+  height: calc(100vh - 70px);
+  max-height: calc(100vh - 70px);
+}
+
+div.chat-results-popup .dataTables_wrapper {
+  font-size: 0.92rem;
+}
+
+div.chat-results-popup table.dataTable thead th {
+  white-space: nowrap;
+  background: #eff5ef;
+  border-bottom: 1px solid #d8e3d8;
+}
+
+div.chat-results-popup table.dataTable tbody td {
+  vertical-align: top;
+  word-break: break-word;
+}
+
+div.chat-results-popup table.dataTable th.chat-date-cell,
+div.chat-results-popup table.dataTable td.chat-date-cell {
+  white-space: nowrap;
+  word-break: normal;
+}
+
+div.chat-results-popup table.dataTable tbody tr.background--gender-male td:first-child {
+  border-left: 5px solid #f2f1ff !important;
+}
+div.chat-results-popup table.dataTable tbody tr.background--gender-male,
+div.chat-results-popup table.dataTable tbody tr.background--gender-female {
+  background-color: white !important;
+}
+
+div.chat-results-popup table.dataTable tbody tr.background--gender-female td:first-child {
+  border-left: 5px solid #ffeeee !important;
+}
+
+div.chat-results-popup table.dataTable tbody tr.background--gender-no-gender td:first-child {
+  border-left: 5px solid #4caf50 !important;
+}
+
+/* A requested Gender column takes the row's gender colour (the left edge above). */
+div.chat-results-popup table.dataTable tbody tr.background--gender-male td.chat-gender-cell {
+  background-color: #f2f1ff !important;
+  color: #222;
+}
+div.chat-results-popup table.dataTable tbody tr.background--gender-female td.chat-gender-cell {
+  background-color: #ffeeee !important;
+  color: #222;
+}
+
+/* Prevent wrapping for LNAB and Current Last cells in results tables */
+div.chat-results-popup table.dataTable td.nowrap-cell,
+div.chat-results-popup table.dataTable td.nowrap-cell {
+  white-space: nowrap;
+}
+
+.chat-results-popup .chat-results-link {
+  font-weight: 600;
+}
+
+/* Chat-specific overrides for the shaky-tree loader: smaller and round */
+.wbe-shaky-tree {
+  width: 120px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+/* The chat/Genie loader must catch clicks on itself instead of letting them
+   fall through to the page (tabs, links) behind it. Scoped to the chat-owned
+   marker class (and given extra specificity) so it wins over the shared
+   .wbe-shaky-tree rule without changing other features' loaders. */
+.wbe-shaky-tree.wbe-chat-shaky,
+.wbe-shaky-tree.wbe-chat-shaky.center {
+  pointer-events: auto;
+}
+.wbe-shaky-tree .wbe-shaky-image {
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: transparent;
+}
+.wbe-shaky-tree .wbe-shaky-image img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  margin: auto;
+  object-fit: contain;
+}
+
+/* Force-centering fallback in case other styles override defaults elsewhere */
+.wbe-shaky-tree {
+  justify-content: center !important;
+}
+.wbe-shaky-tree .wbe-shaky-image {
+  margin: 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.wbe-shaky-tree .wbe-shaky-image img {
+  margin: 0 auto !important;
+  display: block !important;
+}
+/* Centered variant slightly smaller than the feed default and keep circular image */
+.wbe-shaky-tree.center {
+  /* Wider centered box for longer messages */
+  width: 320px;
+  padding: 14px;
+  border-radius: 12px;
+  position: fixed;
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  right: auto;
+  bottom: auto;
+  z-index: 10060;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  box-sizing: border-box;
+}
+.wbe-shaky-tree.center .wbe-shaky-image {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+}
+
+.wbe-shaky-tree .wbe-shaky-messages {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.wbe-shaky-tree .wbe-shaky-label {
+  background: #ffffff;
+  color: #222;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  pointer-events: none;
+  white-space: normal;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wbe-shaky-tree .wbe-shaky-note {
+  background: #fffbe6;
+  color: #222;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 6px 10px;
+  border-radius: 8px;
+  max-width: 300px;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.wbe-shaky-tree .wbe-shaky-progress {
+  width: 220px;
+  max-width: 90%;
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.wbe-shaky-tree .wbe-shaky-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #4caf50;
+  border-radius: 3px;
+  transition: width 0.25s ease;
+}
+
+.wbe-shaky-tree .wbe-shaky-cancel {
+  pointer-events: auto;
+  cursor: pointer;
+  margin-top: 2px;
+  padding: 5px 14px;
+  font-size: 12px;
+  color: #b3261e;
+  background: #ffffff;
+  border: 1px solid #e0b4b0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.wbe-shaky-tree .wbe-shaky-cancel:hover {
+  background: #fdeceb;
+}
+.wbe-shaky-tree .wbe-shaky-cancel:disabled {
+  cursor: default;
+  color: #999;
+  border-color: #ddd;
+  background: #f5f5f5;
+}
+
+/* Hide shaky tree by default; JS toggles via fadeIn/fadeOut and .center */
+.wbe-shaky-tree {
+  display: none;
+}
+
+/* Bio popup column layout */
+.chat-popup-body--columns {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+}
+.bio-column {
+  flex: 1;
+  min-width: 200px;
+  overflow: auto;
+  padding: 12px;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.bio-wiki-pre {
+  white-space: pre-wrap;
+}
+
+.bio-html-container {
+  /* Let the outer bio-column (and popup) handle scrolling; avoid nested scrollbars */
+  max-height: none;
+  overflow: visible;
+}
+
+/* Compact popup body padding for small popups */
+.chat-popup-body--compact {
+  padding: 8px;
+}
+
+/* Spouse list styles */
+.spouse-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.spouse-list li {
+  margin: 6px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Persistent buttons placed at fixed bottom-right area */
+.wbe-persistent-button {
+  position: fixed;
+  bottom: 18px;
+  z-index: 99999;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: background 0.12s ease;
+}
+
+.wbe-connections-button {
+  right: 18px;
+  background: #4caf50;
+  padding: 8px 16px;
+}
+.wbe-connections-button:hover {
+  background: #388e3c;
+}
+
+.wbe-bio-button {
+  right: 110px; /* leave room for connections */
+  background: #2196f3;
+}
+.wbe-bio-button:hover {
+  background: #1976d2;
+}
+
+/* Family calendar: today's births and deaths pulse. */
+.wbe-cal-today {
+  animation: wbe-cal-pulse 1.6s ease-in-out infinite;
+}
+@keyframes wbe-cal-pulse {
+  50% {
+    stroke-width: 5px;
+    stroke: #e0a100;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wbe-cal-today {
+    animation: none;
+  }
+}
+
+/* Tree overview dashboard (chat_tree_overview.js). */
+#wbe-tree-overview-popup {
+  width: min(980px, 96vw);
+  height: min(720px, 92vh);
+}
+.wbe-overview-root {
+  margin: 2px 4px 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.wbe-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 0 4px 8px;
+}
+.wbe-overview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid #dde3ea;
+  border-radius: 10px;
+  background: #fbfcfd;
+  animation: wbe-overview-in 420ms ease-out both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes wbe-overview-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.wbe-overview-panel h4 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5b6675;
+}
+.wbe-overview-body {
+  flex: 1;
+}
+.wbe-overview-big {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.05;
+  color: #1f2d3d;
+}
+.wbe-overview-big small {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #5b6675;
+}
+.wbe-overview-cols {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 92px;
+  margin-top: 8px;
+}
+.wbe-overview-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  min-width: 0;
+}
+.wbe-overview-col b {
+  width: 100%;
+  max-width: 26px;
+  height: 0;
+  border-radius: 3px 3px 0 0;
+  transition: height 700ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
+  transition-delay: var(--d, 0ms);
+}
+.wbe-overview-col-value {
+  font-size: 9.5px;
+  color: #5b6675;
+}
+.wbe-overview-col-label {
+  font-size: 10px;
+  color: #5b6675;
+}
+.wbe-overview-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.wbe-overview-bar {
+  display: grid;
+  grid-template-columns: 110px 1fr 36px;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.wbe-overview-bar span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wbe-overview-bar b {
+  height: 12px;
+  width: 0;
+  border-radius: 6px;
+  transition: width 700ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
+  transition-delay: var(--d, 0ms);
+}
+.wbe-overview-bar em {
+  font-style: normal;
+  color: #5b6675;
+  text-align: right;
+}
+.wbe-overview-words {
+  line-height: 1.5;
+  color: #2f4a6b;
+  font-weight: 600;
+}
+.wbe-overview-words span {
+  margin-right: 6px;
+}
+.wbe-overview-pair {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #5b6675;
+}
+.wbe-overview-pair b {
+  font-size: 18px;
+}
+.wbe-overview-note {
+  font-size: 12px;
+  color: #3d4855;
+  margin-top: 4px;
+}
+.wbe-overview-open {
+  align-self: flex-start;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wbe-overview-panel {
+    animation: none;
+  }
+  .wbe-overview-col b,
+  .wbe-overview-bar b {
+    transition: none;
+  }
+}
+
+/* Search form for people without an AI key (chat_search_form.js). */
+.wbe-chat-search-form {
+  margin-top: 0.5rem;
+  padding: 0.6rem;
+  border: 1px solid #bcc8bc;
+  border-radius: 8px;
+  background: #f7faf7;
+  font-size: 0.85rem;
+}
+.wbe-chat-search-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.45rem 0.6rem;
+}
+.wbe-chat-search-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  color: #3d4a3d;
+  font-weight: 600;
+}
+.wbe-chat-search-form input[type="text"],
+.wbe-chat-search-form select {
+  font: inherit;
+  font-weight: normal;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #b8c4b8;
+  border-radius: 4px;
+  background: #fff;
+  min-width: 0;
+}
+.wbe-chat-search-form-years {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.wbe-chat-search-form-years input[type="text"] {
+  width: 4.2rem;
+}
+.wbe-chat-search-form-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  margin-top: 0.5rem;
+}
+.wbe-chat-search-form-flags label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  cursor: pointer;
+}
+.wbe-chat-search-form-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.55rem;
+}
+.wbe-chat-search-form-submit {
+  font-weight: 600;
+  padding: 0.3rem 1rem;
+}
+.wbe-chat-search-form-problem {
+  color: #9a3412;
+}
+
+/* The close buttons of Genie's own windows (the chat, results tables, bios,
+   the connection diagram, the AI help): a drawn ×, like the chart windows'
+   (chat_chart_common.js), but in line with the other header buttons. */
+.chat-popup:not(.wbe-chart-popup) .close-popup,
+.chat-results-popup .chat-results-header .close-popup,
+.chat-ai-help .chat-ai-help-close {
+  position: relative;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  color: #555;
+  font-size: 0;
+  line-height: 0;
+  cursor: pointer;
+}
+.chat-popup:not(.wbe-chart-popup) .close-popup::before,
+.chat-popup:not(.wbe-chart-popup) .close-popup::after,
+.chat-results-popup .chat-results-header .close-popup::before,
+.chat-results-popup .chat-results-header .close-popup::after,
+.chat-ai-help .chat-ai-help-close::before,
+.chat-ai-help .chat-ai-help-close::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 15px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.chat-popup:not(.wbe-chart-popup) .close-popup::after,
+.chat-results-popup .chat-results-header .close-popup::after,
+.chat-ai-help .chat-ai-help-close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+.chat-popup:not(.wbe-chart-popup) .close-popup:hover,
+.chat-results-popup .chat-results-header .close-popup:hover,
+.chat-ai-help .chat-ai-help-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #000;
+}
+.chat-popup:not(.wbe-chart-popup) .close-popup:focus-visible,
+.chat-results-popup .chat-results-header .close-popup:focus-visible,
+.chat-ai-help .chat-ai-help-close:focus-visible {
+  outline: 2px solid #2f6fb3;
+  outline-offset: 1px;
+}
+
+/* Dark Mode (darkMode.css) gives every div and span a dark background and every button a white border,
+   !important, and leaves background images alone. These keep Genie's own pieces readable on it.
+   :not(#none) outweighs Dark Mode's rules. */
+body.darkMode .chat-chart-bar:not(#none),
+body.darkMode .chat-chart-buttons:not(#none),
+body.darkMode .chat-who:not(#none),
+body.darkMode .chat-who-label:not(#none),
+body.darkMode .chat-who-name:not(#none),
+body.darkMode .chat-who-caret:not(#none),
+body.darkMode .chat-who-id:not(#none),
+body.darkMode .chat-who-note:not(#none),
+body.darkMode .chat-who-item-name:not(#none),
+body.darkMode .chat-recent-text:not(#none),
+body.darkMode .chat-recent-hint:not(#none) {
+  background: transparent !important;
+}
+body.darkMode .chat-recent-item[aria-selected="true"]:not(#none),
+body.darkMode .chat-recent-item:not(#none):hover {
+  background: #3a4048 !important;
+}
+body.darkMode .chat-input-row .chat-recent-view:not(#none) {
+  background: transparent !important;
+  color: #dedecb !important;
+  border: 1px solid #5c6470 !important;
+}
+body.darkMode .chat-input-row .chat-recent-view[aria-selected="true"]:not(#none) {
+  background: #3b6ea8 !important;
+  border-color: #3b6ea8 !important;
+  color: #fff !important;
+}
+body.darkMode .chat-input-row .chat-recent-pin:not(#none) {
+  border: 0 !important;
+  background: none !important;
+  color: #8a929c !important;
+}
+body.darkMode .chat-input-row .chat-recent-pin[aria-pressed="true"]:not(#none) {
+  color: #e8b830 !important;
+}
+body.darkMode .chat-recent-uses:not(#none) {
+  color: #b9bfb0 !important;
+}
+body.darkMode .chat-input-row .chat-recent-remove:not(#none),
+body.darkMode .chat-input-row .chat-recent-clear:not(#none) {
+  border: 0 !important;
+  background: none !important;
+  color: #b9bfb0 !important;
+}
+body.darkMode .chat-who-label:not(#none),
+body.darkMode .chat-who-id:not(#none),
+body.darkMode .chat-who-note:not(#none) {
+  color: #b9bfb0 !important;
+}
+body.darkMode .chat-chart-bar-label:not(#none) {
+  background: transparent !important;
+  color: #dedecb !important;
+}
+body.darkMode .chat-popup-header:not(#none) {
+  border-bottom-color: #55595f !important;
+}
+body.darkMode .chat-popup-header .chat-help-button:not(#none) {
+  border: 1px solid #a9b1bb !important;
+  color: #dedecb !important;
+  background: none !important;
+}
+body.darkMode .chat-popup-header .chat-help-button:not(#none):hover,
+body.darkMode .chat-popup-header .chat-help-button:not(#none):focus-visible {
+  border-color: #a5d167 !important;
+  color: #a5d167 !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) {
+  border: 0 !important;
+  background: none !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) .chat-ai-label {
+  color: #dedecb !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) .chat-ai-state {
+  color: #b4bac2 !important;
+  background: transparent !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none):not(.chat-ai-on) .chat-ai-state-off {
+  color: #dedecb !important;
+}
+body.darkMode #wbe-genie-ai-toggle.chat-ai-on:not(#none) .chat-ai-state-on {
+  color: #a5d167 !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) .chat-ai-switch {
+  background: #6b7079 !important;
+}
+body.darkMode #wbe-genie-ai-toggle.chat-ai-on:not(#none) .chat-ai-switch {
+  background: #4caf50 !important;
+}
+body.darkMode #wbe-genie-ai-toggle:not(#none) .chat-ai-knob {
+  background: #fff !important;
+}
+/* The results table's header rows are pale green, under Dark Mode's light text. */
+body.darkMode div.chat-results-popup table.dataTable thead th:not(#none),
+body.darkMode .chat-results-filter-row th:not(#none) {
+  background: #2f3137 !important;
+  color: #dedecb !important;
+  border-bottom-color: #55595f !important;
+}
+
+/* Genie's tooltips (chat_quick_tips.js): WBE's yellow ones, but wrapping, and quick. Dark Mode and Custom
+   Style recolour every div, hence the !important. */
+.wbe-quick-tip:not(#none) {
+  position: absolute;
+  z-index: 100000;
+  max-width: min(320px, calc(100% - 8px));
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #fcb815 !important;
+  color: #25422d !important;
+  font-family: "Roboto Mono", monospace;
+  font-weight: 500;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  white-space: normal;
+  text-align: left;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  animation: wbe-quick-tip-in 0.1s ease-out;
+}
+.wbe-quick-tip[hidden] {
+  display: none;
+}
+.wbe-quick-tip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: var(--wbe-tip-arrow, 50%);
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #fcb815;
+}
+.wbe-quick-tip--below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: #fcb815;
+}
+@keyframes wbe-quick-tip-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wbe-quick-tip:not(#none) {
+    animation: none;
+  }
+}

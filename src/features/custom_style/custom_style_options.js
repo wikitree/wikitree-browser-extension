@@ -18,6 +18,12 @@ const myCustomStyle = {
       options: [
         { id: "all_background-color", type: "color", label: "Background color", defaultValue: "#ffffff" },
         {
+          id: "selection_background-color",
+          type: "color",
+          label: "Selected text highlight color",
+          defaultValue: "#ffee99",
+        },
+        {
           id: "global_color",
           type: "color",
           label: "Font color",

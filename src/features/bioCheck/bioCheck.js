@@ -163,6 +163,12 @@ function buildReportLines(container, bioStatus, biography, isPre1700) {
   bioResultItem.appendChild(document.createTextNode(msg));
   container.appendChild(bioResultItem);
 
+  bioResultItem = document.createElement("li");
+  msg = "Bio Score: " + biography.getScore();
+  bioResultItem.appendChild(document.createTextNode(msg));
+  container.appendChild(bioResultItem);
+
+
   let numBadSources = biography.getInvalidSources().length;
   if (biography.getInvalidSources().length > 0) {
     let bioResultItem = document.createElement("li");

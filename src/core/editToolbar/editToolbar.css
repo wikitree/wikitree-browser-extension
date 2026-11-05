@@ -129,3 +129,8 @@
 .editToolbarMenu0 a:visited {
   color: #000000 !important;
 }
+
+/* A tour (core/tour) holds a menu open while it shows what is in it. */
+.editToolbarDiv.wbe-tour-open .editToolbarMenu0 {
+  display: block;
+}

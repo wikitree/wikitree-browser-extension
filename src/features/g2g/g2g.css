@@ -6,8 +6,71 @@
 #g2gScissors {
   margin: 0.5em;
 }
+/* Sit on the end of the "answered/commented by ..." line rather than taking a line of its own. */
 .g2gScissors {
-  margin-top: 0.5em;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.7em;
+}
+
+.g2gScissors ul.copy--buttons {
+  display: inline-block;
+  margin-bottom: 0;
+}
+
+/* "Newest first" On/Off switch in the "N Answers" heading */
+.wbe-reverse-answers {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 0.8em;
+  vertical-align: middle;
+  font-size: 0.65em;
+  font-weight: 600;
+  color: #777;
+  cursor: pointer;
+  user-select: none;
+}
+.wbe-reverse-answers .wbe-reverse-answers-switch {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 18px;
+  border-radius: 9px;
+  background: #b0b3b8;
+  transition: background 0.2s ease;
+}
+.wbe-reverse-answers .wbe-reverse-answers-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: left 0.2s ease;
+}
+.wbe-reverse-answers.wbe-reverse-answers-active .wbe-reverse-answers-switch {
+  background: #4caf50;
+}
+.wbe-reverse-answers.wbe-reverse-answers-active .wbe-reverse-answers-knob {
+  left: 18px;
+}
+.wbe-reverse-answers .wbe-reverse-answers-state {
+  min-width: 2.2em;
+}
+.wbe-reverse-answers.wbe-reverse-answers-active .wbe-reverse-answers-state {
+  color: #2e7d32;
+}
+.wbe-reverse-answers-tree {
+  height: 50px;
+  width: 50px;
+  border-radius: 50%;
+  border: 2px solid forestgreen;
+  vertical-align: middle;
+  margin-left: 0.6em;
 }
 
 .g2gPlus {
@@ -148,4 +211,109 @@ input[name$="_docomment"].bigButton:hover {
 
 .qa-q-item-title .checkmark {
   position: relative !important;
+}
+
+/* G2G tag picker */
+#g2gTagPicker {
+  position: relative;
+  max-width: 30em;
+  margin-bottom: 20px;
+}
+
+#g2gTagPicker label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.2em;
+}
+
+#g2gTagPickerInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.4em;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+}
+
+#g2gTagPickerResults {
+  position: absolute;
+  z-index: 1000;
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 20em;
+  overflow-y: auto;
+  background-color: #fff;
+  border: 1px solid #aaa;
+  border-top: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+#g2gTagPickerResults[hidden] {
+  display: none;
+}
+
+.g2gTagPickerItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0.25em 0.5em;
+}
+
+.g2gTagPickerItem a {
+  flex: 1;
+  text-decoration: none;
+}
+
+.g2gTagPickerItem.g2gTagPickerActive {
+  background-color: #ffe270;
+}
+
+.g2gTagPickerCount {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.g2gTagPickerEmpty {
+  padding: 0.25em 0.5em;
+  color: #666;
+  font-style: italic;
+}
+html.g2gCompact .p-3,
+html.g2gCompact .mb-3,
+html.g2gCompact .box {
+  padding: 0.2em !important;
+  margin-bottom: 0.2em !important;
+}
+
+/* Compact: question, answers, and comments on a question page */
+html.g2gCompact hr.page--divider {
+  padding: 0 !important;
+  margin-top: 0.2em !important;
+  margin-bottom: 0.4em !important;
+}
+html.g2gCompact .qa-a-list-item,
+html.g2gCompact .qa-c-list-item,
+html.g2gCompact .qa-part-a-form,
+html.g2gCompact .qa-part-a-list > h2 {
+  margin-bottom: 0.4em !important;
+}
+html.g2gCompact .qa-q-view .small.mt-3,
+html.g2gCompact .qa-a-item-main .small.mt-3,
+html.g2gCompact .qa-c-item-footer .small.mt-3 {
+  margin-top: 0.2em !important;
+  margin-bottom: 0.2em !important;
+}
+html.g2gCompact .qa-q-view-tag-list {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
+}
+html.g2gCompact .qa-post-content p {
+  margin-bottom: 0.5em !important;
+}
+html.g2gCompact .qa-q-view-content p:last-child,
+html.g2gCompact .qa-a-item-content p:last-child,
+html.g2gCompact .qa-c-item-content p:last-child {
+  margin-bottom: 0 !important;
 }

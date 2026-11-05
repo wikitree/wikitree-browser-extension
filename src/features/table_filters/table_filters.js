@@ -13,7 +13,7 @@ import "./table_filters.css";
 import "select2";
 import "select2/dist/css/select2.css";
 
-import { getYYYYMMDD } from "../auto_bio/auto_bio";
+import { getYYYYMMDD } from "../auto_bio/dateUtils";
 import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { TargetTable } from "../surname_table/surname_table";
 

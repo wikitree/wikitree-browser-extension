@@ -1,6 +1,8 @@
 // Test file to validate DNA API functionality
 // This can be used to test the DNA API functions independently
 
+const TEST_DNA_APP_ID = "dna_api_test";
+
 // Test the DNA API endpoints with any user
 async function testDNAAPI(userToTest = "Craig-4574") {
   console.log("Testing DNA API functions...");
@@ -19,6 +21,7 @@ async function testDNAAPI(userToTest = "Craig-4574") {
       body: new URLSearchParams({
         action: "getDNATestsByTestTaker",
         key: userToTest,
+        appId: TEST_DNA_APP_ID,
       }),
     });
 
@@ -49,6 +52,7 @@ async function testDNAAPI(userToTest = "Craig-4574") {
           action: "getConnectedProfilesByDNATest",
           key: userToTest,
           dna_id: firstTest.dna_id,
+          appId: TEST_DNA_APP_ID,
         }),
       });
 

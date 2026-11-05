@@ -4,6 +4,20 @@ const CopyPlugin = require("copy-webpack-plugin");
 const WebExtension = require("webpack-target-webextension");
 const srcDir = path.join(__dirname, "..", "src");
 const buildInfo = { buildDate: new Date(Date.now()).toISOString() };
+// Chunks kept out of the vendor split so they stay self-contained: the npm packages only they use go in the chunk,
+// not in the every-page vendor.js. The feature chunks are loaded by the *_bootstrap.js files that content_main.js
+// imports.
+const lazyFeatureChunks = new Set([
+  "auto-categories",
+  "family-lists",
+  "muse-world",
+  "auto-bio",
+  "feed-helper",
+  "wikitable-wizard",
+  "change-family-lists",
+  "image-table",
+  "space-watchlist-sorter",
+]);
 
 try {
   const gitOutput = require("child_process").execSync('git log -1 --pretty="%h %H"').toString();
@@ -28,6 +42,7 @@ module.exports = (env) => ({
     path: path.join(__dirname, "../dist/js"),
     publicPath: "js/",
     filename: "[name].js",
+    chunkFilename: "[name].js",
     environment: {
       dynamicImport: true,
     },
@@ -36,7 +51,36 @@ module.exports = (env) => ({
     splitChunks: {
       name: "vendor",
       chunks(chunk) {
-        return true;
+        return !lazyFeatureChunks.has(chunk.name);
+      },
+      cacheGroups: {
+        // d3 is used only by Genie's lazily loaded charts: keep it out of the every-page vendor.js.
+        museD3: {
+          test: /[\\/]node_modules[\\/](d3-[^\\/]+|internmap|delaunator|robust-predicates)[\\/]/,
+          name: "muse-d3",
+          chunks: "async",
+          priority: 20,
+          enforce: true,
+        },
+        // xlsx and jszip (~590 KB) are loaded on demand by the Wikitable Wizard's spreadsheet import and by Genie.
+        // Without this group the vendor split would put them back into the every-page vendor.js.
+        sheets: {
+          test: /[\\/]node_modules[\\/](xlsx|jszip)[\\/]/,
+          name: "sheets",
+          chunks: "async",
+          priority: 20,
+          enforce: true,
+        },
+        // Code that only lazily loaded chunks share (Genie and the WT+ Query Builder both use the suggestions list,
+        // for example) goes into a shared lazy chunk instead of the every-page vendor.js.
+        lazyShared: {
+          chunks: "async",
+          minChunks: 2,
+          // Unnamed (numbered) chunks. `name: false` would fall back to the top-level "vendor" name.
+          name: () => undefined,
+          priority: -5,
+          reuseExistingChunk: true,
+        },
       },
     },
   },
@@ -63,6 +107,26 @@ module.exports = (env) => ({
         {
           from: "features/text_expander/event_dispatcher.js",
           to: "../features/text_expander/event_dispatcher.js",
+          context: "src",
+        },
+        {
+          from: "features/clipboard_and_notes/cm_insert.js",
+          to: "../features/clipboard_and_notes/cm_insert.js",
+          context: "src",
+        },
+        {
+          from: "core/cm_text.js",
+          to: "../core/cm_text.js",
+          context: "src",
+        },
+        {
+          from: "features/find_and_replace/find_and_replace_page.js",
+          to: "../features/find_and_replace/find_and_replace_page.js",
+          context: "src",
+        },
+        {
+          from: "features/custom_change_summary_options/edit_draft_page.js",
+          to: "../features/custom_change_summary_options/edit_draft_page.js",
           context: "src",
         },
       ],

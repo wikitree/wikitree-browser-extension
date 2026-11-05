@@ -1,0 +1,535 @@
+import $ from "jquery";
+
+import { buildTreeAppRecommendations } from "./chat_tree_apps";
+import { linesWithMore } from "./chat_more_text";
+import { shownGender } from "./chat_gender_display";
+import { readMemberWatchlist, watchlistAgeNote, watchlistDisplayName } from "./chat_managed_profiles";
+
+export function createChatCcHandlers({
+  WikiTreeAPI,
+  WBE_CHAT_APP_ID,
+  CC7_CACHE_MS,
+  formatSubjectLabel,
+  resolveCc7SubjectRoot,
+  mapApiPersonToStandardRow,
+  makeStandardProfileTable,
+  makeWatchlistTable,
+  normalizeText,
+  getUserNumId = () => "",
+  showChatShaky,
+  hideChatShaky,
+}) {
+  let cc7Cache = {
+    rootKey: null,
+    nuclear: 7,
+    fetchedAt: 0,
+    profiles: [],
+  };
+
+  function buildTreeAppActions(kind, wtId) {
+    return buildTreeAppRecommendations(kind, wtId).map((recommendation) => ({
+      label: recommendation.label,
+      actionType: "external-link",
+      url: recommendation.url,
+      onClick: () => {
+        window.open(recommendation.url, "_blank", "noopener,noreferrer");
+      },
+    }));
+  }
+
+  function normalizeCcNuclear(value, fallback = 7) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return fallback;
+    }
+    return Math.max(1, Math.min(10, Math.trunc(numeric)));
+  }
+
+  async function fetchCcProfilesFromApi(userNumId, nuclear = 7) {
+    const allProfiles = [];
+    const limit = 1000;
+    let start = 0;
+    let getMore = true;
+    const normalizedNuclear = normalizeCcNuclear(nuclear, 7);
+
+    while (getMore) {
+      const options = { nuclear: normalizedNuclear, start, limit };
+      const [status, , people] = await WikiTreeAPI.getPeople(
+        WBE_CHAT_APP_ID,
+        userNumId,
+        "Id,Name,FirstName,MiddleName,BirthLocation,DeathLocation,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,LastNameOther,BirthDate,DeathDate,Gender,DataStatus,Meta",
+        options
+      );
+
+      if (status == null) {
+        throw new Error(`No status returned from getPeople while fetching CC${normalizedNuclear}.`);
+      }
+
+      getMore = status.startsWith("Maximum number of profiles");
+      if (!getMore && status !== "") {
+        throw new Error(`Unexpected getPeople status: ${status}`);
+      }
+
+      const pageProfiles = Object.values(people || {}).map((entry) => {
+        const profile = { ...entry };
+        profile.Degrees = entry?.Meta?.Degrees;
+        delete profile.Meta;
+        return profile;
+      });
+
+      allProfiles.push(...pageProfiles);
+
+      if (!people || pageProfiles.length === 0) {
+        getMore = false;
+      } else {
+        start += limit;
+      }
+    }
+
+    return allProfiles;
+  }
+
+  async function getCcProfilesForUser(userNumId, nuclear = 7) {
+    const normalizedNuclear = normalizeCcNuclear(nuclear, 7);
+    const now = Date.now();
+    if (
+      cc7Cache.rootKey === userNumId &&
+      cc7Cache.nuclear === normalizedNuclear &&
+      now - cc7Cache.fetchedAt < CC7_CACHE_MS &&
+      cc7Cache.profiles.length
+    ) {
+      return cc7Cache.profiles;
+    }
+
+    const profiles = await fetchCcProfilesFromApi(userNumId, normalizedNuclear);
+    cc7Cache = {
+      rootKey: userNumId,
+      nuclear: normalizedNuclear,
+      fetchedAt: now,
+      profiles,
+    };
+    return profiles;
+  }
+
+  async function getCc7ProfilesForUser(userNumId) {
+    return await getCcProfilesForUser(userNumId, 7);
+  }
+
+  function getCc7RowsFromPage() {
+    return $("table tr[data-wtid]").toArray();
+  }
+
+  function getPersonNameFromRow(row, fallbackWtId) {
+    const $row = $(row);
+    const $firstProfileLink = $row.find('a[href*="/wiki/"]').first();
+    if ($firstProfileLink.length && $firstProfileLink.text().trim()) {
+      return $firstProfileLink.text().trim();
+    }
+    return fallbackWtId;
+  }
+
+  function getBirthLocationFromRow(row) {
+    const $row = $(row);
+    const $birthCell = $row.find("td.birthLocation").first();
+    if ($birthCell.length && $birthCell.text()) {
+      return $birthCell.text().trim();
+    }
+
+    const dataAttr = $row.attr("data-birth-location-small2big");
+    return dataAttr ? dataAttr.trim() : "";
+  }
+
+  async function tryHandleCc7LocationPrompt(parsed, prompt = "") {
+    if (!parsed?.location) {
+      return null;
+    }
+
+    const nuclear = normalizeCcNuclear(parsed?.nuclear, 7);
+    const ccLabel = `CC${nuclear}`;
+
+    const subjectRoot = await resolveCc7SubjectRoot(prompt);
+    if (subjectRoot?.unresolvedName) {
+      return `I couldn't identify which profile you meant by "${subjectRoot.unresolvedName}". Try a WikiTree ID like Name-123, or a more specific name.`;
+    }
+    if (!subjectRoot?.key) {
+      return "I could not detect a profile person or your logged-in profile to use as the CC7 starting point.";
+    }
+
+    const subjectLabel = formatSubjectLabel(subjectRoot);
+
+    let matches = [];
+    let fromPage = ""; // (" from the CC7 table on this page" when the API failed)
+
+    try {
+      const cc7Profiles = await getCcProfilesForUser(subjectRoot.key, nuclear);
+      const needle = parsed.location.toLowerCase();
+      matches = cc7Profiles
+        .filter((profile) => {
+          const birth = (profile.BirthLocation || "").toLowerCase();
+          const death = (profile.DeathLocation || "").toLowerCase();
+          if (parsed.field === "BirthLocation") {
+            return birth.includes(needle);
+          }
+          if (parsed.field === "DeathLocation") {
+            return death.includes(needle);
+          }
+          return birth.includes(needle) || death.includes(needle);
+        })
+        .map((profile) => ({
+          wtid: profile.Name,
+          name: watchlistDisplayName(profile) || profile.Name, // full names (the user, 2026-10-12)
+          firstName: profile.FirstName || "",
+          lnab: profile.LastNameAtBirth || "",
+          lastNameCurrent: profile.LastNameCurrent || "",
+          birthLocation: profile.BirthLocation || "",
+          deathLocation: profile.DeathLocation || "",
+          degrees: profile.Degrees,
+          gender: shownGender(profile),
+          surname: profile.LastNameCurrent || profile.LastNameAtBirth || "",
+          birth: profile.BirthDate || "",
+          death: profile.DeathDate || "",
+        }));
+    } catch (error) {
+      if (nuclear !== 7) {
+        return `I could not fetch ${ccLabel} from the API for ${subjectLabel}. Error: ${
+          error?.message || "unknown error"
+        }`;
+      }
+
+      const rows = getCc7RowsFromPage();
+      if (!rows.length) {
+        return `I could not fetch ${ccLabel} from the API, and no CC7 table is available on this page. Error: ${
+          error?.message || "unknown error"
+        }`;
+      }
+
+      fromPage = " (from the CC7 table on this page)";
+      const needle = parsed.location.toLowerCase();
+      rows.forEach((row) => {
+        const wtid = (row.getAttribute("data-wtid") || "").trim();
+        const birthLocation = getBirthLocationFromRow(row);
+        if (!birthLocation || !birthLocation.toLowerCase().includes(needle)) {
+          if (parsed.field === "BirthLocation") {
+            return;
+          }
+
+          const deathCell = row.querySelector("td.deathLocation");
+          const deathLocation = deathCell?.textContent?.trim() || "";
+          if (!deathLocation.toLowerCase().includes(needle)) {
+            return;
+          }
+        }
+
+        matches.push({
+          wtid,
+          name: getPersonNameFromRow(row, wtid),
+          firstName: "",
+          lnab: "",
+          lastNameCurrent: "",
+          birthLocation,
+          deathLocation: row.querySelector("td.deathLocation")?.textContent?.trim() || "",
+          degrees: "",
+          gender: "",
+          surname: "",
+          birth: "",
+          death: "",
+        });
+      });
+    }
+
+    // Nearest first, as the table opens.
+    const degreeOf = (person) => (person.degrees === "" || person.degrees === undefined ? Infinity : Number(person.degrees));
+    matches.sort((a, b) => degreeOf(a) - degreeOf(b) || String(a.name).localeCompare(String(b.name)));
+
+    if (parsed.mode === "count") {
+      const defaultOrder = matches.some((person) => person?.degrees !== "" && person?.degrees !== undefined)
+        ? [
+            [5, "asc"],
+            [0, "asc"],
+          ]
+        : [[0, "asc"]];
+      const treeAppActions = nuclear === 7 ? buildTreeAppActions("cc7", subjectRoot.wtId) : [];
+      const countFieldLabel =
+        parsed.field === "DeathLocation" ? "died in" : parsed.field === "BirthLocation" ? "born in" : "in";
+      return {
+        message: `I found ${matches.length} ${ccLabel} profile${matches.length === 1 ? "" : "s"} ${countFieldLabel} ${
+          parsed.location
+        } for ${subjectLabel}${fromPage}.`,
+        table: matches.length
+          ? makeStandardProfileTable(
+              `${ccLabel} profiles in ${parsed.location} for ${subjectRoot.displayName}`,
+              matches.map((person) => ({
+                displayName: person.name,
+                wtid: person.wtid,
+                firstName: person.firstName || "",
+                lnab: person.lnab || "",
+                lastNameCurrent: person.lastNameCurrent || "",
+                degrees: person.degrees ?? "",
+                gender: person.gender || "",
+                birth: person.birth || "",
+                death: person.death || "",
+                birthLocation: person.birthLocation,
+                deathLocation: person.deathLocation,
+                surname: person.surname || "",
+              })),
+              defaultOrder
+            )
+          : null,
+        actions: treeAppActions,
+      };
+    }
+
+    if (!matches.length) {
+      return `I found no ${ccLabel} profiles in ${parsed.location} for ${subjectLabel}${fromPage}.`;
+    }
+
+    const maxToShow = 25;
+    const lines = matches.map((person) => {
+      const places = [person.birthLocation && `born ${person.birthLocation}`, person.deathLocation && `died ${person.deathLocation}`].filter(Boolean).join("; ");
+      const degree = person.degrees !== undefined && person.degrees !== "" ? `, degree ${person.degrees}` : "";
+      return `- ${person.name} (${person.wtid})${degree}${places ? `: ${places}` : ""}`;
+    });
+    const fieldLabel =
+      parsed.field === "DeathLocation" ? "died in" : parsed.field === "BirthLocation" ? "born in" : "in";
+    const defaultOrder = matches.some((person) => person?.degrees !== "" && person?.degrees !== undefined)
+      ? [
+          [5, "asc"],
+          [0, "asc"],
+        ]
+      : [[0, "asc"]];
+    const treeAppActions = nuclear === 7 ? buildTreeAppActions("cc7", subjectRoot.wtId) : [];
+
+    return {
+      message: `Here are the ${ccLabel} profiles ${fieldLabel} ${
+        parsed.location
+      } for ${subjectLabel}${fromPage}:\n${linesWithMore(lines, maxToShow, { after: " in the table" })}`,
+      table: makeStandardProfileTable(
+        `${ccLabel} profiles ${fieldLabel} ${parsed.location} for ${subjectRoot.displayName}`,
+        matches.map((person) => ({
+          displayName: person.name,
+          wtid: person.wtid,
+          firstName: person.firstName || "",
+          lnab: person.lnab || "",
+          lastNameCurrent: person.lastNameCurrent || "",
+          degrees: person.degrees ?? "",
+          gender: person.gender || "",
+          birth: person.birth || "",
+          death: person.death || "",
+          birthLocation: person.birthLocation,
+          deathLocation: person.deathLocation,
+          surname: person.surname || "",
+        })),
+        defaultOrder
+      ),
+      actions: treeAppActions,
+    };
+  }
+
+  // "Your CC7 (Beacall-6)" rather than "you (Beacall-6)'s CC7".
+  function ccSummaryOwner(subjectRoot, subjectLabel, ccLabel) {
+    const userLabel = subjectLabel.match(/^you(?: \((.+)\))?$/);
+    if (subjectRoot?.subjectType === "user" && userLabel) {
+      return userLabel[1] ? `Your ${ccLabel} (${userLabel[1]})` : `Your ${ccLabel}`;
+    }
+    return `${subjectLabel}'s ${ccLabel}`;
+  }
+
+  async function tryHandleCcSummaryPrompt(params, prompt = "") {
+    const nuclear = normalizeCcNuclear(params?.nuclear, 7);
+    const ccLabel = `CC${nuclear}`;
+
+    const subjectRoot = await resolveCc7SubjectRoot(prompt);
+    if (subjectRoot?.unresolvedName) {
+      return `I couldn't identify which profile you meant by "${subjectRoot.unresolvedName}". Try a WikiTree ID like Name-123, or a more specific name.`;
+    }
+    if (!subjectRoot?.key) {
+      return "I could not detect a profile person or your logged-in profile to use as the CC starting point.";
+    }
+
+    const subjectLabel = formatSubjectLabel(subjectRoot);
+
+    try {
+      const profiles = await getCcProfilesForUser(subjectRoot.key, nuclear);
+      if (!profiles.length) {
+        return `I found no profiles in ${ccLabel} for ${subjectLabel}.`;
+      }
+
+      const rows = profiles
+        .map((profile) =>
+          mapApiPersonToStandardRow(profile, {
+            degrees: Number(profile.Degrees ?? Number.MAX_SAFE_INTEGER),
+            surnamePreference: "currentFirst",
+          })
+        )
+        .sort(
+          (left, right) =>
+            left.degrees - right.degrees ||
+            normalizeText(left.displayName).localeCompare(normalizeText(right.displayName))
+        );
+
+      const preview = linesWithMore(
+        rows.map((person) => `- ${person.displayName} (${person.wtid}), degree ${person.degrees}`),
+        15
+      );
+      const treeAppActions = nuclear === 7 ? buildTreeAppActions("cc7", subjectRoot.wtId) : [];
+
+      return {
+        message: `${ccSummaryOwner(subjectRoot, subjectLabel, ccLabel)} includes ${rows.length.toLocaleString("en-US")} profile${
+          rows.length === 1 ? "" : "s"
+        }.\n${preview}`,
+        table: makeStandardProfileTable(`${ccLabel} for ${subjectRoot.displayName}`, rows, [
+          [5, "asc"],
+          [0, "asc"],
+        ]),
+        actions: treeAppActions,
+      };
+    } catch (error) {
+      return `I couldn't fetch ${ccLabel} for ${subjectLabel}. Error: ${error?.message || "unknown error"}`;
+    }
+  }
+
+  // Whole-word place match, so "Kent" never matches "Kentucky".
+  function filterWatchlistRows(rows, filter) {
+    const place = String(filter?.location || "").trim();
+    const placeRe = place
+      ? new RegExp(`(?:^|[^\\p{L}])${place.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[^\\p{L}])`, "iu")
+      : null;
+    return rows.filter((row) => {
+      const where = filter.event === "birth" ? row.birthLocation : row.deathLocation;
+      if (placeRe && !placeRe.test(String(where || ""))) return false;
+      if (filter.dateDirection) {
+        const year = Number(String((filter.event === "birth" ? row.birth : row.death) || "").slice(0, 4));
+        if (!Number.isFinite(year) || year <= 0) return false;
+        if (filter.dateDirection === "before" && !(year < filter.year)) return false;
+        if (filter.dateDirection === "after" && !(year > filter.year)) return false;
+      }
+      return true;
+    });
+  }
+
+  function describeWatchlistFilter(filter) {
+    const verb = filter.event === "birth" ? "born" : "died";
+    return [verb, filter.location ? `in ${filter.location}` : "", filter.dateDirection ? `${filter.dateDirection} ${filter.year}` : ""]
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  async function tryHandleWatchlistPrompt(params = {}) {
+    const hasExplicitLimit =
+      params && params.limit !== undefined && params.limit !== null && String(params.limit).trim() !== "";
+    const requestedLimitRaw = hasExplicitLimit ? Number(params.limit) : NaN;
+    const requestedLimit =
+      hasExplicitLimit && Number.isFinite(requestedLimitRaw)
+        ? Math.max(1, Math.min(50000, Math.trunc(requestedLimitRaw)))
+        : null;
+
+    try {
+      let watchlistCount = null;
+      // the whole list, kept a while, so "profiles I manage …" next filters it without reading it again
+      const allEntries = await readMemberWatchlist(
+        WikiTreeAPI,
+        WBE_CHAT_APP_ID,
+        getUserNumId(),
+        (read, total) => {
+          watchlistCount = total;
+          showChatShaky?.(`Reading your watchlist: ${read.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}...`);
+        },
+        { refresh: Boolean(params?.refresh) }
+      );
+      const ageNote = watchlistAgeNote(getUserNumId());
+      hideChatShaky?.();
+      if (watchlistCount == null) watchlistCount = allEntries.length;
+      const entries = requestedLimit ? allEntries.slice(0, requestedLimit) : allEntries;
+      if (!entries.length) {
+        // No API session reads as an empty watchlist. (Not "I couldn't…": that hands it to the AI, and
+        // without a key the member got "We need AI" for "my watchlist"; live, 2026-10-10.)
+        let loggedIn = true;
+        try {
+          const userNumId = String(getUserNumId() || "");
+          loggedIn = Boolean(userNumId) && (await WikiTreeAPI.isLoggedIntoAPI(userNumId, WBE_CHAT_APP_ID));
+        } catch (error) {
+          console.debug("wbe: watchlist: API login check failed", error);
+        }
+        return loggedIn
+          ? "There are no person profiles on your watchlist."
+          : "Your watchlist can only be read when you're signed in to WikiTree Apps. Sign in with the Apps button below, then open a new page and ask again.";
+      }
+
+      const rows = entries
+        .map((entry) => {
+          const profile = entry?.profile || entry?.person || entry || {};
+          const wtId = String(profile.Name || profile.name || "").trim();
+          if (!wtId) {
+            return null;
+          }
+
+          return mapApiPersonToStandardRow(profile, {
+            wtid: wtId,
+            displayName: watchlistDisplayName(profile) || wtId,
+            surnamePreference: "currentFirst",
+          });
+        })
+        .filter(Boolean);
+
+      if (!rows.length) {
+        return "I found watchlist entries, but none had usable profile identifiers to display.";
+      }
+
+      const filter = params?.filter || null;
+      if (filter) {
+        const allCount = rows.length;
+        const filteredRows = filterWatchlistRows(rows, filter);
+        const label = describeWatchlistFilter(filter);
+        if (!filteredRows.length) {
+          return `None of the ${allCount} profiles on your watchlist ${label}.`;
+        }
+        const listed = filteredRows.slice(0, 12).map((person) => `- ${person.displayName} (${person.wtid})`);
+        const more = filteredRows.slice(12);
+        return {
+          message: `${filteredRows.length} of the ${allCount} profiles on your watchlist ${label}.${ageNote ? ` ${ageNote}` : ""}\n${listed.join("\n")}`,
+          inlineMore: more.length
+            ? { count: more.length, text: more.map((person) => `- ${person.displayName} (${person.wtid})`).join("\n") }
+            : null,
+          table: makeWatchlistTable(`Your watchlist: ${label}`, filteredRows, [[0, "asc"]]),
+        };
+      }
+
+      const knownTotal = Number.isFinite(Number(watchlistCount)) ? Number(watchlistCount) : rows.length;
+      const previewRows = rows.slice(0, 12);
+      const remainingRows = rows.slice(12);
+      const preview = previewRows.map((person) => `- ${person.displayName} (${person.wtid})`).join("\n");
+      const inlineMore = remainingRows.length
+        ? {
+            count: remainingRows.length,
+            text: remainingRows.map((person) => `- ${person.displayName} (${person.wtid})`).join("\n"),
+          }
+        : null;
+
+      const limitNote =
+        requestedLimit != null && rows.length < knownTotal
+          ? ` Showing first ${rows.length} as requested.`
+          : requestedLimit == null && rows.length < knownTotal
+          ? ` Loaded ${rows.length} of ${knownTotal}.`
+          : "";
+
+      return {
+        message: `Here ${rows.length === 1 ? "is" : "are"} ${rows.length} profile${
+          rows.length === 1 ? "" : "s"
+        } from your watchlist (${knownTotal} total).${limitNote}${ageNote ? ` ${ageNote}` : ""}\n${preview}`,
+        inlineMore,
+        table: makeWatchlistTable("Your watchlist", rows, [[0, "asc"]]),
+      };
+    } catch (error) {
+      hideChatShaky?.();
+      return `Reading your watchlist failed (${error?.message || "unknown error"}). The API may be busy: please try again in a minute.`;
+    }
+  }
+
+  return {
+    getCcProfilesForUser,
+    getCc7ProfilesForUser,
+    tryHandleCc7LocationPrompt,
+    tryHandleCcSummaryPrompt,
+    tryHandleWatchlistPrompt,
+  };
+}

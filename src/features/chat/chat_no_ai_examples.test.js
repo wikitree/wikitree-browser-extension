@@ -1,0 +1,264 @@
+jest.mock("../../core/API/wtPlusAPI", () => ({
+  wtAPICatCIBSearch: jest.fn(),
+  wtAPIProfileSearch: jest.fn(),
+}));
+
+jest.mock("../../core/common", () => ({
+  getProfilePersonInfo: jest.fn(() => null),
+  getUserWtId: jest.fn(() => "User-1"),
+}));
+
+import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
+import { createProfileSearchHandler } from "./chat_profile_search";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+import { ChatIntent, routeChatPrompt } from "./chat_router";
+import { classifyWtPrompt } from "./chat_search_mode";
+import { NO_AI_EXAMPLE_SECTIONS, allNoAiExamples, isAppsSignOutPrompt, isHelpPrompt, noAiExamplesHtml, noAiExamplesWikiText } from "./chat_no_ai_examples";
+import { parseSearchSpecPrompt } from "./chat_spec_parser";
+import { parseColumnRequest } from "./chat_requested_columns";
+import { parseExportResultPrompt } from "./chat_router";
+import { answerWikiTreeHelpQuestion } from "./chat_wikitree_help";
+
+
+function makeHandler(overrides = {}) {
+  return createProfileSearchHandler({
+    WBE_CHAT_APP_ID: "wbe-chat-test",
+    hasAnyApiKey: jest.fn(() => false),
+    getChatOptions: jest.fn(async () => ({ allowAiFallback: false })),
+    getChatAiConfig: jest.fn(async () => ({ provider: "openai", key: "", model: "gpt-test" })),
+    fetchSearchPersonPaged: jest.fn(),
+    fetchPeoplePaged: jest.fn(async () => [
+      null,
+      null,
+      {
+        1: {
+          Id: 1,
+          Name: "Test-1",
+          FirstName: "Test",
+          LastNameAtBirth: "Example",
+        },
+      },
+    ]),
+    mapApiPersonToStandardRow: jest.fn((person, options = {}) => ({
+      wtid: options.wtId || person?.Name || "",
+      firstName: person?.FirstName || "",
+      lnab: person?.LastNameAtBirth || "",
+      lastNameCurrent: person?.LastNameCurrent || "",
+      birth: "",
+      death: "",
+      birthLocation: person?.BirthLocation || "",
+      deathLocation: person?.DeathLocation || "",
+    })),
+    makeStandardProfileTable: jest.fn((title, rows, defaultOrder = [[0, "asc"]]) => ({
+      title,
+      rows,
+      defaultOrder,
+      columns: [{ key: "wtid" }, { key: "firstName" }],
+    })),
+    makeAncestorProfileTable: jest.fn((title, rows, defaultOrder = [[0, "asc"]]) => ({
+      title,
+      rows,
+      defaultOrder,
+      columns: [{ key: "wtid" }, { key: "firstName" }],
+    })),
+    normalizeText: (value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase(),
+    normalizeKnownDate: jest.fn((value) => value),
+    showChatShaky: jest.fn(),
+    hideChatShaky: jest.fn(),
+    ...overrides,
+  });
+}
+
+// Every example in the "What can I type?" list must work with no AI key: a
+// chart or list the router handles itself, or a WikiTree+ search with the
+// expected query.
+const DETERMINISTIC = new Set(
+  Object.values(ChatIntent).filter((v) => !["fallbackAi", "profileSearch", "lastResultOperation"].includes(v))
+);
+
+const WTPLUS_QUERIES = {
+  "Devon 1820s": "Location=Devon",
+  "Smith born in Kent before 1800": "AllLastNames=Smith BirthLocation=Kent",
+  "Devon births post-1850": "BirthLocation=Devon",
+  "born in Ohio died in Texas 1900-1950": "BirthLocation=Ohio DeathLocation=Texas",
+  "Who was born in Devon in 1820?": "BirthLocation=Devon B1820",
+  "Who else died in Motueka in 1898?": "DeathLocation=Motueka D1898",
+  "How many profiles have the surname Alley?": "AllLastNames=Alley",
+  "How many people were born in Rutland in 1820?": "BirthLocation=Rutland B1820",
+  "people with the surname Alley born in Nelson": "AllLastNames=Alley BirthLocation=Nelson",
+  "How many profiles have I created?": "Created=Creator_User-1",
+  "profiles I created in 2023": "Created=Created_2023 Created=Creator_User-1",
+  "born before 1750 in Devon": "[Birth Date].AsNumber In 1..17499999",
+  "died after 1900 in Liverpool": "[Death Date].AsNumber >= 19010000",
+  "Cheshire profiles with no biography": "Suggestions=802",
+  "England no birth or death date": 'Suggestions="131 132 133 134"',
+  "Shropshire unsourced born in 1820s": "Unsourced Location=Shropshire",
+  "Staffordshire 1850-1900 married but no children listed": "NoChildren",
+  "Lancashire 1800-1899 spousal age gaps over 20 years": "[Spouses].[Birth Date]",
+  "Flintshire siblings born less than 5 months apart": "[Siblings]",
+  "Yorkshire miners": "CategoryWord=miner",
+  "Chicago military": "CategoryWord=military",
+  "Mary Smith 1820 Ohio": "FirstName=Mary BirthLocation=Ohio B1820",
+  "women who died in Texas 1900-1950": "DeathLocation=Texas",
+  "Kent farmers 1850s": "CategoryWord=Yeomen",
+  "Irish farmers 1850s": "BirthLocation=Ireland",
+  "twins born in Lancashire": "BirthLocation=Lancashire CategoryWord=Twins",
+  "Devon centenarians": "Location=Devon CategoryWord=Centenarians",
+  "profiles I manage with no sources": "Manager=User-1",
+  "profiles managed by the Mayflower Project with no sources": "bioCheckUnsourced Manager=WikiTree-9",
+  "Lancashire profiles with no death date born before 1850": "Location=Lancashire D0",
+  "Category: Pennsylvania Quakers and its subcategories": 'SubCat9="Pennsylvania Quakers"',
+  "category word Huguenot": "CategoryWord=Huguenot",
+  "gold standard profiles in Devon": "Location=Devon ResearchGold",
+  "Devon births with a content rank of 1": "BirthLocation=Devon rank=1",
+  "Whitten born in Kent with a low content rank": "AllLastNames=Whitten BirthLocation=Kent rank=1 OR AllLastNames=Whitten BirthLocation=Kent rank=2",
+  "Shropshire births with a notable template": "BirthLocation=Shropshire NotableProfile",
+  "Which of my relatives is a member of a notable category?": "WikiTreeID=User-1 " + "Relation=addparents ".repeat(7) + "Relation=addchildren ".repeat(7) + "CC7=User-1 Notables",
+  "my relatives born in Kent": "WikiTreeID=User-1 " + "Relation=addparents ".repeat(7) + "Relation=addchildren ".repeat(7) + "CC7=User-1 BirthLocation=Kent",
+  "relatives who emigrated to the USA": "WikiTreeID=User-1 " + "Relation=addparents ".repeat(7) + "Relation=addchildren ".repeat(7) + 'CC7=User-1 DeathLocation="United States" NOT BirthLocation="United States"',
+  "profiles I manage with sources to review": "ResearchReview Manager=User-1",
+  "profiles I manage with style issues": "bioCheckStyleIssues Manager=User-1",
+  "Beacall emigrants to Australia": "DeathLocation=Australia NOT BirthLocation=Australia",
+  "Scottish emigrants to Canada": "BirthLocation=Scotland DeathLocation=Canada",
+  "Smith born in Ohio created in 2023 or 2024": "Created=Created_2024",
+  "Garver born in Ohio created before 2012": "Created=Created_2011",
+  "Garver profiles": "AllLastNames=Garver",
+  "profiles with last name Garver": "AllLastNames=Garver",
+  "LastNameAtBirth=Garver": "LastNameAtBirth=Garver",
+  // (these two ask born/married/died or surname first: the buttons' queries)
+  "Devon profiles with no sources": "BirthLocation=Devon bioCheckUnsourced",
+  "Kent profiles without a father": "AllLastNames=Kent NoFather",
+  "Smith born 1850 Kent": "AllLastNames=Smith BirthLocation=Kent B1850",
+  "the Beacalls of Shropshire": "AllLastNames=Beacalls Location=Shropshire",
+  "Smith family from Kent": "AllLastNames=Smith Location=Kent",
+  "Irish people who went to America": "BirthLocation=Ireland DeathLocation=America",
+  "people who left Ireland": "BirthLocation=Ireland NOT DeathLocation=Ireland",
+  "profiles in Kent created this year": `Location=Kent Created=Created_${new Date().getFullYear()}`,
+  "Edwards profiles with no birth date": "AllLastNames=Edwards B0",
+  "born in Devon with no death date": "BirthLocation=Devon D0",
+  "Category: Mayflower Passengers no parents": "CategoryFull=Mayflower_Passengers NoParents",
+  "Who is in the Salem Witch Trials category?": "CategoryFull=Salem_Witch_Trials",
+  "Category: Pennsylvania Quakers died before 1800": "CategoryFull=Pennsylvania_Quakers sql=",
+};
+
+const UNCLAIMED = [ChatIntent.FALLBACK_AI, ChatIntent.PROFILE_SEARCH];
+
+/** What chat_search_mode does with the prompt when there is no AI key. */
+const classifyWithoutKey = (prompt) =>
+  classifyWtPrompt({
+    prompt,
+    getChatAiConfig: async () => ({ key: "" }),
+    isUnclaimed: (text) => UNCLAIMED.includes(routeChatPrompt(text, { hasStructuredResult: false })?.intent),
+  });
+
+async function wtPlusQuery(prompt) {
+  const target = await classifyWithoutKey(prompt);
+  // (these look like questions about your own family to the router; chat_search_mode runs the reader for them with no key)
+  const readerFirst = /\bemigrants\b/i.test(prompt) && Boolean(parseSearchSpecPrompt(prompt));
+  if (target !== "wtplus" && !readerFirst) return `(${target})`;
+  jest.clearAllMocks();
+  wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "Result: 1\r\n" } });
+  const result = await makeHandler().tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, prompt);
+  // (a count — maxProfiles 1 — isn't the search: "is Devon a surname too?" is asked before the question)
+  const searches = wtAPIProfileSearch.mock.calls.filter((call) => call[2]?.maxProfiles !== 1);
+  if (!searches.length) return (result?.actions || []).map((action) => action.wtPlusQuery).join(" ;; ");
+  return searches.map((call) => decodeURIComponent(call[1])).join(" ;; ");
+}
+
+const bySection = (id) => allNoAiExamples().filter((e) => e.section === id).map((e) => e.example);
+
+describe("no-AI examples", () => {
+  test.each(bySection("search"))("search: %s", async (prompt) => {
+    expect(WTPLUS_QUERIES[prompt]).toBeTruthy();
+    expect(await wtPlusQuery(prompt)).toContain(WTPLUS_QUERIES[prompt]);
+  });
+
+  test("relatives results offer the whole CC7, in-laws too", async () => {
+    jest.clearAllMocks();
+    wtAPIProfileSearch.mockResolvedValue({ response: { profiles: ["1"], searchLog: "Result: 1\r\n" } });
+    const result = await makeHandler().tryHandleProfileSearchPrompt({ chatModeOverride: "wtplus" }, "my relatives born in Kent");
+    const button = (result?.actions || []).find((action) => action.label === "Include in-laws (whole CC7)");
+    expect(button?.wtPlusQuery).toBe("CC7=User-1 BirthLocation=Kent");
+  });
+
+  // A name with family to check is the person search's (searchPerson), never WT+: with AI off,
+  // "Frederick Beacall mother Mary Ann" became AllLastNames=Frederick Location=Beacall (live, 2026-10-21).
+  test.each(bySection("person"))("person: %s", async (prompt) => {
+    expect([null, "wt"]).toContain(await classifyWithoutKey(prompt));
+    const fetchSearchPersonPaged = jest.fn(async () => [0, [{ Id: 1, Name: "Test-1" }]]);
+    const searchPerson = jest.spyOn(WikiTreeAPI, "searchPerson").mockResolvedValue([0, [{ Id: 1, Name: "Test-1" }]]);
+    jest.clearAllMocks();
+    await makeHandler({ fetchSearchPersonPaged }).tryHandleProfileSearchPrompt({ chatModeOverride: "wt" }, prompt);
+    const params = fetchSearchPersonPaged.mock.calls[0]?.[1] || searchPerson.mock.calls[0]?.[1];
+    const [first, ...rest] = prompt.split(/\s+/);
+    expect(params).toMatchObject({ FirstName: first, LastName: rest[0] });
+    expect(wtAPIProfileSearch).not.toHaveBeenCalled();
+    searchPerson.mockRestore();
+  });
+
+  test("columns", () => {
+    expect(parseColumnRequest("Garver profiles with gender and privacy columns")).toEqual({
+      keys: ["gender", "privacy"],
+      rest: "Garver profiles",
+    });
+    expect(parseColumnRequest("add a privacy column")).toEqual({ keys: ["privacy"], rest: "" });
+    expect(bySection("columns")).toEqual(["Garver profiles with gender and privacy columns", "add a privacy column"]);
+  });
+
+  test.each(bySection("followups"))("follow-up: %s", (prompt) => {
+    if (/^export\b/.test(prompt)) {
+      expect(parseExportResultPrompt(prompt)).toBeTruthy();
+      return;
+    }
+    expect(routeChatPrompt(prompt, { hasStructuredResult: true })?.intent).toBe(ChatIntent.LAST_RESULT_OPERATION);
+  });
+
+  const handledByRouter = allNoAiExamples()
+    .filter((e) => !["search", "person", "columns", "followups", "wikitree"].includes(e.section))
+    .map((e) => [e.section, e.example]);
+  test.each(handledByRouter)("%s: %s", (section, prompt) => {
+    expect(DETERMINISTIC.has(routeChatPrompt(prompt, { hasStructuredResult: false })?.intent)).toBe(true);
+  });
+
+  // (with no key a question ends in chat.js showNeedsAiKey, which tries WikiTree's help first;
+  // these must answer even when the FAQ pages can't be fetched)
+  test.each(bySection("wikitree"))("WikiTree question: %s", async (prompt) => {
+    expect(UNCLAIMED).toContain(routeChatPrompt(prompt, { hasStructuredResult: false })?.intent);
+    expect(await classifyWithoutKey(prompt)).toBe("needsAi");
+    expect((await answerWikiTreeHelpQuestion(prompt, { fetchPage: async () => "" }))?.text).toMatch(/wikitree\.com\/wiki\/(?:Help|Space):/);
+  });
+
+  test("wiki text has a table per section and escapes brackets", () => {
+    const text = noAiExamplesWikiText();
+    expect(text.match(/^== /gm)).toHaveLength(NO_AI_EXAMPLE_SECTIONS.length);
+    expect(text).toContain("&#91;place&#93;");
+    expect(text).not.toMatch(/^\| .*\[place\]/m);
+  });
+
+  test("panel: a collapsed section per topic, every example a button", () => {
+    document.body.innerHTML = noAiExamplesHtml();
+    expect(document.querySelectorAll("details:not([open])")).toHaveLength(NO_AI_EXAMPLE_SECTIONS.length);
+    const buttons = [...document.querySelectorAll("button.chat-example")];
+    expect(buttons.map((b) => b.dataset.prompt)).toEqual(allNoAiExamples().map((e) => e.example));
+    expect(buttons.filter((b) => b.dataset.needsResult).map((b) => b.dataset.prompt)).toEqual(
+      allNoAiExamples().filter((e) => e.needsResult).map((e) => e.example)
+    );
+  });
+});
+
+test.each(["help", "Help", "?", "What can I type?", "what can I ask here", "what can Genie do?"])("help prompt: %s", (prompt) => {
+  expect(isHelpPrompt(prompt)).toBe(true);
+});
+test.each(["Help profiles", "profiles with last name Help", "Help-1", "help me find my grandfather", "Help:WikiTree_Plus", "what can I do about brick walls?"])("not a help prompt: %s", (prompt) => {
+  expect(isHelpPrompt(prompt)).toBe(false);
+});
+
+test.each(["Sign out of Apps", "sign out of the apps server", "Log out of WikiTree Apps.", "logout of apps", "sign off apps please", "Log out from the Apps login"])("apps sign-out prompt: %s", (prompt) => {
+  expect(isAppsSignOutPrompt(prompt)).toBe(true);
+});
+test.each(["Sign out", "sign out of WikiTree", "apps", "how do I sign out of apps?", "Who signed out of apps"])("not an apps sign-out prompt: %s", (prompt) => {
+  expect(isAppsSignOutPrompt(prompt)).toBe(false);
+});

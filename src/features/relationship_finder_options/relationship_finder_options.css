@@ -1,0 +1,191 @@
+#imageContainer.wbe-relationship-flat span[class*="ancestor_"] {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  text-indent: 0 !important;
+}
+#imageContainer .wbe-relationship-spouses {
+  font-size: inherit;
+}
+
+#imageContainer .wbe-relationship-tools {
+  margin-top: 1rem;
+}
+#imageContainer .wbe-relationship-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
+}
+#imageContainer .wbe-relationship-header h3 {
+  flex: 1 1 24rem;
+  margin: 0;
+}
+#imageContainer .wbe-relationship-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+#imageContainer .wbe-relationship-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+}
+#imageContainer .wbe-relationship-notice:empty {
+  display: none;
+}
+#imageContainer .wbe-relationship-toolbar select {
+  width: auto;
+  min-width: 9rem;
+}
+#imageContainer .wbe-relationship-shared {
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+#imageContainer .wbe-relationship-shared h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+#imageContainer .wbe-relationship-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+#imageContainer .wbe-relationship-column {
+  min-width: 0;
+}
+#imageContainer .wbe-relationship-column h4 {
+  margin-block: 0 1rem;
+}
+#imageContainer .wbe-relationship-trail {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+#imageContainer .wbe-relationship-trail li {
+  overflow-wrap: anywhere;
+}
+#imageContainer .wbe-relationship-generation {
+  display: block;
+  font-size: 0.875em;
+  margin-bottom: 0.25rem;
+}
+#imageContainer .wbe-relationship-direct {
+  font-weight: bold;
+}
+#imageContainer .wbe-relationship-status {
+  display: inline-block;
+  font-size: 0.875em;
+  border: 1px solid var(--bs-border-color, currentColor);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.4rem;
+  margin-left: 0.5rem;
+}
+
+#imageContainer .wbe-relationship-notice {
+  font-size: 0.875em;
+}
+@media (max-width: 767px) {
+  #imageContainer .wbe-relationship-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #imageContainer.wbe-relationship-enhanced {
+    padding: 1rem !important;
+  }
+}
+@media print {
+  #imageContainer .wbe-relationship-toolbar {
+    display: none;
+  }
+}
+
+#imageContainer .wbe-relationship-shared {
+  text-align: center;
+}
+#imageContainer .wbe-relationship-trail .wbe-relationship-step {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  gap: 0.5rem;
+  border-left: 0;
+  padding: 0.2rem 0.3rem;
+  margin-bottom: 0.15rem;
+  border-radius: 0.5rem;
+}
+#imageContainer .wbe-relationship-step:nth-child(even) {
+  background: var(--bs-tertiary-bg, #f0f0eb);
+}
+#imageContainer .wbe-relationship-generation {
+  align-self: center;
+  text-align: center;
+  font-weight: bold;
+  border: 1px solid var(--bs-border-color, currentColor);
+  border-radius: 50%;
+  line-height: 1.35rem;
+  width: 1.35rem;
+}
+#imageContainer .wbe-relationship-couple {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+#imageContainer .wbe-relationship-path-person,
+#imageContainer .wbe-relationship-spouse-person {
+  display: inline-block;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.3rem;
+  overflow-wrap: anywhere;
+}
+#imageContainer .wbe-relationship-path-person {
+  font-weight: bold;
+}
+#imageContainer .wbe-relationship-beside {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  font-size: inherit;
+}
+#imageContainer .wbe-relationship-spouse-label {
+  font-size: 1.1em;
+  font-weight: bold;
+}
+#imageContainer .background--gender-male {
+  background: #f2f1ff;
+}
+#imageContainer .background--gender-female {
+  background: #ffeeee;
+}
+#imageContainer .background--gender-no-gender {
+  background: #eeffee;
+}
+
+#imageContainer .wbe-relationship-toolbar select:focus-visible,
+#imageContainer .wbe-relationship-toolbar button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+#imageContainer .wbe-relationship-column h4 {
+  margin-bottom: 0.5rem;
+}
+#imageContainer .wbe-relationship-shared {
+  margin-inline: auto;
+}
+
+#imageContainer .wbe-relationship-summary {
+  margin: 0.4rem 0 0;
+}
+
+#imageContainer .wbe-relationship-coloured-link {
+  border-radius: 0.2rem;
+  padding: 0.1rem 0.2rem;
+}
+
+#imageContainer .wbe-relationship-single-path {
+  grid-template-columns: minmax(0, 1fr);
+}

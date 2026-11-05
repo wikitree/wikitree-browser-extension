@@ -42,10 +42,22 @@
   display: inline-block;
 }
 
+/* Match the toolbar artwork baseline without moving the whole button group. */
+body .clipboardContainer > button.wbe-app-login:not(#none) {
+  vertical-align: -3px;
+}
+
 body.edit_relation .clipboardContainer,
 body.add_unrelated .clipboardContainer {
   top: 0.2em;
   margin-left: 0.5em;
+}
+
+body.edit_relation .clipboardContainer a,
+body.add_unrelated .clipboardContainer a,
+div.wbe-button-container2 a {
+  padding-top: 0.2em;
+  margin-left: 0.4em;
 }
 
 form[name="a_form"] {
@@ -60,6 +72,10 @@ form[name="a_form"] {
   margin-right: 0.1em;
   padding-left: 0.5em;
   padding-right: 0.5em;
+}
+.qa-body-js-on .clipboardContainer a {
+  margin-left: 0.2em;
+  padding-top: 0.2em;
 }
 
 #HEADER span.clipboardContainer {
@@ -145,6 +161,32 @@ form[name="a_form"] {
 
 [data-tooltip]:hover::before {
   opacity: 1;
+}
+
+/* The Genie in the profile heading: the same green as the other WBE icons (important, or WikiTree's link
+   colours win). Dark Mode's light green is here too, as Dark Mode only recolours SVG files, not inline SVGs. */
+#wbe-genie-button:not(#none) {
+  color: #2b4d37 !important;
+}
+body.darkMode #wbe-genie-button:not(#none) {
+  color: #a5d167 !important;
+}
+
+/* The Genie in the profile heading: the tooltip sits to its left. */
+#wbe-genie-button::after {
+  bottom: auto;
+  top: 50%;
+  left: auto;
+  right: calc(100% + 10px);
+  transform: translateY(-50%);
+}
+#wbe-genie-button::before {
+  bottom: auto;
+  top: 50%;
+  left: auto;
+  right: calc(100% - 4px);
+  transform: translateY(-50%);
+  border-color: transparent transparent transparent #fcb815;
 }
 
 .float-end {
@@ -237,6 +279,76 @@ ol.star1.green > li::before {
     font-size: x-small;
     margin-left: 1em;
   }
+
+  /* The page toolbar nests its icons in two floated boxes inside a nav that is
+     only as wide as the page gutter allows. The .float-end box alone is as wide
+     as the nav, so it can never share a line with .float-start and its contents
+     start on a row of their own. Make the nav one wrapping flex row and dissolve
+     both boxes so every icon flows as a single sequence and fills each line.
+     (Don't try to unset the floats: .float-start/.float-end are Bootstrap
+     utilities carrying !important, so those declarations would be ignored.) */
+  body.wte .tabs--wrapper nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3em;
+  }
+
+  body.wte .tabs--wrapper nav > .profile--actions.float-start,
+  body.wte .tabs--wrapper nav > .profile--actions.float-end {
+    display: contents;
+  }
+
+  /* These links carry their own uneven horizontal margins (8-21px) on top of the
+     flex gap, which is enough to push the last icon onto a row by itself. Let the
+     gap do the spacing instead. */
+  body.wte .tabs--wrapper nav > .btn,
+  body.wte .tabs--wrapper nav .profile--actions > a {
+    margin-left: 0;
+    margin-right: 0;
+    line-height: 1;
+  }
+
+  /* Shrink the toolbar icons at phone widths so more fit per row. The glyphs are
+     background images painted with `background-size: contain`, so resizing the
+     box scales them cleanly — no transform needed (a transform would shrink the
+     glyph without reclaiming any layout width). */
+  body.wte .tabs--wrapper nav .wbe-button:not(.WBEHelpIcon, #unconnectedBranchButton) span,
+  body.wte .tabs--wrapper nav .wbe-icon:not(.WBEHelpIcon, #unconnectedBranchButton) span,
+  body.wte .tabs--wrapper nav .profile--actions > a > span {
+    width: 22px;
+    height: 21px;
+  }
+
+  /* Fallback for engines without display:contents — keeps the pre-existing
+     wrapping behaviour rather than reverting to a single squeezed column. */
+  body.wte .profile--actions.float-end {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3em;
+  }
+
+  /* Keep our icons on one line: at the default pitch seven of them overflow the
+     row and one orphans onto a line of its own. Don't let the container shrink
+     either, or it collapses to a single icon wide. */
+  body.wte .clipboardContainer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 0.3em;
+  }
+
+  body.wte .clipboardContainer > .wbe-button {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  body.wte .clipboardContainer img.button.small {
+    margin-right: 0;
+    padding-left: 0.2em;
+    padding-right: 0.2em;
+  }
 }
 @media (min-width: 992px) and (max-width: 1200px) {
   .ebWBE {
@@ -247,11 +359,37 @@ ol.star1.green > li::before {
 
 .profile--actions.float-end #wbeAppLoginBtn {
   margin-left: 0.5em;
-  position: relative;
-  padding: 0.2em 0.5em;
-  display: inline-block;
-  height: 80%;
-  top: 0.2em;
+}
+/* the Navigation Home Page puts it at the end of the heading */
+h1 #wbeAppLoginBtn {
+  margin-left: 0.6em;
+}
+
+/* The Apps Login button, wherever a feature puts it: a green "Apps" pill with a key.
+   Features place theirs with rules on its id (float, margins), and some of those also set padding or font-size;
+   :not(#none) gives this rule an id's weight so the pill looks the same everywhere. */
+body button.wbe-app-login:not(#none) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  vertical-align: middle;
+  padding: 0 10px 0 8px;
+  border: 0;
+  border-radius: 12px;
+  background: #25422d;
+  color: #fff;
+  font: 500 12.5px/1 Roboto, Arial, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+}
+body button.wbe-app-login:not(#none):hover {
+  background: #3a6646;
+}
+body button.wbe-app-login:not(#none) svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
 }
 
 /* WBE branding */
@@ -260,6 +398,9 @@ ol.star1.green > li::before {
   --wbe-colour-light: #0086b3;
   --wbe-icon-filter: sepia(0%) saturate(690%) hue-rotate(445deg) brightness(89%) contrast(100%);
   --wbe-icon-filter-light: sepia(0%) saturate(650%) hue-rotate(80deg) brightness(120%) contrast(101%);
+  --wbe-green: #6d9731;
+  --wbe-orange: #f5a623;
+  --wbe-gray: #b4b4b4;
 }
 
 /* Tooltip for the WBE help icon */
@@ -303,4 +444,156 @@ ol.star1.green > li::before {
   width: 20px !important;
   position: relative;
   top: -0.1em;
+}
+
+#wbe-backup-reminder,
+#wbe-restore-prompt {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 350px;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000000;
+  display: flex;
+  flex-direction: column;
+}
+
+#wbe-backup-reminder .dialog-header,
+#wbe-restore-prompt .dialog-header {
+  background-color: #25422d;
+  color: #fff;
+  padding: 8px 12px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#wbe-backup-reminder .dialog-header .close,
+#wbe-restore-prompt .dialog-header .close {
+  color: #fff;
+  text-decoration: none;
+  font-size: 18px;
+  order: 2;
+}
+
+#wbe-backup-reminder .dialog-content,
+#wbe-restore-prompt .dialog-content {
+  padding: 15px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+#wbe-backup-reminder .wbe-feature-list,
+#wbe-restore-prompt .wbe-feature-list {
+  margin: 10px 0;
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+#wbe-backup-reminder .wbe-feature-list li,
+#wbe-restore-prompt .wbe-feature-list li {
+  margin-bottom: 4px;
+}
+
+#wbe-backup-reminder .backup-reminder-buttons,
+#wbe-restore-prompt .backup-reminder-buttons {
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+}
+
+#wbe-backup-reminder button,
+#wbe-restore-prompt button {
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  font-weight: bold;
+  font-size: 14px;
+  background-color: #25422d !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s;
+}
+
+#wbe-backup-reminder button:hover,
+#wbe-restore-prompt button:hover {
+  background-color: #1a3020 !important;
+  opacity: 1;
+}
+
+#wbe-backup-reminder button:hover,
+#wbe-restore-prompt button:hover {
+  opacity: 0.9;
+}
+
+/* The reminder appears unasked for, so it keeps out of the way in the corner. This one is the
+   answer to a menu item just clicked, and is waiting on a decision, so it goes in the middle. */
+#wbe-restore-prompt {
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  max-width: calc(100vw - 40px);
+}
+
+/* The header Genie button takes precedence while it is visible. */
+.wbe-genie-bar-button.wbe-genie-header-visible {
+  display: none !important;
+}
+
+/* Change Summary Options' Suggest button in the edit page's Change Explanation box
+   (custom_change_summary_options/change_explanation_button.js). */
+.wbe-suggest-summary-button {
+  cursor: pointer;
+}
+.wbe-suggest-summary-button:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+.wbe-suggest-summary-button:disabled {
+  cursor: progress;
+}
+.wbe-suggest-summary-button[aria-busy="true"] {
+  animation: wbe-suggest-summary-pulse 0.7s ease-in-out infinite alternate;
+}
+@keyframes wbe-suggest-summary-pulse {
+  to {
+    opacity: 0.5;
+  }
+}
+/* (Dark Mode darkens the "?" segment, a span, but not buttons: the same colours here.) */
+body.darkMode .wbe-suggest-summary-button {
+  background-color: #36393f !important;
+  color: #dedecb !important;
+}
+/* On free-space and category pages the box isn't in an input group, so it gets one. */
+.wbe-suggest-summary-group > #wpSummary {
+  flex: 1 1 auto;
+  width: 1%;
+  min-width: 0;
+}
+.wbe-suggest-summary-error {
+  color: #b02a37;
+}
+body.darkMode .wbe-suggest-summary-error {
+  color: #ff8a8a;
+}
+.wbe-suggest-summary-tree {
+  width: 24px;
+  height: 24px;
+  margin-right: 0.4em;
+  vertical-align: middle;
+}
+.wbe-suggest-summary-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-top: 0.25em;
 }

@@ -53,6 +53,8 @@ shouldInitializeFeature("categoryDisplay").then((result) => {
 async function moveCategories() {
   const options = await getFeatureOptions("categoryDisplay");
   let $categories = $("#Categories");
+  // Escape if #Categories does not have a div.category--links ancestor (e.g. on DNA pages).
+  if (!$categories.closest("div.category--links").length) return;
   $categories.addClass("x-categories");
   $("a[name='Categories']").remove();
   if (!$categories.length) return;

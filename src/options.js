@@ -1,12 +1,24 @@
 import $ from "jquery";
 
 import { features, OptionType } from "./core/options/options_registry";
+import {
+  OLLAMA_LOCAL_ORIGINS,
+  OLLAMA_ORIGINS,
+  OLLAMA_SAFARI_COMMAND,
+  SHARED_AI_FEATURES,
+  SHARED_AI_KEY_IDS,
+  SHARED_AI_OPTIONS_KEY,
+  SHARED_AI_OPTION_IDS,
+  SHARED_AI_SETTINGS,
+  effectiveAiProvider,
+} from "./core/options/shared_ai_options";
 import { categorize } from "./features/register_categories";
 import "./features/register_feature_options";
-import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink } from "./core/common";
-import { restoreOptions, restoreData, sendMessageToContentTab } from "./upload";
+import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink, recordBackupMade } from "./core/common";
+import { restoreOptions, restoreData, restoreAll, sendMessageToContentTab } from "./upload";
 import { navigatorDetect } from "./core/navigatorDetect";
-import { shouldInitializeFeature } from "./core/options/options_storage.js";
+import { getFeatureOptions, shouldInitializeFeature } from "./core/options/options_storage.js";
+import { initSafariPopupScrollFix } from "./core/popupScrollFix";
 
 shouldInitializeFeature("darkMode").then((result) => {
   if (result) {
@@ -14,9 +26,24 @@ shouldInitializeFeature("darkMode").then((result) => {
   }
 });
 
+// Features that the category and "toggle all" switches leave alone.
+const TOGGLE_ALL_EXCLUDED_SELECTOR = ["darkMode", "highlightWBEFeatures", "colorBlindSupport", "hauntedTree"]
+  .map((id) => "#" + id)
+  .join(",");
+
+console.log(
+  "[WBE options] version:",
+  WBE?.version,
+  "| UA:",
+  navigator.userAgent,
+  "| detected:",
+  JSON.stringify(navigatorDetect.browser)
+);
+initSafariPopupScrollFix();
+
 if (WBE?.version) {
   const title = WBE.name + " " + WBE.version;
-  $("head > title").text(title.replace("Extension", "Extension Options"));
+  $("head > title").text(title.replace("Extension", "Extension Settings"));
   $("#h1Text").attr("title", title);
 }
 
@@ -30,6 +57,38 @@ if (WBE?.version) {
   );
 })(chrome.runtime);
 
+// Same browser set as popupScrollFix.js: not Blink, not Gecko. Safari is the only
+// one that both mis-sizes the popup viewport and offers no Settings entry of its
+// own, so nothing below this point should change anywhere else.
+const isSafari = !navigatorDetect.browser.Blink && !navigatorDetect.browser.Gecko;
+
+// The toolbar button opens this page as the popup, and on Safari for iPadOS that
+// popover is all you get - unlike Chrome's icon context menu or Firefox's
+// about:addons, there is no "open the settings page" entry anywhere in the browser
+// UI. The Settings context menu item covers the desktop, but there is no context
+// menu to reach it with on iPadOS, so offer a way out of the popup as well.
+// tabs.getCurrent() reports the tab the caller is running in, and is undefined in
+// a popup, so the button only appears when this page really is the popup.
+(function (tabs) {
+  if (!isSafari || !tabs?.getCurrent || !tabs?.create) return;
+  try {
+    tabs.getCurrent(function (tab) {
+      if (chrome.runtime?.lastError || tab) return; // already in a tab
+      $('<a id="openInTab" class="nohover">Open in a tab</a>')
+        .attr({ href: chrome.runtime.getURL("options.html"), title: "Open these settings in a full browser tab" })
+        .on("click", function (e) {
+          e.preventDefault();
+          tabs.create({ url: this.href });
+          window.close();
+        })
+        .appendTo($("#options > h1"));
+      $("html").addClass("has-open-in-tab");
+    });
+  } catch (e) {
+    console.log("[WBE options] could not check for the popup:", e);
+  }
+})(chrome.tabs); // chrome.* is the callback-style namespace in all three browsers
+
 import("./core/toggleCheckbox.css");
 
 // Build the tree of categories with features under them
@@ -40,6 +99,170 @@ $("h1")
   .after('<div id="categoryBar"><ul><li><input id="optionSearch" type="search" placeholder="Search"></li></ul></div>');
 
 const textField = document.getElementById("optionSearch");
+
+// The AI Settings dialog (addAiSettingsDialog) is built like a feature's options, with this id
+function isAiSettings(featureId) {
+  return featureId === SHARED_AI_SETTINGS.id;
+}
+
+// A key added for a provider other than the selected one, when it's the only key: select that
+// provider too (the user, 2026-10-07: a member had only a Claude key, with OpenAI selected).
+function selectProviderWithOnlyKey(featureId, changedElement) {
+  const changedId = String(changedElement?.id || "").replace(`${featureId}_`, "");
+  if (!SHARED_AI_KEY_IDS.includes(changedId)) return;
+  const select = document.getElementById(`${featureId}_aiProvider`);
+  if (!select) return;
+  const options = { aiProvider: select.value };
+  SHARED_AI_KEY_IDS.forEach((keyId) => {
+    options[keyId] = document.getElementById(`${featureId}_${keyId}`)?.value || "";
+  });
+  const provider = effectiveAiProvider(options);
+  if (provider !== select.value) select.value = provider;
+}
+
+// Ollama (2026-10-16): ollama.com and this computer's Ollama are optional permissions, so adding
+// them didn't ask every member to accept new sites on update. The browser only allows the request
+// during the click or change itself. done(granted, message) gets the outcome.
+function requestOllamaAccess(done = () => {}) {
+  // (declarativeNetRequestWithHostAccess: Ollama refuses extension origins with a 403, so background.js
+  // removes the Origin header from its own requests to port 11434; live, Ollama 0.40.5, 2026-10-16)
+  const ask = (request, retry) => {
+    try {
+      chrome.permissions.request(request, (granted) => {
+        const error = chrome.runtime.lastError;
+        if (error) console.warn("wbe: Ollama access request failed", error.message);
+        if (error && retry) return ask(retry, null);
+        if (!error && !granted) console.warn("wbe: Ollama access not granted");
+        done(!error && Boolean(granted), error?.message || "");
+      });
+    } catch (error) {
+      console.warn("wbe: Ollama access request failed", error);
+      if (retry) return ask(retry, null);
+      done(false, error?.message || String(error));
+    }
+  };
+  ask({ permissions: ["declarativeNetRequestWithHostAccess"], origins: OLLAMA_ORIGINS }, { origins: OLLAMA_ORIGINS });
+}
+
+// Ask when Ollama is picked. Safari (2026-10-17) refuses a request made from a select's change ("Must
+// be called during a user gesture"), and the access alone doesn't get it past Ollama (ollamaSafariRow).
+function requestOllamaAccessIfChosen(featureId, changedElement) {
+  const changedId = String(changedElement?.id || "").replace(`${featureId}_`, "");
+  if (!["aiProvider", "ollamaWhere", "ollamaKey"].includes(changedId)) return;
+  if (document.getElementById(`${featureId}_aiProvider`)?.value !== "ollama") return;
+  if (isSafari) return;
+  requestOllamaAccess(() => updateOllamaAccessRows());
+}
+
+// "Allow access to Ollama", under "Run Ollama on" in the AI Settings, while Ollama on this
+// computer is chosen and the browser hasn't let WBE reach it: Chrome and Firefox don't ask again
+// after a missed or refused prompt. A click is a gesture everywhere.
+function ollamaAccessRow() {
+  const row = document.createElement("div");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "ollama-access-button";
+  button.innerText = "Allow access to Ollama";
+  const note = document.createElement("label");
+  note.className = "option-comment";
+  note.innerText = "WBE needs your permission to reach Ollama on this computer.";
+  button.addEventListener("click", () => {
+    requestOllamaAccess((granted, message) => {
+      if (!granted) note.innerText = `The browser didn't allow it${message ? `: ${message}` : "."}`;
+      updateOllamaAccessRows();
+    });
+  });
+  row.append(button, note);
+  return row;
+}
+
+// Safari gets the Terminal command instead: allowing access there isn't enough, as Safari doesn't
+// apply the header rule (OLLAMA_SAFARI_COMMAND). Nothing here can tell whether it has been run, so it
+// shows whenever Ollama on this computer is chosen.
+function ollamaSafariRow() {
+  const row = document.createElement("div");
+  const intro = document.createElement("label");
+  intro.className = "option-comment";
+  intro.innerText = "In Safari, Ollama has to allow WBE first. Open Terminal (Applications > Utilities) and run:";
+  const command = document.createElement("code");
+  command.className = "ollama-command";
+  command.innerText = OLLAMA_SAFARI_COMMAND;
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "ollama-access-button";
+  copy.innerText = "Copy";
+  copy.addEventListener("click", () => {
+    // (if the copy is refused, select the command for Cmd+C)
+    navigator.clipboard.writeText(OLLAMA_SAFARI_COMMAND).then(
+      () => (copy.innerText = "Copied"),
+      () => window.getSelection()?.selectAllChildren(command)
+    );
+  });
+  const then = document.createElement("label");
+  then.className = "option-comment";
+  then.innerText = "Then quit Ollama (its icon in the menu bar > Quit Ollama) and open it again. Run the command again after restarting your Mac.";
+  row.append(intro, command, copy, then);
+  return row;
+}
+
+function updateOllamaAccessRows() {
+  if (!chrome.permissions?.contains && !isSafari) return;
+  const featureId = SHARED_AI_SETTINGS.id;
+  const where = document.getElementById(`${featureId}_ollamaWhere`);
+  if (!where) return;
+  let row = document.getElementById(`${featureId}_ollamaAccess`);
+  if (!row) {
+    row = isSafari ? ollamaSafariRow() : ollamaAccessRow();
+    row.id = `${featureId}_ollamaAccess`;
+    where.closest("div").after(row);
+  }
+  const wanted = document.getElementById(`${featureId}_aiProvider`)?.value === "ollama" && where.value !== "cloud";
+  if (!wanted || isSafari) {
+    $(row).toggle(wanted);
+    return;
+  }
+  chrome.permissions.contains({ origins: OLLAMA_LOCAL_ORIGINS }, (granted) => {
+    // (if the browser can't say, no button: better than one that never goes away)
+    $(row).toggle(!chrome.runtime.lastError && !granted);
+  });
+}
+chrome.permissions?.onAdded?.addListener(updateOllamaAccessRows);
+chrome.permissions?.onRemoved?.addListener(updateOllamaAccessRows);
+
+function getSharedAiOptionStorageKeys() {
+  return SHARED_AI_FEATURES.map((featureId) => `${featureId}_options`);
+}
+
+function extractSharedAiOptions(options = {}) {
+  const extracted = {};
+  SHARED_AI_OPTION_IDS.forEach((optionId) => {
+    const value = options?.[optionId];
+    if (value !== undefined && value !== null && value !== "") {
+      extracted[optionId] = value;
+    }
+  });
+  return extracted;
+}
+
+function collectLegacySharedAiOptions(storageItems = {}) {
+  return getSharedAiOptionStorageKeys().reduce((merged, itemKey) => {
+    return { ...merged, ...extractSharedAiOptions(storageItems?.[itemKey] || {}) };
+  }, {});
+}
+
+function splitSharedAiOptions(optionsData) {
+  const featureOptions = { ...optionsData };
+  const sharedAiOptions = {};
+
+  SHARED_AI_OPTION_IDS.forEach((optionId) => {
+    if (featureOptions.hasOwnProperty(optionId)) {
+      sharedAiOptions[optionId] = featureOptions[optionId];
+      delete featureOptions[optionId];
+    }
+  });
+
+  return { featureOptions, sharedAiOptions };
+}
 
 function checkText() {
   const textToCheck = textField.value.trim().toLowerCase();
@@ -149,6 +372,23 @@ function saveFeatureOptions(feature) {
   fillOptionsDataFromUiElements(feature, feature.options, optionsData);
 
   const storageName = feature.id + "_options";
+
+  if (isAiSettings(feature.id)) {
+    chrome.storage.sync.get([SHARED_AI_OPTIONS_KEY, ...getSharedAiOptionStorageKeys()], (items) => {
+      const currentShared = items?.[SHARED_AI_OPTIONS_KEY] || {};
+      const updates = { [SHARED_AI_OPTIONS_KEY]: { ...currentShared, ...optionsData } };
+      // Old copies of the AI settings in Genie's or Auto Bio's own storage would bring a removed
+      // key back (the user, 2026-10-04): the shared settings are the only copy now.
+      getSharedAiOptionStorageKeys().forEach((itemKey) => {
+        if (!items?.[itemKey]) return;
+        const { featureOptions: withoutAi } = splitSharedAiOptions(items[itemKey]);
+        if (Object.keys(withoutAi).length !== Object.keys(items[itemKey]).length) updates[itemKey] = withoutAi;
+      });
+      chrome.storage.sync.set(updates);
+    });
+    return;
+  }
+
   chrome.storage.sync.set({
     [storageName]: optionsData,
   });
@@ -165,6 +405,11 @@ function restoreFeatureOptions(feature, storageItems) {
   let optionsData = {};
   if (storageItems.hasOwnProperty(storageName)) {
     optionsData = storageItems[storageName];
+  }
+
+  if (isAiSettings(feature.id)) {
+    // (with anything still only in Genie's or Auto Bio's old copy)
+    optionsData = { ...collectLegacySharedAiOptions(storageItems), ...(storageItems[SHARED_AI_OPTIONS_KEY] || {}) };
   }
 
   setUiElementsFromOptionsData(feature, feature.options, optionsData);
@@ -204,7 +449,10 @@ function restore_options() {
         setCategorySwitches();
       }, 100);
     });
+    restoreFeatureOptions(SHARED_AI_SETTINGS, items);
     restore_settings(items);
+    updateDependentOptions();
+    updateOllamaAccessRows();
   });
 }
 
@@ -243,17 +491,21 @@ function reset_options(preserveFeatureOptions, callback) {
         features.forEach((feature) => {
           items[feature.id] = !!feature.defaultValue;
           if (feature.options) {
-            let optionsData = (items[feature.id + "_options"] = {});
+            let optionsData = {};
             fillOptionsDataFromUiElements(feature, feature.options, optionsData);
+            items[feature.id + "_options"] = optionsData;
           }
         });
+        let aiSettings = {};
+        fillOptionsDataFromUiElements(SHARED_AI_SETTINGS, SHARED_AI_SETTINGS.options, aiSettings);
+        items[SHARED_AI_OPTIONS_KEY] = aiSettings;
         chrome.storage.sync.set(items, callback);
       }, 1000);
     });
   }
 }
 
-const resetToDefaultButtonsNeeded = ["customStyle", "enhancedEditorStyle"];
+const resetToDefaultButtonsNeeded = ["customStyle", "enhancedEditorStyle", "colorBlindSupport"];
 // This is called recursively to build the elements of the options page
 function addOptionsForFeature(featureData, optionsContainerElement, options) {
   const featureId = featureData.id;
@@ -284,7 +536,13 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
   }
 
   function onChange(event) {
+    if (isAiSettings(featureId)) {
+      selectProviderWithOnlyKey(featureId, event?.target);
+      requestOllamaAccessIfChosen(featureId, event?.target);
+    }
     saveFeatureOptions(featureData);
+    updateDependentOptions();
+    updateOllamaAccessRows();
   }
 
   function createTextElementForLabel(option, addSpaceBefore, addColonAfter) {
@@ -327,10 +585,15 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
         optionDivElement.appendChild(subContainerElement);
       }
     } else if (option.type == OptionType.TEXT_LINE) {
-      let textLineElement = document.createElement("label");
-      textLineElement.innerText = option.label;
-      textLineElement.className = "option-text-line";
-      optionDivElement.appendChild(textLineElement);
+      // A text line can carry its words in the comment instead, which is the way to get a
+      // standalone sentence styled like every other explanation on the page rather than
+      // flush against the margin.
+      if (option.label) {
+        let textLineElement = document.createElement("label");
+        textLineElement.innerText = option.label;
+        textLineElement.className = "option-text-line";
+        optionDivElement.appendChild(textLineElement);
+      }
     } else if (option.type == OptionType.CHECKBOX) {
       optionDivElement.style = "--font-px:16";
       optionDivElement.className = "toggle fit-line toggle-option";
@@ -426,6 +689,25 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 
       labelElement.appendChild(optionElement);
       optionDivElement.appendChild(labelElement);
+    } else if (option.type == OptionType.AI_SETTINGS) {
+      let buttonElement = document.createElement("button");
+      buttonElement.type = "button";
+      buttonElement.className = "ai-settings-button";
+      buttonElement.innerText = option.label;
+      buttonElement.addEventListener("click", openAiSettings);
+      optionDivElement.appendChild(buttonElement);
+    } else if (option.type == OptionType.TEXTAREA) {
+      optionElement = document.createElement("textarea");
+      optionElement.className = "option-textarea";
+
+      let labelElement = document.createElement("label");
+
+      const textElement = createTextElementForLabel(option, false, true);
+      labelElement.appendChild(textElement);
+      labelElement.appendChild(document.createElement("br"));
+
+      labelElement.appendChild(optionElement);
+      optionDivElement.appendChild(labelElement);
     }
 
     if (optionElement) {
@@ -433,8 +715,9 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
       optionElement.addEventListener("change", onChange);
     }
     if (resetToDefaultButtonsNeeded.includes(featureId)) {
-      // Do this if the parent div has a label as the first child
-      if (optionDivElement.firstChild.tagName == "LABEL") {
+      // Do this if the parent div has a label as the first child. A comment-only row has
+      // no first child yet at this point, and nothing to reset either.
+      if (optionDivElement.firstChild?.tagName == "LABEL") {
         let resetToDefaultButton = document.createElement("button");
         resetToDefaultButton.innerText = "↺";
         resetToDefaultButton.className = "reset-to-default-button";
@@ -447,9 +730,31 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
       }
     }
 
+    if (option.dependsOn) {
+      // "someCheckbox" for a parent that is a checkbox, or { option, value, hide } for one
+      // that is a select - see normaliseDependsOn.
+      const { option: parentId, value, hide } = normaliseDependsOn(option.dependsOn);
+      optionDivElement.dataset.dependsOn = optionElementIdPrefix + parentId;
+      if (value !== undefined) {
+        optionDivElement.dataset.dependsOnValue = JSON.stringify([].concat(value));
+      }
+      if (hide) {
+        // Removed from the page rather than greyed out, so no indent: a row that is only
+        // there when it applies does not also need a rail pointing at what it depends on.
+        optionDivElement.dataset.dependsOnHide = "true";
+      } else {
+        // Indent it under the parent and disable it whenever the parent is off
+        optionDivElement.classList.add("option-dependent");
+      }
+    }
+
     if (option.comment) {
-      let breakElement = document.createElement("br");
-      optionDivElement.appendChild(breakElement);
+      // Only break if there is something to break away from, so a comment-only row does
+      // not open with a blank line.
+      if (optionDivElement.childNodes.length) {
+        let breakElement = document.createElement("br");
+        optionDivElement.appendChild(breakElement);
+      }
 
       let commentElement = document.createElement("label");
       commentElement.innerText = option.comment;
@@ -466,6 +771,44 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
   }
 }
 
+/**
+ * Both forms a dependsOn can take.
+ *
+ * A bare string means the parent is a checkbox and the option applies while it is ticked.
+ * The object form is for a parent that is a select: `value` is the value (or values) that
+ * make this option apply, and `hide` asks for it to be left out of the page entirely
+ * rather than dimmed - right when the option cannot apply at all rather than merely being
+ * inactive, where a greyed-out control is clutter dressed as information.
+ *
+ * @param {string|{option: string, value?: string|string[], hide?: boolean}} dependsOn
+ */
+function normaliseDependsOn(dependsOn) {
+  return typeof dependsOn === "string" ? { option: dependsOn } : dependsOn;
+}
+
+// Enables/disables (or shows/hides) any option that declared a dependsOn parent.
+// Options are stored flat, so an inactive sub-option keeps its saved value either way.
+function updateDependentOptions() {
+  $("[data-depends-on]").each(function () {
+    const parentElement = document.getElementById(this.dataset.dependsOn);
+    const wanted = this.dataset.dependsOnValue;
+    // No parent on the page means show it: better a stray option than one that can never
+    // be reached because the thing it depends on failed to render.
+    const parentIsOn = !parentElement
+      ? true
+      : wanted !== undefined
+      ? JSON.parse(wanted).includes(parentElement.value)
+      : parentElement.checked && !parentElement.disabled;
+
+    if (this.dataset.dependsOnHide) {
+      $(this).toggleClass("option-dependent-hidden", !parentIsOn);
+      return;
+    }
+    $(this).toggleClass("option-dependent-off", !parentIsOn);
+    $(this).find("input, select, textarea, button").prop("disabled", !parentIsOn);
+  });
+}
+
 // when the options page loads, load status of options from storage into the UI elements
 $(() => {
   restore_options();
@@ -474,6 +817,53 @@ $(() => {
 // adds HTML elements for each category and its features to the options page
 let toggleCount = 0;
 renderCategory(rootCategory, $("#features"));
+addAiSettingsDialog();
+
+// The AI Settings (2026-10-21): the provider, keys and models every feature that uses AI shares, in a
+// dialog of their own that the button in each of those features' options opens (OptionType.AI_SETTINGS).
+// They used to be in Genie's and Auto Bio's options, where members of the other features never saw
+// them; they aren't a feature, so they aren't in the feature list.
+function addAiSettingsDialog() {
+  const usesAiSettings = (options = []) =>
+    options.some((option) => option.type == OptionType.AI_SETTINGS || usesAiSettings(option.options));
+  const names = features.filter((feature) => usesAiSettings(feature.options)).map((feature) => feature.name);
+  const usedBy = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
+  const $content = $('<div class="dialog-content"></div>');
+  const intro = { type: OptionType.TEXT_LINE, comment: `These settings are shared by ${usedBy}.` };
+  addOptionsForFeature(SHARED_AI_SETTINGS, $content.get(0), [intro, ...SHARED_AI_SETTINGS.options]);
+  $('<dialog id="aiSettingsDialog"></dialog>')
+    .append(
+      $('<div class="dialog-header"></div>')
+        .text(SHARED_AI_SETTINGS.name)
+        .prepend(
+          $('<a href="#" class="close">&#x2715;</a>')
+            .on("auxclick", function (e) {
+              e.stopPropagation();
+              e.preventDefault();
+            })
+            .on("click", function (e) {
+              e.stopPropagation();
+              e.preventDefault();
+              this.closest("dialog")?.close();
+            })
+        )
+    )
+    .append($content)
+    .on("click", function (e) {
+      if (e.target === this) {
+        this.close(); // close modal if the backdrop is clicked
+      }
+    })
+    .appendTo(document.body);
+}
+
+function openAiSettings() {
+  document.getElementById("aiSettingsDialog")?.showModal();
+}
+
+// Genie's and Auto Bio's own saves no longer carry the AI settings, so first move anything still only
+// in their old copies over to the shared ones (getFeatureOptions does that, once).
+getFeatureOptions(SHARED_AI_FEATURES[0]).catch((error) => console.warn("wbe: AI settings check failed", error));
 
 function renderCategory(category, container) {
   if (!category.depth) {
@@ -532,7 +922,7 @@ function setCategorySwitches() {
       .each(function () {
         let $toggle = $(this).find("> .section-header > .toggle > input").first();
         if ($toggle.length) {
-          if (!$toggle.closest("#darkMode").length && !$toggle.closest("#highlightWBEFeatures").length) {
+          if (!$toggle.closest(TOGGLE_ALL_EXCLUDED_SELECTOR).length) {
             count++;
             if ($toggle.is(":checked")) {
               checked++;
@@ -641,7 +1031,7 @@ $("#toggleAll, .section.category > .section-header > .toggle > input").on("click
         $(originalCheckbox).prop("checked", oSwitch);
         const $top = $(".category-root");
         $top
-          .find(".section:not(#darkMode,#highlightWBEFeatures) > .section-header > .toggle > input")
+          .find(`.section:not(${TOGGLE_ALL_EXCLUDED_SELECTOR}) > .section-header > .toggle > input`)
           .prop("checked", oSwitch)
           .trigger("change");
         saveFeatureOnOffOptions();
@@ -658,7 +1048,7 @@ $("#toggleAll, .section.category > .section-header > .toggle > input").on("click
 
   if ($top) {
     $top
-      .find(".section:not(#darkMode,#highlightWBEFeatures) > .section-header > .toggle > input")
+      .find(`.section:not(${TOGGLE_ALL_EXCLUDED_SELECTOR}) > .section-header > .toggle > input`)
       .prop("checked", oSwitch)
       .trigger("change");
     saveFeatureOnOffOptions();
@@ -666,9 +1056,10 @@ $("#toggleAll, .section.category > .section-header > .toggle > input").on("click
 });
 
 $("#openSettings").on("click", function () {
+  checkOnWikiTree(); // a WikiTree tab may have been opened since this page loaded
   let $dialog = $(
     '<dialog id="settingsDialog">' +
-      '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Data Backup' +
+      '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Feature Data Backup' +
       '<a class="feature-help-link nohover" target="WBE_Help" href="https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#Settings"><img src="https://www.wikitree.com/images/icons/help.gif" border="0" width="11" height="11" alt="Help" title="Help about Settings"></a>' +
       '</div><div class="dialog-content">' +
       `<div class="dialog-version">v${WBE.version} (${WBE.isRelease ? "stable" : WBE.isDebug ? "debug" : "preview"})${
@@ -682,17 +1073,19 @@ $("#openSettings").on("click", function () {
               .replace(/^\s*\w+\s+(\w+)\s+0*([1-9]\d+)\s+(\d+)\s*$/, "$2 $1 $3")}</a>`
           : ""
       }</div>` +
-      '<ul><li style="font-size: 10pt; font-weight: bold;">Extension Settings</li>' +
+      '<ul><li class="hide-unless-wikitree" title="This will download a single backup file with your settings and your feature data."><button id="btnExportAll">Back Up Everything</button> Back up your settings <i>and</i> your feature data, in one file.</li>' +
+      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select a backup file, and will restore both your settings and your feature data from it."><button id="btnImportAll">Restore Everything</button> Restore your settings <i>and</i> your feature data from one backup file.</li>' +
+      '<li style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Settings (which features are switched on, plus each feature\'s options)</li>' +
       '<li><div style="--font-px:16" class="toggle"><input type="checkbox" id="toggleDisableUpdateNotification"><label for="toggleDisableUpdateNotification">Disable the notification when the extension updates.</label></div></li>' +
-      '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s options will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
-      '<li title="This will download a backup file with your current feature options."><button id="btnExportOptions">Back Up Options</button> Back up your current feature options.</li>' +
-      '<li title="This will pop up a dialog to select the backup file for your feature options. This will overwrite your current options."><button id="btnImportOptions">Restore Options</button> Restore the feature options from a previous backup.</li>' +
-      '<li title="Resets all feature options to the defaults. This does not include data stored on WikiTree by features like My Menu, Extra Watchlist, etc."><button id="btnClearOptions">Reset Options</button> Reset all options to the defaults.</li>' +
-      '<li class="hide-on-wikitree" style="font-size: 10pt; font-style: italic; color: #bbb; text-align: center;">For more data options, access this from the <a href="https://www.wikitree.com/" style="color: #bbb;" target="_blank">WikiTree</a> site.</li>' +
-      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Backup feature data associated with the following subset of features: Change Summary Options, Clipboard and Notes, Extra Watchlist, My Menu, and Space Watchlist Sorter.</li>' +
-      '<li class="hide-unless-wikitree" title="This will download a backup file with your current feature data."><button id="btnExportData">Back Up Data</button> Back up above subset of your feature data from WikiTree.</li>' +
-      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Data</button> Restore above subset of your feature data on WikiTree.</li>' +
-      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Use the save/restore buttons on your <a href="https://www.wikitree.com/wiki/Special:Home#downloadFeatureData" style="color: #060;" target="_blank">WikiTree Navigation Home Page</a> to save/restore all feature data.</li>' +
+      '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s settings will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
+      '<li title="This will download a backup file with your current settings."><button id="btnExportOptions">Back Up Settings</button> Back up your current settings.</li>' +
+      '<li title="This will pop up a dialog to select the backup file for your settings. This will overwrite your current settings."><button id="btnImportOptions">Restore Settings</button> Restore your settings from a previous backup.</li>' +
+      '<li title="Resets all settings to the defaults. This does not include data stored on WikiTree by features like My Menu, Extra Watchlist, etc."><button id="btnClearOptions">Reset Settings</button> Reset all settings to the defaults.</li>' +
+      '<li class="hide-on-wikitree" style="font-size: 10pt; font-style: italic; color: #bbb; text-align: center;">To back up your feature data as well, access this from the <a href="https://www.wikitree.com/" style="color: #bbb;" target="_blank">WikiTree</a> site.</li>' +
+      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Feature data (the content you have saved with a feature) for: Change Summary Options, Clipboard and Notes, Distance and Relationships, Extra Watchlist (including profile notes), My Menu, Space Watchlist Sorter, Text Expander, and WT+ Query Builder.</li>' +
+      '<li class="hide-unless-wikitree" title="This will download a backup file with your current feature data."><button id="btnExportData">Back Up Feature Data</button> Back up the feature data listed above from WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Feature Data</button> Restore the feature data listed above on WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Use the save/restore buttons on your <a href="https://www.wikitree.com/wiki/Special:Home#downloadFeatureData" style="color: #060;" target="_blank">WikiTree Navigation Home Page</a> to save/restore all of your feature data and settings in one file.</li>' +
       "</ul></div></dialog>"
   )
     .appendTo($(document.body).remove("#settingsDialog"))
@@ -732,8 +1125,56 @@ $("#openSettings").on("click", function () {
   $dialog.find("#btnClearOptions").on("click", function (e) {
     reset_options(false, closeSettings);
   });
+  $dialog.find("#btnExportAll").on("click", exportAllClicked);
   $dialog.find("#btnExportOptions").on("click", exportOptionsClicked);
   $dialog.find("#btnExportData").on("click", exportDataClicked);
+  $dialog.find("#btnImportAll").on("click", function (e) {
+    if (navigatorDetect.browser.Firefox) {
+      window.open(
+        "popup.html#UploadAll",
+        "wbe_upload",
+        `innerWidth=${window.innerWidth},innerHeight=${window.innerHeight},screenX=${window.screenX},screenY=${window.screenY},popup=1`
+      );
+    } else {
+      restoreAll()
+        .then(closeSettings)
+        .catch((response) => {
+          var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
+          // The settings go in before the feature data, so a failure can leave half the backup
+          // restored. Say which half, rather than letting it look as though nothing happened.
+          const half = response?.settingsRestored
+            ? "Your settings were restored, but your feature data was not.\n\n"
+            : "";
+          if (err == "CANCELLED") {
+            // the file picker was dismissed; nothing to report
+          } else if (err == "INVALID_FORMAT") {
+            showAlert("The backup file was not valid.", "Restore Everything Failed", "#settingsDialog");
+          } else if (err == "STORAGE_ERROR") {
+            showAlert(
+              "Your settings could not be saved, so nothing was restored.\nThis usually means the backup is too large for the browser's sync storage.\n\n" +
+                (response?.message ?? ""),
+              "Restore Everything Failed",
+              "#settingsDialog"
+            );
+          } else if (err == "NO_TABS") {
+            showAlert(
+              half +
+                "No WikiTree pages responded, so the feature data could not be restored.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree page in your browser, or refresh and try again.",
+              "Restore Everything Failed",
+              "#settingsDialog"
+            );
+          } else if (err == "RESTORE_FAILED") {
+            showAlert(
+              half + `The restore failed:\n\n${response?.message ?? ""}`,
+              "Restore Everything Failed",
+              "#settingsDialog"
+            );
+          } else {
+            console.error(err);
+          }
+        });
+    }
+  });
   $dialog.find("#btnImportOptions").on("click", function (e) {
     if (navigatorDetect.browser.Firefox) {
       window.open(
@@ -746,8 +1187,17 @@ $("#openSettings").on("click", function () {
         .then(closeSettings)
         .catch((response) => {
           var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
-          if (err == "INVALID_FORMAT") {
-            showAlert("The options backup file was not valid.", "Restore Options Failed", "#settingsDialog");
+          if (err == "CANCELLED") {
+            // the file picker was dismissed; nothing to report
+          } else if (err == "INVALID_FORMAT") {
+            showAlert("The settings backup file was not valid.", "Restore Settings Failed", "#settingsDialog");
+          } else if (err == "STORAGE_ERROR") {
+            showAlert(
+              "Your settings could not be saved, so nothing was restored.\nThis usually means the backup is too large for the browser's sync storage.\n\n" +
+                (response?.message ?? ""),
+              "Restore Settings Failed",
+              "#settingsDialog"
+            );
           } else {
             console.error(err);
           }
@@ -766,12 +1216,20 @@ $("#openSettings").on("click", function () {
         .then(closeSettings)
         .catch((response) => {
           var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
-          if (err == "INVALID_FORMAT") {
-            showAlert("The data backup file was not valid.", "Restore Data Failed", "#settingsDialog");
+          if (err == "CANCELLED") {
+            // the file picker was dismissed; nothing to report
+          } else if (err == "INVALID_FORMAT") {
+            showAlert("The feature data backup file was not valid.", "Restore Feature Data Failed", "#settingsDialog");
           } else if (err == "NO_TABS") {
             showAlert(
               "The restore failed because no WikiTree pages responded.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree page in your browser, or refresh and try again.",
-              "Restore Data Failed",
+              "Restore Feature Data Failed",
+              "#settingsDialog"
+            );
+          } else if (err == "RESTORE_FAILED") {
+            showAlert(
+              `The restore failed:\n\n${response?.message ?? ""}`,
+              "Restore Feature Data Failed",
               "#settingsDialog"
             );
           } else {
@@ -850,7 +1308,7 @@ function addFeatureToOptionsPage(featureData, container) {
   }
   container = $('<div class="section-content"></div>').appendTo(container);
   if (featureData.description) {
-    container.append($('<div class="section-description"></div>').text(featureData.description));
+    container.append($('<div class="section-description"></div>').html(featureData.description));
   }
   if (featureData.creators?.length || featureData.contributors?.length) {
     let $authors = $('<div class="feature-author"></div>').prependTo(container);
@@ -890,7 +1348,12 @@ function addFeatureToOptionsPage(featureData, container) {
     let $options = $(`<div class="feature-options" hidden></div>`).appendTo(container);
     $header.append(`<button type="button" class="feature-options-button">Show options</button>`);
     addOptionsForFeature(featureData, $options.get(0), featureData.options);
-    if ($options.height() > window.innerHeight * 0.8) {
+    // Safari reports innerHeight as almost nothing while the popover is still
+    // settling, which would turn every feature into a modal. Inline options only
+    // scroll with the page, so a floor there fails to the harmless side. Other
+    // browsers report it correctly, so they keep using it as-is.
+    const viewportHeight = isSafari ? Math.max(window.innerHeight, 400) : window.innerHeight;
+    if ($options.height() > viewportHeight * 0.8) {
       $options.wrap('<dialog class="feature-options"></dialog>');
       $options
         .removeClass("feature-options")
@@ -925,49 +1388,131 @@ chrome.storage.onChanged.addListener(function () {
   restore_options();
 });
 
-(function (tabs) {
-  if (tabs && tabs.query) {
-    tabs.query({}, function (tabs) {
-      for (let tab of tabs) {
-        if (isWikiTreeUrl(tab.url)) {
-          $("html").addClass("is-on-wikitree");
-          break;
-        }
-      }
+// The active tab is the WikiTree page when this page is the popup opened over it. Opened as a tab
+// of its own instead - "Open in a tab" above, Firefox's about:addons, Chrome's extension options -
+// the active tab is this page, so everything needing WikiTree stayed hidden and the Safari download
+// fell back to a nameless file. Look for a WikiTree tab anywhere in that case, which is the same
+// tab sendMessageToContentTab would end up talking to.
+// This runs again every time the dialog is opened, not just at load: as a tab, this page outlives
+// the tabs around it, and a WikiTree page opened after it - by the download below, or by the user -
+// would otherwise never be noticed.
+function checkOnWikiTree() {
+  const tabs = (typeof browser !== "undefined" ? browser : chrome).tabs;
+  if (!tabs?.query) return;
+  const isUsable = (tab) => isWikiTreeUrl(tab?.url) && tab.status === "complete";
+  const setOnWikiTree = (on) => $("html").toggleClass("is-on-wikitree", on);
+  tabs.query({ active: true, currentWindow: true }, function (tabList) {
+    if (!chrome.runtime?.lastError && isWikiTreeUrl(tabList?.[0]?.url)) {
+      setOnWikiTree(true);
+      return;
+    }
+    tabs.query({ url: "https://*.wikitree.com/*" }, function (wikitreeTabs) {
+      setOnWikiTree(!chrome.runtime?.lastError && !!wikitreeTabs?.some(isUsable));
     });
-  }
-})((typeof browser !== "undefined" ? browser : chrome).tabs);
+  });
+}
 
-function downloadBackupData(key, data, button) {
-  const wrapped = wrapBackupData(key, data, key == "data");
-  const link = $(getBackupLink(wrapped)).addClass("button download").text("Download").hide();
+checkOnWikiTree();
+
+function downloadBackupData(wrapped, button, countsAsBackup) {
+  // Safari's own pages can only manage a data: URL, which saves the file as "Unknown" because a
+  // data: URL has no filename in it. A WikiTree page has no such limitation, so when there is one
+  // open, it does the download and the file keeps its name. Nothing else needs this detour.
+  // Every Safari download goes through a WikiTree page, whether one is open already or has to be
+  // opened for it. The data: URL below is only for a browser that won't let us open a tab at all.
+  const link = isSafari
+    ? $('<a class="download" href="#">Download</a>').on("click", function (e) {
+        e.preventDefault();
+        sendMessageToContentTab({ action: "downloadBackup", payload: wrapped }, function (response) {
+          if (response && response.ack) {
+            return;
+          }
+          if (response?.nak === "NO_TABS") {
+            downloadFromNewWikiTreeTab(wrapped);
+          } else {
+            showAlert(
+              "The backup could not be saved. Try again from a WikiTree page.",
+              "Download Failed",
+              "#settingsDialog"
+            );
+          }
+        });
+      })
+    : $(getBackupLink(wrapped, { dataUrl: isSafari })).text("Download");
+  link.addClass("button download").hide();
+  if (countsAsBackup) {
+    // Only a backup that includes the feature data counts towards the monthly reminder, and only
+    // once the user has actually clicked the link: building it doesn't save anything anywhere.
+    link.on("click", recordBackupMade);
+  }
   $(button).hide().parent().append(" ").append(link);
   link.fadeIn();
+}
+
+// Safari won't save a file with a name on it from the extension's own pages, so when there is no
+// WikiTree page to hand the job to, open one. Messaging that new tab means guessing when its
+// content script has started listening; leaving the backup where the content script will find it
+// means it can pick the job up whenever it is ready, and works from the popover too, which closes
+// itself - taking any code waiting on it with it - the moment a tab opens.
+function downloadFromNewWikiTreeTab(wrapped) {
+  const tabs = (typeof browser !== "undefined" ? browser : chrome).tabs;
+  if (!tabs?.create) {
+    showAlert(
+      "The backup could not be saved.\nOpen a WikiTree page and try again.",
+      "Download Failed",
+      "#settingsDialog"
+    );
+    return;
+  }
+  chrome.storage.local.set({ wbePendingBackup: { payload: wrapped, at: Date.now() } }, function () {
+    // Focused rather than in the background: Safari asks for permission to download in that tab,
+    // and a prompt nobody can see is a download that never happens.
+    tabs.create({ url: "https://www.wikitree.com/" });
+  });
 }
 
 function exportOptionsClicked() {
   const button = this;
   chrome.storage.sync.get(null, (result) => {
-    downloadBackupData("features", result, button);
+    downloadBackupData(wrapBackupData("features", result), button, false);
   });
 }
 
 function exportDataClicked() {
-  const button = this;
-  sendMessageToContentTab({ action: "backupData" }, function (response) {
-    if (response && response.ack && response.backup) {
-      downloadBackupData("data", response.backup, button);
+  backupFromPage(this, "backupFeatureData", "Back Up Feature Data Failed");
+}
+
+// The settings and the feature data are kept in different places, so the one file has to be
+// assembled from both. It is the same file the monthly reminder produces, and because each half
+// keeps the key its own backup file uses, it restores through either of the Restore buttons.
+function exportAllClicked() {
+  backupFromPage(this, "backupEverything", "Back Up Everything Failed");
+}
+
+// The page gathers the data, wraps it and saves it, rather than sending the data here to be wrapped
+// and saved. Anything sent through messaging has to be small enough to survive the trip, and
+// backupData shrinks it by leaving out its three biggest databases - so a backup assembled here was
+// missing CC7, Connection Finder and Relationship Finder, which is nearly all of it.
+function backupFromPage(button, action, failureTitle) {
+  const $button = $(button).prop("disabled", true);
+  sendMessageToContentTab({ action }, function (response) {
+    $button.prop("disabled", false);
+    if (response && response.ack) {
+      // The file is saved by the page, so there is no link to click here - just say so.
+      $button.hide().parent().append($('<span class="download-done">Saved to your downloads.</span>').hide().fadeIn());
+      return;
+    }
+    var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
+    if (err == "NO_TABS") {
+      showAlert(
+        "The backup failed because no WikiTree pages responded.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree page in your browser, or refresh and try again.",
+        failureTitle,
+        "#settingsDialog"
+      );
+    } else if (err == "BACKUP_FAILED") {
+      showAlert(`The backup failed:\n\n${response?.message ?? ""}`, failureTitle, "#settingsDialog");
     } else {
-      var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
-      if (err == "NO_TABS") {
-        showAlert(
-          "The backup failed because no WikiTree pages responded.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree page in your browser, or refresh and try again.",
-          "Backup Data Failed",
-          "#settingsDialog"
-        );
-      } else {
-        console.error(err);
-      }
+      console.error(err);
     }
   });
 }

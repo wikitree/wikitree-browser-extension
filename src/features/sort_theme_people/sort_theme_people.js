@@ -51,7 +51,7 @@ async function init() {
     return;
   }
 
-  console.log("Featured connections paragraph found:", featuredConnectionsParagraph.length);
+  //console.log("Featured connections paragraph found:", featuredConnectionsParagraph.length);
 
   const options = await getFeatureOptions("sortThemePeople");
   if (options.AddTable) {

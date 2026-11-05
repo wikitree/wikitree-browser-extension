@@ -91,7 +91,9 @@ export function getDiff(originalText, newText) {
 
 // Exported function to escape HTML
 export function escapeHtml(text) {
-  return text.replace(/[&<>"']/g, (match) => {
+  if (text == null) return "";
+  const src = String(text);
+  return src.replace(/[&<>\"']/g, (match) => {
     const escape = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" };
     return escape[match];
   });

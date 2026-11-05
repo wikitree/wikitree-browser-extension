@@ -12,6 +12,7 @@ import {
   isCategoryEdit,
   isCategoryPage,
   isProfileEdit,
+  isSpaceEdit,
   isSearchPage,
   isCategoryHistory,
   isProfilePage,
@@ -35,6 +36,14 @@ shouldInitializeFeature("categoryManagement").then((result) => {
         categoryManagementOptions = options;
         PerformActualProfileChanges();
       });
+    } else if (isSpaceEdit) {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has("addCat") || urlParams.has("remCat") || urlParams.has("addCats")) {
+        getFeatureOptions("categoryManagement").then((options) => {
+          categoryManagementOptions = options;
+          PerformActualProfileChanges();
+        });
+      }
     } else if (isCategoryEdit) {
       getFeatureOptions("categoryManagement").then((options) => {
         AddOptionalCategoryEditPageLinks(options);
@@ -248,9 +257,23 @@ function AddAddProfileToCategory() {
   elementToAttach.after(addDiv);
 
   addButton.addEventListener("click", function () {
-    let profileId = prompt("Please enter ID or URL of profile to add to this category");
+    let profileId = prompt("Please enter ID or URL of profile or space page to add to this category");
 
     if (profileId != null && profileId != "") {
+      profileId = profileId.trim();
+      const spaceMatch = profileId.match(/(?:^|\/wiki\/|[?&]title=)(Space(?::|%3A)[^?&#]+)/i);
+      if (spaceMatch) {
+        const spaceTitle = decodeURIComponent(spaceMatch[1]).replace(/^Space:/i, "Space:");
+        window.open(
+          "https://" +
+            mainDomain +
+            "/index.php?title=" +
+            encodeURIComponent(spaceTitle) +
+            "&action=edit&addCat=" +
+            encodeURIComponent(GetCurrentCategoryName())
+        );
+        return;
+      }
       let idType = "w";
       if (profileId.indexOf("http") > -1) {
         const urlParams = new URLSearchParams(profileId);
@@ -1137,7 +1160,7 @@ function AddCheckboxesWikiTreePlus() {
       const profileLink = bold.childNodes[0];
       if (profileLink != null) {
         // no tr of an inline table for challenges
-        const profileId = profileLink.innerHTML;
+        const profileId = profileLink.href.split("/wiki/")[1];
         profileLink.style.pointerEvents = "none";
         tableData.innerHTML =
           '<input type="checkbox" id="cb' +
@@ -1342,7 +1365,14 @@ function PerformActualProfileChanges() {
     }
   }
 
-  if (finalSummary !== "") {
+  if (finalSummary !== "" && isSpaceEdit) {
+    // Space edit pages have no change-summary gears to wait for; fill the summary directly.
+    const summaryField = $document.getElementById("wpSummary");
+    if (summaryField) summaryField.value = finalSummary;
+    if (previousBio == wpTextbox1.value) {
+      alert("Nothing changed: this page is already in that category.");
+    }
+  } else if (finalSummary !== "") {
     DoSave(finalSummary);
 
     const currentBio = wpTextbox1.value;
@@ -1483,10 +1513,18 @@ function GetActualAkaCategoryUsedInProfile(wpTextbox1, cats) {
 }
 
 function AddCat(wpTextbox1, cat) {
+  if (!cat) return;
   let bio = wpTextbox1.value;
   let catSyntax = "[[Category:" + cat + "]]";
-  const catUnderlines = catSyntax.replace(" ", "_");
-  if (!bio.includes(cat + "]]") && !bio.includes(catUnderlines)) {
+  // Match the whole category link, so "Pittston, Pennsylvania" isn't mistaken for
+  // "Pittston City Cemetery, Pittston, Pennsylvania"; spaces and underscores are interchangeable.
+  const namePattern = cat
+    .trim()
+    .split(/[\s_]+/)
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("[\\s_]+");
+  const existingCat = new RegExp("\\[\\[\\s*Category\\s*:\\s*" + namePattern + "\\s*(\\|[^\\]]*)?\\]\\]", "i");
+  if (!existingCat.test(bio)) {
     wpTextbox1.value = catSyntax + "\n" + bio;
   }
 }

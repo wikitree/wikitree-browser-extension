@@ -1,0 +1,158 @@
+/* A tour (tour_ui.js): the caption in a corner, and the pointer the tour moves. Genie's tours put both inside
+   the topmost Genie window (position: fixed still means the viewport there); page tours put them in body. */
+.wbe-tour-caption {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 100000;
+  width: min(380px, calc(100vw - 48px));
+  box-sizing: border-box;
+  padding: 12px 14px 10px;
+  border-radius: 10px;
+  background: rgba(24, 28, 33, 0.92);
+  color: #fff;
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  text-align: left;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+.wbe-tour-text {
+  margin-bottom: 8px;
+}
+.wbe-tour-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.wbe-tour-count {
+  flex: 1;
+  opacity: 0.7;
+}
+.wbe-tour-paused .wbe-tour-count::after {
+  content: " · paused";
+}
+.wbe-tour-controls button {
+  padding: 2px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 5px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.wbe-tour-controls button:hover,
+.wbe-tour-controls button:focus-visible {
+  border-color: #a5d167;
+  color: #a5d167;
+  outline: none;
+}
+/* A key the tour presses, shown as a keycap above the caption. */
+.wbe-tour-key {
+  position: absolute;
+  right: 14px;
+  bottom: calc(100% + 10px);
+  min-width: 46px;
+  height: 46px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border: 1px solid #b9b9b9;
+  border-bottom-width: 4px;
+  border-radius: 8px;
+  background: #fff;
+  color: #1d1d1f;
+  font: 600 26px/40px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  text-align: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  animation: wbe-tour-key 1.2s ease-out forwards;
+}
+@keyframes wbe-tour-key {
+  0% {
+    transform: translateY(3px);
+    border-bottom-width: 1px;
+  }
+  15% {
+    transform: none;
+    border-bottom-width: 4px;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.wbe-tour-pointer {
+  position: fixed;
+  left: -40px;
+  top: -40px;
+  z-index: 100001;
+  width: 28px;
+  height: 28px;
+  /* (the arrow's tip on the point) */
+  margin: -3px 0 0 -5px;
+  pointer-events: none;
+  opacity: 0;
+  transition-property: left, top, opacity;
+  transition-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+.wbe-tour-pointer svg {
+  display: block;
+}
+.wbe-tour-pointer-shown {
+  opacity: 1;
+}
+.wbe-tour-pointer::after {
+  content: "";
+  position: absolute;
+  left: -9px;
+  top: -9px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid #f2a33a;
+  box-sizing: border-box;
+  opacity: 0;
+}
+.wbe-tour-click::after {
+  animation: wbe-tour-click 0.55s ease-out;
+}
+@keyframes wbe-tour-click {
+  from {
+    transform: scale(0.3);
+    opacity: 0.95;
+  }
+  to {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wbe-tour-pointer {
+    transition-duration: 0s !important;
+  }
+  .wbe-tour-click::after,
+  .wbe-tour-key {
+    animation: none;
+  }
+}
+body.darkMode .wbe-tour-caption:not(#none) {
+  background: rgba(24, 28, 33, 0.92) !important;
+  color: #fff !important;
+}
+body.darkMode .wbe-tour-caption div:not(#none),
+body.darkMode .wbe-tour-caption span:not(#none),
+body.darkMode .wbe-tour-pointer:not(#none) {
+  background: transparent !important;
+}
+body.darkMode .wbe-tour-caption .wbe-tour-key:not(#none) {
+  background: #fff !important;
+  color: #1d1d1f !important;
+}
+/* A page tour rings what each step is about. */
+.wbe-tour-target:not(#none) {
+  outline: 3px solid #f2a33a !important;
+  outline-offset: 3px;
+  border-radius: 4px;
+  transition: outline-color 0.3s;
+}

@@ -39,7 +39,17 @@ export const wtAPIProfileSearch = (callerID, query, params) => {
     s += "&MaxProfiles=" + (params.maxProfiles || 10000);
     if (params.pageSize) s += "&pageSize=" + params.pageSize;
     if (params.pageIdx) s += "&pageIdx=" + params.pageIdx;
+
+    // Append any other provided params directly to the query string
+    Object.keys(params).forEach((k) => {
+      if (["maxProfiles", "pageSize", "pageIdx"].includes(k)) return;
+      const v = params[k];
+      if (v === undefined || v === null || v === "") return;
+      // Use the key as provided (API expects specific param names)
+      s += `&${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`;
+    });
   }
+
   return wtAPICall(`WTWebProfileSearch/apiWBE_${callerID}.json?Query=${query}${s}`);
 };
 
@@ -128,16 +138,43 @@ export const wtAPICatCIBSearch = (callerID, cibType, query) =>
 export const wtAPINameDistribution = (callerID, firstNames) =>
   wtAPICall(`wtWebNameDistribution/apiWBE_${callerID}.json?FirstName=${firstNames}`);
 
+/********************************************************************
+  wtAPIFindAGraveMemorials  Retrieve the WikiTree profiles that cite Find a Grave memorials
+    Parameters:
+      callerID:         Prefarably unique name of the caller: "FindAGraveMemorialExtractor"
+      memorialIDs:      Array of Find a Grave memorial IDs. A request of 1000 IDs works.
+    Returns:            JS object:
+      {
+        "response": {
+          "memorials": [
+            { "memorial": 24170737, "WikiTreeID": "Apodaca-290" },
+            ...
+          ]
+        }
+      }
+      A memorial with no profile is left out; one with several profiles appears once for each.
+*******************************************************************/
+
+// https://plus.wikitree.com/function/wtFindAGrave/apiWBE_FindAGraveMemorialExtractor.json?query=24170737,24170759&format=json
+export const wtAPIFindAGraveMemorials = (callerID, memorialIDs) =>
+  wtAPICall(`wtFindAGrave/apiWBE_${callerID}.json?query=${encodeURIComponent(memorialIDs.join(","))}`);
+
 // *******************************************************************
 // Base call to WikiTree+
 // *******************************************************************
 
+// A refused call throws an Error with the HTTP status. "blocked" (and the IP the page shows) when WT+ answered
+// with its "Blocked request" page: an IP range blocked because of AI bot traffic (a 429, 2026-10-18).
 const wtAPICall = (url) => {
-  return fetch(`https://plus.wikitree.com/function/${url}&format=json`).then((response) => {
+  return fetch(`https://plus.wikitree.com/function/${url}&format=json`).then(async (response) => {
     if (response.ok) {
       return response.json();
-    } else {
-      throw response.statusText;
     }
+    const body = await response.text().catch(() => "");
+    const error = new Error(response.statusText || `HTTP ${response.status}`);
+    error.status = response.status;
+    error.blocked = /blocked request|ip range blocked/i.test(body);
+    error.ip = (body.match(/your IP:\s*(?:<[^>]*>\s*)*([0-9a-f.:]+)/i) || [])[1] || "";
+    throw error;
   });
 };

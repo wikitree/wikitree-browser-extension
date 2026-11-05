@@ -1,0 +1,1795 @@
+import $ from "jquery";
+import { formatDate, getRelationColour, getYearColour, familyColours } from "../../core/formatting";
+import { escapeHtml } from "../../core/lib/diff_utils";
+import { setHighestZIndex } from "../../core/common";
+import { personNameParts } from "./chat_person_name_parts";
+import { profileLinkHtml } from "./chat_profile_link";
+import { shownGender } from "./chat_gender_display";
+import { connectionStepKind, connectionStepLabel } from "./chat_connection_common";
+import { pathRelationship } from "./chat_relationship_data";
+import { closeChartPopup, installHeaderDoubleClick, joinChartHistory, toggleChartFullScreen } from "./chat_chart_common";
+
+/**
+ * Normalize simple text for comparisons.
+ * @param {any} value
+ * @returns {string}
+ */
+function normalizeText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function formatConnectionPersonName(person) {
+  const privateLongName = String(
+    person?.LongNamePrivate ||
+      person?.Derived?.LongNamePrivate ||
+      person?.BirthNamePrivate ||
+      person?.Derived?.BirthNamePrivate ||
+      ""
+  ).trim();
+  const isPrivatePlaceholder = Number(person?.Id) < 0 && !String(person?.Name || "").trim();
+
+  const pedigreeName = personNameParts(person, ["PedigreeName"]);
+  if (pedigreeName) return pedigreeName;
+
+  const fallbackName = `${person?.FirstName || ""} ${person?.LastNameCurrent || person?.LastNameAtBirth || ""}`.trim();
+  return (
+    fallbackName ||
+    person?.RealName ||
+    person?.Derived?.ShortName ||
+    privateLongName ||
+    person?.Name ||
+    (isPrivatePlaceholder ? "Private" : "")
+  );
+}
+
+function renderConnectionPersonLink(person, label) {
+  const name = String(label || "").trim();
+  const wtId = String(person?.Name || "").trim();
+  if (!wtId) {
+    return escapeHtml(name);
+  }
+
+  return `<a href="https://www.wikitree.com/wiki/${escapeHtml(wtId)}" target="_blank" rel="noopener">${escapeHtml(
+    name
+  )}</a>`;
+}
+
+const CONNECTION_DIAGRAM_MIN_SCALE = 0.35;
+const CONNECTION_DIAGRAM_MAX_SCALE = 2.4;
+const CONNECTION_DIAGRAM_SCALE_STEP = 0.2;
+const CONNECTION_DIAGRAM_PRINT_MIN_SCALE = 0.1;
+const CONNECTION_DIAGRAM_PRINT_MAX_SCALE = 4;
+const CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH = 12;
+const CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT = 4.5;
+const MM_TO_CSS_PX = 96 / 25.4;
+
+function buildConnectionsBranchKeyHtml(usedBranches) {
+  if (!usedBranches.length || usedBranches.length <= 1) {
+    return "";
+  }
+
+  return `<div class="connections-colour-key">
+    <span class="connections-colour-key-label">Branch colours:</span>
+    ${usedBranches
+      .map(
+        ({ index, colour }) =>
+          `<span class="connections-colour-key-swatch" style="background:${colour};border:2px solid ${colour}">Branch ${
+            index + 1
+          }</span>`
+      )
+      .join("")}
+  </div>`;
+}
+
+// A darker shade of a branch colour for the diagram's links (the branch
+// colours are pastels that vanish as thin lines on white).
+export function darkenHexColour(colour, factor = 0.55) {
+  const hex = String(colour || "").trim().replace(/^#/, "");
+  const full = hex.length === 3 ? hex.replace(/./g, (c) => c + c) : hex;
+  if (!/^[0-9a-f]{6}$/i.test(full)) return "#999";
+  const channel = (index) => Math.round(parseInt(full.slice(index, index + 2), 16) * factor);
+  return `#${[0, 2, 4].map((index) => channel(index).toString(16).padStart(2, "0")).join("")}`;
+}
+
+// Drawing animation pace: about 220ms a step, but the whole path within ~4s.
+export function connectionsDiagramStepMs(pathLength) {
+  return Math.round(Math.max(60, Math.min(220, 4000 / Math.max(1, pathLength))));
+}
+
+/** A card-sized place: "Kensington, London, England" → "Kensington, England". */
+export function shortConnectionPlace(location) {
+  const parts = String(location || "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length <= 2) return parts.join(", ");
+  return `${parts[0]}, ${parts[parts.length - 1]}`;
+}
+
+function buildConnectionsDiagramLayout(path, stepMeta, options = {}) {
+  const layoutMode = options?.layoutMode === "compact" ? "compact" : "tree";
+  const isCompact = layoutMode === "compact";
+  const CARD_W = isCompact ? 220 : 180;
+  const CARD_H = isCompact ? 118 : 126; // (room for the place line)
+  const H_GAP = isCompact ? 20 : 36;
+  const V_GAP = isCompact ? 22 : 40;
+  const PAD = 20;
+  const GUTTER = 58; // (the generation labels down the left)
+  const COL_STEP = CARD_W + H_GAP;
+  const ROW_STEP = CARD_H + V_GAP;
+
+  let pos = [];
+  let totalW = PAD * 2 + CARD_W;
+  let totalH = PAD * 2 + CARD_H;
+  let svgPaths = "";
+  const gens = [0];
+  for (let i = 1; i < path.length; i++) {
+    const rel = normalizeText(path[i].pathType || "");
+    if (rel.includes("parent") || rel.includes("father") || rel.includes("mother")) {
+      gens.push(gens[i - 1] - 1);
+    } else if (rel.includes("child") || rel.includes("son") || rel.includes("daughter")) {
+      gens.push(gens[i - 1] + 1);
+    } else {
+      gens.push(gens[i - 1]);
+    }
+  }
+
+  // The common ancestors over a sibling pair at the top of the path (chat_connections.js
+  // attaches them as sharedParents): they get a row of their own above the pair.
+  const ghostSteps = path.map((person, k) => (k > 0 && person?.sharedParents?.length ? k : -1)).filter((k) => k > 0);
+  const uniqueGens = [...new Set([...gens, ...ghostSteps.map((k) => gens[k] - 1)])].sort((a, b) => a - b);
+  const genToRow = new Map(uniqueGens.map((g, idx) => [g, idx]));
+  const maxRow = uniqueGens.length - 1;
+  const usedCells = new Set();
+  const cols = [];
+  let maxCol = 0;
+
+  const buildCompactCandidates = (previousCol, sameRow, currentMaxCol) => {
+    const candidates = [];
+    if (sameRow) {
+      for (let distance = 1; distance <= currentMaxCol + 1; distance++) {
+        const leftCol = previousCol - distance;
+        const rightCol = previousCol + distance;
+        if (leftCol >= 0) {
+          candidates.push(leftCol);
+        }
+        candidates.push(rightCol);
+      }
+    } else {
+      for (let col = 0; col <= currentMaxCol + 1; col++) {
+        candidates.push(col);
+      }
+    }
+    return [...new Set(candidates.filter((value) => value >= 0))];
+  };
+
+  for (let i = 0; i < path.length; i++) {
+    let col;
+    if (i === 0) {
+      col = 0;
+    } else {
+      const currentRow = genToRow.get(gens[i]);
+      const previousRow = genToRow.get(gens[i - 1]);
+      const previousCol = cols[i - 1];
+      if (isCompact) {
+        const candidateCols = buildCompactCandidates(previousCol, currentRow === previousRow, maxCol);
+        col = candidateCols.find((candidate) => !usedCells.has(`${gens[i]},${candidate}`));
+        if (!Number.isFinite(col)) {
+          col = maxCol + 1;
+        }
+      } else {
+        const rel = normalizeText(path[i].pathType || "");
+        const isVertical =
+          rel.includes("parent") ||
+          rel.includes("father") ||
+          rel.includes("mother") ||
+          rel.includes("child") ||
+          rel.includes("son") ||
+          rel.includes("daughter");
+        if (isVertical) {
+          col = usedCells.has(`${gens[i]},${previousCol}`) ? maxCol + 1 : previousCol;
+        } else {
+          col = maxCol + 1;
+        }
+      }
+    }
+    cols.push(col);
+    usedCells.add(`${gens[i]},${col}`);
+    if (col > maxCol) {
+      maxCol = col;
+    }
+  }
+
+  totalW = PAD * 2 + (maxCol + 1) * COL_STEP - H_GAP;
+  totalH = PAD * 2 + (maxRow + 1) * ROW_STEP - V_GAP;
+
+  pos = path.map((_, i) => {
+    const left = PAD + GUTTER + cols[i] * COL_STEP;
+    const top = PAD + genToRow.get(gens[i]) * ROW_STEP;
+    return {
+      left,
+      top,
+      right: left + CARD_W,
+      bottom: top + CARD_H,
+      cx: left + CARD_W / 2,
+      cy: top + CARD_H / 2,
+    };
+  });
+
+  // Place each common-ancestors card centred over its sibling pair, if the space is free.
+  const ghosts = [];
+  ghostSteps.forEach((k) => {
+    const left = (pos[k - 1].left + pos[k].left) / 2;
+    const top = PAD + genToRow.get(gens[k] - 1) * ROW_STEP;
+    const box = { left, top, right: left + CARD_W, bottom: top + CARD_H };
+    const overlaps = [...pos, ...ghosts].some((other) => other.left < box.right && other.right > box.left && other.top < box.bottom && other.bottom > box.top);
+    if (!overlaps) ghosts.push({ ...box, k, parents: path[k].sharedParents });
+  });
+  let ghostLinks = "";
+  ghosts.forEach((ghost) => {
+    const x1 = (ghost.left + ghost.right) / 2;
+    [pos[ghost.k - 1], pos[ghost.k]].forEach((child) => {
+      const my = (ghost.bottom + child.top) / 2;
+      ghostLinks += `<path class="conn-diag-ghost-link" style="--i:${ghost.k}" d="M${x1},${ghost.bottom} C${x1},${my} ${child.cx},${my} ${child.cx},${child.top}" fill="none"/>`;
+    });
+  });
+
+  const markerColours = [];
+  for (let i = 1; i < path.length; i++) {
+    const a = pos[i - 1];
+    const b = pos[i];
+    const aRow = genToRow.get(gens[i - 1]);
+    const bRow = genToRow.get(gens[i]);
+    const sameRow = aRow === bRow;
+    let x1, y1, x2, y2, cpx1, cpy1, cpx2, cpy2;
+    if (sameRow) {
+      const movingRight = b.left >= a.left;
+      x1 = movingRight ? a.right : a.left;
+      y1 = a.cy;
+      x2 = movingRight ? b.left - CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH : b.right + CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH;
+      y2 = b.cy;
+      const mx = (x1 + x2) / 2;
+      cpx1 = mx;
+      cpy1 = y1;
+      cpx2 = mx;
+      cpy2 = y2;
+    } else if (bRow < aRow) {
+      x1 = a.cx;
+      y1 = a.top;
+      x2 = b.cx;
+      y2 = b.bottom + CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH;
+      const my = (y1 + y2) / 2;
+      cpx1 = x1;
+      cpy1 = my;
+      cpx2 = x2;
+      cpy2 = my;
+    } else {
+      x1 = a.cx;
+      y1 = a.bottom;
+      x2 = b.cx;
+      y2 = b.top - CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH;
+      const my = (y1 + y2) / 2;
+      cpx1 = x1;
+      cpy1 = my;
+      cpx2 = x2;
+      cpy2 = my;
+    }
+    const linkColour = darkenHexColour(stepMeta[i]?.branchColour);
+    if (!markerColours.includes(linkColour)) markerColours.push(linkColour);
+    const markerId = `conn-arr-${linkColour.slice(1)}`;
+    svgPaths += `<path class="conn-diag-link" data-link-index="${i}" pathLength="1" style="--i:${i}" d="M${x1},${y1} C${cpx1},${cpy1} ${cpx2},${cpy2} ${x2},${y2}" stroke="${linkColour}" stroke-width="2" fill="none" marker-end="url(#${markerId})"/>`;
+  }
+
+  if (pos.length) {
+    totalW = Math.max(...pos.map((entry) => entry.right)) + PAD;
+    totalH = Math.max(...pos.map((entry) => entry.bottom)) + PAD;
+  }
+
+  svgPaths = ghostLinks + svgPaths;
+
+  // Generation bands: a faint stripe per row, labelled with the decade most of its people
+  // were born in, so the eye can read the centuries down the diagram.
+  const rowBirthYears = new Map();
+  path.forEach((person, i) => {
+    const year = Number.parseInt(String(person.BirthDate || "").slice(0, 4), 10);
+    if (!year) return;
+    const row = genToRow.get(gens[i]);
+    rowBirthYears.set(row, [...(rowBirthYears.get(row) || []), year]);
+  });
+  ghosts.forEach((ghost) => {
+    const row = genToRow.get(gens[ghost.k] - 1);
+    ghost.parents.forEach((parent) => {
+      const year = Number.parseInt(String(parent.BirthDate || "").slice(0, 4), 10);
+      if (year) rowBirthYears.set(row, [...(rowBirthYears.get(row) || []), year]);
+    });
+  });
+  let bandsHtml = "";
+  for (let row = 0; row <= maxRow; row++) {
+    const years = (rowBirthYears.get(row) || []).sort((a, b) => a - b);
+    const median = years.length ? years[Math.floor((years.length - 1) / 2)] : 0;
+    const top = PAD + row * ROW_STEP - V_GAP / 2;
+    bandsHtml += `<div class="conn-diag-band${row % 2 ? " conn-diag-band--alt" : ""}" style="top:${top}px;height:${ROW_STEP}px;width:${totalW}px">${
+      median ? `<span class="conn-diag-band-label" title="Most of this generation were born around then">${Math.floor(median / 10) * 10}s</span>` : ""
+    }</div>`;
+  }
+
+  // The common ancestor(s): where the path stops climbing and starts down again (a couple
+  // joined by a spouse step at the top counts as both).
+  const commonAncestors = new Set();
+  for (let i = 1; i < path.length - 1; i++) {
+    if (gens[i] >= gens[i - 1]) continue; // (must arrive by going up)
+    let end = i;
+    while (end + 1 < path.length && gens[end + 1] === gens[i] && /spouse|husband|wife/.test(normalizeText(path[end + 1].pathType || ""))) end++;
+    if (end + 1 < path.length && gens[end + 1] > gens[i]) {
+      for (let k = i; k <= end; k++) commonAncestors.add(k);
+    }
+  }
+
+  let cardsHtml = "";
+  path.forEach((person, i) => {
+    const { branchColour } = stepMeta[i];
+    const p = pos[i];
+    const name = formatConnectionPersonName(person);
+    const initial = String(name[0] || "?").toUpperCase();
+    const byRaw = (person.BirthDate || "").split("-")[0];
+    const dyRaw = (person.DeathDate || "").split("-")[0];
+    const by = byRaw && byRaw !== "0000" ? byRaw : "?";
+    const dy = dyRaw && dyRaw !== "0000" ? dyRaw : "?";
+    const rel = i === 0 ? "" : person.pathType || "";
+    const arrow = i === 0 ? "" : getConnectionDirectionArrow(rel);
+    const gender = normalizeText(shownGender(person));
+    const avatarBg = gender === "male" ? "#c8d8f0" : gender === "female" ? "#f5d0d4" : "#c8e6c9";
+    const birthLoc = person.BirthLocation ? `Born: ${person.BirthLocation}` : "";
+    const deathLoc = person.DeathLocation ? `Died: ${person.DeathLocation}` : "";
+    const tooltip = [name, birthLoc, deathLoc].filter(Boolean).join(" · ");
+    const place = shortConnectionPlace(person.BirthLocation || person.DeathLocation);
+    const avatarCircleStyle = `background:${avatarBg};border:2px solid ${avatarBg};`;
+    const avatarPhotoStyle = `border:2px solid ${avatarBg};`;
+
+    const photoUrl =
+      person.Photo && person.PhotoData?.url && !person.PhotoData.url.match(".pdf")
+        ? `https://wikitree.com${person.PhotoData.url}`
+        : null;
+    const avatarHtml = photoUrl
+      ? `<img class="conn-diag-avatar conn-diag-avatar--photo" style="${avatarPhotoStyle}" src="${escapeHtml(
+          photoUrl
+        )}" alt="${escapeHtml(
+          initial
+        )}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+         <div class="conn-diag-avatar" style="${avatarCircleStyle}display:none">${escapeHtml(initial)}</div>`
+      : `<div class="conn-diag-avatar" style="${avatarCircleStyle}">${escapeHtml(initial)}</div>`;
+
+    const endClass =
+      (i === 0 ? " conn-diag-card--start" : i === path.length - 1 ? " conn-diag-card--end" : "") + (commonAncestors.has(i) ? " conn-diag-card--common" : "");
+    cardsHtml += `<div class="conn-diag-card${endClass}" title="${escapeHtml(tooltip)}"
+      data-card-index="${i}" data-card-left="${p.left}" data-card-top="${p.top}"
+      style="left:${p.left}px;top:${p.top}px;width:${CARD_W}px;min-height:${CARD_H}px;border-color:${branchColour};--i:${i}">
+      ${commonAncestors.has(i) ? `<span class="conn-diag-badge">${commonAncestors.size > 1 ? "Common ancestors" : "Common ancestor"}</span>` : ""}
+      ${avatarHtml}
+      <div class="conn-diag-body">
+        <div class="conn-diag-name">${renderConnectionPersonLink(person, name)}</div>
+        <div class="conn-diag-years">${escapeHtml(by)} – ${escapeHtml(dy)}</div>
+        ${place ? `<div class="conn-diag-place">${escapeHtml(place)}</div>` : ""}
+        ${rel ? `<div class="conn-diag-rel">${arrow}${escapeHtml(connectionStepLabel(rel))}</div>` : ""}
+      </div>
+    </div>`;
+  });
+
+  ghosts.forEach((ghost) => {
+    const lines = ghost.parents
+      .map((parent) => {
+        const name = formatConnectionPersonName(parent);
+        const by = String(parent.BirthDate || "").slice(0, 4);
+        const dy = String(parent.DeathDate || "").slice(0, 4);
+        const years = by && by !== "0000" ? `${by} – ${dy && dy !== "0000" ? dy : "?"}` : "";
+        return `<div class="conn-diag-ghost-person"><div class="conn-diag-name">${renderConnectionPersonLink(parent, name)}</div>${
+          years ? `<div class="conn-diag-years">${escapeHtml(years)}</div>` : ""
+        }</div>`;
+      })
+      .join("");
+    const pair = [path[ghost.k - 1], path[ghost.k]].map((person) => formatConnectionPersonName(person)).join(" and ");
+    cardsHtml += `<div class="conn-diag-ghost" title="${escapeHtml(`The parents of ${pair}: the common ancestors on this path`)}"
+      style="left:${ghost.left}px;top:${ghost.top}px;width:${CARD_W}px;min-height:${CARD_H}px;--i:${ghost.k}">
+      <span class="conn-diag-badge">${ghost.parents.length > 1 ? "Parents" : "Parent"}</span>
+      ${lines}
+    </div>`;
+  });
+
+  return { totalW, totalH, svgPaths, cardsHtml, bandsHtml, layoutMode, markerColours };
+}
+
+function buildConnectionsDiagramHtml(path, stepMeta, options = {}) {
+  const standalone = Boolean(options?.standalone);
+  const { totalW, totalH, svgPaths, cardsHtml, bandsHtml, layoutMode, markerColours } = buildConnectionsDiagramLayout(path, stepMeta, options);
+  const arrowMarker = (id, fill) => `<marker id="${id}" markerWidth="${CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH}" markerHeight="${
+    CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT * 2
+  }" refX="0" refY="${CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT}" orient="auto" markerUnits="userSpaceOnUse">
+              <polygon points="0 0, ${CONNECTION_DIAGRAM_ARROW_HEAD_LENGTH} ${CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT}, 0 ${
+    CONNECTION_DIAGRAM_ARROW_HEAD_HALF_HEIGHT * 2
+  }" fill="${fill}"/>
+            </marker>`;
+  const scrollClasses = ["conn-diag-scroll"];
+  if (standalone) {
+    scrollClasses.push("conn-diag-scroll--standalone");
+  }
+
+  return `<div class="${scrollClasses.join(
+    " "
+  )}" data-base-width="${totalW}" data-base-height="${totalH}" data-layout-mode="${layoutMode}">
+    <div class="conn-diag-scale-layer" style="width:${totalW}px;height:${totalH}px;">
+      <div class="conn-diag-canvas" style="width:${totalW}px;height:${totalH}px;--step:${connectionsDiagramStepMs(path.length)}ms">
+        ${bandsHtml || ""}
+        <svg class="conn-diag-svg" width="${totalW}" height="${totalH}">
+          <defs>
+            ${arrowMarker("conn-arr", "#999")}
+            ${(markerColours || []).map((colour) => arrowMarker(`conn-arr-${colour.slice(1)}`, colour)).join("")}
+          </defs>
+          ${svgPaths}
+        </svg>
+        ${cardsHtml}
+      </div>
+    </div>
+  </div>`;
+}
+
+function getConnectionsDiagramElements(root) {
+  const scrollEl = root?.querySelector(".conn-diag-scroll");
+  const scaleLayer = root?.querySelector(".conn-diag-scale-layer");
+  const canvas = root?.querySelector(".conn-diag-canvas");
+  const baseWidth = Number.parseFloat(scrollEl?.dataset.baseWidth || "0");
+  const baseHeight = Number.parseFloat(scrollEl?.dataset.baseHeight || "0");
+  return { scrollEl, scaleLayer, canvas, baseWidth, baseHeight };
+}
+
+function applyConnectionsDiagramScale(root, nextScale, options = {}) {
+  const { scrollEl, scaleLayer, canvas, baseWidth, baseHeight } = getConnectionsDiagramElements(root);
+  if (!scrollEl || !scaleLayer || !canvas || !baseWidth || !baseHeight) {
+    return 1;
+  }
+
+  const minScale = Number.isFinite(Number(options?.minScale)) ? Number(options.minScale) : CONNECTION_DIAGRAM_MIN_SCALE;
+  const maxScale = Number.isFinite(Number(options?.maxScale)) ? Number(options.maxScale) : CONNECTION_DIAGRAM_MAX_SCALE;
+  const safeScale = clamp(nextScale, minScale, maxScale);
+  scaleLayer.style.width = `${Math.max(1, Math.round(baseWidth * safeScale))}px`;
+  scaleLayer.style.height = `${Math.max(1, Math.round(baseHeight * safeScale))}px`;
+  canvas.style.transform = `scale(${safeScale})`;
+  canvas.style.transformOrigin = "top left";
+  scrollEl.dataset.scale = String(safeScale);
+  return safeScale;
+}
+
+function focusConnectionsDiagramCard(root, cardIndex = 0, margin = 24) {
+  const { scrollEl } = getConnectionsDiagramElements(root);
+  const card =
+    root?.querySelector(`.conn-diag-card[data-card-index="${cardIndex}"]`) || root?.querySelector(".conn-diag-card");
+  if (!scrollEl || !card) {
+    return;
+  }
+
+  const scale = Number.parseFloat(scrollEl.dataset.scale || "1") || 1;
+  const left = Number.parseFloat(card.dataset.cardLeft || "0") || 0;
+  const top = Number.parseFloat(card.dataset.cardTop || "0") || 0;
+  scrollEl.scrollLeft = Math.max(0, Math.round(left * scale - margin));
+  scrollEl.scrollTop = Math.max(0, Math.round(top * scale - margin));
+}
+
+function computeConnectionsDiagramFitScale(root) {
+  const { scrollEl, baseWidth, baseHeight } = getConnectionsDiagramElements(root);
+  if (!scrollEl || !baseWidth || !baseHeight) {
+    return 1;
+  }
+
+  const availableWidth = Math.max(1, scrollEl.clientWidth - 16);
+  const availableHeight = Math.max(1, scrollEl.clientHeight - 16);
+  return clamp(
+    Math.min(availableWidth / baseWidth, availableHeight / baseHeight, 1),
+    CONNECTION_DIAGRAM_MIN_SCALE,
+    CONNECTION_DIAGRAM_MAX_SCALE
+  );
+}
+
+function computeConnectionsDiagramPrintScale(root, options = {}) {
+  const { baseWidth, baseHeight } = getConnectionsDiagramElements(root);
+  if (!baseWidth || !baseHeight) {
+    return 1;
+  }
+
+  const pageWidthMm = Number.isFinite(Number(options?.pageWidthMm)) ? Number(options.pageWidthMm) : 420;
+  const pageHeightMm = Number.isFinite(Number(options?.pageHeightMm)) ? Number(options.pageHeightMm) : 297;
+  const marginMm = Number.isFinite(Number(options?.marginMm)) ? Number(options.marginMm) : 8;
+  const printableWidth = Math.max(1, (pageWidthMm - marginMm * 2) * MM_TO_CSS_PX);
+  const printableHeight = Math.max(1, (pageHeightMm - marginMm * 2) * MM_TO_CSS_PX);
+
+  return clamp(
+    Math.min(printableWidth / baseWidth, printableHeight / baseHeight),
+    CONNECTION_DIAGRAM_PRINT_MIN_SCALE,
+    CONNECTION_DIAGRAM_PRINT_MAX_SCALE
+  );
+}
+
+function getConnectionsDiagramStandaloneStyles() {
+  return `
+    :root { color-scheme: light; }
+    body {
+      margin: 0;
+      padding: 24px;
+      min-height: 100vh;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #1f2937;
+      background: #f4f7fb;
+    }
+    .conn-diag-export-shell {
+      width: 100%;
+      max-width: none;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+    .conn-diag-export-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .conn-diag-export-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+    .conn-diag-export-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .conn-diag-export-actions button {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      border-radius: 7px;
+      padding: 0.48rem 0.82rem;
+      cursor: pointer;
+      font: inherit;
+    }
+    .conn-diag-export-actions button:hover {
+      background: #edf4ff;
+    }
+    .conn-diag-scroll {
+      overflow: auto;
+      max-height: calc(100vh - 180px);
+      padding: 4px;
+    }
+    .conn-diag-scroll--standalone {
+      width: 100%;
+      min-height: calc(100vh - 150px);
+      overflow: auto;
+      max-height: none;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    .conn-diag-ghost {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      padding: 12px 10px 8px;
+      border-radius: 8px;
+      border: 2px dashed #e0a10f;
+      background: #fffaf0;
+      box-shadow: 0 0 0 3px rgba(242, 176, 30, 0.25);
+      font-size: 0.78em;
+      line-height: 1.3;
+      box-sizing: border-box;
+    }
+    .conn-diag-ghost-link {
+      stroke: #d39b12;
+      stroke-width: 2;
+      stroke-dasharray: 5 4;
+    }
+    .conn-diag-band {
+      position: absolute;
+      left: 0;
+      box-sizing: border-box;
+      border-top: 1px dashed rgba(100, 116, 139, 0.18);
+    }
+    .conn-diag-band--alt {
+      background: rgba(100, 116, 139, 0.05);
+    }
+    .conn-diag-band-label {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 13px;
+      font-weight: 700;
+      color: #7b8794;
+    }
+    .conn-diag-card--common {
+      box-shadow: 0 0 0 3px rgba(242, 176, 30, 0.45), 0 2px 6px rgba(0, 0, 0, 0.12);
+    }
+    .conn-diag-badge {
+      position: absolute;
+      top: -11px;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 9px;
+      background: #f2b01e;
+      color: #3b2a00;
+    }
+    .conn-diag-scroll--standalone .conn-diag-scale-layer {
+      margin: 0 auto;
+    }
+    .conn-diag-scale-layer {
+      position: relative;
+    }
+    .conn-diag-canvas {
+      position: relative;
+      transform-origin: top left;
+    }
+    .conn-diag-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      overflow: visible;
+    }
+    .conn-diag-card {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 3px solid #ccc;
+      background: #fff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+      font-size: 0.78em;
+      line-height: 1.3;
+      box-sizing: border-box;
+    }
+    .conn-diag-avatar {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      box-sizing: border-box;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1em;
+      color: #444;
+      align-self: flex-start;
+      margin-top: 2px;
+      overflow: hidden;
+    }
+    .conn-diag-avatar--photo {
+      display: block;
+      width: 36px;
+      height: 36px;
+      box-sizing: border-box;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      align-self: flex-start;
+      margin-top: 2px;
+    }
+    .conn-diag-body {
+      min-width: 0;
+    }
+    .conn-diag-name {
+      font-weight: 600;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    .conn-diag-name a {
+      color: #145799;
+      text-decoration: none;
+    }
+    .conn-diag-name a:hover {
+      text-decoration: underline;
+    }
+    .conn-diag-years {
+      color: #555;
+      white-space: nowrap;
+    }
+    .conn-diag-rel {
+      color: #777;
+      font-style: italic;
+      white-space: nowrap;
+    }
+    .conn-diag-place {
+      color: #6b7785;
+      font-size: 0.85em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .connections-colour-key {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 0 0;
+      font-size: 0.82em;
+    }
+    .connections-colour-key-label {
+      font-weight: bold;
+      margin-right: 2px;
+    }
+    .connections-colour-key-swatch {
+      display: inline-block;
+      padding: 2px 8px;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+    @media print {
+      body {
+        padding: 0;
+        background: #fff;
+      }
+      .conn-diag-export-header {
+        display: none;
+      }
+    }
+    @page {
+      size: A3 landscape;
+      margin: 8mm;
+    }
+  `;
+}
+
+function openConnectionsDiagramDocument({
+  title,
+  path,
+  stepMeta,
+  usedBranches,
+  layoutMode = "tree",
+  printOnLoad = false,
+}) {
+  const exportWindow = window.open("", "_blank");
+  if (!exportWindow) {
+    return false;
+  }
+
+  const diagramHtml = buildConnectionsDiagramHtml(path, stepMeta, { layoutMode, standalone: true });
+  const branchKeyHtml = buildConnectionsBranchKeyHtml(usedBranches);
+
+  const applyPrintFitScale = () => {
+    return applyConnectionsDiagramScale(
+      exportWindow.document,
+      computeConnectionsDiagramPrintScale(exportWindow.document),
+      {
+        minScale: CONNECTION_DIAGRAM_PRINT_MIN_SCALE,
+        maxScale: CONNECTION_DIAGRAM_PRINT_MAX_SCALE,
+      }
+    );
+  };
+  const applyViewportFitScale = () => {
+    return applyConnectionsDiagramScale(
+      exportWindow.document,
+      computeConnectionsDiagramFitScale(exportWindow.document)
+    );
+  };
+
+  const triggerPrint = () => {
+    try {
+      exportWindow.focus();
+    } catch (error) {
+      // Ignore focus failures and still attempt to print.
+    }
+    exportWindow.print();
+  };
+
+  exportWindow.document.open();
+  exportWindow.document.write(`<!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <title>${escapeHtml(title)}</title>
+        <style>${getConnectionsDiagramStandaloneStyles()}</style>
+      </head>
+      <body>
+        <div class="conn-diag-export-shell">
+          <div class="conn-diag-export-header">
+            <div class="conn-diag-export-title">${escapeHtml(title)}</div>
+            <div class="conn-diag-export-actions">
+              <button type="button" id="conn-diag-print">Print / PDF</button>
+            </div>
+          </div>
+          ${diagramHtml}
+          ${branchKeyHtml}
+        </div>
+      </body>
+    </html>`);
+  exportWindow.document.close();
+
+  const attachPrintHandlers = () => {
+    const printButton = exportWindow.document.getElementById("conn-diag-print");
+    if (printButton) {
+      printButton.addEventListener("click", () => {
+        applyPrintFitScale();
+        triggerPrint();
+      });
+    }
+    exportWindow.addEventListener("resize", applyViewportFitScale);
+    exportWindow.addEventListener("beforeprint", applyPrintFitScale);
+    exportWindow.setTimeout(applyViewportFitScale, 0);
+    if (printOnLoad) {
+      exportWindow.setTimeout(() => {
+        applyPrintFitScale();
+        triggerPrint();
+      }, 300);
+    }
+  };
+
+  if (exportWindow.document.readyState === "complete") {
+    attachPrintHandlers();
+  } else {
+    exportWindow.addEventListener("load", attachPrintHandlers, { once: true });
+  }
+  return true;
+}
+
+/**
+ * Clamp a value between min and max.
+ */
+export function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+/**
+ * Set reasonable min/max size and position for a popup element.
+ * @param {HTMLElement} popup
+ * @param {number|null} preferredLeft
+ * @param {number|null} preferredTop
+ * @param {number} margin
+ */
+export function setPopupPositionAndSize(popup, preferredLeft = null, preferredTop = null, margin = 10) {
+  if (!popup) return;
+  const rect = popup.getBoundingClientRect();
+  const maxWidth = Math.max(320, window.innerWidth - margin * 2);
+  const maxHeight = Math.max(260, window.innerHeight - margin * 2);
+  const minWidth = Math.min(400, maxWidth);
+  popup.style.minWidth = `${minWidth}px`;
+  popup.style.maxWidth = `${maxWidth}px`;
+  popup.style.maxHeight = `${maxHeight}px`;
+  if (rect.width > maxWidth) popup.style.width = `${maxWidth}px`;
+  if (rect.height > maxHeight) popup.style.height = `${maxHeight}px`;
+  const updated = popup.getBoundingClientRect();
+  const left =
+    preferredLeft !== null ? clamp(preferredLeft, margin, window.innerWidth - updated.width - margin) : updated.left;
+  const top =
+    preferredTop !== null ? clamp(preferredTop, margin, window.innerHeight - updated.height - margin) : updated.top;
+  popup.style.position = "fixed";
+  popup.style.left = `${left}px`;
+  popup.style.top = `${top}px`;
+  popup.style.right = "auto";
+  popup.style.transform = "none";
+}
+
+export function positionPopupFixed(popup, preferredLeft, preferredTop) {
+  const rect = popup.getBoundingClientRect();
+  const maxLeft = Math.max(10, window.innerWidth - rect.width - 10);
+  const maxTop = Math.max(10, window.innerHeight - rect.height - 10);
+  popup.style.position = "fixed";
+  popup.style.left = `${clamp(preferredLeft, 10, maxLeft)}px`;
+  popup.style.top = `${clamp(preferredTop, 10, maxTop)}px`;
+  popup.style.right = "auto";
+  popup.style.transform = "none";
+}
+
+export function clampPopupToViewport(popup, margin = 10) {
+  if (!popup) return;
+  const maxWidth = Math.max(320, window.innerWidth - margin * 2);
+  const maxHeight = Math.max(260, window.innerHeight - margin * 2);
+  const minWidth = Math.min(400, maxWidth);
+  const minHeight = Math.min(320, maxHeight);
+  popup.style.minWidth = `${minWidth}px`;
+  popup.style.minHeight = `${minHeight}px`;
+  popup.style.maxWidth = `${maxWidth}px`;
+  popup.style.maxHeight = `${maxHeight}px`;
+  const rect = popup.getBoundingClientRect();
+  if (rect.width > maxWidth) popup.style.width = `${maxWidth}px`;
+  if (rect.height > maxHeight) popup.style.height = `${maxHeight}px`;
+  const updated = popup.getBoundingClientRect();
+  const nextLeft = clamp(updated.left, margin, Math.max(margin, window.innerWidth - updated.width - margin));
+  const nextTop = clamp(updated.top, margin, Math.max(margin, window.innerHeight - updated.height - margin));
+  popup.style.left = `${nextLeft}px`;
+  popup.style.top = `${nextTop}px`;
+  popup.style.right = "auto";
+  popup.style.transform = "none";
+}
+
+export function getPopupResizeLimits(margin = 10) {
+  const maxWidth = Math.max(320, window.innerWidth - margin * 2);
+  const maxHeight = Math.max(260, window.innerHeight - margin * 2);
+  return {
+    minWidth: Math.min(400, maxWidth),
+    minHeight: Math.min(320, maxHeight),
+    maxWidth,
+    maxHeight,
+  };
+}
+
+export function positionPopupForOpen(popup) {
+  if (!popup) return;
+  const rect = popup.getBoundingClientRect();
+  positionPopupFixed(popup, Math.round((window.innerWidth - rect.width) / 2), 10);
+  clampPopupToViewport(popup);
+}
+
+/**
+ * Return a directional arrow prefix for a pathType string.
+ * Used by both the table and diagram views.
+ */
+function getConnectionDirectionArrow(pathType) {
+  const rel = String(pathType || "")
+    .trim()
+    .toLowerCase();
+  if (rel.includes("parent") || rel.includes("father") || rel.includes("mother")) return "↑ ";
+  if (rel.includes("child") || rel.includes("son") || rel.includes("daughter")) return "↓ ";
+  if (
+    rel.includes("sibling") ||
+    rel.includes("brother") ||
+    rel.includes("sister") ||
+    rel.includes("spouse") ||
+    rel.includes("husband") ||
+    rel.includes("wife")
+  )
+    return "↔ ";
+  return "";
+}
+
+/**
+ * Build the HTML for the card-based diagram view of a connection path.
+ *
+ * Layout: Y-axis = generation level (parents above, children below, same row
+ * for spouses/siblings). X-axis = column within each generation level, assigned
+ * in order of first appearance. Each step has a unique (col, genRow) cell so
+ * cards never overlap. Bezier SVG connectors link consecutive steps.
+ *
+ * @param {Array}  path      – the path array from the connections result
+ * @param {Array}  stepMeta  – parallel array of { step, branchIndex, branchColour }
+ */
+/**
+ * Show a connections popup for a getConnections-style result.
+ * This function is UI-only and does not mutate external module state.
+ */
+// The Relationship button's work (chat_connections.js): WikiTree's Relationship Finder for the path's two
+// ends, opening the relationship chart when they share ancestors. Resolves to a sentence for the popup.
+let connectionsRelationshipFinder = null;
+export function setConnectionsRelationshipFinder(finder) {
+  connectionsRelationshipFinder = finder;
+}
+
+/** "Tabitha (Parker) Dixon is Ian Beacall's 6th great-grandmother.", when the path is a blood line; else "". */
+export function connectionsPathRelationshipText(path) {
+  const blood = pathRelationship(path);
+  if (!blood) return "";
+  return `${formatConnectionPersonName(path[path.length - 1])} is ${formatConnectionPersonName(path[0])}'s ${blood.phrase}.`;
+}
+
+export function showConnectionsPopup(connectionsResult) {
+  if (!Array.isArray(connectionsResult) || !connectionsResult.length) return;
+  const conn = connectionsResult[0];
+  const path = conn.path || [];
+
+  // Pre-compute branch index and colour for every step.
+  // A new branch starts each time a spouse step is encountered.
+  let branchIndex = 0;
+  const stepMeta = path.map((person, i) => {
+    if (i > 0) {
+      const rel = normalizeText(person.pathType || "");
+      if (rel === "spouse") {
+        branchIndex = (branchIndex + 1) % familyColours.length;
+      }
+    }
+    return { step: i, branchIndex, branchColour: familyColours[branchIndex] };
+  });
+
+  // Collect unique branches actually used (in order of first appearance).
+  const usedBranches = [];
+  stepMeta.forEach(({ branchIndex: bi, branchColour }) => {
+    if (!usedBranches.some((b) => b.index === bi)) {
+      usedBranches.push({ index: bi, colour: branchColour });
+    }
+  });
+
+  function getDirectionArrow(pathType) {
+    return getConnectionDirectionArrow(pathType);
+  }
+
+  // (an earlier Connections Path, or a chart, closes or waits behind Back: joinChartHistory below)
+  const popup = document.createElement("div");
+  popup.className = "wbe-popup chat-popup ui-draggable chat-connections-popup";
+  popup.id = "wbe-connections-popup";
+  popup.style.display = "block";
+
+  const rowsHtml = path
+    .map((person, i) => {
+      const { step, branchColour } = stepMeta[i];
+      const name = formatConnectionPersonName(person);
+      const relation = person.pathType || "";
+      const arrow = getDirectionArrow(relation);
+      const birthDate = formatDate(person.BirthDate);
+      const birthLoc = person.BirthLocation || "";
+      const deathDate = formatDate(person.DeathDate);
+      const deathLoc = person.DeathLocation || "";
+      const normalizedGender = normalizeText(shownGender(person));
+      let rowClass = "background--gender-no-gender";
+      if (normalizedGender === "male") rowClass = "background--gender-male";
+      else if (normalizedGender === "female") rowClass = "background--gender-female";
+      const stepCell =
+        step === 0
+          ? `<td class="connections-step-cell"></td>`
+          : `<td class="connections-step-cell" style="background:${branchColour}">${step}</td>`;
+      return `
+        <tr class="${rowClass} connections-row" data-row-index="${i}" title="Click to see this step in the chart">
+          ${stepCell}
+          <td class="name-cell">${renderConnectionPersonLink(person, name)}</td>
+          <td style="background:${getRelationColour(connectionStepKind(relation))}">${arrow}${escapeHtml(connectionStepLabel(relation))}</td>
+          <td style="background:${getYearColour(person.BirthDate)}">${escapeHtml(birthDate)}</td>
+          <td class="birth-location-cell">${escapeHtml(birthLoc)}</td>
+          <td style="background:${getYearColour(person.DeathDate)}">${escapeHtml(deathDate)}</td>
+          <td class="death-location-cell">${escapeHtml(deathLoc)}</td>
+        </tr>`;
+    })
+    .join("");
+
+  const keyHtml = buildConnectionsBranchKeyHtml(usedBranches);
+
+  // Year colour key — 50-year buckets starting 1800 (matches getYearColour).
+  const yearKeyRanges = [
+    { label: "Before 1850", colour: getYearColour("1800-01-01") },
+    { label: "1850–1899", colour: getYearColour("1850-01-01") },
+    { label: "1900–1949", colour: getYearColour("1900-01-01") },
+    { label: "1950–1999", colour: getYearColour("1950-01-01") },
+    { label: "2000+", colour: getYearColour("2000-01-01") },
+  ];
+  const yearKeyHtml = `<div class="connections-colour-key">
+    <span class="connections-colour-key-label">Date colours (50-year groups):</span>
+    ${yearKeyRanges
+      .map(
+        ({ label, colour }) =>
+          `<span class="connections-colour-key-swatch" style="background:${colour}">${label}</span>`
+      )
+      .join("")}
+  </div>`;
+
+  const popupTitle = (() => {
+    const sourceName = formatConnectionPersonName(path[0] || {}) || "Start";
+    const targetName = formatConnectionPersonName(path[path.length - 1] || {}) || "Target";
+    return `${sourceName} to ${targetName}`;
+  })();
+
+  // A blood line says so above the table and the chart (the user, 2026-10-17).
+  const pathRelationshipText = connectionsPathRelationshipText(path);
+  popup.innerHTML = `
+    <div class="chat-popup-header ui-draggable-handle">
+      <strong>Connections Path</strong>
+      <div class="chat-popup-controls">
+        <button type="button" class="small" id="wbe-conn-view-toggle" title="Switch to the chart">Chart</button>
+        <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-layout-toggle" title="Switch to compact layout" hidden>Compact</button>
+        <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-zoom-out" aria-label="Zoom out" title="Zoom out" hidden>-</button>
+        <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-zoom-in" aria-label="Zoom in" title="Zoom in" hidden>+</button>
+        <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-fit" title="Fit the chart to the window" hidden>Fit</button>
+        <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-replay" title="Draw the path again, step by step" hidden>Replay</button>
+        <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-open" title="Open the full chart in a new tab" hidden>Open</button>
+        <button type="button" class="small wbe-conn-diagram-action" id="wbe-conn-pdf" title="Open print dialog for PDF export" hidden>PDF</button>
+        <button type="button" class="small" id="wbe-conn-relationship" title="How they're related: WikiTree's Relationship Finder, and the relationship chart when they share ancestors"${
+          connectionsRelationshipFinder && path[0]?.Name && path[path.length - 1]?.Name && path.length > 1 ? "" : " hidden"
+        }>Relationship</button>
+        <button type="button" class="small" id="wbe-conn-full" title="Full screen (or double-click the title bar; Esc to leave)">Full screen</button>
+        <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+      </div>
+    </div>
+    <div class="chat-popup-body">
+      <div class="connections-relationship" aria-live="polite"${pathRelationshipText ? "" : " hidden"}>${escapeHtml(pathRelationshipText)}</div>
+      <div id="wbe-conn-table-view">
+        <table class="connections-table">
+          <thead>
+            <tr>
+              <th class="connections-step-cell">#</th>
+              <th>Name</th>
+              <th>Relation</th>
+              <th>Birth Date</th>
+              <th>Birth Location</th>
+              <th>Death Date</th>
+              <th>Death Location</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        ${keyHtml}
+        ${yearKeyHtml}
+      </div>
+      <div id="wbe-conn-diagram-view" style="display:none"></div>
+    </div>
+  `;
+
+  document.body.appendChild(popup);
+  setPopupPositionAndSize(popup, Math.round((window.innerWidth - popup.getBoundingClientRect().width) / 2), 110);
+  const tableView = popup.querySelector("#wbe-conn-table-view");
+  const diagramView = popup.querySelector("#wbe-conn-diagram-view");
+  const viewToggleBtn = popup.querySelector("#wbe-conn-view-toggle");
+  const layoutToggleBtn = popup.querySelector("#wbe-conn-layout-toggle");
+  const zoomOutBtn = popup.querySelector("#wbe-conn-zoom-out");
+  const zoomInBtn = popup.querySelector("#wbe-conn-zoom-in");
+  const fitBtn = popup.querySelector("#wbe-conn-fit");
+  const openBtn = popup.querySelector("#wbe-conn-open");
+  const pdfBtn = popup.querySelector("#wbe-conn-pdf");
+  const replayBtn = popup.querySelector("#wbe-conn-replay");
+  const diagramButtons = popup.querySelectorAll(".wbe-conn-diagram-action");
+  const diagramState = {
+    layoutMode: "tree",
+    scale: 1,
+    rendered: false,
+    scaleMode: "default",
+  };
+
+  function syncDiagramToolbar(isDiagramVisible) {
+    diagramButtons.forEach((button) => {
+      button.hidden = !isDiagramVisible;
+    });
+    layoutToggleBtn.textContent = diagramState.layoutMode === "tree" ? "Compact" : "Tree";
+    layoutToggleBtn.title =
+      diagramState.layoutMode === "tree" ? "Switch to compact packed layout" : "Switch to tree layout";
+    viewToggleBtn.textContent = isDiagramVisible ? "Table" : "Chart";
+    viewToggleBtn.title = isDiagramVisible ? "Switch to the table" : "Switch to the chart";
+  }
+
+  // The camera follows the drawing animation until the user scrolls, drags or zooms.
+  let followTimers = [];
+  function stopFollowing() {
+    followTimers.forEach((timer) => clearTimeout(timer));
+    followTimers = [];
+  }
+  function followDrawing() {
+    stopFollowing();
+    const { scrollEl } = getConnectionsDiagramElements(diagramView);
+    if (!scrollEl) return;
+    const stepMs = connectionsDiagramStepMs(path.length);
+    path.forEach((_, index) => {
+      followTimers.push(
+        setTimeout(() => {
+          const card = diagramView.querySelector(`.conn-diag-card[data-card-index="${index}"]`);
+          if (!card || !popup.isConnected) return;
+          const scale = Number.parseFloat(scrollEl.dataset.scale || "1") || 1;
+          const left = (Number.parseFloat(card.dataset.cardLeft) || 0) * scale;
+          const top = (Number.parseFloat(card.dataset.cardTop) || 0) * scale;
+          const width = card.offsetWidth * scale;
+          const height = card.offsetHeight * scale;
+          const visible =
+            left >= scrollEl.scrollLeft &&
+            top >= scrollEl.scrollTop &&
+            left + width <= scrollEl.scrollLeft + scrollEl.clientWidth &&
+            top + height <= scrollEl.scrollTop + scrollEl.clientHeight;
+          if (visible) return;
+          scrollEl.scrollTo?.({
+            left: Math.max(0, left + width / 2 - scrollEl.clientWidth / 2),
+            top: Math.max(0, top + height / 2 - scrollEl.clientHeight / 2),
+            behavior: "smooth",
+          });
+        }, index * stepMs)
+      );
+    });
+  }
+
+  function bindDiagramInteractions() {
+    const { scrollEl } = getConnectionsDiagramElements(diagramView);
+    if (!scrollEl) return;
+    // Hover a card: lift it and thicken the links into and out of it.
+    diagramView.querySelectorAll(".conn-diag-card").forEach((card) => {
+      const index = Number(card.dataset.cardIndex);
+      const links = diagramView.querySelectorAll(
+        `.conn-diag-link[data-link-index="${index}"], .conn-diag-link[data-link-index="${index + 1}"]`
+      );
+      card.addEventListener("mouseenter", () => links.forEach((link) => link.classList.add("is-hot")));
+      card.addEventListener("mouseleave", () => links.forEach((link) => link.classList.remove("is-hot")));
+    });
+    // Grab anywhere (cards too) and drag to pan. Panning starts after a few pixels, so a
+    // plain click on a name still opens the profile; a click that ends a drag is swallowed.
+    const DRAG_THRESHOLD = 4;
+    let drag = null;
+    let suppressClick = false;
+    scrollEl.addEventListener("pointerdown", (event) => {
+      stopFollowing();
+      if (event.button !== 0) return;
+      if (event.target === scrollEl && (event.offsetX > scrollEl.clientWidth || event.offsetY > scrollEl.clientHeight)) return; // (the scrollbars)
+      drag = { x: event.clientX, y: event.clientY, left: scrollEl.scrollLeft, top: scrollEl.scrollTop, moved: false, pointerId: event.pointerId };
+    });
+    scrollEl.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      const dx = event.clientX - drag.x;
+      const dy = event.clientY - drag.y;
+      if (!drag.moved) {
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+        drag.moved = true;
+        scrollEl.classList.add("is-panning");
+        scrollEl.setPointerCapture?.(drag.pointerId);
+      }
+      scrollEl.scrollLeft = drag.left - dx;
+      scrollEl.scrollTop = drag.top - dy;
+    });
+    const endDrag = () => {
+      if (drag?.moved) suppressClick = true;
+      drag = null;
+      scrollEl.classList.remove("is-panning");
+    };
+    scrollEl.addEventListener("pointerup", endDrag);
+    scrollEl.addEventListener("pointercancel", endDrag);
+    scrollEl.addEventListener(
+      "click",
+      (event) => {
+        if (!suppressClick) return;
+        suppressClick = false;
+        event.preventDefault();
+        event.stopPropagation();
+      },
+      true
+    );
+    // (no browser drag-and-drop of the links and photos)
+    scrollEl.addEventListener("dragstart", (event) => event.preventDefault());
+    // The mouse wheel (and trackpad pinch) zooms around the pointer.
+    scrollEl.addEventListener(
+      "wheel",
+      (event) => {
+        stopFollowing();
+        event.preventDefault();
+        const rect = scrollEl.getBoundingClientRect();
+        const pointerX = event.clientX - rect.left;
+        const pointerY = event.clientY - rect.top;
+        const oldScale = diagramState.scale;
+        const contentX = (scrollEl.scrollLeft + pointerX) / oldScale;
+        const contentY = (scrollEl.scrollTop + pointerY) / oldScale;
+        // (Firefox can report lines, not pixels; pinches arrive as ctrl+wheel with small deltas)
+        const deltaY = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaMode === 2 ? event.deltaY * 400 : event.deltaY;
+        const nextScale = oldScale * Math.exp(-Math.max(-120, Math.min(120, deltaY)) * (event.ctrlKey ? 0.01 : 0.0025));
+        diagramState.scale = applyConnectionsDiagramScale(diagramView, nextScale);
+        diagramState.scaleMode = "manual";
+        scrollEl.scrollLeft = contentX * diagramState.scale - pointerX;
+        scrollEl.scrollTop = contentY * diagramState.scale - pointerY;
+      },
+      { passive: false }
+    );
+  }
+
+  function renderDiagram({ fitToViewport = false, preserveScale = true, focusFirstPerson = false, animate = true } = {}) {
+    stopFollowing();
+    diagramView.innerHTML = `${buildConnectionsDiagramHtml(path, stepMeta, {
+      layoutMode: diagramState.layoutMode,
+    })}${keyHtml}`;
+    diagramState.rendered = true;
+    const scrollEl = diagramView.querySelector(".conn-diag-scroll");
+    if (animate && scrollEl) {
+      // Drop the class when the drawing ends: a filled animation would keep
+      // overriding the cards' hover transform.
+      scrollEl.classList.add("conn-diag-scroll--animate");
+      setTimeout(() => scrollEl.classList.remove("conn-diag-scroll--animate"), (path.length + 2) * connectionsDiagramStepMs(path.length) + 600);
+    }
+    bindDiagramInteractions();
+    const nextScale = fitToViewport
+      ? computeConnectionsDiagramFitScale(diagramView)
+      : preserveScale
+      ? diagramState.scale
+      : 1;
+    diagramState.scale = applyConnectionsDiagramScale(diagramView, nextScale);
+    if (fitToViewport) {
+      diagramState.scaleMode = "fit";
+    } else if (!preserveScale) {
+      diagramState.scaleMode = "default";
+    }
+    if (focusFirstPerson) {
+      focusConnectionsDiagramCard(diagramView, 0);
+    }
+    if (animate && !fitToViewport) {
+      followDrawing();
+    }
+  }
+
+  // In the charts' Back/Forward history (the user, 2026-10-17: "I came here from the connections chart").
+  popup._wbeCloseChart = () => {
+    stopFollowing();
+    popup._wbeLeaveFullScreen?.();
+    $(popup).remove();
+  };
+  joinChartHistory(popup);
+  popup.querySelector(".close-popup")?.addEventListener("click", () => closeChartPopup(popup));
+  // Full screen (the table too): the diagram re-fits to the new space unless it was zoomed by hand.
+  const refitAfterResize = () =>
+    setTimeout(() => {
+      if (!popup.isConnected || diagramView.style.display === "none" || diagramState.scaleMode === "manual") return;
+      diagramState.scale = applyConnectionsDiagramScale(diagramView, computeConnectionsDiagramFitScale(diagramView));
+      diagramState.scaleMode = "fit";
+    }, 200);
+  // Clicking the buttons (quickly, to zoom in steps) mustn't start a text selection (user: it selected all the text).
+  popup.querySelector(".chat-popup-controls")?.addEventListener("mousedown", (event) => {
+    if (event.target.closest("button")) event.preventDefault();
+  });
+  installHeaderDoubleClick();
+  popup.querySelector("#wbe-conn-relationship")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const line = popup.querySelector(".connections-relationship");
+    button.disabled = true;
+    line.hidden = false;
+    line.textContent = "Asking WikiTree's Relationship Finder…";
+    try {
+      const text = await connectionsRelationshipFinder(path[0], path[path.length - 1]);
+      line.textContent = text || pathRelationshipText || "WikiTree's Relationship Finder didn't answer.";
+    } catch (error) {
+      line.textContent = `The Relationship Finder didn't answer (${error?.message || error}).`;
+    } finally {
+      button.disabled = false;
+    }
+  });
+  popup.querySelector("#wbe-conn-full")?.addEventListener("click", () => {
+    toggleChartFullScreen(popup);
+    refitAfterResize();
+  });
+  document.addEventListener("fullscreenchange", () => popup.isConnected && refitAfterResize());
+  viewToggleBtn?.addEventListener("click", () => {
+    const isDiagramVisible = diagramView.style.display !== "none";
+    tableView.style.display = isDiagramVisible ? "" : "none";
+    diagramView.style.display = isDiagramVisible ? "none" : "";
+    if (!isDiagramVisible) {
+      renderDiagram({
+        fitToViewport: false,
+        preserveScale: diagramState.rendered,
+        focusFirstPerson: !diagramState.rendered,
+      });
+    }
+    syncDiagramToolbar(!isDiagramVisible);
+  });
+  // A table row opens the diagram on that person's card, with a pulse to find it.
+  tableView.querySelector("tbody")?.addEventListener("click", (event) => {
+    if (event.target.closest("a")) return;
+    const row = event.target.closest("tr[data-row-index]");
+    if (!row) return;
+    const index = Number(row.dataset.rowIndex);
+    tableView.style.display = "none";
+    diagramView.style.display = "";
+    if (!diagramState.rendered) renderDiagram({ preserveScale: false, animate: false });
+    syncDiagramToolbar(true);
+    stopFollowing();
+    const { scrollEl } = getConnectionsDiagramElements(diagramView);
+    const card = diagramView.querySelector(`.conn-diag-card[data-card-index="${index}"]`);
+    if (!scrollEl || !card) return;
+    const scale = diagramState.scale || 1;
+    const left = Number.parseFloat(card.dataset.cardLeft || "0") || 0;
+    const top = Number.parseFloat(card.dataset.cardTop || "0") || 0;
+    scrollEl.scrollLeft = Math.max(0, Math.round((left + card.offsetWidth / 2) * scale - scrollEl.clientWidth / 2));
+    scrollEl.scrollTop = Math.max(0, Math.round((top + card.offsetHeight / 2) * scale - scrollEl.clientHeight / 2));
+    card.classList.remove("is-pulse");
+    void card.offsetWidth;
+    card.classList.add("is-pulse");
+    setTimeout(() => card.classList.remove("is-pulse"), 1800);
+  });
+  layoutToggleBtn?.addEventListener("click", () => {
+    if (diagramView.style.display === "none") {
+      return;
+    }
+    diagramState.layoutMode = diagramState.layoutMode === "tree" ? "compact" : "tree";
+    const shouldRefit = diagramState.scaleMode === "fit";
+    renderDiagram({
+      fitToViewport: shouldRefit,
+      preserveScale: !shouldRefit,
+      focusFirstPerson: !shouldRefit,
+    });
+    syncDiagramToolbar(true);
+  });
+  zoomOutBtn?.addEventListener("click", () => {
+    if (diagramView.style.display === "none") {
+      return;
+    }
+    diagramState.scale = applyConnectionsDiagramScale(diagramView, diagramState.scale - CONNECTION_DIAGRAM_SCALE_STEP);
+    diagramState.scaleMode = "manual";
+  });
+  zoomInBtn?.addEventListener("click", () => {
+    if (diagramView.style.display === "none") {
+      return;
+    }
+    diagramState.scale = applyConnectionsDiagramScale(diagramView, diagramState.scale + CONNECTION_DIAGRAM_SCALE_STEP);
+    diagramState.scaleMode = "manual";
+  });
+  fitBtn?.addEventListener("click", () => {
+    if (diagramView.style.display === "none") {
+      return;
+    }
+    stopFollowing();
+    diagramState.scale = applyConnectionsDiagramScale(diagramView, computeConnectionsDiagramFitScale(diagramView));
+    diagramState.scaleMode = "fit";
+  });
+  openBtn?.addEventListener("click", () => {
+    openConnectionsDiagramDocument({
+      title: popupTitle,
+      path,
+      stepMeta,
+      usedBranches,
+      layoutMode: diagramState.layoutMode,
+      printOnLoad: false,
+    });
+  });
+  replayBtn?.addEventListener("click", () => {
+    if (diagramView.style.display === "none") {
+      return;
+    }
+    // Fitted, the whole path is visible, so renderDiagram doesn't follow the pen.
+    const keepFit = diagramState.scaleMode === "fit";
+    renderDiagram({ fitToViewport: keepFit, preserveScale: !keepFit, focusFirstPerson: !keepFit });
+  });
+  pdfBtn?.addEventListener("click", () => {
+    openConnectionsDiagramDocument({
+      title: popupTitle,
+      path,
+      stepMeta,
+      usedBranches,
+      layoutMode: diagramState.layoutMode,
+      printOnLoad: true,
+    });
+  });
+  // The chart first, the table a click away (the user, 2026-10-11).
+  tableView.style.display = "none";
+  diagramView.style.display = "";
+  renderDiagram({ preserveScale: false, focusFirstPerson: true });
+  syncDiagramToolbar(true);
+  setHighestZIndex(popup);
+  $(popup).draggable({
+    handle: ".chat-popup-header",
+    containment: "window",
+    scroll: false,
+    start: () => {
+      popup.style.right = "auto";
+      popup.style.transform = "none";
+    },
+  });
+}
+
+// Cancellation token for long-running shaky-tree operations. Callers that want
+// a cancellable operation reset it at the start (resetChatShakyCancel), show a
+// cancellable loader, and poll isChatShakyCancelled() between work units.
+let _shakyCancelRequested = false;
+
+/** Clear the cancel flag. Call at the start of a cancellable operation. */
+export function resetChatShakyCancel() {
+  _shakyCancelRequested = false;
+}
+
+/** True once the user has clicked Cancel on the shaky loader. */
+export function isChatShakyCancelled() {
+  return _shakyCancelRequested;
+}
+
+/**
+ * Small shaky-tree loader UI used in chat operations.
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.cancellable] Pass `true` to show a Cancel button,
+ *   `false` to remove it. Omit (undefined) to leave the current button
+ *   untouched — this lets progress updates refresh the label without wiping the
+ *   button.
+ * @param {Function} [options.onCancel] Invoked when the user clicks Cancel.
+ */
+export function showChatShaky(label = "Finding connection...", position = "center", progressPercent = null, options = {}) {
+  const onCancel = typeof options.onCancel === "function" ? options.onCancel : null;
+  let $existing = $("#wbeShakyTree");
+  const treeUrl = chrome?.runtime?.getURL ? chrome.runtime.getURL("images/tree.gif") : "images/tree.gif";
+  if ($existing.length === 0) {
+    const html = `
+      <div id="wbeShakyTree" class="wbe-shaky-tree wbe-chat-shaky" style="display:none">
+        <div class="wbe-shaky-image"><img src="${treeUrl}" alt="loading" /></div>
+        <div class="wbe-shaky-messages">
+          <div class="wbe-shaky-label"></div>
+        </div>
+      </div>
+      `;
+    $(document.body).append(html);
+    $existing = $("#wbeShakyTree");
+    $existing.find(".wbe-shaky-label").html(label);
+  } else {
+    // Mark the loader as chat-owned even if another feature created the shared
+    // #wbeShakyTree element first, so the chat-scoped styles apply.
+    $existing.addClass("wbe-chat-shaky");
+    // Update only the label so any progress bar / cancel button survive.
+    let $label = $existing.find(".wbe-shaky-label");
+    if (!$label.length) {
+      $label = $('<div class="wbe-shaky-label"></div>');
+      $existing.find(".wbe-shaky-messages").prepend($label);
+    }
+    $label.html(label);
+  }
+
+  // Optional determinate progress line (0-100) under the label.
+  const numericProgress = Number(progressPercent);
+  if (progressPercent !== null && Number.isFinite(numericProgress)) {
+    const clamped = Math.max(0, Math.min(100, numericProgress));
+    let $bar = $existing.find(".wbe-shaky-progress");
+    if (!$bar.length) {
+      $existing
+        .find(".wbe-shaky-messages")
+        .append('<div class="wbe-shaky-progress"><div class="wbe-shaky-progress-fill"></div></div>');
+      $bar = $existing.find(".wbe-shaky-progress");
+    }
+    $bar.find(".wbe-shaky-progress-fill").css("width", `${clamped}%`);
+  } else {
+    $existing.find(".wbe-shaky-progress").remove();
+  }
+
+  // Opt-in Cancel button. `cancellable === true` creates it (once) and rebinds
+  // the handler; `=== false` removes it; `undefined` leaves it as-is.
+  const $messages = $existing.find(".wbe-shaky-messages");
+  let $cancel = $existing.find(".wbe-shaky-cancel");
+  if (options.cancellable === true) {
+    if (!$cancel.length) {
+      $cancel = $('<button type="button" class="wbe-shaky-cancel">Cancel</button>');
+      $messages.append($cancel);
+    }
+    $cancel.off("click.wbeShaky").on("click.wbeShaky", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      _shakyCancelRequested = true;
+      $cancel.prop("disabled", true).text("Cancelling…");
+      $existing.find(".wbe-shaky-label").text("Cancelling…");
+      if (onCancel) {
+        try {
+          onCancel();
+        } catch (e) {
+          /* cancel handler must never break teardown */
+        }
+      }
+    });
+    // Keep the button visually last, under the label/progress.
+    $messages.append($cancel);
+  } else if (options.cancellable === false && $cancel.length) {
+    $cancel.off("click.wbeShaky").remove();
+  }
+
+  if (position === "center") $existing.addClass("center");
+  else $existing.removeClass("center");
+  $existing.stop(true, true).fadeIn(180);
+  try {
+    setTimeout(() => {
+      setHighestZIndex($existing.get(0));
+    }, 10);
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+// "Still working" under the label while a slow AI reply is awaited (src/core/ai_slow_notice.js).
+export function showChatShakyNote(text) {
+  const $el = $("#wbeShakyTree");
+  if (!$el.length || !$el.is(":visible")) return;
+  let $note = $el.find(".wbe-shaky-note");
+  if (!$note.length) {
+    $note = $('<div class="wbe-shaky-note" role="status"></div>');
+    $el.find(".wbe-shaky-messages").append($note);
+  }
+  $note.text(text);
+}
+
+export function hideChatShakyNote() {
+  $("#wbeShakyTree .wbe-shaky-note").remove();
+}
+
+export function hideChatShaky() {
+  hideChatShakyNote();
+  const $el = $("#wbeShakyTree");
+  if ($el.length) {
+    $el.stop(true, true).fadeOut(150, function () {
+      // Remove any Cancel button so it never lingers into the next operation.
+      $(this).find(".wbe-shaky-cancel").off("click.wbeShaky").remove();
+      $(this).removeClass("center");
+    });
+  }
+}
+
+// Expose some utilities for console debugging
+window.wbeUi = window.wbeUi || {};
+window.wbeUi.showChatShaky = showChatShaky;
+window.wbeUi.hideChatShaky = hideChatShaky;
+window.wbeUi.resetChatShakyCancel = resetChatShakyCancel;
+window.wbeUi.isChatShakyCancelled = isChatShakyCancelled;
+window.wbeUi.showConnectionsPopup = showConnectionsPopup;
+
+// Sanitize profile HTML for insertion into popups to avoid CSP inline-script execution.
+export function sanitizeHtmlForPopup(html) {
+  try {
+    if (!html) return "";
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(String(html), "text/html");
+    // Remove script tags
+    doc.querySelectorAll("script").forEach((s) => s.remove());
+    // Remove inline event handler attributes (on*) and javascript: src/href
+    const all = doc.querySelectorAll("*");
+    all.forEach((el) => {
+      Array.from(el.attributes).forEach((attr) => {
+        const name = String(attr.name || "");
+        const val = String(attr.value || "");
+        if (/^on/i.test(name)) {
+          el.removeAttribute(name);
+        }
+        if ((name === "src" || name === "href") && /^javascript:/i.test(val)) {
+          el.removeAttribute(name);
+        }
+      });
+    });
+    return doc.body.innerHTML || "";
+  } catch (e) {
+    return "";
+  }
+}
+
+// Normalize extraction of wiki and html bio fields from profile objects
+export function extractProfileBios(profile) {
+  if (!profile || typeof profile !== "object") return { wikiBio: "", htmlBio: "" };
+  const wikiBio =
+    profile.Bio ||
+    profile.BioText ||
+    profile.BioWiki ||
+    profile.Biography ||
+    profile.bio ||
+    profile.bioText ||
+    profile.biography ||
+    "";
+  const htmlBio =
+    profile.BioHtml ||
+    profile.BioHTML ||
+    profile.Bio_Html ||
+    profile.BioHtmlText ||
+    profile.bioHTML ||
+    profile.bioHtml ||
+    profile.bio_html ||
+    "";
+  return { wikiBio, htmlBio };
+}
+
+// Small popup to list multiple bios with Open buttons
+export function showBioListPopup(title, entries = [], onOpenTiled) {
+  try {
+    $("#wbe-bio-list-popup").remove();
+    const popupWidth = Math.max(360, Math.floor(window.innerWidth * 0.4));
+
+    const listItems = (entries || [])
+      .map(
+        (e) =>
+          `<li><span>${profileLinkHtml(e.displayName || e.wtid || "", e.wtid)} (${escapeHtml(
+            e.wtid || ""
+          )})</span> <button class="open-bio" data-wtid="${escapeHtml(e.wtid || "")}">Open Bio</button></li>`
+      )
+      .join("");
+
+    const html = `
+      <div id="wbe-bio-list-popup" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${popupWidth}px;left:${Math.floor(
+      (window.innerWidth - popupWidth) / 2
+    )}px">
+        <div class="chat-popup-header ui-draggable-handle">
+          <strong>${escapeHtml(title || "Profiles")}</strong>
+          <div class="chat-popup-controls">
+            <button type="button" class="small close-popup" aria-label="Close" title="Close">×</button>
+          </div>
+        </div>
+        <div class="chat-popup-body chat-popup-body--compact">
+          <ul class="spouse-list">
+            ${listItems}
+          </ul>
+          <div class="bio-list-actions" style="margin-top:8px;">
+            <button class="open-all-tiled small">Open All (Tiled)</button>
+          </div>
+        </div>
+      </div>`;
+
+    const $popup = $(html).appendTo(document.body);
+    $popup.find(".close-popup").on("click", () => $popup.remove());
+    $popup.find(".open-all-tiled").on("click", () => {
+      const ids = entries.map((e) => e.wtid).filter(Boolean);
+      if (ids.length && typeof onOpenTiled === "function") onOpenTiled(ids.slice(0, 12));
+    });
+    $popup.find(".open-bio").on("click", async (e) => {
+      const raw = $(e.currentTarget).attr("data-wtid");
+      if (!raw) return;
+      // callers should resolve WTID before opening; provide raw back via attribute
+      $popup.remove();
+      if (typeof onOpenTiled === "function") onOpenTiled([raw]);
+    });
+    setHighestZIndex($popup.get(0));
+    $popup.draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+    // Do not auto-open the first bio to avoid unexpected popups when profile
+    // fetches fail or return empty content. Require the user to click an entry.
+  } catch (e) {
+    console.error("wbe: showBioListPopup error", e);
+  }
+}
+
+// Open multiple bio popups tiled on screen. Creates individual popups per profile id.
+export function showTiledBioPopups(ids = [], fetchProfilesFn) {
+  if (!Array.isArray(ids) || !ids.length) return;
+  const max = Math.min(ids.length, 12);
+  const toOpen = ids.slice(0, max);
+  // fetchProfilesFn should be provided by caller (chat module) to perform API fetch
+  if (typeof fetchProfilesFn !== "function") {
+    console.error("showTiledBioPopups requires a fetchProfilesFn callback");
+    return;
+  }
+  return (async () => {
+    const profiles = await fetchProfilesFn(toOpen);
+    const anyValid = Array.isArray(profiles) && profiles.some((p) => p && Object.keys(p).length > 0);
+    if (!anyValid) {
+      try {
+        // fallback: let caller append a message
+        return { opened: 0, error: true };
+      } catch (e) {
+        return { opened: 0, error: true };
+      }
+    }
+    // Layout: up to 4 columns depending on count
+    const cols = Math.min(3, Math.max(1, Math.floor(Math.sqrt(toOpen.length))));
+    const width = Math.floor((window.innerWidth - 40) / cols);
+    let left = 10;
+    let top = 80;
+    let col = 0;
+    let opened = 0;
+    for (let i = 0; i < toOpen.length; i += 1) {
+      const id = toOpen[i];
+      const profile = profiles[i] || null;
+      if (!profile) continue; // skip failed fetches
+      const { wikiBio, htmlBio } = extractProfileBios(profile);
+      // Skip profiles that have no biography content to avoid empty popups
+      if (!wikiBio && !htmlBio) continue;
+      const name = (profile && (profile.RealName || profile.Name)) || id;
+      const pid = `wbe-bio-popup-${encodeURIComponent(id)}`;
+      $(`#${pid}`).remove();
+      const $p = $(
+        `<div id="${pid}" class="wbe-popup chat-popup ui-draggable" style="display:block;width:${width}px;left:${left}px;top:${top}px">
+          <div class="chat-popup-header ui-draggable-handle">
+            <strong>Biography: ${escapeHtml(name)}</strong>
+            <div class="chat-popup-controls"><button type="button" class="small close-popup" title="Close">×</button></div>
+          </div>
+          <div class="chat-popup-body chat-popup-body--columns" style="height:320px;overflow:auto;">
+            <div class="bio-column bio-column--wiki">
+              <pre class="bio-wiki-pre">${escapeHtml(wikiBio || "(no wiki text)")}</pre>
+            </div>
+            <div class="bio-column">
+              <div class="bio-html-container">${sanitizeHtmlForPopup(htmlBio) || "<i>(no html)</i>"}</div>
+            </div>
+          </div>
+        </div>`
+      ).appendTo(document.body);
+      $p.find(".close-popup").on("click", () => $p.remove());
+      setHighestZIndex($p.get(0));
+      $p.draggable({ handle: ".chat-popup-header", containment: "window", scroll: false });
+      // advance grid position for next tiled popup
+      if (!Number.isFinite(col)) col = 0;
+      col += 1;
+      if (col >= cols) {
+        col = 0;
+        left = 10;
+        top += 340;
+      } else {
+        left += width + 10;
+      }
+      opened += 1;
+    }
+    return { opened, error: false };
+  })();
+}
+
+export function closeBioPopup() {
+  document.getElementById("wbe-bio-popup")?.remove();
+}
+
+// Safe no-op to satisfy callers; removes any leftover persistent button if present.
+export function addBioButton() {
+  try {
+    $("#wbe-bio-button").remove();
+  } catch (e) {
+    /* ignore */
+  }
+}

@@ -2,6 +2,12 @@ import $ from "jquery";
 import { getUserNumId } from "./common";
 import { WikiTreeAPI } from "./API/WikiTreeAPI";
 
+// The key on the green "Apps" pill (styled in common.css). It takes the text colour, so it matches the label.
+const KEY_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+  'stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4.5"/>' +
+  '<path d="M11.2 11.8 20 3M16.5 6.5l2.5 2.5M14 9l2 2"/></svg>';
+
 /**
  * Function to add a login button for the WikiTree Apps server.
  * @param {Object} opt - Options for the login button.
@@ -11,8 +17,8 @@ import { WikiTreeAPI } from "./API/WikiTreeAPI";
  * @param {string} opt.btnContainer - The jQuery selector for the container to which append the button.
  * @param {Function} [opt.btnOnClick] - Optional additional functionality to execute when the button is
  *                   clicked and before the user is redirected to the API login page.
- * @param {string} [opt.returnURL] - Optional URL to return to after login. If not suppplied, the current
- *                   URL will be used minus any authcode parameter.
+ * @param {string} [opt.returnURL] - Optional URL to return to after login, unencoded. If not suppplied, the
+ *                   current URL will be used minus any authcode parameter.
  */
 export async function addLoginButton(opt) {
   const returnURL = opt.returnURL ? opt.returnURL : currentHrefWithoutAuthcode();
@@ -24,9 +30,7 @@ export async function addLoginButton(opt) {
     if (!loggedIn) {
       let loginButton = $(`#${opt.btnId}`);
       if (!loginButton || loginButton.length == 0) {
-        loginButton = $(
-          `<button title="${opt.btnTitle}" class='small button wbe-app-login wbe-button' id="${opt.btnId}">Apps Login</button>`
-        );
+        loginButton = appsLoginPill(opt.btnTitle).attr("id", opt.btnId);
         loginButton.appendTo(opt.btnContainer);
       }
       loginButton.off("click").on("click", function (e) {
@@ -34,7 +38,7 @@ export async function addLoginButton(opt) {
         if (opt.btnOnClick) {
           opt.btnOnClick(e);
         }
-        window.location = `https://api.wikitree.com/api.php?action=clientLogin&appId=${opt.appId}&returnURL=${returnURL}`;
+        goToAppsLogin(opt.appId, returnURL);
       });
     } else {
       $(`#${opt.btnId}`).hide();
@@ -42,43 +46,129 @@ export async function addLoginButton(opt) {
   });
 }
 
+/** The green "Apps" pill with a key, with no click handler yet. */
+function appsLoginPill(title) {
+  return $(
+    `<button title="${title}" aria-label="Apps Login" class='small button wbe-app-login wbe-button'>${KEY_ICON}Apps</button>`
+  );
+}
+
+/** Off to api.wikitree.com to log in, coming back to returnURL (by default this page). */
+function goToAppsLogin(appId, returnURL = currentHrefWithoutAuthcode()) {
+  window.location = clientLoginUrl({ appId: appId }, returnURL);
+}
+
+/**
+ * Off to api.wikitree.com to log out of the apps server (its session data there is removed), coming back to
+ * returnURL (by default this page). WikiTree itself stays signed in. See the API's authentication.md (doLogout=1).
+ */
+export function goToAppsLogout(returnURL = currentHrefWithoutAuthcode()) {
+  WikiTreeAPI.clearCachedApiLoginStatus(getUserNumId());
+  window.location = clientLoginUrl({ doLogout: 1 }, returnURL);
+}
+
+/**
+ * The api.wikitree.com clientLogin address. returnURL goes in as one encoded parameter: sent raw, the return
+ * page's own query split off into the API's, so a page such as Special:Thanks (?…&action=feed&who=…) replaced
+ * action=clientLogin with action=feed and the API answered "unknown_action" (2026-10-23).
+ * @param {Object} params - Parameters besides action and returnURL, e.g. { appId } or { doLogout: 1 }.
+ * @param {string} returnURL - Where to come back to, unencoded.
+ */
+export function clientLoginUrl(params, returnURL) {
+  const url = new URL("https://api.wikitree.com/api.php");
+  url.searchParams.set("action", "clientLogin");
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+  // Without its #fragment, which was never sent before (it stayed on the api.wikitree.com address), and
+  // which the API's appended authcode would land inside.
+  url.searchParams.set("returnURL", returnURL.split("#")[0]);
+  return url.href;
+}
+
+/**
+ * A working Apps Login pill to put anywhere, such as in a Chat message, for when the one on the page is out of sight
+ * or not there at all. It has no id, so there can be more than one.
+ * @param {string} appId - The application ID to use in the call to the WikiTree Apps server.
+ * @param {string} title - The title (tooltip) for the button.
+ */
+export function createAppsLoginButton(appId, title) {
+  return appsLoginPill(title).on("click", (e) => {
+    e.preventDefault();
+    goToAppsLogin(appId);
+  });
+}
+
 async function handleOptionalAuthCode(opt) {
-  const x = window.location.href.split("?");
-  if (!x[1]) return;
+  if (await redeemAuthcode(opt.appId)) {
+    $(`#${opt.btnId}`).hide();
+  }
+}
 
-  const queryParams = new URLSearchParams(x[1]);
-  const authcode = queryParams.get("authcode");
-  if (!authcode) return;
+let authcodeRedemption = null;
+// Whether the page was opened with an authcode, remembered because the code is taken out of the
+// address bar once it has been used (see removeAuthcodeFromUrl).
+const arrivedWithAuthcode = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("authcode");
 
-  // console.log("clientLogin with Auth code:", authcode);
+/** True if this page was opened straight back from api.wikitree.com's clientLogin (with an authcode). */
+export function pageHadAuthcode() {
+  return arrivedWithAuthcode;
+}
+
+/**
+ * Takes the used authcode out of the address bar. An authcode works only once; left there, every
+ * reload sent it again (and the API login didn't stay, 2026-10-03, on staging).
+ */
+function removeAuthcodeFromUrl() {
   try {
-    const response = await fetch("https://api.wikitree.com/api.php", {
-      method: "POST",
-      credentials: "include", // includes cookies for cross-domain requests
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        action: "clientLogin",
-        authcode: authcode,
-        appId: opt.appId,
-      }),
-    });
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("authcode")) return;
+    url.searchParams.delete("authcode");
+    window.history.replaceState(window.history.state, "", url.href);
+  } catch (error) {
+    // (no history API: the code just stays in the URL, as before)
+  }
+}
 
-    const data = await response.json();
+/**
+ * If the page URL carries an authcode (we've just come back from api.wikitree.com's clientLogin),
+ * exchange it for an API session. An authcode can only be used once, and several features may want
+ * to do this on the same page, so the exchange happens at most once per page and everyone awaits the
+ * same promise. Anything that checks API login status on a page that may have an authcode should
+ * await this first, otherwise it can cache a "not logged in" answer before the exchange completes.
+ * @param {string} appId - The application ID to use in the call.
+ * @returns {Promise<boolean>} true if an authcode was present and the login succeeded.
+ */
+export function redeemAuthcode(appId) {
+  if (!authcodeRedemption) {
+    authcodeRedemption = doRedeemAuthcode(appId);
+  }
+  return authcodeRedemption;
+}
 
+async function doRedeemAuthcode(appId) {
+  const authcode = new URLSearchParams(window.location.search).get("authcode");
+  if (!authcode) return false;
+
+  const userNumId = getUserNumId();
+  try {
+    const data = await WikiTreeAPI.postToAPI({ action: "clientLogin", authcode: authcode, appId: appId });
+    removeAuthcodeFromUrl();
     if (data?.clientLogin?.result === "Success") {
-      $(`#${opt.btnId}`).hide();
-    } else {
-      // console.error(`Login with auth code ${authcode} failed:`, data);
+      WikiTreeAPI.setCachedApiLoginStatus(userNumId, true);
+      return true;
     }
   } catch (error) {
     console.error(`Login with auth code ${authcode} failed:`, error);
   }
+  // A status check may have been cached while the exchange was in flight; make the next one ask again.
+  WikiTreeAPI.clearCachedApiLoginStatus(userNumId);
+  return false;
 }
 
+/** This page's address without any authcode, unencoded (clientLoginUrl encodes it). */
 export function currentHrefWithoutAuthcode() {
   const url = new URL(window.location.href);
   url.searchParams.delete("authcode");
-  return encodeURI(url.origin + url.pathname + url.search + url.hash);
+  return url.origin + url.pathname + url.search + url.hash;
 }

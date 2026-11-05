@@ -1,0 +1,2202 @@
+import { fullWikiTreeName } from "./chat_fan_chart_data";
+import { findTopWikiTreeIdOnWikidata, findWikiTreeIdOnWikidata } from "./chat_wikidata";
+import { sharedParentIds, topSiblingSteps } from "./chat_connection_common";
+import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
+import { getRelationJSON } from "../../core/API/wwwWikiTree";
+import {
+  analyseRelationship,
+  asksForRelationship,
+  buildRelationshipLines,
+  describeRelationship,
+  directLineDown,
+  directXDnaSentence,
+  relationshipLead,
+  pathRelationship,
+  xDnaPath,
+  xDnaSentence,
+} from "./chat_relationship_data";
+import { showRelationshipPopup } from "./chat_relationship_chart";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+import { getFocusPersonInfo } from "./chat_focus_person";
+import { formatDate } from "../../core/formatting";
+import {
+  ChatIntent,
+  normalizePersonText,
+  splitPersonName,
+  normalizeConnectionTargetForSearch,
+  extractConnectionTarget,
+  isConnectionCorrectionPrompt,
+  extractCorrectionTarget,
+  isWikiTreeId,
+  embeddedWikiTreeId,
+  findPageContextPersonCandidate,
+  mergeConnectionMatches,
+  rankConnectionMatches,
+  shouldUseAiForConnectionDisambiguation,
+  getCommonAliasExpansion,
+  extractYearFromDate,
+  isPageProfileTarget,
+} from "./chat_router";
+import { describeConnectionPath } from "./chat_relation_chain_text";
+import { shownGender } from "./chat_gender_display";
+import { hideChatShaky, setConnectionsRelationshipFinder, showConnectionsPopup } from "./ui";
+import { PERSON_MEMORY_ALIAS_STOPWORDS, normalizePersonMemoryToken } from "./chat_person_memory";
+import { parseConnectionTargetHints, withTypedTargetHints } from "./chat_connection_target_hints";
+import { fullName } from "./chat_text_utils";
+
+/**
+ * Guard for searchPerson lookups: an extracted "name" whose first or last
+ * token is a query/relation word ("connection", "siblings", "his") is a
+ * parsing artifact, not a person. Inner stopwords are allowed so names like
+ * "Catherine of Aragon" still pass.
+ */
+export function looksLikePersonNameForSearch(value) {
+  const normalized = normalizePersonMemoryToken(value);
+  if (!normalized) {
+    return false;
+  }
+
+  const tokens = normalized.split(" ").filter(Boolean);
+  if (!tokens.length || tokens.length > 6) {
+    return false;
+  }
+
+  return !PERSON_MEMORY_ALIAS_STOPWORDS.has(tokens[0]) && !PERSON_MEMORY_ALIAS_STOPWORDS.has(tokens[tokens.length - 1]);
+}
+
+function parseLegacyRelationshipLabel(legacy) {
+  const html = String(legacy?.html || "");
+  if (!html) {
+    return "";
+  }
+
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const h2Text = doc.querySelector("h2")?.textContent?.trim() || "";
+  if (/^No Relationship Found$/i.test(h2Text)) {
+    return "No relationship found";
+  }
+
+  const h3Text =
+    doc
+      .querySelector("h3")
+      ?.textContent?.replace(/[\t\n]+/g, " ")
+      .trim() || "";
+  if (h3Text) {
+    return h3Text;
+  }
+
+  return "";
+}
+
+// "Relationship: No relationship found." read badly (live corpus B8, 2026-10-02).
+// A blood line on the path says it plainly, the right way round (the user, 2026-10-17: "Tabitha … Relationship:
+// Sixth great grandson" was the user's relationship to her): "Tabitha (Parker-40845) is your 6th great-grandmother."
+function formatRelationshipSuffix(relationshipText, { path = null, targetLabel = "", sourceLabel = "you" } = {}) {
+  const blood = targetLabel ? pathRelationship(path) : null;
+  if (blood) return ` ${targetLabel} is ${sourceLabel === "you" ? "your" : `${sourceLabel}'s`} ${blood.phrase}.`;
+  if (!relationshipText) {
+    return "";
+  }
+  if (/^No relationship found$/i.test(relationshipText)) {
+    return " No common ancestor was found.";
+  }
+  return ` Relationship: ${relationshipText}.`;
+}
+
+function normalizeConnectionBirthDate(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$/);
+  if (!match || match[1] === "0000") {
+    return "";
+  }
+
+  const year = match[1];
+  const month = match[2] || "00";
+  const day = match[3] || "00";
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeConnectionAiBoolean(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedValue) {
+    return null;
+  }
+
+  if (["true", "1", "yes", "alive", "living"].includes(normalizedValue)) {
+    return true;
+  }
+  if (["false", "0", "no", "dead", "deceased"].includes(normalizedValue)) {
+    return false;
+  }
+
+  return null;
+}
+
+function normalizeConnectionAiGender(value) {
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedValue) {
+    return "";
+  }
+
+  if (["male", "man", "m"].includes(normalizedValue)) {
+    return "Male";
+  }
+  if (["female", "woman", "f"].includes(normalizedValue)) {
+    return "Female";
+  }
+
+  return "";
+}
+
+function normalizeConnectionAiNamePart(value) {
+  return String(value ?? "").trim();
+}
+
+function normalizeConnectionAiLocation(value) {
+  return String(value ?? "").trim();
+}
+
+function shouldPreferOriginalAliasConnectionMatches(
+  cleanedTarget,
+  originalParts,
+  expandedParts,
+  exactOriginalAliasMatches
+) {
+  if (!exactOriginalAliasMatches.length) {
+    return false;
+  }
+
+  const normalizedTarget = normalizePersonText(cleanedTarget);
+  const normalizedExpandedFullName = normalizePersonText(
+    [expandedParts?.firstName, expandedParts?.lastName].filter(Boolean).join(" ")
+  );
+  const normalizedOriginalFullName = normalizePersonText(
+    [originalParts?.firstName, originalParts?.lastName].filter(Boolean).join(" ")
+  );
+  const targetTokens = String(cleanedTarget || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (
+    normalizedExpandedFullName &&
+    normalizedOriginalFullName &&
+    normalizedExpandedFullName !== normalizedOriginalFullName &&
+    targetTokens.length > 2 &&
+    normalizedTarget.includes(normalizedExpandedFullName)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function scoreExactConnectionNameEvidence(match, firstName, lastName) {
+  let score = 0;
+
+  if (firstName) {
+    const normalizedFirstName = normalizePersonText(firstName);
+    const normalizedProfileFirst = normalizePersonText(match?.FirstName);
+    const normalizedRealNameFirst = normalizePersonText(
+      String(match?.RealName || match?.Derived?.ShortName || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)[0]
+    );
+
+    if (normalizedProfileFirst === normalizedFirstName) {
+      score += 90;
+    } else if (normalizedRealNameFirst === normalizedFirstName) {
+      score += 130;
+    }
+  }
+
+  if (lastName) {
+    const normalizedLastName = normalizePersonText(lastName);
+    const normalizedCurrentLast = normalizePersonText(match?.LastNameCurrent);
+    const normalizedBirthLast = normalizePersonText(match?.LastNameAtBirth);
+
+    if (normalizedCurrentLast === normalizedLastName) {
+      score += 150;
+    } else if (normalizedBirthLast === normalizedLastName) {
+      score += 80;
+    }
+  }
+
+  if (firstName && lastName && hasExactConnectionFullName(match, firstName, lastName)) {
+    score += 180;
+  }
+
+  return score;
+}
+
+function scoreConnectionLocationEvidence(candidateLocation, targetLocation) {
+  const normalizedTargetLocation = normalizePersonText(targetLocation);
+  const normalizedCandidateLocation = normalizePersonText(candidateLocation);
+
+  if (!normalizedTargetLocation) {
+    return 0;
+  }
+
+  if (!normalizedCandidateLocation) {
+    return -20;
+  }
+
+  if (normalizedCandidateLocation === normalizedTargetLocation) {
+    return 220;
+  }
+
+  if (
+    normalizedCandidateLocation.includes(normalizedTargetLocation) ||
+    normalizedTargetLocation.includes(normalizedCandidateLocation)
+  ) {
+    return 160;
+  }
+
+  const targetTokens = normalizedTargetLocation.split(" ").filter(Boolean);
+  const candidateTokens = new Set(normalizedCandidateLocation.split(" ").filter(Boolean));
+  const overlapCount = targetTokens.filter((token) => candidateTokens.has(token)).length;
+
+  if (overlapCount >= Math.min(3, targetTokens.length) && overlapCount >= 2) {
+    return 80;
+  }
+
+  if (overlapCount >= 2) {
+    return 30;
+  }
+
+  return -80;
+}
+
+function detectConnectionLocationRegion(normalizedLocation) {
+  const value = String(normalizedLocation || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  if (value.includes("united states") || value.includes(" usa ") || value.endsWith(" usa") || value === "usa") {
+    return "us";
+  }
+  if (value.includes("england")) {
+    return "england";
+  }
+  if (value.includes("scotland")) {
+    return "scotland";
+  }
+  if (value.includes("wales")) {
+    return "wales";
+  }
+  if (value.includes("ireland")) {
+    return "ireland";
+  }
+  if (value.includes("united kingdom")) {
+    return "uk";
+  }
+  if (value.includes("canada")) {
+    return "canada";
+  }
+  if (value.includes("australia")) {
+    return "australia";
+  }
+  if (value.includes("new zealand")) {
+    return "new-zealand";
+  }
+
+  return "";
+}
+
+function areConnectionRegionsCompatible(leftRegion, rightRegion) {
+  if (!leftRegion || !rightRegion) {
+    return false;
+  }
+  if (leftRegion === rightRegion) {
+    return true;
+  }
+
+  const ukRegions = new Set(["uk", "england", "scotland", "wales", "ireland"]);
+  return ukRegions.has(leftRegion) && ukRegions.has(rightRegion);
+}
+
+function scoreConnectionRegionalLocationEvidence(candidateLocation, targetLocation) {
+  const normalizedTargetLocation = normalizePersonText(targetLocation);
+  const normalizedCandidateLocation = normalizePersonText(candidateLocation);
+
+  if (!normalizedTargetLocation || !normalizedCandidateLocation) {
+    return 0;
+  }
+
+  if (normalizedCandidateLocation === normalizedTargetLocation) {
+    return 120;
+  }
+
+  if (
+    normalizedCandidateLocation.includes(normalizedTargetLocation) ||
+    normalizedTargetLocation.includes(normalizedCandidateLocation)
+  ) {
+    return 90;
+  }
+
+  const targetTokens = normalizedTargetLocation.split(" ").filter(Boolean);
+  const candidateTokens = new Set(normalizedCandidateLocation.split(" ").filter(Boolean));
+  const overlapCount = targetTokens.filter((token) => candidateTokens.has(token)).length;
+  let score = 0;
+
+  if (overlapCount >= 3) {
+    score += 70;
+  } else if (overlapCount === 2) {
+    score += 45;
+  } else if (overlapCount === 1) {
+    score += 15;
+  }
+
+  const targetRegion = detectConnectionLocationRegion(normalizedTargetLocation);
+  const candidateRegion = detectConnectionLocationRegion(normalizedCandidateLocation);
+  if (targetRegion && candidateRegion) {
+    score += areConnectionRegionsCompatible(targetRegion, candidateRegion) ? 25 : -55;
+  } else if (!overlapCount) {
+    score -= 10;
+  }
+
+  return score;
+}
+
+function buildConnectionAncestorDepthMap(rootId, ancestors) {
+  const normalizedRootId = String(rootId || "").trim();
+  if (!normalizedRootId || !Array.isArray(ancestors) || !ancestors.length) {
+    return new Map();
+  }
+
+  const ancestorMap = new Map(
+    ancestors
+      .map((ancestor) => {
+        const key = String(ancestor?.Id ?? "").trim();
+        return key ? [key, ancestor] : null;
+      })
+      .filter(Boolean)
+  );
+
+  if (!ancestorMap.has(normalizedRootId)) {
+    return new Map();
+  }
+
+  const depthMap = new Map([[normalizedRootId, 0]]);
+  const queue = [normalizedRootId];
+
+  while (queue.length) {
+    const currentId = queue.shift();
+    const currentDepth = Number(depthMap.get(currentId) || 0);
+    if (currentDepth >= 4) {
+      continue;
+    }
+
+    const current = ancestorMap.get(currentId);
+    if (!current) {
+      continue;
+    }
+
+    [current.Father, current.Mother].forEach((parentId) => {
+      const normalizedParentId = String(parentId ?? "").trim();
+      if (!normalizedParentId || normalizedParentId === "0" || depthMap.has(normalizedParentId)) {
+        return;
+      }
+      if (!ancestorMap.has(normalizedParentId)) {
+        return;
+      }
+      depthMap.set(normalizedParentId, currentDepth + 1);
+      queue.push(normalizedParentId);
+    });
+  }
+
+  return depthMap;
+}
+
+function getConnectionAncestorDepthWeight(depth) {
+  if (depth <= 1) {
+    return 1;
+  }
+  if (depth === 2) {
+    return 0.8;
+  }
+  if (depth === 3) {
+    return 0.65;
+  }
+  if (depth === 4) {
+    return 0.45;
+  }
+  return 0.3;
+}
+
+function scoreConnectionAncestorLocationEvidence(match, ancestors, targetLocation) {
+  const rootId = String(match?.Id ?? "").trim();
+  if (!rootId || !targetLocation) {
+    return 0;
+  }
+
+  const depthMap = buildConnectionAncestorDepthMap(rootId, ancestors);
+  if (!depthMap.size) {
+    return 0;
+  }
+
+  const ancestorMap = new Map(
+    (ancestors || [])
+      .map((ancestor) => {
+        const key = String(ancestor?.Id ?? "").trim();
+        return key ? [key, ancestor] : null;
+      })
+      .filter(Boolean)
+  );
+
+  let totalScore = 0;
+  depthMap.forEach((depth, id) => {
+    if (depth <= 0) {
+      return;
+    }
+
+    const ancestor = ancestorMap.get(id);
+    if (!ancestor) {
+      return;
+    }
+
+    const birthScore = scoreConnectionRegionalLocationEvidence(ancestor?.BirthLocation, targetLocation);
+    const deathScore = scoreConnectionRegionalLocationEvidence(ancestor?.DeathLocation, targetLocation);
+    const bestLocationScore = Math.max(birthScore, deathScore);
+    if (!bestLocationScore) {
+      return;
+    }
+
+    totalScore += Math.round(bestLocationScore * getConnectionAncestorDepthWeight(depth));
+  });
+
+  return Math.max(-260, Math.min(260, totalScore));
+}
+
+function hasExactConnectionSurname(match, surname) {
+  const normalizedSurname = normalizePersonText(surname);
+  if (!normalizedSurname) {
+    return false;
+  }
+
+  return (
+    normalizePersonText(match?.LastNameAtBirth) === normalizedSurname ||
+    normalizePersonText(match?.LastNameCurrent) === normalizedSurname
+  );
+}
+
+function hasExactConnectionFirstName(match, firstName) {
+  const normalizedFirstName = normalizePersonText(firstName);
+  if (!normalizedFirstName) {
+    return false;
+  }
+
+  const normalizedProfileFirst = normalizePersonText(match?.FirstName);
+  if (normalizedProfileFirst === normalizedFirstName) {
+    return true;
+  }
+
+  const realNameFirstToken = String(match?.RealName || match?.Derived?.ShortName || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)[0];
+
+  if (normalizePersonText(realNameFirstToken) === normalizedFirstName) {
+    return true;
+  }
+
+  // Nicknames, when the profile shares them (living profiles usually don't).
+  return String(match?.Nicknames || "")
+    .split(/[,;"]+|\s+/)
+    .some((nickname) => nickname && normalizePersonText(nickname) === normalizedFirstName);
+}
+
+function hasExactConnectionFullName(match, firstName, lastName) {
+  return hasExactConnectionFirstName(match, firstName) && hasExactConnectionSurname(match, lastName);
+}
+
+/** "William Ralph Beacall" → ["Ralph"]: the names between the first and the last. */
+function typedMiddleNames(target) {
+  const parts = String(target || "").replace(/[?.!,]+/g, " ").split(/\s+/).filter(Boolean);
+  return parts.length > 2 ? parts.slice(1, -1) : [];
+}
+
+/**
+ * Does the profile's middle name fit the typed one? "R" fits Ralph; an
+ * unrecorded middle name is "unknown" (null), not a mismatch.
+ */
+function middleNamesAgree(match, typedMiddles) {
+  const profileMiddles = normalizePersonText(match?.MiddleName || match?.MiddleInitial).split(" ").filter(Boolean);
+  if (!profileMiddles.length) return null;
+  return typedMiddles.map(normalizePersonText).every((typed) =>
+    profileMiddles.some((name) => name === typed || (name.length === 1 && typed.startsWith(name)) || (typed.length === 1 && name.startsWith(typed)))
+  );
+}
+
+/** An exact name match on any pairing of the given first names and surnames (birth or known-by names). */
+function hasAnyExactConnectionFullName(match, firstNames, lastNames) {
+  return firstNames.some((first) => first && hasExactConnectionFirstName(match, first)) && lastNames.some((last) => last && hasExactConnectionSurname(match, last));
+}
+
+function isSparseConnectionMatch(match) {
+  if (!match?.Id) {
+    return false;
+  }
+
+  return !match?.Name && !match?.RealName && !match?.FirstName && !match?.LastNameAtBirth && !match?.LastNameCurrent;
+}
+
+// WikiTreeAPI.getPerson throws for an ID that doesn't exist ("Rioosevelt-1's fan chart" showed
+// "Cannot read properties of undefined (reading 'Parents')", 2026-10-18): null instead, so "not found" follows.
+function getPersonOrNull(...args) {
+  return Promise.resolve()
+    .then(() => WikiTreeAPI.getPerson(...args))
+    .catch(() => null);
+}
+
+function normalizeResolvedConnectionPerson(person) {
+  if (!person) {
+    return null;
+  }
+
+  const rawPerson = person?._data && typeof person._data === "object" ? person._data : person;
+  if (!rawPerson || typeof rawPerson !== "object") {
+    return rawPerson;
+  }
+
+  if (rawPerson.ShortName && !rawPerson?.Derived?.ShortName) {
+    return {
+      ...rawPerson,
+      Derived: {
+        ...(rawPerson.Derived || {}),
+        ShortName: rawPerson.ShortName,
+      },
+    };
+  }
+
+  return rawPerson;
+}
+
+function normalizeConnectionAiExpansion(expansion) {
+  if (!expansion || typeof expansion !== "object") {
+    return expansion || null;
+  }
+
+  const normalizedFirstName = String(expansion?.FirstName || expansion?.firstName || "").trim();
+  const normalizedLastName = String(expansion?.LastName || expansion?.lastName || "").trim();
+  const normalizedMiddleName = String(expansion?.MiddleName || expansion?.middleName || "").trim();
+  // (the name the profile may show instead: Bill for William Blythe, and his later surname Clinton)
+  const preferredName = normalizeConnectionAiNamePart(expansion?.PreferredName || expansion?.preferredName);
+  const lastNameCurrent = normalizeConnectionAiNamePart(expansion?.LastNameCurrent || expansion?.lastNameCurrent);
+  const famous = normalizeConnectionAiBoolean(expansion?.Famous ?? expansion?.famous) === true;
+  const normalizedBirthDate = String(expansion?.BirthDate || expansion?.birthDate || "").trim();
+  const normalizedDeathDate = String(expansion?.DeathDate || expansion?.deathDate || "").trim();
+  const normalizedBirthLocation = normalizeConnectionAiLocation(expansion?.BirthLocation || expansion?.birthLocation);
+  const normalizedDeathLocation = normalizeConnectionAiLocation(expansion?.DeathLocation || expansion?.deathLocation);
+  const normalizedGender = normalizeConnectionAiGender(expansion?.Gender ?? expansion?.gender);
+  const isLiving = normalizeConnectionAiBoolean(expansion?.IsLiving ?? expansion?.isLiving);
+  const rawBirthYear = expansion?.BirthYear ?? expansion?.birthYear;
+  const birthYear = Number.isFinite(Number(rawBirthYear)) ? Number(rawBirthYear) : null;
+  const wtId = String(expansion?.wtId || expansion?.WtId || "").trim();
+  const fatherFirstName = normalizeConnectionAiNamePart(expansion?.fatherFirstName || expansion?.FatherFirstName);
+  const fatherLastName = normalizeConnectionAiNamePart(expansion?.fatherLastName || expansion?.FatherLastName);
+  const motherFirstName = normalizeConnectionAiNamePart(expansion?.motherFirstName || expansion?.MotherFirstName);
+  const motherLastName = normalizeConnectionAiNamePart(expansion?.motherLastName || expansion?.MotherLastName);
+  const searchName =
+    String(expansion?.searchName || expansion?.SearchName || "").trim() ||
+    [normalizedFirstName, normalizedLastName].filter(Boolean).join(" ").trim();
+
+  return {
+    ...expansion,
+    wtId,
+    searchName,
+    firstName: normalizedFirstName,
+    lastName: normalizedLastName,
+    middleName: normalizedMiddleName,
+    preferredName,
+    lastNameCurrent,
+    famous,
+    birthDate: normalizedBirthDate,
+    deathDate: normalizedDeathDate,
+    birthLocation: normalizedBirthLocation,
+    deathLocation: normalizedDeathLocation,
+    gender: normalizedGender,
+    isLiving,
+    birthYear,
+    fatherFirstName,
+    fatherLastName,
+    motherFirstName,
+    motherLastName,
+  };
+}
+
+export function createChatConnectionHandlers({
+  WBE_CHAT_APP_ID,
+  CHAT_LAST_CONNECTION_KEY,
+  toggleConnectionsPopup,
+  tryAiDisambiguateConnectionTarget,
+  tryAiExpandConnectionTarget,
+  shouldOfferDisambiguation,
+  resolveConnectionSourceRoot,
+  resolveAliasToRememberedPerson,
+  findInFamilyCircle,
+  resolveRelativeTarget,
+  setPendingDisambiguationContext,
+  buildDisambiguationMessage,
+  promptRefersToUser,
+  getLastConnectionContext,
+  setLastConnectionContext,
+  getLastConnectionCandidates,
+  setLastConnectionCandidates,
+  setLastConnectionRankedMatches,
+  setLastConnectionPopupResult,
+  onResolvedPerson,
+  personVisuals = () => [],
+}) {
+  async function rerankConnectionMatchesByAncestorLocations(rankedMatches, targetLocations = []) {
+    const normalizedTargets = (targetLocations || []).map((value) => String(value || "").trim()).filter(Boolean);
+    if (!normalizedTargets.length || rankedMatches.length < 2) {
+      return rankedMatches;
+    }
+
+    const candidateEntries = rankedMatches
+      .filter((entry) => entry?.match?.Name && entry?.match?.Id)
+      .slice(0, Math.min(4, rankedMatches.length));
+    if (candidateEntries.length < 2) {
+      return rankedMatches;
+    }
+
+    const ancestorScores = new Map();
+    await Promise.all(
+      candidateEntries.map(async (entry) => {
+        try {
+          const ancestors = await WikiTreeAPI.getAncestors(
+            "Chat",
+            entry.match.Name,
+            4,
+            "Id,Name,RealName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Father,Mother"
+          );
+          const score = normalizedTargets.reduce(
+            (total, targetLocation) =>
+              total + scoreConnectionAncestorLocationEvidence(entry.match, ancestors || [], targetLocation),
+            0
+          );
+          ancestorScores.set(String(entry.match.Name || ""), score);
+        } catch (error) {
+          ancestorScores.set(String(entry.match.Name || ""), 0);
+        }
+      })
+    );
+
+    if (!Array.from(ancestorScores.values()).some((score) => score)) {
+      return rankedMatches;
+    }
+
+    return rankedMatches
+      .map((entry) => ({
+        ...entry,
+        score: entry.score + (ancestorScores.get(String(entry.match?.Name || "")) || 0),
+      }))
+      .sort((left, right) => right.score - left.score);
+  }
+
+  async function findExactNameMatchesViaWtPlus(firstName, lastName, fields) {
+    try {
+      const lookup = await wtAPIProfileSearch("Chat", encodeURIComponent(`${firstName} ${lastName}`), {
+        maxProfiles: 50,
+      });
+      const ids = (lookup?.response?.profiles || []).slice(0, 50);
+      if (!ids.length) {
+        return [];
+      }
+      const [, , people] = await WikiTreeAPI.getPeople("Chat", ids, fields);
+      const wantedFirst = normalizePersonText(firstName);
+      const wantedLast = normalizePersonText(lastName);
+      return Object.values(people || {}).filter((person) => {
+        if (!person?.Name) return false;
+        const givenNames = [person.FirstName, person.RealName].map((value) =>
+          normalizePersonText(String(value || "").split(/\s+/)[0])
+        );
+        const surnames = [person.LastNameAtBirth, person.LastNameCurrent].map((value) => normalizePersonText(value));
+        return givenNames.includes(wantedFirst) && surnames.includes(wantedLast);
+      });
+    } catch (error) {
+      console.debug("wbe: WT+ exact name lookup failed", error);
+      return [];
+    }
+  }
+
+  async function findProfilePersonByGivenName(target, excludedWtIds = new Set()) {
+    const wanted = normalizePersonText(target);
+    if (!wanted || /\s/.test(wanted) || isWikiTreeId(target)) {
+      return null;
+    }
+    const pagePerson = getFocusPersonInfo();
+    const wtId = String(pagePerson?.Name || "").trim();
+    if (!isWikiTreeId(wtId) || excludedWtIds.has(wtId)) {
+      return null;
+    }
+    const person = normalizeResolvedConnectionPerson(
+      await getPersonOrNull(
+        "Chat",
+        wtId,
+        "Id,Name,RealName,Derived.ShortName,FirstName,Nicknames,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate"
+      )
+    );
+    const givenNames = [
+      person?.RealName,
+      person?.FirstName,
+      pagePerson?.FirstName,
+      ...String(person?.Nicknames || "").split(/[,;]/),
+    ]
+      .map((name) => normalizePersonText(String(name || "").trim().split(/\s+/)[0]))
+      .filter(Boolean);
+    return givenNames.includes(wanted) && (person?.Name || person?.Id) ? person : null;
+  }
+
+  // Marked notable on WikiTree: a Notability/Notables/Wikidata/Succession template or a WikiTree-* manager.
+  function hasNotabilityEvidence(match) {
+    const names = (Array.isArray(match?.Templates) ? match.Templates : []).map((template) =>
+      String(template?.name || "").toLowerCase()
+    );
+    if (names.some((name) => /notab|^wikidata$|^succession$/.test(name))) return true;
+    return (Array.isArray(match?.Managers) ? match.Managers : []).some((manager) =>
+      /^WikiTree-\d+$/i.test(String(manager?.Name || ""))
+    );
+  }
+
+  // A Notability template about someone's relative: "He was the grandfather of [[Lincoln-103|...]]".
+  function isRelativeOfNotableTemplate(template) {
+    if (String(template?.name || "").toLowerCase() !== "notability") return false;
+    const text = String(template?.params?.text || "");
+    return /\b(?:father|mother|grand(?:father|mother|son|daughter|parent|child)|ancestor|son|daughter|wife|husband|brother|sister|uncle|aunt|nephew|niece|cousin)\s+of\s+\[\[/i.test(
+      text
+    );
+  }
+
+  async function resolveConnectionTargetPerson(target, prompt = "", options = {}) {
+    let cleanedTarget = embeddedWikiTreeId(target) || normalizeConnectionTargetForSearch(target);
+    if (!cleanedTarget) {
+      return null;
+    }
+    // "Bob Jones in Liverpool 1923": search the name, rank by the year and place (chat_connection_target_hints.js).
+    // With them, the shortcuts by name alone (the page, the conversation, the family) are skipped: they'd
+    // take the first Bob Jones without looking at the year.
+    const typedHints = isWikiTreeId(cleanedTarget) ? null : parseConnectionTargetHints(cleanedTarget);
+    if (typedHints) cleanedTarget = typedHints.name;
+
+    const excludedWtIds = new Set(
+      (options?.excludeWtIds || []).map((value) => String(value || "").trim()).filter(Boolean)
+    );
+
+    const pageContextCandidate = typedHints ? null : findPageContextPersonCandidate(cleanedTarget);
+    if (pageContextCandidate?.wtId && !excludedWtIds.has(pageContextCandidate.wtId)) {
+      const contextMatch = normalizeResolvedConnectionPerson(
+        await getPersonOrNull(
+          "Chat",
+          pageContextCandidate.wtId,
+          "Id,Name,RealName,Derived.ShortName,FirstName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate"
+        )
+      );
+      if (contextMatch?.Name || contextMatch?.Id) {
+        return contextMatch;
+      }
+      return {
+        Name: pageContextCandidate.wtId,
+        RealName: pageContextCandidate.displayName,
+        Derived: { ShortName: pageContextCandidate.displayName },
+      };
+    }
+
+    // A bare first name may be the profile person's preferred name or nickname,
+    // which the page itself doesn't show ("Benny" on Benjamin Otho Cantrell's
+    // page went to Benny Goodman, live B7, 2026-10-02).
+    const profilePersonByName = typedHints ? null : await findProfilePersonByGivenName(cleanedTarget, excludedWtIds);
+    if (profilePersonByName) {
+      return profilePersonByName;
+    }
+
+    if (isWikiTreeId(cleanedTarget)) {
+      return normalizeResolvedConnectionPerson(
+        await getPersonOrNull(
+          "Chat",
+          cleanedTarget,
+          "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender,DataStatus"
+        )
+      );
+    }
+
+    // A mis-extracted "name" like "connection" or "his siblings" must not
+    // reach searchPerson. Known common aliases ("the Pope") are exempt.
+    if (!looksLikePersonNameForSearch(cleanedTarget) && !getCommonAliasExpansion(cleanedTarget)) {
+      console.debug("wbe: resolveConnectionTargetPerson rejected implausible person name", { cleanedTarget });
+      return null;
+    }
+
+    // A person already resolved earlier in the conversation ("Sarah (Jones-12)")
+    // costs one getPerson instead of a searchPerson fan-out.
+    const remembered = typedHints ? null : resolveAliasToRememberedPerson?.(cleanedTarget) || null;
+    const rememberedWtId = String(remembered?.wtId || "").trim();
+    if (rememberedWtId && isWikiTreeId(rememberedWtId) && !excludedWtIds.has(rememberedWtId)) {
+      const rememberedMatch = normalizeResolvedConnectionPerson(
+        await getPersonOrNull(
+          "Chat",
+          rememberedWtId,
+          "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender,DataStatus"
+        )
+      );
+      if (rememberedMatch?.Name || rememberedMatch?.Id) {
+        console.debug("wbe: resolveConnectionTargetPerson used remembered person", { cleanedTarget, rememberedWtId });
+        return rememberedMatch;
+      }
+    }
+
+    // A name with the profile person's or the user's surname, not linked on
+    // the page: look in their CC7 before searching all of WikiTree.
+    const familyMatch = typedHints
+      ? null
+      : await findInFamilyCircle?.(cleanedTarget).catch((error) => {
+          console.debug("wbe: family circle lookup failed", error);
+          return null;
+        });
+    if (familyMatch?.Name && !excludedWtIds.has(familyMatch.Name)) {
+      console.debug("wbe: resolveConnectionTargetPerson found name in family CC7", { cleanedTarget, wtId: familyMatch.Name });
+      return normalizeResolvedConnectionPerson(familyMatch);
+    }
+
+    const { firstName, lastName } = splitPersonName(cleanedTarget);
+    // BirthDateDecade matters for living people: the API often withholds the
+    // exact BirthDate but still exposes the decade. Templates/Managers carry
+    // notability evidence (Notables templates, Wikidata, WikiTree-* managers).
+    const fields =
+      "Id,Name,RealName,Derived.ShortName,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,BirthLocation,DeathLocation,Gender,DataStatus,IsLiving,Templates,Managers";
+    const commonAlias = normalizeConnectionAiExpansion(getCommonAliasExpansion(cleanedTarget));
+    const trustedAliasWtId = isWikiTreeId(commonAlias?.wtId || "") ? String(commonAlias.wtId).trim() : "";
+    let aiExpansion = commonAlias;
+    if (!aiExpansion) {
+      aiExpansion = normalizeConnectionAiExpansion(await tryAiExpandConnectionTarget(cleanedTarget, prompt));
+    }
+    console.debug("wbe: resolveConnectionTargetPerson ai expansion", {
+      cleanedTarget,
+      prompt,
+      aiExpansion,
+    });
+
+    if (!aiExpansion?.searchName && commonAlias) {
+      aiExpansion = commonAlias;
+    }
+    // what was typed beats the AI's guesses
+    aiExpansion = withTypedTargetHints(aiExpansion, typedHints);
+
+    if (trustedAliasWtId) {
+      return normalizeResolvedConnectionPerson(
+        await getPersonOrNull(
+          "Chat",
+          trustedAliasWtId,
+          "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender,DataStatus"
+        )
+      );
+    }
+
+    // A famous person (the AI says so, and gives a birth year): Wikidata keeps their
+    // WikiTree ID, so look them up by the name they're known by.
+    if (aiExpansion?.famous && (aiExpansion.birthDate || aiExpansion.birthYear)) {
+      const knownBy = [aiExpansion.preferredName || aiExpansion.firstName, aiExpansion.lastNameCurrent || aiExpansion.lastName].filter(Boolean).join(" ");
+      const wikidata = await findWikiTreeIdOnWikidata(
+        [knownBy, cleanedTarget, aiExpansion.searchName],
+        extractYearFromDate(normalizeConnectionBirthDate(aiExpansion.birthDate)) || aiExpansion.birthYear
+      );
+      if (wikidata?.wtId && isWikiTreeId(wikidata.wtId) && !excludedWtIds.has(wikidata.wtId)) {
+        const person = normalizeResolvedConnectionPerson(
+          await getPersonOrNull(
+            "Chat",
+            wikidata.wtId,
+            "Id,Name,RealName,Derived.ShortName,LastNameAtBirth,LastNameCurrent,BirthDate,DeathDate,BirthLocation,Gender,DataStatus"
+          )
+        );
+        if (person?.Name || person?.Id) {
+          console.info("wbe: resolveConnectionTargetPerson used Wikidata", { cleanedTarget, ...wikidata });
+          return person;
+        }
+      }
+    }
+    const aiSuggestedWtId = isWikiTreeId(aiExpansion?.wtId || "") ? String(aiExpansion.wtId).trim() : "";
+
+    const expandedParts =
+      aiExpansion?.firstName || aiExpansion?.lastName
+        ? {
+            firstName: aiExpansion.firstName || "",
+            lastName: aiExpansion.lastName || "",
+          }
+        : splitPersonName(aiExpansion?.searchName || "");
+    const hasExpandedStructuredName =
+      Boolean(expandedParts.firstName && expandedParts.lastName) &&
+      (!firstName ||
+        !lastName ||
+        normalizePersonText(expandedParts.firstName) !== normalizePersonText(firstName) ||
+        normalizePersonText(expandedParts.lastName) !== normalizePersonText(lastName));
+    const normalizedBirthDate = normalizeConnectionBirthDate(aiExpansion?.birthDate);
+    const normalizedDeathDate = normalizeConnectionBirthDate(aiExpansion?.deathDate);
+    const targetBirthYear = extractYearFromDate(normalizedBirthDate) || Number(aiExpansion?.birthYear) || null;
+    const aiGender = String(aiExpansion?.gender || "").trim();
+    const aiSaysLiving = aiExpansion?.isLiving === true;
+    const likelyLivingTarget =
+      aiSaysLiving ||
+      (!normalizedDeathDate &&
+        Number.isFinite(Number(targetBirthYear)) &&
+        Number(targetBirthYear) >= new Date().getFullYear() - 110);
+    const exactMatchSearchLimit = likelyLivingTarget ? 100 : 20;
+    const broadMatchSearchLimit = likelyLivingTarget ? 40 : 20;
+    const birthDateSearchParams = normalizedBirthDate
+      ? {
+          BirthDate: normalizedBirthDate,
+          dateSpread: 0,
+          sort: "birth",
+        }
+      : Number.isFinite(Number(aiExpansion?.birthYear))
+      ? {
+          BirthDate: `${Number(aiExpansion.birthYear)}-01-01`,
+          dateSpread: 2,
+          sort: "birth",
+        }
+      : null;
+    const optionalHintSearchParams = {
+      ...(aiExpansion?.birthLocation ? { BirthLocation: aiExpansion.birthLocation } : {}),
+      ...(aiExpansion?.deathLocation ? { DeathLocation: aiExpansion.deathLocation } : {}),
+      ...(aiSaysLiving ? { isLiving: 1 } : {}),
+      ...(aiGender ? { Gender: aiGender } : {}),
+      ...(aiExpansion?.fatherFirstName ? { fatherFirstName: aiExpansion.fatherFirstName } : {}),
+      ...(aiExpansion?.fatherLastName ? { fatherLastName: aiExpansion.fatherLastName } : {}),
+      ...(aiExpansion?.motherFirstName ? { motherFirstName: aiExpansion.motherFirstName } : {}),
+      ...(aiExpansion?.motherLastName ? { motherLastName: aiExpansion.motherLastName } : {}),
+    };
+    const hasOptionalSearchHints = Object.keys(optionalHintSearchParams).length > 0;
+
+    let strictHintMatches = [];
+    if (hasOptionalSearchHints && firstName && lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: firstName,
+          LastName: lastName,
+          skipVariants: 1,
+          lastNameMatch: "strict",
+          limit: exactMatchSearchLimit,
+          sort: "birth",
+          ...optionalHintSearchParams,
+        },
+        fields
+      );
+      strictHintMatches = searchMatches || [];
+    }
+
+    let currentLastStrictHintMatches = [];
+    if (hasOptionalSearchHints && firstName && lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: firstName,
+          LastNameCurrent: lastName,
+          skipVariants: 1,
+          limit: exactMatchSearchLimit,
+          sort: "birth",
+          ...optionalHintSearchParams,
+        },
+        fields
+      );
+      currentLastStrictHintMatches = searchMatches || [];
+    }
+
+    let strictMatches = [];
+    if (firstName && lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: firstName,
+          LastName: lastName,
+          skipVariants: 1,
+          lastNameMatch: "strict",
+          limit: exactMatchSearchLimit,
+          sort: "birth",
+        },
+        fields
+      );
+      strictMatches = searchMatches || [];
+    }
+
+    let currentLastStrictMatches = [];
+    if (firstName && lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: firstName,
+          LastNameCurrent: lastName,
+          skipVariants: 1,
+          limit: exactMatchSearchLimit,
+          sort: "birth",
+        },
+        fields
+      );
+      currentLastStrictMatches = searchMatches || [];
+    }
+
+    // "William Ralph Beacall": searching "William" alone, oldest first, filled
+    // the 20 places with older Williams; "William Ralph" ranks him first (live, 2026-10-06).
+    const middleNames = typedMiddleNames(cleanedTarget);
+    let givenNamesMatches = [];
+    if (middleNames.length && firstName && lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: [firstName, ...middleNames].join(" "),
+          LastName: lastName,
+          skipVariants: 1,
+          lastNameMatch: "strict",
+          limit: exactMatchSearchLimit,
+        },
+        fields
+      );
+      givenNamesMatches = searchMatches || [];
+    }
+
+    let relaxedMatches = [];
+    if (firstName && lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: firstName,
+          LastName: lastName,
+          limit: broadMatchSearchLimit,
+          sort: "birth",
+        },
+        fields
+      );
+      relaxedMatches = searchMatches || [];
+    }
+
+    const [, searchRealNameMatches] = await WikiTreeAPI.searchPerson(
+      "Chat",
+      {
+        RealName: cleanedTarget,
+        limit: broadMatchSearchLimit,
+      },
+      fields
+    );
+    const realNameMatches = searchRealNameMatches || [];
+
+    // Living-person searches run whenever the target is likely living —
+    // independent of whether the AI expansion renamed anyone. Without these,
+    // a common name like "Stephen Fry" only ever surfaces the oldest dead
+    // namesakes (unhinted searches sort by birth ascending), and the famous
+    // living profile never enters the candidate pool. No location hints
+    // here: living profiles hide locations, so they only over-constrain.
+    const livingSearchFirstName = expandedParts.firstName || firstName;
+    const livingSearchLastName = expandedParts.lastName || lastName;
+
+    // Plain living lane — mirrors the empirically verified API call
+    // (FirstName + LastName + isLiving=1) and runs UNCONDITIONALLY, so living
+    // namesakes are in the pool even when the AI expansion failed entirely.
+    // Living people with a given name pair are a small set; ranking sorts
+    // them against the deceased candidates.
+    let livingPlainMatches = [];
+    if (livingSearchFirstName && livingSearchLastName) {
+      const [, livingPlainSearch] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: livingSearchFirstName,
+          LastName: livingSearchLastName,
+          isLiving: 1,
+          limit: 100,
+        },
+        fields
+      );
+      livingPlainMatches = livingPlainSearch || [];
+    }
+
+    let livingStrictMatches = [];
+    let livingCurrentLastMatches = [];
+    if (likelyLivingTarget && livingSearchFirstName && livingSearchLastName) {
+      const [, livingSearch] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: livingSearchFirstName,
+          LastName: livingSearchLastName,
+          skipVariants: 1,
+          lastNameMatch: "strict",
+          isLiving: 1,
+          limit: 100,
+          ...(aiGender ? { Gender: aiGender } : {}),
+        },
+        fields
+      );
+      livingStrictMatches = livingSearch || [];
+
+      const [, livingCurrentSearch] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: livingSearchFirstName,
+          LastNameCurrent: livingSearchLastName,
+          skipVariants: 1,
+          isLiving: 1,
+          limit: 100,
+          ...(aiGender ? { Gender: aiGender } : {}),
+        },
+        fields
+      );
+      livingCurrentLastMatches = livingCurrentSearch || [];
+    }
+
+    // Birth-date search on the (possibly identical) resolved name. The old
+    // expandedBirthYear searches only ran when the AI produced a DIFFERENT
+    // name than the user typed, which skipped exactly the common case of the
+    // user typing the famous person's well-known name.
+    let sameNameBirthDateMatches = [];
+    if (birthDateSearchParams && livingSearchFirstName && livingSearchLastName) {
+      const [, birthDateSearch] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: livingSearchFirstName,
+          LastName: livingSearchLastName,
+          skipVariants: 1,
+          lastNameMatch: "strict",
+          limit: exactMatchSearchLimit,
+          ...birthDateSearchParams,
+        },
+        fields
+      );
+      sameNameBirthDateMatches = birthDateSearch || [];
+    }
+
+    let expandedNameMatches = [];
+    if (aiExpansion?.searchName && normalizePersonText(aiExpansion.searchName) !== normalizePersonText(cleanedTarget)) {
+      const [, expandedMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          RealName: aiExpansion.searchName,
+          limit: broadMatchSearchLimit,
+        },
+        fields
+      );
+      expandedNameMatches = expandedMatches || [];
+    }
+
+    let expandedBirthYearMatches = [];
+    if (
+      birthDateSearchParams &&
+      aiExpansion?.searchName &&
+      normalizePersonText(aiExpansion.searchName) !== normalizePersonText(cleanedTarget)
+    ) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          RealName: aiExpansion.searchName,
+          limit: broadMatchSearchLimit,
+          ...birthDateSearchParams,
+        },
+        fields
+      );
+      expandedBirthYearMatches = searchMatches || [];
+    }
+
+    let expandedStrictMatches = [];
+    if (hasExpandedStructuredName && expandedParts.firstName && expandedParts.lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: expandedParts.firstName,
+          LastName: expandedParts.lastName,
+          skipVariants: 1,
+          lastNameMatch: "strict",
+          limit: exactMatchSearchLimit,
+        },
+        fields
+      );
+      expandedStrictMatches = searchMatches || [];
+    }
+
+    let expandedCurrentLastStrictMatches = [];
+    if (hasExpandedStructuredName && expandedParts.firstName && expandedParts.lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: expandedParts.firstName,
+          LastNameCurrent: expandedParts.lastName,
+          skipVariants: 1,
+          limit: exactMatchSearchLimit,
+        },
+        fields
+      );
+      expandedCurrentLastStrictMatches = searchMatches || [];
+    }
+
+    let expandedBirthYearStrictMatches = [];
+    if (birthDateSearchParams && hasExpandedStructuredName && expandedParts.firstName && expandedParts.lastName) {
+      const [, searchMatches] = await WikiTreeAPI.searchPerson(
+        "Chat",
+        {
+          FirstName: expandedParts.firstName,
+          LastName: expandedParts.lastName,
+          skipVariants: 1,
+          lastNameMatch: "strict",
+          limit: exactMatchSearchLimit,
+          ...birthDateSearchParams,
+        },
+        fields
+      );
+      expandedBirthYearStrictMatches = searchMatches || [];
+    }
+
+    // Logged out, searchPerson leaves out living semi-private profiles
+    // entirely (e.g. the member Murray Maloney, Maloney-2332), yet getPeople
+    // still returns their name. WT+ lists them, so when the API has no exact
+    // name match, look the name up there and keep the exact matches.
+    let wtPlusExactMatches = [];
+    if (firstName && lastName && !strictMatches.length && !currentLastStrictMatches.length) {
+      wtPlusExactMatches = await findExactNameMatchesViaWtPlus(firstName, lastName, fields);
+    }
+
+    const exactOriginalMatches = mergeConnectionMatches([
+      givenNamesMatches,
+      strictMatches,
+      currentLastStrictMatches,
+      wtPlusExactMatches,
+    ]);
+    const sparseExactOriginalMatch =
+      firstName && lastName && exactOriginalMatches.length === 1 && isSparseConnectionMatch(exactOriginalMatches[0])
+        ? exactOriginalMatches[0]
+        : null;
+
+    const matches = mergeConnectionMatches([
+      givenNamesMatches,
+      strictHintMatches,
+      currentLastStrictHintMatches,
+      livingStrictMatches,
+      livingCurrentLastMatches,
+      livingPlainMatches,
+      sameNameBirthDateMatches,
+      expandedBirthYearStrictMatches,
+      expandedBirthYearMatches,
+      expandedStrictMatches,
+      expandedCurrentLastStrictMatches,
+      strictMatches,
+      currentLastStrictMatches,
+      wtPlusExactMatches,
+      expandedNameMatches,
+      relaxedMatches,
+      realNameMatches,
+    ]);
+
+    console.info("wbe: connection target search lanes", {
+      cleanedTarget,
+      aiExpansionPresent: Boolean(aiExpansion),
+      likelyLivingTarget,
+      laneCounts: {
+        strictHint: strictHintMatches.length,
+        currentLastStrictHint: currentLastStrictHintMatches.length,
+        livingStrict: livingStrictMatches.length,
+        livingCurrentLast: livingCurrentLastMatches.length,
+        livingPlain: livingPlainMatches.length,
+        sameNameBirthDate: sameNameBirthDateMatches.length,
+        expandedBirthYearStrict: expandedBirthYearStrictMatches.length,
+        expandedBirthYear: expandedBirthYearMatches.length,
+        expandedStrict: expandedStrictMatches.length,
+        expandedCurrentLastStrict: expandedCurrentLastStrictMatches.length,
+        strict: strictMatches.length,
+        currentLastStrict: currentLastStrictMatches.length,
+        expandedName: expandedNameMatches.length,
+        relaxed: relaxedMatches.length,
+        realName: realNameMatches.length,
+        wtPlusExact: wtPlusExactMatches.length,
+      },
+      mergedCount: matches.length,
+      livingPlainSample: livingPlainMatches.slice(0, 10).map((match) => match?.Name),
+    });
+
+    const hasExpandedSearchName =
+      Boolean(aiExpansion?.searchName) &&
+      normalizePersonText(aiExpansion.searchName) !== normalizePersonText(cleanedTarget);
+    const rankingTarget = hasExpandedSearchName ? aiExpansion.searchName : cleanedTarget;
+    const rankingParts =
+      hasExpandedSearchName || aiExpansion?.firstName || aiExpansion?.lastName
+        ? expandedParts
+        : { firstName, lastName };
+
+    let rankedMatches = rankConnectionMatches(rankingTarget, matches, rankingParts);
+
+    if (expandedParts.lastName && rankedMatches.length) {
+      const normalizedExpandedLast = normalizePersonText(expandedParts.lastName);
+      rankedMatches = rankedMatches
+        .map((entry) => {
+          const lnab = normalizePersonText(entry.match?.LastNameAtBirth);
+          const lnc = normalizePersonText(entry.match?.LastNameCurrent);
+          let score = entry.score;
+          if (lnab === normalizedExpandedLast) {
+            score += 160;
+          } else if (lnc === normalizedExpandedLast) {
+            score += 60;
+          }
+          return { ...entry, score };
+        })
+        .sort((left, right) => right.score - left.score);
+    }
+
+    if ((normalizedBirthDate || aiExpansion?.birthYear) && rankedMatches.length) {
+      rankedMatches = rankedMatches
+        .map((entry) => {
+          const candidateBirthDate = normalizeConnectionBirthDate(entry.match?.BirthDate);
+          const candidateBirthYear = extractYearFromDate(entry.match?.BirthDate);
+          let score = entry.score;
+          if (normalizedBirthDate && candidateBirthDate) {
+            if (candidateBirthDate === normalizedBirthDate) {
+              score += 320;
+            } else if (candidateBirthDate.slice(0, 7) === normalizedBirthDate.slice(0, 7)) {
+              score += 220;
+            } else if (candidateBirthDate.slice(0, 4) === normalizedBirthDate.slice(0, 4)) {
+              score += 120;
+            } else {
+              const gap =
+                Number.isFinite(candidateBirthYear) && Number.isFinite(Number(targetBirthYear))
+                  ? Math.abs(candidateBirthYear - targetBirthYear)
+                  : null;
+              if (Number.isFinite(gap) && gap >= 80) {
+                score -= 260;
+              } else if (Number.isFinite(gap) && gap >= 40) {
+                score -= 180;
+              } else if (Number.isFinite(gap) && gap >= 20) {
+                score -= 120;
+              } else if (Number.isFinite(gap) && gap >= 10) {
+                score -= 80;
+              } else if (Number.isFinite(gap) && gap >= 3) {
+                score -= 55;
+              } else {
+                score -= 40;
+              }
+            }
+          } else if (Number.isFinite(candidateBirthYear) && Number.isFinite(Number(aiExpansion?.birthYear))) {
+            const gap = Math.abs(candidateBirthYear - aiExpansion.birthYear);
+            if (gap === 0) {
+              score += 220;
+            } else if (gap <= 1) {
+              score += 140;
+            } else if (gap <= 2) {
+              score += 80;
+            } else if (gap <= 8) {
+              score += 35;
+            } else if (gap >= 35) {
+              score -= 60;
+            }
+          } else if (
+            Number.isFinite(Number(targetBirthYear)) &&
+            /^\d{4}s$/.test(String(entry.match?.BirthDateDecade || ""))
+          ) {
+            // Living people often expose only BirthDateDecade. A decade that
+            // contains the expected birth year is strong evidence; a distant
+            // decade rules the candidate out.
+            const decadeStart = Number(String(entry.match.BirthDateDecade).slice(0, 4));
+            const yearGapFromDecade =
+              targetBirthYear < decadeStart
+                ? decadeStart - targetBirthYear
+                : Math.max(0, targetBirthYear - (decadeStart + 9));
+            if (yearGapFromDecade === 0) {
+              score += 200;
+            } else if (yearGapFromDecade <= 10) {
+              score += 40;
+            } else if (yearGapFromDecade >= 30) {
+              score -= 160;
+            } else {
+              score -= 60;
+            }
+          } else if (likelyLivingTarget) {
+            score += 10;
+          } else {
+            score -= 25;
+          }
+          return { ...entry, score };
+        })
+        .sort((left, right) => right.score - left.score);
+    }
+
+    if ((aiExpansion?.birthLocation || aiExpansion?.deathLocation) && rankedMatches.length) {
+      rankedMatches = rankedMatches
+        .map((entry) => {
+          let score = entry.score;
+
+          if (aiExpansion?.birthLocation) {
+            const birthScore = scoreConnectionLocationEvidence(entry.match?.BirthLocation, aiExpansion.birthLocation);
+            // "Bob Jones in Liverpool": born or died there
+            score += aiExpansion.placeAnywhere
+              ? Math.max(birthScore, scoreConnectionLocationEvidence(entry.match?.DeathLocation, aiExpansion.placeAnywhere))
+              : birthScore;
+          }
+
+          if (aiExpansion?.deathLocation) {
+            score += scoreConnectionLocationEvidence(entry.match?.DeathLocation, aiExpansion.deathLocation);
+          }
+
+          return { ...entry, score };
+        })
+        .sort((left, right) => right.score - left.score);
+    }
+
+    // A typed death year ("Bob Jones d. 1990"): the AI's reading has none.
+    if (Number.isFinite(Number(aiExpansion?.deathYear)) && rankedMatches.length) {
+      rankedMatches = rankedMatches
+        .map((entry) => {
+          const candidateDeathYear = extractYearFromDate(entry.match?.DeathDate);
+          if (!Number.isFinite(candidateDeathYear)) return { ...entry, score: entry.score - 20 };
+          const gap = Math.abs(candidateDeathYear - aiExpansion.deathYear);
+          return { ...entry, score: entry.score + (gap === 0 ? 200 : gap <= 1 ? 120 : gap <= 3 ? 40 : gap >= 10 ? -150 : -50) };
+        })
+        .sort((left, right) => right.score - left.score);
+    }
+
+    if (aiGender && rankedMatches.length) {
+      rankedMatches = rankedMatches
+        .map((entry) => {
+          const candidateGender = normalizeConnectionAiGender(entry.match?.Gender);
+          let score = entry.score;
+          if (candidateGender) {
+            score += candidateGender === aiGender ? 80 : -160;
+          } else {
+            score -= 10;
+          }
+          return { ...entry, score };
+        })
+        .sort((left, right) => right.score - left.score);
+    }
+
+    if (aiSuggestedWtId && rankedMatches.length) {
+      rankedMatches = rankedMatches
+        .map((entry) => ({
+          ...entry,
+          score: entry.score + (String(entry.match?.Name || "").trim() === aiSuggestedWtId ? 260 : 0),
+        }))
+        .sort((left, right) => right.score - left.score);
+    }
+
+    if ((firstName && lastName && hasExpandedSearchName) || normalizedDeathDate || likelyLivingTarget) {
+      rankedMatches = rankedMatches
+        .map((entry) => {
+          const candidateDeathDate = normalizeConnectionBirthDate(entry.match?.DeathDate);
+          let score = entry.score;
+
+          if (hasExpandedSearchName && firstName && lastName) {
+            score += scoreExactConnectionNameEvidence(entry.match, firstName, lastName);
+          }
+
+          if (normalizedDeathDate) {
+            if (candidateDeathDate) {
+              if (candidateDeathDate === normalizedDeathDate) {
+                score += 260;
+              } else if (candidateDeathDate.slice(0, 4) === normalizedDeathDate.slice(0, 4)) {
+                score += 120;
+              } else {
+                score -= 70;
+              }
+            } else {
+              score -= 25;
+            }
+          } else if (likelyLivingTarget) {
+            if (candidateDeathDate) {
+              score -= 140;
+            } else {
+              score += 20;
+            }
+          }
+
+          return { ...entry, score };
+        })
+        .sort((left, right) => right.score - left.score);
+    }
+
+    const targetDiffersFromExpandedName =
+      Boolean(firstName && lastName && expandedParts.firstName && expandedParts.lastName) &&
+      (normalizePersonText(firstName) !== normalizePersonText(expandedParts.firstName) ||
+        normalizePersonText(lastName) !== normalizePersonText(expandedParts.lastName));
+    const exactOriginalAliasMatches =
+      firstName && lastName && rankedMatches.length
+        ? rankedMatches.filter((entry) => hasExactConnectionFullName(entry.match, firstName, lastName))
+        : [];
+
+    if (rankingParts.firstName && rankingParts.lastName && rankedMatches.length) {
+      // A famous person's profile often shows the name they're known by (Bill, not William).
+      const knownFirstNames = [rankingParts.firstName, aiExpansion?.preferredName];
+      const knownLastNames = [rankingParts.lastName, aiExpansion?.lastNameCurrent];
+      const exactFullNameMatches = rankedMatches.filter((entry) => hasAnyExactConnectionFullName(entry.match, knownFirstNames, knownLastNames));
+      const shouldPreferOriginalAliasMatches =
+        targetDiffersFromExpandedName &&
+        shouldPreferOriginalAliasConnectionMatches(
+          cleanedTarget,
+          { firstName, lastName },
+          expandedParts,
+          exactOriginalAliasMatches
+        );
+      if (exactFullNameMatches.length && !shouldPreferOriginalAliasMatches) {
+        rankedMatches = exactFullNameMatches;
+      } else {
+        rankedMatches = shouldPreferOriginalAliasMatches ? exactOriginalAliasMatches : [];
+      }
+    }
+
+    if (hasExpandedSearchName && firstName && lastName && rankedMatches.length) {
+      const exactOriginalAliasMatchesWithinFiltered = rankedMatches.filter((entry) =>
+        hasExactConnectionFullName(entry.match, firstName, lastName)
+      );
+      if (exactOriginalAliasMatchesWithinFiltered.length) {
+        rankedMatches = exactOriginalAliasMatchesWithinFiltered;
+      }
+    }
+
+    if (aiSaysLiving && rankedMatches.length) {
+      const livingOnlyMatches = rankedMatches.filter((entry) => !normalizeConnectionBirthDate(entry.match?.DeathDate));
+      if (livingOnlyMatches.length) {
+        rankedMatches = livingOnlyMatches;
+      }
+    }
+
+    if (excludedWtIds.size) {
+      rankedMatches = rankedMatches.filter((entry) => !excludedWtIds.has(String(entry?.match?.Name || "")));
+    }
+
+    // Notability evidence lives on the profile itself (Notables/Wikidata
+    // templates, official WikiTree-* manager accounts), so it applies even
+    // when the AI expansion failed: among equal name matches, the notable
+    // profile is almost always the person the user meant.
+    if (rankedMatches.length) {
+      const aiMiddleInitial = String(aiExpansion?.middleName || "")
+        .trim()
+        .charAt(0)
+        .toLowerCase();
+      rankedMatches = rankedMatches
+        .map((entry) => {
+          let score = entry.score;
+          const templates = Array.isArray(entry.match?.Templates) ? entry.match.Templates : [];
+          const templateNames = templates.map((template) => String(template?.name || "").toLowerCase());
+          // ("Notability" is the template's name; "notable" never matched it.)
+          if (templateNames.some((name) => name.includes("notable") || name.includes("notability"))) {
+            score += 180;
+          }
+          // An office held: the famous one, not a namesake relative who shares the
+          // family's templates ("Abraham Lincoln" went to his grandfather, Lincoln-229, 2026-10-11).
+          if (templateNames.includes("succession")) {
+            score += 160;
+          }
+          if (templates.some(isRelativeOfNotableTemplate)) {
+            score -= 200;
+          }
+          if (templateNames.some((name) => name === "wikidata")) {
+            score += 140;
+          }
+          const managers = Array.isArray(entry.match?.Managers) ? entry.match.Managers : [];
+          if (managers.some((manager) => /^WikiTree-\d+$/i.test(String(manager?.Name || "")))) {
+            score += 120;
+          }
+          if (aiMiddleInitial) {
+            const candidateMiddleInitial = String(entry.match?.MiddleName || entry.match?.MiddleInitial || "")
+              .trim()
+              .charAt(0)
+              .toLowerCase();
+            if (candidateMiddleInitial && candidateMiddleInitial === aiMiddleInitial) {
+              score += 40;
+            }
+          }
+          return { ...entry, score };
+        })
+        .sort((left, right) => right.score - left.score);
+    }
+
+    // No birth year to check (AI off, or the AI gave none) and more than one namesake: Wikidata's
+    // top hit for the name is the famous one. It counts only when that profile is among these
+    // matches and is marked notable, so "Mary Smith" isn't some famous Mary (2026-10-11:
+    // "Abraham Lincoln's parents" went to his grandfather, Lincoln-229).
+    if (
+      rankedMatches.length > 1 &&
+      !(normalizedBirthDate || aiExpansion?.birthYear) &&
+      rankedMatches.some((entry) => hasNotabilityEvidence(entry.match))
+    ) {
+      const top = await findTopWikiTreeIdOnWikidata(cleanedTarget);
+      const index = top?.wtId ? rankedMatches.findIndex((entry) => String(entry.match?.Name || "") === top.wtId) : -1;
+      if (index > 0 && hasNotabilityEvidence(rankedMatches[index].match)) {
+        console.info("wbe: resolveConnectionTargetPerson used Wikidata's top hit", { cleanedTarget, ...top });
+        const [chosen] = rankedMatches.splice(index, 1);
+        rankedMatches.unshift({ ...chosen, score: (rankedMatches[0]?.score || 0) + 1 });
+      }
+    }
+
+    if ((aiExpansion?.birthLocation || aiExpansion?.deathLocation) && rankedMatches.length > 1) {
+      rankedMatches = await rerankConnectionMatchesByAncestorLocations(rankedMatches, [
+        aiExpansion.birthLocation,
+        aiExpansion.deathLocation,
+      ]);
+    }
+
+    // A typed middle name narrows the field: those whose middle name fits, or
+    // else those with none recorded. A different middle name is someone else.
+    if (middleNames.length && rankedMatches.length) {
+      const agreeing = rankedMatches.filter((entry) => middleNamesAgree(entry.match, middleNames) === true);
+      rankedMatches = agreeing.length
+        ? agreeing
+        : rankedMatches.filter((entry) => middleNamesAgree(entry.match, middleNames) !== false);
+    }
+
+    if (!rankedMatches.length && sparseExactOriginalMatch) {
+      return sparseExactOriginalMatch;
+    }
+
+    setLastConnectionCandidates(rankedMatches.map((entry) => entry.match).filter(Boolean));
+    setLastConnectionRankedMatches(rankedMatches);
+
+    if (options?.allowDisambiguation && shouldOfferDisambiguation(rankedMatches)) {
+      // Every namesake, not the first 8: the searches above stop at 20 each, oldest first, so the
+      // two William Lukers born in 1801 and 1802 (of 85) weren't offered (the user, 2026-10-15).
+      let everyone = [];
+      if (firstName && lastName && !middleNames.length) {
+        try {
+          const [, all] = await WikiTreeAPI.searchPerson(
+            "Chat",
+            { FirstName: firstName, LastName: lastName, skipVariants: 1, lastNameMatch: "strict", limit: 100, sort: "birth" },
+            fields
+          );
+          everyone = Array.isArray(all) ? all : [];
+        } catch (error) {
+          console.debug("wbe: full namesake list failed", error);
+        }
+      }
+      const ranked = rankedMatches.map((entry) => entry.match).filter(Boolean);
+      const hinted = Boolean(normalizedBirthDate || aiExpansion?.birthYear || aiExpansion?.deathYear || aiExpansion?.birthLocation || aiExpansion?.deathLocation);
+      const pool = mergeConnectionMatches([ranked, everyone]);
+      // With a year or place the best fits lead; without one, oldest first is easiest to scan.
+      const birthYearOf = (person) => extractYearFromDate(person?.BirthDate) || Number(String(person?.BirthDateDecade || "").slice(0, 4)) || Infinity;
+      const candidates = hinted ? pool : [...pool].sort((left, right) => birthYearOf(left) - birthYearOf(right));
+      setLastConnectionCandidates(candidates);
+      return {
+        _disambiguationNeeded: true,
+        _candidates: candidates,
+      };
+    }
+
+    if (shouldUseAiForConnectionDisambiguation({ firstName, lastName }, rankedMatches)) {
+      const aiChoice = await tryAiDisambiguateConnectionTarget(prompt || cleanedTarget, rankedMatches);
+      if (aiChoice?._alternateSearchName) {
+        const [, refinedMatches] = await WikiTreeAPI.searchPerson(
+          "Chat",
+          {
+            RealName: aiChoice._alternateSearchName,
+            limit: 15,
+          },
+          fields
+        );
+        if (refinedMatches?.length) {
+          rankedMatches = rankConnectionMatches(
+            aiChoice._alternateSearchName,
+            refinedMatches,
+            splitPersonName(aiChoice._alternateSearchName)
+          );
+          setLastConnectionCandidates(rankedMatches.map((entry) => entry.match).filter(Boolean));
+          setLastConnectionRankedMatches(rankedMatches);
+        }
+      } else if (aiChoice?.Name) {
+        return aiChoice;
+      }
+    }
+
+    let bestMatch = rankedMatches[0]?.match || null;
+
+    if (!bestMatch?.Name && rankingParts.firstName && rankingParts.lastName) {
+      return null;
+    }
+
+    if (!bestMatch?.Name) {
+      const lookup = await wtAPIProfileSearch("Chat", encodeURIComponent(cleanedTarget), { maxProfiles: 25 });
+      const profiles = lookup?.response?.profiles || [];
+      if (!profiles.length) {
+        return null;
+      }
+      const profileWtId = profiles.find((wtId) => !excludedWtIds.has(String(wtId || "")));
+      if (!profileWtId) {
+        return null;
+      }
+      bestMatch = await getPersonOrNull("Chat", profileWtId, "Id,Name,RealName,LastNameAtBirth,LastNameCurrent");
+    }
+
+    if (!bestMatch?.Name && bestMatch?.Id) {
+      return normalizeResolvedConnectionPerson(
+        await getPersonOrNull("Chat", bestMatch.Id, "Id,Name,RealName,LastNameAtBirth,LastNameCurrent")
+      );
+    }
+
+    return bestMatch;
+  }
+
+  // The parents of the sibling pair at the top of the path: the common ancestors, which the
+  // connection finder skips (siblings are one step). The diagram draws them above the pair.
+  async function attachSharedParents(path) {
+    if (!Array.isArray(path)) return;
+    try {
+      const wanted = topSiblingSteps(path).map((k) => ({ k, ids: sharedParentIds(path[k - 1], path[k]) })).filter((entry) => entry.ids.length);
+      const ids = [...new Set(wanted.flatMap((entry) => entry.ids))];
+      if (!ids.length) return;
+      const [, , people] = await WikiTreeAPI.getPeople("Chat", ids, "Id,Name,RealName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,Nicknames,Prefix,Suffix,BirthDate,DeathDate,Gender");
+      const byId = new Map(Object.values(people || {}).map((person) => [Number(person?.Id), person]));
+      wanted.forEach(({ k, ids: parentIds }) => {
+        const parents = parentIds.map((id) => byId.get(id)).filter((person) => person?.Name);
+        if (parents.length) path[k].sharedParents = parents;
+      });
+    } catch (error) {
+      console.debug("wbe: shared parents lookup failed", error);
+    }
+  }
+
+  // The relationship chart: getConnections relation=2 runs up through the common ancestor
+  // and down again, which is the two lines of descent.
+  // The blood line (getConnections relation=2: up through the common ancestor and down again).
+  function fetchBloodPath(sourceWtId, targetWtId) {
+    return WikiTreeAPI.getConnections(
+      "Chat",
+      [sourceWtId, targetWtId],
+      "Id,Name,Gender,DataStatus,Photo,PhotoData,RealName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,Suffix,BirthDate,BirthLocation,DeathDate,Father,Mother,BioFather,BioMother",
+      { relation: 2 }
+    );
+  }
+
+  async function openRelationshipChart(sourceWtId, targetWtId, relationship, relationshipText, targetName, bloodPath = null) {
+    try {
+      const data = bloodPath || (await fetchBloodPath(sourceWtId, targetWtId));
+      const lines = buildRelationshipLines(data?.path, relationship);
+      if (!lines) {
+        console.debug("wbe: relationship chart: no line of descent", { data });
+        return;
+      }
+      // Full names (the user, 2026-10-14): "Ian Beacall and Mary (Dicken) Nevett", not "Ian and Mary".
+      const path = data?.path || [];
+      const source = fullWikiTreeName(path[0]) || lines.line1[lines.line1.length - 1]?.name || sourceWtId;
+      const target = fullWikiTreeName(path[path.length - 1]) || lines.line2[lines.line2.length - 1]?.name || targetName || targetWtId;
+      showRelationshipPopup(lines, {
+        title: `Relationship: ${source} and ${target}`,
+        relationship: /^No relationship found$/i.test(relationshipText) ? "" : relationshipText,
+        route: relationship.routes[0],
+        xDna: xDnaPath(lines),
+        otherRoutes: relationship.routes.length - 1,
+        rootKey: sourceWtId,
+      });
+    } catch (error) {
+      console.warn("wbe: relationship chart failed", error);
+    }
+  }
+
+  // The Connections Path popup's Relationship button (the user, 2026-10-17): the Relationship Finder for
+  // the path's two ends, with the relationship chart when they share ancestors.
+  setConnectionsRelationshipFinder(async (sourcePerson, targetPerson) => {
+    const sourceWtId = sourcePerson?.Name;
+    const targetWtId = targetPerson?.Name;
+    const sourceName = fullWikiTreeName(sourcePerson) || sourceWtId;
+    const targetName = fullWikiTreeName(targetPerson) || targetWtId;
+    const legacy = await getRelationJSON("Chat", sourceWtId, targetWtId);
+    const relationship = analyseRelationship(legacy);
+    if (!relationship || relationship.kind === "none") return `WikiTree's Relationship Finder found no blood relationship between ${sourceName} and ${targetName}.`;
+    const details = describeRelationship(relationship, sourceName, targetName, { gender1: shownGender(sourcePerson) });
+    if (relationship.kind !== "common") return details;
+    const label = parseLegacyRelationshipLabel(legacy);
+    openRelationshipChart(sourceWtId, targetWtId, relationship, label, targetName);
+    const lead = relationshipLead(label, targetName, sourceName);
+    return [lead, details].filter(Boolean).join("\n");
+  });
+
+  async function getConnectionDataWithFallback(sourceKey, targetWtId) {
+    const attempts = [0, 11, 1];
+    let lastData = null;
+
+    for (const relationCode of attempts) {
+      console.debug("wbe: getConnectionDataWithFallback trying relation", { sourceKey, targetWtId, relationCode });
+      const data = await WikiTreeAPI.getConnections(
+        "Chat",
+        [sourceKey, targetWtId],
+        "Id,Name,Gender,DataStatus,Photo,PhotoData,RealName,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,Nicknames,Prefix,Suffix,BirthName,BirthNamePrivate,BirthDate,BirthLocation,DeathDate,DeathLocation,Father,Mother,BioFather,BioMother,pathType",
+        {
+          relation: relationCode,
+        }
+      );
+      lastData = data;
+      console.debug("wbe: getConnectionDataWithFallback result", { relationCode, data });
+      const pathLength = Number(data?.pathLength);
+      const hasPath =
+        (Number.isFinite(pathLength) && pathLength > 0) || (Array.isArray(data?.path) && data.path.length > 0);
+      if (hasPath) {
+        await attachSharedParents(data?.path);
+        return { data, relationCode };
+      }
+    }
+
+    return { data: lastData, relationCode: null };
+  }
+
+  async function tryHandleConnectionCorrectionPrompt(prompt) {
+    if (!isConnectionCorrectionPrompt(prompt)) {
+      return null;
+    }
+
+    if (!getLastConnectionContext()?.sourceKey) {
+      return null;
+    }
+
+    const lastConnectionContext = getLastConnectionContext();
+
+    const correctionTarget = extractCorrectionTarget(prompt);
+    const baseTarget = correctionTarget || lastConnectionContext.targetRaw || "";
+    if (!baseTarget) {
+      return "I couldn't determine which person to re-check. Please restate the target name.";
+    }
+
+    const excludeWtIds = Array.from(
+      new Set(
+        [...(lastConnectionContext.excludeWtIds || []), String(lastConnectionContext.targetWtId || "").trim()].filter(
+          Boolean
+        )
+      )
+    );
+
+    const matchedPerson = await resolveConnectionTargetPerson(baseTarget, prompt, { excludeWtIds });
+    if (!matchedPerson?.Name) {
+      return `I couldn't find another match for "${baseTarget}" after excluding prior candidates.`;
+    }
+
+    const targetWtId = matchedPerson.Name;
+    const { data } = await getConnectionDataWithFallback(lastConnectionContext.sourceKey, targetWtId);
+    const pathLength = Number(data?.pathLength);
+    const hasPath =
+      (Number.isFinite(pathLength) && pathLength > 0) || (Array.isArray(data?.path) && data.path.length > 0);
+    const displayName = fullName({ name: matchedPerson?.RealName, lnab: matchedPerson?.LastNameAtBirth }) || matchedPerson?.Derived?.ShortName || targetWtId;
+
+    setLastConnectionContext({
+      ...lastConnectionContext,
+      targetRaw: baseTarget,
+      targetWtId,
+      excludeWtIds,
+      candidates: getLastConnectionCandidates()
+        .map((candidate) => candidate?.Name)
+        .filter(Boolean),
+    });
+    if (typeof onResolvedPerson === "function") {
+      onResolvedPerson(matchedPerson, [baseTarget]);
+    }
+
+    if (!hasPath) {
+      return `I retried with ${displayName} (${targetWtId}), but no connection path was returned.`;
+    }
+
+    const distance =
+      Number.isFinite(pathLength) && pathLength > 0 ? pathLength - 1 : Math.max((data?.path || []).length - 1, 0);
+    let relationshipText = String(data?.relationship || "").trim();
+    if (/^\d+$/.test(relationshipText)) {
+      relationshipText = "";
+    }
+    const relationshipSuffix = formatRelationshipSuffix(relationshipText, { path: data?.path, targetLabel: `${displayName} (${targetWtId})`, sourceLabel: lastConnectionContext.sourceLabel });
+    return `Trying another match: ${displayName} (${targetWtId}) is ${distance} step${
+      distance === 1 ? "" : "s"
+    } away from ${lastConnectionContext.sourceLabel}.${relationshipSuffix}`;
+  }
+
+  async function tryHandleConnectionPrompt(prompt, targetOverride = "", options = {}) {
+    const target = targetOverride || extractConnectionTarget(prompt);
+    const sourceOverride = String(options?.sourceOverride || "").trim();
+    console.debug("wbe: tryHandleConnectionPrompt start", { prompt, targetOverride, target, sourceOverride });
+
+    let resolvedTarget = target;
+    if (isPageProfileTarget(resolvedTarget)) {
+      const pagePerson = getFocusPersonInfo();
+      resolvedTarget = pagePerson?.Name || "";
+      if (!resolvedTarget) return "Open a profile first: Genie connects you to the profile you're looking at.";
+    }
+    if (!resolvedTarget) {
+      try {
+        const pagePerson = getFocusPersonInfo();
+        if (pagePerson && pagePerson.Name) {
+          const escape = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const first = pagePerson.FirstName || "";
+          const full = pagePerson.FullName || "";
+          const pats = [];
+          if (first) pats.push(`\\b${escape(first)}(?:'s|\\b)`);
+          if (full) pats.push(`\\b${escape(full)}(?:'s|\\b)`);
+          pats.push(`\\b${escape(pagePerson.Name)}\\b`);
+          const re = new RegExp(pats.join("|"), "i");
+          if (re.test(String(prompt || ""))) {
+            resolvedTarget = pagePerson.Name;
+            console.debug("wbe: tryHandleConnectionPrompt using page profile as target", { resolvedTarget });
+          }
+        }
+      } catch (error) {
+        console.debug("wbe: page target inference failed", error);
+      }
+    }
+
+    if (!resolvedTarget) {
+      return null;
+    }
+
+    try {
+      const lookupTarget = resolvedTarget || target;
+      // When candidate scores are close (e.g. several plausible Stephen
+      // Frys), let the user pick rather than silently taking the top match.
+      const canOfferChoice =
+        typeof setPendingDisambiguationContext === "function" && typeof buildDisambiguationMessage === "function";
+      // "Calvin's father", "my mother's father": follow the family links to the
+      // relative instead of searching for a person by that name (live, 2026-10-03).
+      const relativeTarget =
+        typeof resolveRelativeTarget === "function" ? await resolveRelativeTarget(lookupTarget, prompt) : null;
+      if (typeof relativeTarget === "string") {
+        return relativeTarget;
+      }
+      if (relativeTarget && !relativeTarget.people?.length) {
+        return `I couldn't find ${relativeTarget.label} in currently accessible family data.`;
+      }
+      if (relativeTarget?.people?.length > 1 && canOfferChoice) {
+        setPendingDisambiguationContext({
+          intent: ChatIntent.CONNECTION_LOOKUP,
+          params: { target, source: sourceOverride },
+          prompt,
+          candidates: relativeTarget.people,
+        });
+        return buildDisambiguationMessage(relativeTarget.people, relativeTarget.label, {
+          heading: `${relativeTarget.label} could be any of ${relativeTarget.people.length} people. Which one did you mean?`,
+        });
+      }
+      const matchedPerson = relativeTarget
+        ? relativeTarget.people[0]
+        : await resolveConnectionTargetPerson(lookupTarget, prompt, {
+            excludeWtIds: [],
+            allowDisambiguation: canOfferChoice,
+          });
+      if (matchedPerson?._disambiguationNeeded) {
+        setPendingDisambiguationContext({
+          intent: ChatIntent.CONNECTION_LOOKUP,
+          params: { target, source: sourceOverride },
+          prompt,
+          candidates: matchedPerson._candidates,
+        });
+        return buildDisambiguationMessage(matchedPerson._candidates, lookupTarget);
+      }
+      console.debug("wbe: tryHandleConnectionPrompt resolved matchedPerson", { matchedPerson });
+      if (!matchedPerson) {
+        return `I could not find a WikiTree profile match for \"${lookupTarget}\". If that profile is private, Genie may not be able to compute the connection at all because WikiTree may not expose a stable WikiTree ID.`;
+      }
+
+      const targetWtId = matchedPerson?.Name;
+      if (!targetWtId) {
+        return `I found candidate matches for \"${lookupTarget}\", but could not resolve a WikiTree ID. If that profile is private, Genie cannot compute the connection because WikiTree did not expose a stable WikiTree ID.`;
+      }
+
+      const sourceRoot = await resolveConnectionSourceRoot(prompt, targetWtId, sourceOverride);
+      console.debug("wbe: tryHandleConnectionPrompt sourceRoot", { sourceRoot });
+      if (sourceRoot?.unresolvedName) {
+        return `I couldn't identify which source profile you meant by "${sourceRoot.unresolvedName}". If that profile is private, Genie may not be able to compute the connection because WikiTree may not expose a stable WikiTree ID.`;
+      }
+      if (sourceRoot?.subjectType === "named" && !sourceRoot?.wtId) {
+        return `I found a possible source match for "${
+          sourceRoot.displayName || "that person"
+        }", but WikiTree did not provide a stable WikiTree ID for it. If that profile is private, Genie cannot compute the connection from it.`;
+      }
+      if (!sourceRoot?.wtId && !sourceRoot?.key) {
+        if (promptRefersToUser(prompt)) {
+          return "I could not determine your logged-in WikiTree identity for a 'from me' lookup. Please refresh while logged in, then try again.";
+        }
+        return "I could not detect a source profile for this connection lookup.";
+      }
+
+      // "How am I related to Murray?", asked by Murray (2026-10-12): it searched for a path from him to himself.
+      if (sourceRoot.wtId && String(sourceRoot.wtId).toLowerCase() === String(targetWtId).toLowerCase()) {
+        const name = String(sourceRoot.displayName || matchedPerson.RealName || "").trim().split(/\s+/)[0] || targetWtId;
+        return promptRefersToUser(prompt)
+          ? `But… you are ${name}! (${targetWtId} is your own profile.) To see how you're related to someone else, ask "How am I related to Smith-123?" or open their profile and ask there.`
+          : `That's the same person twice: ${sourceRoot.displayName || matchedPerson.RealName || targetWtId} (${targetWtId}).`;
+      }
+
+      const sourceKey = sourceRoot.wtId || String(sourceRoot.key || "");
+      if (!sourceKey) {
+        return "I could not detect a source profile for this connection lookup.";
+      }
+
+      const { data, relationCode } = await getConnectionDataWithFallback(sourceKey, targetWtId);
+      console.debug("wbe: tryHandleConnectionPrompt getConnections result", {
+        sourceKey,
+        targetWtId,
+        relationCode,
+        data,
+      });
+      const pathLength = Number(data?.pathLength);
+      const hasPath =
+        (Number.isFinite(pathLength) && pathLength > 0) || (Array.isArray(data?.path) && data.path.length > 0);
+
+      const displayName = fullName({ name: matchedPerson?.RealName, lnab: matchedPerson?.LastNameAtBirth }) || matchedPerson?.Derived?.ShortName || targetWtId;
+      if (!hasPath) {
+        let legacyRelationship = "";
+        if (sourceRoot.wtId && targetWtId) {
+          try {
+            const legacy = await getRelationJSON("Chat", sourceRoot.wtId, targetWtId);
+            legacyRelationship = parseLegacyRelationshipLabel(legacy);
+          } catch (error) {
+            legacyRelationship = "";
+          }
+        }
+
+        console.debug("wbe: tryHandleConnectionPrompt noPath legacyRelationship", { legacyRelationship });
+        if (legacyRelationship) {
+          return `I found ${displayName} (${targetWtId}), but no connection path was returned from ${sourceRoot.displayName} (${sourceRoot.wtId}). Legacy relationship fallback: ${legacyRelationship}.`;
+        }
+
+        return `I found ${displayName} (${targetWtId}), but no connection path was returned from ${sourceRoot.displayName} (${sourceRoot.wtId}), even after fallback path attempts.`;
+      }
+
+      const distance =
+        Number.isFinite(pathLength) && pathLength > 0 ? pathLength - 1 : Math.max((data?.path || []).length - 1, 0);
+      let relationshipText = String(data?.relationship || "").trim();
+      // The Relationship Finder: its label when getConnections gave none, and (2026-10-04)
+      // the common ancestors, every route and the DNA relatives this close share.
+      let relationshipDetails = "";
+      let relationship = null;
+      let bloodPath = null;
+      if (sourceRoot.wtId && targetWtId) {
+        try {
+          const legacy = await getRelationJSON("Chat", sourceRoot.wtId, targetWtId);
+          if (!relationshipText) relationshipText = parseLegacyRelationshipLabel(legacy);
+          relationship = analyseRelationship(legacy);
+          const label1 = sourceRoot.subjectType === "user" ? "you" : sourceRoot.displayName || sourceRoot.wtId;
+          const label2 = String(displayName).split(" ")[0] || displayName;
+          relationshipDetails = describeRelationship(relationship, label1, label2, { gender1: shownGender(data?.path?.[0]) });
+          // X-DNA needs everyone on the two lines and their genders (Murray, 2026-10-07).
+          if (relationship?.kind === "common" || relationship?.kind === "direct") {
+            try {
+              bloodPath = await fetchBloodPath(sourceRoot.wtId, targetWtId);
+              const xLine =
+                relationship.kind === "common"
+                  ? xDnaSentence(buildRelationshipLines(bloodPath?.path, relationship), label1, label2)
+                  : directXDnaSentence(directLineDown(bloodPath?.path));
+              if (xLine) relationshipDetails = [relationshipDetails, xLine].filter(Boolean).join("\n");
+            } catch (error) {
+              console.debug("wbe: X-DNA check failed", error);
+            }
+          }
+        } catch (error) {
+          console.debug("wbe: relationship details failed", error);
+        }
+      }
+      if (/^\d+$/.test(relationshipText)) {
+        relationshipText = "";
+      }
+      const relationshipSuffix = formatRelationshipSuffix(relationshipText, {
+        path: data?.path,
+        targetLabel: `${displayName} (${targetWtId})`,
+        sourceLabel: sourceRoot.subjectType === "user" ? "you" : `${sourceRoot.displayName} (${sourceRoot.wtId})`,
+      });
+
+      setLastConnectionContext({
+        sourceKey,
+        sourceWtId: sourceRoot.wtId || "",
+        sourceLabel: sourceRoot.subjectType === "user" ? "you" : `${sourceRoot.displayName} (${sourceRoot.wtId})`,
+        targetRaw: lookupTarget,
+        targetWtId,
+        excludeWtIds: [],
+        candidates: getLastConnectionCandidates()
+          .map((candidate) => candidate?.Name)
+          .filter(Boolean),
+      });
+      if (typeof onResolvedPerson === "function") {
+        // A relative's description ("Calvin's father") is not a name for them.
+        onResolvedPerson(matchedPerson, relativeTarget ? [] : [lookupTarget]);
+      }
+
+      setLastConnectionPopupResult([data]);
+      try {
+        sessionStorage.setItem(CHAT_LAST_CONNECTION_KEY, JSON.stringify([data]));
+      } catch (error) {
+        console.debug("wbe: failed to persist connection popup result", error);
+      }
+
+      // "How am I related to X?" (2026-10-04): with common ancestors, the relationship leads
+      // and its chart opens; the shortest connection follows.
+      const sourceText = sourceRoot.subjectType === "user" ? "you" : `${sourceRoot.displayName} (${sourceRoot.wtId})`;
+      const lead = relationship?.kind === "common" && asksForRelationship(prompt) ? relationshipLead(relationshipText, `${displayName} (${targetWtId})`, sourceText) : "";
+      if (lead) {
+        openRelationshipChart(sourceRoot.wtId, targetWtId, relationship, relationshipText, displayName, bloodPath);
+      } else {
+        try {
+          showConnectionsPopup([data]);
+        } catch (error) {
+          console.debug("wbe: failed to show connections popup", error);
+        }
+      }
+
+      const rows = (data.path || []).map((person) => ({
+        wtid: person.Name || "",
+        firstName: person.FirstName || person.RealName || "",
+        lnab: person.LastNameAtBirth || "",
+        lastNameCurrent: person.LastNameCurrent || "",
+        birth: formatDate(person.BirthDate),
+        death: formatDate(person.DeathDate),
+        birthLocation: person.BirthLocation || "",
+        deathLocation: person.DeathLocation || "",
+        gender: person.Gender || "",
+        displayName:
+          person.RealName ||
+          `${person.FirstName || ""} ${person.LastNameCurrent || person.LastNameAtBirth || ""}`.trim(),
+      }));
+      void rows;
+
+      const pathSentence = describeConnectionPath(
+        data.path,
+        sourceRoot.subjectType === "user" ? "you" : `${sourceRoot.displayName} (${sourceRoot.wtId})`,
+        `${displayName} (${targetWtId})`,
+        3,
+        /^No relationship found$/i.test(relationshipText) ? "" : relationshipText
+      );
+      const messageText = pathSentence
+        ? pathSentence
+        : sourceRoot.subjectType === "user"
+          ? `Connection found: ${displayName} (${targetWtId}) is ${distance} step${
+              distance === 1 ? "" : "s"
+            } away from you.${relationshipSuffix}`
+          : `Connection found: ${displayName} (${targetWtId}) is ${distance} step${
+              distance === 1 ? "" : "s"
+            } away from ${sourceRoot.displayName} (${sourceRoot.wtId}).${relationshipSuffix}`;
+
+      const ledMessage = lead
+        ? [lead, relationshipDetails, `The shortest connection on WikiTree is ${distance} step${distance === 1 ? "" : "s"} (Connections shows it).`].filter(Boolean).join("\n")
+        : "";
+      // "Murray Maloney (Maloney-2332)" for the buttons (the user, 2026-10-14)
+      const targetLabel = `${fullWikiTreeName(matchedPerson) || fullWikiTreeName(data?.path?.[data.path.length - 1]) || displayName} (${targetWtId})`;
+      return {
+        message: ledMessage || (relationshipDetails ? `${messageText}\n${relationshipDetails}` : messageText),
+        // The diagram leads; then the other person's family, to look around in.
+        actions: [
+          { label: `Connection to ${targetLabel}`, actionType: "Connections", onClick: () => toggleConnectionsPopup() },
+          ...(relationship?.kind === "common"
+            ? [
+                {
+                  // (not the Relationship Chart of relatives by group, chat_family_matrix.js: the user, 2026-10-14)
+                  label: `Relationship to ${targetLabel}`,
+                  onClick: () => openRelationshipChart(sourceRoot.wtId, targetWtId, relationship, relationshipText, displayName, bloodPath),
+                },
+              ]
+            : []),
+          ...personVisuals(targetWtId),
+        ],
+      };
+    } catch (error) {
+      return `I could not complete the connection lookup for \"${target}\". Error: ${
+        error?.message || "unknown error"
+      }`;
+    } finally {
+      hideChatShaky();
+    }
+  }
+
+  return {
+    resolveConnectionTargetPerson,
+    tryHandleConnectionCorrectionPrompt,
+    tryHandleConnectionPrompt,
+  };
+}

@@ -8,6 +8,7 @@ import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { treeImageURL, getUserNumId } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
+import { redeemAuthcode } from "../../core/loginButton";
 import "jquery-ui/ui/widgets/draggable";
 
 const WBE_RP_APP_ID = "WBE_random_profile";
@@ -306,6 +307,12 @@ export function goAndLogIn(returnURL = null) {
     value: returnUrlToUse,
   });
 
+  const $appIdEl = $("<input>", {
+    type: "hidden",
+    name: "appId",
+    value: WBE_RP_APP_ID,
+  });
+
   const $submitButton = $("<input>", {
     type: "submit",
     class: "btn btn-primary btn-sm",
@@ -313,7 +320,7 @@ export function goAndLogIn(returnURL = null) {
   });
 
   // Append elements to form and form to body
-  $form.append($inputAction, $inputReturnURL, $submitButton).appendTo("body");
+  $form.append($appIdEl, $inputAction, $inputReturnURL, $submitButton).appendTo("body");
 
   // Automatically submit the form
   $form.trigger("submit");
@@ -323,8 +330,7 @@ export async function doLogin() {
   const u = new URLSearchParams(window.location.search);
   const authcode = u?.get("authcode");
   if (typeof authcode != "undefined" && authcode != null && authcode != "") {
-    const postData = { appId: WBE_RP_APP_ID, action: "clientLogin", authcode: authcode };
-    await WikiTreeAPI.postToAPI(postData);
+    await redeemAuthcode(WBE_RP_APP_ID);
     if (u?.doRandomProfile) {
       showWorking();
       goToRandomWatchlistProfile(true);
