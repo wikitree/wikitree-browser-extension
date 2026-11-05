@@ -1,5 +1,5 @@
 /*
-Originally Created By: Miyako Jones (Jones-108375)
+Created By: Miyako Jones (Jones-108375)
 Extended By: Azure Robinson (Robinson-27225)
 */
 
