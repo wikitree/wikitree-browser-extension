@@ -20,7 +20,7 @@ registerFeature({
       id: "fetchMemorialPages",
       type: OptionType.CHECKBOX,
       label:
-        "Add GPS coordinates. Opens each memorial (about a second each, so a long list takes a while) and gives a CSV of: memorial ID, surname, maiden name, given names, WikiTree ID, birth date, death date, latitude, longitude and plot. Off gives the original quick list export: ID, name, dates, photo flags and links.",
+        "Add GPS coordinates. Opens each memorial (about a second each, so a long list takes a while) and gives a CSV of: memorial ID, surname, maiden name, given names, WikiTree ID, birth date, death date, latitude, longitude and plot. Off gives the original quick list export: ID, name, dates, photo flags, plot and links.",
       defaultValue: false,
     },
   ],

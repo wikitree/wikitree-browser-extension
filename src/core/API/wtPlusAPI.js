@@ -155,9 +155,9 @@ export const wtAPINameDistribution = (callerID, firstNames) =>
       A memorial with no profile is left out; one with several profiles appears once for each.
 *******************************************************************/
 
-// https://plus.wikitree.com/function/wtFindAGrave4Bee/apiWBE_FindAGraveMemorialExtractor.json?query=24170737,24170759&format=json
+// https://plus.wikitree.com/function/wtFindAGrave/apiWBE_FindAGraveMemorialExtractor.json?query=24170737,24170759&format=json
 export const wtAPIFindAGraveMemorials = (callerID, memorialIDs) =>
-  wtAPICall(`wtFindAGrave4Bee/apiWBE_${callerID}.json?query=${encodeURIComponent(memorialIDs.join(","))}`);
+  wtAPICall(`wtFindAGrave/apiWBE_${callerID}.json?query=${encodeURIComponent(memorialIDs.join(","))}`);
 
 // *******************************************************************
 // Base call to WikiTree+

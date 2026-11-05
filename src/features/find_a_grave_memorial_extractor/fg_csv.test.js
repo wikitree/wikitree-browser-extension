@@ -54,13 +54,15 @@ describe("buildCsv", () => {
     expect(line).toContain('"Mary, Ann"');
   });
 
-  test("original columns keep the earlier layout", () => {
+  test("original columns keep the earlier layout, plus plot info", () => {
     const lines = buildCsv([{ ...row, birthDate: "" }], "original")
       .replace("\uFEFF", "")
       .split("\r\n");
-    expect(lines[0]).toBe("FG ID,Name,Birth Date,Death Date,Has Photo,Has Grave Photo,Memorial Link,WikiTree Link");
+    expect(lines[0]).toBe(
+      "FG ID,Name,Birth Date,Death Date,Has Photo,Has Grave Photo,Plot Info,Memorial Link,WikiTree Link"
+    );
     expect(lines[1]).toBe(
-      "24170759,Amalia (Gonzales) Casados,unknown,24 Apr 1979,Y,N,https://www.findagrave.com/memorial/24170759/amalia-casados,https://www.wikitree.com/wiki/Gonzales-1234"
+      "24170759,Amalia (Gonzales) Casados,unknown,24 Apr 1979,Y,N,B-163,https://www.findagrave.com/memorial/24170759/amalia-casados,https://www.wikitree.com/wiki/Gonzales-1234"
     );
   });
 
