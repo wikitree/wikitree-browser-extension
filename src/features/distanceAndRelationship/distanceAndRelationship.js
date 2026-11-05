@@ -11,6 +11,7 @@ import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
 import { deriveRelationshipFromLegacyDoc } from "./legacyRelationshipParser";
 import { PersonName } from "../auto_bio/person_name";
+import { isUserSpouseOnPage, isSpouseWord, spouseWord, relationshipBoxText } from "./spouseRelationship";
 
 export const CONNECTION_DB_NAME = "ConnectionFinderWTE";
 export const CONNECTION_DB_VERSION = 2;
@@ -206,7 +207,11 @@ function onRelationsSuccess(event, profileID, userID) {
     if (relationRecord != undefined) {
       if ($(".yourRelationshipText").length < 2) {
         const sortedAncestors = sortCommonAncestorsByCouple(relationRecord.commonAncestors);
-        addRelationshipText(relationRecord.relationship, cleanCommonAncestors(sortedAncestors));
+        addRelationshipText(
+          relationRecord.relationship,
+          cleanCommonAncestors(sortedAncestors),
+          relationRecord.bloodRelationship
+        );
       }
     } else {
       // A distance record can exist without a relationship record (e.g. after a failed
@@ -313,9 +318,20 @@ function getDistRelCacheRecord(db, storeName, profileID, userID, onRecord) {
   };
 }
 
-function addRelationshipText(oText, commonAncestors) {
+// "wife"/"husband"/"spouse" when the page lists the (effective) user as the profile person's spouse.
+function userSpouseLabel() {
+  return isUserSpouseOnPage(document, getEffectiveUserId()) ? spouseWord(profilePerson?.Gender) : "";
+}
+
+function addRelationshipText(relationship, commonAncestors, bloodRelationship = "") {
   $(".yourRelationshipText")?.remove();
+  const { main: oText, also: alsoText } = relationshipBoxText(relationship, bloodRelationship, userSpouseLabel());
   if (!oText) return;
+  // A spouse with no blood relationship has no common ancestors to list. A spouse who is
+  // also a blood relative gets "Your wife", then "Also your 12th cousin..." and the ancestors.
+  if (!Array.isArray(commonAncestors) || (isSpouseWord(oText) && !alsoText)) {
+    commonAncestors = [];
+  }
   const commonAncestorTextResult = commonAncestorText(commonAncestors);
   let commonAncestorTextOut = commonAncestorTextResult.text;
   // If the first common ancestor is a direct parent on both sides, render a short single-line label
@@ -326,13 +342,14 @@ function addRelationshipText(oText, commonAncestors) {
     Number(commonAncestors[0].path1Length) === 1 &&
     Number(commonAncestors[0].path2Length) === 1;
 
-  if (firstIsDirectParent) {
+  const alsoHtml = alsoText ? `<div class='alsoRelationship'>Also your ${alsoText}</div>` : "";
+  if (firstIsDirectParent && !alsoText) {
     cousinText = $(
       `<div class='yourRelationshipText' title='Click to refresh' class='relationshipFinder'>Your ${oText}</div>`
     );
   } else {
     cousinText = $(
-      `<div class='yourRelationshipText' title='Click to refresh' class='relationshipFinder'>Your ${oText}
+      `<div class='yourRelationshipText' title='Click to refresh' class='relationshipFinder'>Your ${oText}${alsoHtml}
       <ul class='yourCommonAncestor'>${commonAncestorTextOut}</ul>
       </div>`
     );
@@ -1132,6 +1149,13 @@ function doRelationshipText(userID, profileID, source = "api") {
         }
       }
 
+      // The relationship finder only follows blood lines; if the user is the profile person's
+      // spouse, say so even when no blood relationship was found (or the lookup failed).
+      const spouseLabel = userSpouseLabel();
+      if (spouseLabel && $(".yourRelationshipText").length === 0) {
+        addRelationshipText(relationshipText, []);
+      }
+
       if (!isTestAsActive()) {
         initRelationshipDB((event) => {
           const relationshipFinderDB = event.target.result;
@@ -1140,7 +1164,8 @@ function doRelationshipText(userID, profileID, source = "api") {
             userId: userID,
             id: profileID,
             distance: window.distance,
-            relationship: relationshipText,
+            relationship: spouseLabel || relationshipText,
+            bloodRelationship: spouseLabel ? relationshipText : "",
             commonAncestors: cleanCommonAncestors(commonAncestors),
             source,
             updatedAt: Date.now(),

@@ -69,3 +69,6 @@ button.copyWidget {
   top: -0.5em;
   right: -0.5em;
 }
+.yourRelationshipText .alsoRelationship {
+  font-weight: normal;
+}
