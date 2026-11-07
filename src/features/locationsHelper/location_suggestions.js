@@ -554,6 +554,10 @@ function insertCountrySelectAbove(inputfield, sid) {
           Loading available datasets…
         </div>
 
+        <div class="wbe-loc-summary" aria-label="Datasets summary"></div>
+
+        <div class="wbe-loc-table-outer">
+        <div class="wbe-loc-table-wrap">
         <table class="wbe-loc-table"
               style="width:100%; border-collapse:collapse; font-size:0.9em;">
           <thead>
@@ -569,6 +573,9 @@ function insertCountrySelectAbove(inputfield, sid) {
           </thead>
           <tbody></tbody>
         </table>
+        </div>
+        </div>
+        <div class="wbe-loc-scroll-hint" aria-hidden="true"></div>
 
         <div style="margin-top:8px;">
           <button class="wbe-loc-clear-load small button"
@@ -590,6 +597,29 @@ function insertCountrySelectAbove(inputfield, sid) {
     function getSelectedDatasetCountries(popupEl) {
       return Array.from(popupEl.querySelectorAll("input[type=checkbox]:checked")).map((cb) => cb.dataset.country);
     }
+
+    // Scroll indicator: show the fade + hint only while there are rows below the visible area.
+    popupEl.querySelector(".wbe-loc-table-wrap").addEventListener("scroll", () => updateScrollIndicator(popupEl), {
+      passive: true,
+    });
+
+    // Keep the summary chips in sync with the checkboxes.
+    popupEl.querySelector(".wbe-loc-table").addEventListener("change", (e) => {
+      if (e.target.matches("input[type=checkbox][data-country]")) {
+        syncSummarySelection(popupEl);
+      }
+    });
+
+    // Clicking a summary chip scrolls its row into view and toggles its checkbox.
+    popupEl.querySelector(".wbe-loc-summary").addEventListener("click", (e) => {
+      const chip = e.target.closest(".wbe-loc-chip");
+      if (!chip) return;
+      const cb = popupEl.querySelector(`input[type=checkbox][data-country="${chip.dataset.country}"]`);
+      if (!cb) return;
+      cb.checked = !cb.checked;
+      syncSummarySelection(popupEl);
+      revealDatasetRow(popupEl, cb.closest("tr"));
+    });
 
     popupEl.querySelector(".wbe-loc-clear-load").addEventListener("click", async (e) => {
       const statusEl = popupEl.querySelector(".wbe-loc-status");
@@ -902,6 +932,9 @@ function renderTable(manifest, localDatasets, tbody) {
     }
 
     const tr = document.createElement("tr");
+    tr.dataset.country = country;
+    tr.dataset.countryName = countryName || country;
+    tr.dataset.state = !loaded ? "none" : upToDate ? "loaded" : "update";
 
     tr.innerHTML = `
         <td>
@@ -909,7 +942,7 @@ function renderTable(manifest, localDatasets, tbody) {
                 data-country="${country}"
                 ${selected ? "checked" : ""}>
         </td>
-        <td>${countryName}</td>
+        <td><span class="wbe-loc-code">${country}</span> ${countryName}</td>
         <td class="lt-right">${meta.recordCount.toLocaleString()}</td>
         <td class="lt-centre">${loaded ? "✅" : ""}</td>
         <td class=${loaded ? "lt-right" : "lt-centre"}>${localCount}</td>
@@ -919,6 +952,142 @@ function renderTable(manifest, localDatasets, tbody) {
 
     tbody.appendChild(tr);
   });
+
+  limitTableHeight(tbody);
+
+  const popupEl = tbody.closest(".wbe-location-popup");
+  if (popupEl) {
+    renderSummary(popupEl);
+    updateScrollIndicator(popupEl);
+  }
+}
+
+/**
+ * Render one chip per available country (its code) above the table.
+ * Loaded datasets are green, those with an update available are amber, the rest are grey.
+ * A chip whose checkbox is ticked gets an outline.
+ */
+function renderSummary(popupEl) {
+  const summaryEl = popupEl.querySelector(".wbe-loc-summary");
+  if (!summaryEl) return;
+  summaryEl.innerHTML = "";
+
+  const rows = Array.from(popupEl.querySelectorAll(".wbe-loc-table tbody tr"));
+  rows.forEach((tr) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "wbe-loc-chip";
+    chip.dataset.country = tr.dataset.country;
+    chip.textContent = tr.dataset.country;
+    const name = tr.dataset.countryName || tr.dataset.country;
+    let stateText;
+    if (tr.dataset.state === "update") {
+      chip.classList.add("is-update");
+      stateText = "loaded, update available";
+    } else if (tr.dataset.state === "loaded") {
+      chip.classList.add("is-loaded");
+      stateText = "loaded";
+    } else {
+      stateText = "not loaded";
+    }
+    chip.title = `${name}: ${stateText}. Click to select/deselect.`;
+    summaryEl.appendChild(chip);
+  });
+
+  syncSummarySelection(popupEl);
+}
+
+function syncSummarySelection(popupEl) {
+  popupEl.querySelectorAll(".wbe-loc-chip").forEach((chip) => {
+    const cb = popupEl.querySelector(`input[type=checkbox][data-country="${chip.dataset.country}"]`);
+    chip.classList.toggle("is-selected", Boolean(cb && cb.checked));
+  });
+}
+
+/** Scroll a table row into view inside the scrollable wrapper (not the page) and flash it. */
+function revealDatasetRow(popupEl, tr) {
+  if (!tr) return;
+  const wrap = popupEl.querySelector(".wbe-loc-table-wrap");
+  if (wrap && wrap.classList.contains("is-scrollable")) {
+    const thead = wrap.querySelector("thead");
+    const headHeight = thead ? thead.offsetHeight : 0;
+    const rowTop = tr.offsetTop;
+    const rowBottom = rowTop + tr.offsetHeight;
+    if (rowTop - headHeight < wrap.scrollTop) {
+      wrap.scrollTop = rowTop - headHeight;
+    } else if (rowBottom > wrap.scrollTop + wrap.clientHeight) {
+      wrap.scrollTop = rowBottom - wrap.clientHeight;
+    }
+  }
+  tr.classList.remove("wbe-loc-row-flash");
+  void tr.offsetWidth; // restart the animation
+  tr.classList.add("wbe-loc-row-flash");
+}
+
+/**
+ * Show a bottom fade and a "N more below" hint while the table has rows hidden below
+ * the visible area, so it is obvious that the list can be scrolled.
+ */
+function updateScrollIndicator(popupEl) {
+  const outer = popupEl.querySelector(".wbe-loc-table-outer");
+  const wrap = popupEl.querySelector(".wbe-loc-table-wrap");
+  const hint = popupEl.querySelector(".wbe-loc-scroll-hint");
+  if (!outer || !wrap || !hint) return;
+
+  if (!wrap.classList.contains("is-scrollable")) {
+    outer.classList.remove("has-more-below");
+    hint.textContent = "";
+    hint.style.display = "none";
+    return;
+  }
+
+  const visibleBottom = wrap.scrollTop + wrap.clientHeight;
+  const rows = Array.from(wrap.querySelectorAll("tbody tr"));
+  // A row counts as hidden if less than half of it is visible.
+  const hiddenBelow = rows.filter((tr) => tr.offsetTop + tr.offsetHeight / 2 > visibleBottom).length;
+
+  outer.classList.toggle("has-more-below", hiddenBelow > 0);
+  hint.style.display = "block";
+  hint.textContent =
+    hiddenBelow > 0
+      ? `▼ ${hiddenBelow} more ${hiddenBelow === 1 ? "country" : "countries"} below – scroll the list to see all ${
+          rows.length
+        }`
+      : `▲ End of list (${rows.length} countries)`;
+}
+
+const MAX_VISIBLE_DATASET_ROWS = 12;
+
+/**
+ * When the dataset table has more than MAX_VISIBLE_DATASET_ROWS rows, cap the height of its
+ * wrapper so that only that many rows are visible and the rest can be scrolled to.
+ * The header row stays fixed (sticky) at the top while scrolling.
+ */
+function limitTableHeight(tbody) {
+  const wrap = tbody.closest(".wbe-loc-table-wrap");
+  if (!wrap) return;
+
+  const rows = tbody.rows;
+  if (rows.length <= MAX_VISIBLE_DATASET_ROWS) {
+    wrap.classList.remove("is-scrollable");
+    wrap.style.maxHeight = "";
+    return;
+  }
+
+  wrap.classList.add("is-scrollable");
+  wrap.scrollTop = 0;
+
+  // Measure the actual rendered heights so the cut-off falls exactly below row 10.
+  // If the popup is not visible (heights are 0) the CSS fallback max-height applies.
+  const thead = tbody.parentElement.tHead;
+  const headHeight = thead ? thead.getBoundingClientRect().height : 0;
+  const lastVisibleRow = rows[MAX_VISIBLE_DATASET_ROWS - 1];
+  const rowsHeight = lastVisibleRow.getBoundingClientRect().bottom - rows[0].getBoundingClientRect().top;
+  if (rowsHeight > 0) {
+    wrap.style.maxHeight = `${Math.ceil(headHeight + rowsHeight) + 1}px`;
+  } else {
+    wrap.style.maxHeight = "";
+  }
 }
 
 const CHUNK_SIZE = 4000;

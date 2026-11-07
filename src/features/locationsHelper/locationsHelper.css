@@ -141,9 +141,102 @@ body.wbe-location-exclusive-active .autocomplete-suggestions {
   width: auto;
   table-layout: auto;
 }
+/* Long dataset lists (> 10 countries): limit the visible height and scroll.
+   The max-height is normally set precisely from JS; this is the fallback. */
+.wbe-loc-table-wrap.is-scrollable {
+  max-height: 22em;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+}
+/* The table wrapper is inside .wbe-loc-table-outer so a fade can sit over the bottom edge */
+.wbe-loc-table-outer {
+  position: relative;
+}
+.wbe-loc-table-outer.has-more-below::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 1px;
+  height: 2.2em;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.95));
+}
+.wbe-loc-scroll-hint {
+  display: none;
+  margin-top: 3px;
+  font-size: 0.8em;
+  color: #666;
+  text-align: center;
+}
+
+/* Summary of country codes above the table */
+.wbe-loc-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+.wbe-loc-summary:empty {
+  display: none;
+}
+.wbe-loc-chip {
+  font: inherit;
+  font-size: 0.75em;
+  font-weight: bold;
+  line-height: 1.4;
+  padding: 0 5px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #f2f2f2;
+  color: #888;
+  cursor: pointer;
+}
+.wbe-loc-chip.is-loaded {
+  background: var(--wbe-cb-success-bg, #d1e7dd);
+  border-color: var(--wbe-cb-success, #198754);
+  color: var(--wbe-cb-success-text, #0a3622);
+}
+.wbe-loc-chip.is-update {
+  background: var(--wbe-cb-warning-bg, #fff3cd);
+  border-color: var(--wbe-cb-warning, #e0a800);
+  color: var(--wbe-cb-warning-text, #533f03);
+}
+.wbe-loc-chip.is-selected {
+  outline: 2px solid #3b7ddd;
+  outline-offset: 1px;
+}
+
+.wbe-loc-row-flash td {
+  animation: wbe-loc-row-flash 1.2s ease-out;
+}
+@keyframes wbe-loc-row-flash {
+  from {
+    background: #fff3a0;
+  }
+  to {
+    background: transparent;
+  }
+}
+
+.wbe-loc-table-wrap.is-scrollable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fff;
+  box-shadow: inset 0 -1px 0 #ccc;
+}
 .wbe-loc-table th,
 .wbe-loc-table td {
   padding: 3px;
+}
+.wbe-loc-table .wbe-loc-code {
+  display: inline-block;
+  min-width: 2.4em;
+  font-weight: bold;
+  color: #555;
 }
 .wbe-loc-table .lt-left {
   text-align: left;
