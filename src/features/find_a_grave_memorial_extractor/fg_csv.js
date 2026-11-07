@@ -27,6 +27,7 @@ export const COLUMN_SETS = {
     { header: "Death Date", value: (r) => r.deathDate || "unknown" },
     { header: "Has Photo", value: (r) => r.hasPhoto },
     { header: "Has Grave Photo", value: (r) => r.hasGravePhoto },
+    { header: "Plot Info", value: (r) => r.plot },
     { header: "Memorial Link", value: (r) => r.memorialLink },
     { header: "WikiTree Link", value: (r) => (r.wikiTreeIDs || []).map((id) => WIKITREE_URL + id).join(", ") },
   ],
