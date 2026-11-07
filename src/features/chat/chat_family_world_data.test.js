@@ -1,6 +1,9 @@
 import {
   createFamilyWorld,
+  mergeCheckedParents,
   mergeWorldPeople,
+  parentsToCheck,
+  setBiologicalParents,
   buildFamilyWorldLayout,
   buildFamilyWorldSummary,
   climbFamilyScene,
@@ -370,5 +373,68 @@ describe("marriages marked not to show (do_not_display)", () => {
     );
     expect(w.people.get(40)).toMatchObject({ fatherId: 30, motherId: 1 });
     expect(w.people.get(1).spouses).toEqual([]);
+  });
+});
+
+// Live, 2026-11-07: Murray-17695's parents, both Open, didn't show. Every nuclear result sends him and his brother with
+// Father and Mother null and leaves the parents out; 0 is what it sends for a parent not recorded.
+describe("parents a nuclear fetch sends as null", () => {
+  const me = (father = null, mother = null) => raw(1, "Me-1", father, mother, "1928", 0, "Male");
+  const brother = (father = null, mother = null) => raw(2, "Bro-2", father, mother, "1930", 1, "Male");
+  const nuclearWorld = () => mergeWorldPeople(createFamilyWorld("Me-1"), { 1: me(), 2: brother(), 3: raw(3, "None-3", 0, 0, "1950", 1) }, { root: "Me-1", nuclear: 3 });
+  const ancestors = {
+    1: me(20, 21),
+    2: brother(20, 21),
+    20: raw(20, "Dad-20", 30, 31, "1900"),
+    21: raw(21, "Mum-21", 0, 0, "1902"),
+    30: raw(30, "Gf-30", 40, 0, "1870"),
+  };
+
+  test("asks about those sent as null, not those with no parent recorded", () => {
+    expect(parentsToCheck(nuclearWorld())).toEqual([1, 2]);
+  });
+
+  test("the ancestors fetch joins them to their parents and grandparents", () => {
+    const w = mergeCheckedParents(nuclearWorld(), [1, 2], ancestors);
+    expect(w.people.get(1).fatherId).toBe(20);
+    expect(w.people.get(2).motherId).toBe(21);
+    expect(w.people.get(30).fatherId).toBe(40);
+    expect([1, 2, 20, 21].every((id) => w.parentsKnown.has(id))).toBe(true);
+    expect(w.parentsKnown.has(30)).toBe(false);
+    expect(parentsToCheck(w)).toEqual([]);
+  });
+
+  test("a later nuclear fetch's nulls don't undo it, and don't ask again", () => {
+    const w = mergeCheckedParents(nuclearWorld(), [1, 2], ancestors);
+    mergeWorldPeople(w, { 1: me(), 22: raw(22, "Kid-22", 1, 0, "1955", 1) }, { root: "Me-1", nuclear: 1 });
+    expect(w.people.get(1)).toMatchObject({ fatherId: 20, motherId: 21 });
+    expect(parentsToCheck(w)).toEqual([]);
+  });
+
+  test("a null keeps the parent as sent, not the birth parent being shown", () => {
+    const w = mergeCheckedParents(nuclearWorld(), [1, 2], { ...ancestors, 1: { ...me(20, 21), BioFather: 50 } });
+    setBiologicalParents(w, 1, true);
+    expect(w.people.get(1).fatherId).toBe(50);
+    mergeWorldPeople(w, { 1: me() }, { root: "Me-1", nuclear: 1 });
+    expect(w.people.get(1).fatherId).toBe(50);
+    setBiologicalParents(w, 1, false);
+    expect(w.people.get(1).fatherId).toBe(20);
+  });
+
+  test("a value sent replaces one known; only null keeps it", () => {
+    const w = mergeCheckedParents(nuclearWorld(), [1, 2], ancestors);
+    mergeWorldPeople(w, { 1: me(20, 0) }, { root: "Me-1" });
+    expect(w.people.get(1)).toMatchObject({ fatherId: 20, motherId: 0 });
+  });
+
+  test("a private parent, sent as a negative Id, stays undrawn", () => {
+    const w = mergeCheckedParents(nuclearWorld(), [1], { 1: me(-1, 21), 21: raw(21, "Mum-21"), [-1]: { Id: -1, Father: 0, Mother: 0 } });
+    expect(w.people.get(1)).toMatchObject({ fatherId: 0, motherId: 21 });
+    expect(w.people.has(-1)).toBe(false);
+  });
+
+  test("a fetch that brought nothing is tried again", () => {
+    const w = mergeCheckedParents(nuclearWorld(), [1, 2], {});
+    expect(parentsToCheck(w)).toEqual([1, 2]);
   });
 });

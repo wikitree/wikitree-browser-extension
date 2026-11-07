@@ -54,6 +54,7 @@ describe("buildMigration", () => {
       ["New Zealand", 2],
     ]);
     expect(migration.unplaced).toBe(1);
+    expect(migration.unplacedPeople.map((person) => person.label)).toEqual(["Unknown"]);
     expect(migration.moves).toBe(3);
     // (each place's earliest birth, for the year slider; England has no dated births)
     expect(Object.fromEntries(migration.places.map((place) => [place.key, place.firstYear]))).toEqual({ England: null, Ireland: 1870, "New Zealand": 1875 });
@@ -158,6 +159,7 @@ describe("descendants on the map", () => {
     const migration = buildDescendantMigration(tree);
     expect(migration.flows.map((flow) => `${flow.from}→${flow.to}:${flow.firstYear}`)).toEqual(["Ireland→England:1852", "Ireland→New Zealand:1880", "Ireland→Ohio:1910"]);
     expect(migration.unplaced).toBe(1);
+    expect(migration.unplacedPeople).toEqual([{ label: "Granddaughter (1882–)", wtid: "Granddaughter-1", location: "" }]);
     expect(migration.places.find((place) => place.key === "Ireland").count).toBe(2);
     const text = buildDescendantMigrationSummary(migration, "Root's");
     expect(text).toContain("Root's descendants were born in 4 places: Ireland (2), England (1), New Zealand (1), Ohio (1).");

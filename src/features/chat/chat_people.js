@@ -54,8 +54,10 @@ import {
   connectedWorldPeople,
   createFamilyWorld,
   describeFamilyRoot,
+  mergeCheckedParents,
   mergeWorldPeople,
   normaliseFamilyScene,
+  parentsToCheck,
   rerootFamilyScene,
   setBiologicalParents,
   startFamilyScene,
@@ -2167,6 +2169,13 @@ export function createChatPeopleHandlers({
       const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, ids, FAMILY_WORLD_FIELDS, {});
       mergeWorldPeople(world, people, { root: world.focusKey });
     };
+    // Parents a nuclear fetch sent as null and left out (see parentsToCheck).
+    const fetchCheckedParents = async () => {
+      const check = parentsToCheck(world);
+      if (!check.length) return;
+      const [, , people] = await fetchPeoplePaged(WBE_CHAT_APP_ID, check, FAMILY_WORLD_FIELDS, { ancestors: 2 });
+      mergeCheckedParents(world, check, people);
+    };
     const fetchAround = async (root, nuclear) => {
       // (getPeople nuclear 2+ can leave out someone nuclear 1 has: live 2026-10-11, Weatherall-111's son
       // Weatherall-110 came with nuclear=1 only; so the immediate family is asked for as well)
@@ -2176,6 +2185,7 @@ export function createChatPeopleHandlers({
       ]);
       mergeWorldPeople(world, people, { root, nuclear });
       if (nuclear > 1) mergeWorldPeople(world, close, { root, nuclear: 1 });
+      await fetchCheckedParents();
       await fetchBioParents();
       // Hidden profiles found while zooming get the same note as at the start, once.
       if (world.noteHiddenOnce) world.noteHiddenOnce();
@@ -2194,6 +2204,7 @@ export function createChatPeopleHandlers({
     world.privateParents = self.length === 1 ? [self[0].Father, self[0].Mother].filter((id) => Number(id) < 0).length : 0;
     const asSent = self.map((person) => ({ ...person, Father: Number(person.Father) > 0 ? person.Father : 0, Mother: Number(person.Mother) > 0 ? person.Mother : 0 }));
     mergeWorldPeople(world, asSent, { root: key, nuclear: FAMILY_WORLD_NUCLEAR.start });
+    await fetchCheckedParents();
     await fetchBioParents();
     world.fetchAround = fetchAround;
     return world;

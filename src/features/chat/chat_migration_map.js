@@ -20,7 +20,7 @@ import { interpolateYlOrRd, interpolateBlues } from "d3-scale-chromatic";
 import { easeCubicOut } from "d3-ease";
 import { feature } from "topojson-client";
 import { REGION_POINTS, SPLIT_COUNTRIES } from "./chat_migration_data";
-import { cachedPoint, geocodeLocations, loadGeocodeCache, pendingLookups } from "./chat_geocode";
+import { cachedPoint, geocodeLocations, loadGeocodeCache, loadOwnPoints, pendingLookups } from "./chat_geocode";
 import { chartLinkButtons, chartPopupControls, escapeText, injectChartStyles, tipMoreHint, handleChartPopupButton, createChartPopup, mountChartPopup } from "./chat_chart_common";
 
 const WIDTH = 960;
@@ -92,6 +92,8 @@ function mainCentroid(countryFeature) {
  */
 export async function showMigrationMapPopup(firstMigration, options = {}) {
   const [countries] = await Promise.all([loadWorld(), loadGeocodeCache()]);
+  // (our own location data first: the Locations Helper's, then its server; no Photon or Nominatim for those)
+  if (firstMigration.refine) await loadOwnPoints(firstMigration.locations).catch(() => 0);
   // (built before the saved towns loaded: build again with them)
   let migration = firstMigration.refine ? firstMigration.refine(cachedPoint) : firstMigration;
   chartCounter += 1;
@@ -164,7 +166,8 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
     const places = migration.places.map((place) => ({ ...place, point: pointOf(place) })).filter((place) => place.point);
     const placeByKey = new Map(places.map((place) => [place.key, place]));
     const flows = migration.flows.filter((flow) => placeByKey.has(flow.from) && placeByKey.has(flow.to));
-    const unmapped = migration.places.length - places.length;
+    const offMap = migration.places.filter((place) => !placeByKey.has(place.key));
+    const unmapped = offMap.length;
     const svg = select(stage)
       .append("svg")
       .attr("xmlns", "http://www.w3.org/2000/svg")
@@ -577,9 +580,53 @@ export async function showMigrationMapPopup(firstMigration, options = {}) {
     }
 
     const stats = popup.querySelector(".wbe-chart-stats");
+    // (the user, 2026-11-04: hover the two counts for who and which places)
+    const listLink = (list, text) => `<span class="wbe-migration-list" data-list="${list}" style="text-decoration:underline dotted;cursor:pointer">${text}</span>`;
     stats.innerHTML = `<strong>${migration.moves.toLocaleString()}</strong>moves · ${places.length} places${
-      migration.unplaced || unmapped ? `<br><span style="opacity:.7">${migration.unplaced} with no birthplace${unmapped ? ` · ${unmapped} places not on the map` : ""}</span>` : ""
+      migration.unplaced || unmapped
+        ? `<br><span style="opacity:.7">${migration.unplaced ? listLink("unplaced", `${migration.unplaced} with no birthplace`) : "0 with no birthplace"}${
+            unmapped ? ` · ${listLink("offmap", `${unmapped} place${unmapped === 1 ? "" : "s"} not on the map`)}` : ""
+          }</span>`
+        : ""
     }`;
+    const unplacedTipHtml = (all) => {
+      const people = migration.unplacedPeople || [];
+      const shown = all ? people : people.slice(0, 10);
+      return `<div class="wbe-chart-tip-rel">No birthplace on the map</div>
+        ${shown.map((person) => `<div>${personLink(person.label, person.wtid)}${person.location ? ` <span class="wbe-chart-tip-hint">· ${escapeText(person.location)}</span>` : ""}</div>`).join("")}
+        ${all ? "" : `${tipMoreHint(people.length - shown.length)}${people.length > shown.length ? "" : `<div class="wbe-chart-tip-hint">Click to pin</div>`}`}`;
+    };
+    const offMapTipHtml = (all) => {
+      const shown = all ? offMap : offMap.slice(0, 10);
+      return `<div class="wbe-chart-tip-rel">Places not on the map</div>
+        <div class="wbe-chart-tip-hint">Too vague to place (a whole country or state), or not found</div>
+        ${shown
+          .map((place) => {
+            const people = place.people?.length ? place.people : place.names.map((label) => ({ label, wtid: "" }));
+            const names = all ? people.map((person) => personLink(person.label, person.wtid)).join(", ") : `${place.count} ${escapeText(options.peopleWord || "ancestor")}${place.count === 1 ? "" : "s"}`;
+            return `<div><b>${escapeText(place.key)}</b>${(place.locations || []).filter((text) => text && text !== place.key).slice(0, 1).map((text) => ` <span class="wbe-chart-tip-hint">· ${escapeText(text)}</span>`).join("")}: ${names}</div>`;
+          })
+          .join("")}
+        ${all ? "" : `${tipMoreHint(offMap.length - shown.length)}${offMap.length > shown.length ? "" : `<div class="wbe-chart-tip-hint">Click to pin and see who</div>`}`}`;
+    };
+    // (the tip sits in the stage, so it rises from the stage's bottom edge, over the footer's counts)
+    const footerTip = (event, html, pin) => {
+      placeTip(event, html, pin);
+      const rect = stage.getBoundingClientRect();
+      tip.style.left = `${Math.max(4, Math.min(event.clientX - rect.left - 20, rect.width - 290))}px`;
+      tip.style.top = `${Math.max(4, rect.height - tip.offsetHeight - 6)}px`;
+    };
+    stats.querySelectorAll(".wbe-migration-list").forEach((link) => {
+      const html = (all) => (link.dataset.list === "unplaced" ? unplacedTipHtml(all) : offMapTipHtml(all));
+      link.addEventListener("mousemove", (event) => {
+        if (!pinned) footerTip(event, html(false), false);
+      });
+      link.addEventListener("mouseleave", hideTip);
+      link.addEventListener("click", (event) => {
+        event.stopPropagation();
+        footerTip(event, html(true), true);
+      });
+    });
     const legend = popup.querySelector(".wbe-chart-legend");
     if (years.length) {
       const low = Math.min(...years);

@@ -1,4 +1,4 @@
-import { cachedPoint, distanceKm, geocodeLocations, geocodeQueries, isGeocodable, locationKey, namesMatch, parentCountyName, pendingLookups, pickParentCounty, pickPhotonCounty, pickPhotonTown, pickTown, pickWholeCounty, setCachedPoint } from "./chat_geocode";
+import { cachedPoint, distanceKm, geocodeLocations, geocodeQueries, isGeocodable, modernLocation, choosePlace, farmTown, localPlace, localRowMatches, localTownPlace, serverChoice, serverQuery, locationKey, namesMatch, parentCountyName, pendingLookups, pickParentCounty, pickPhotonCounty, pickPhotonTown, pickTown, pickWholeCounty, setCachedPoint } from "./chat_geocode";
 import { buildMigration, placeOf } from "./chat_migration_data";
 
 describe("town lookups for the migration map", () => {
@@ -49,6 +49,19 @@ describe("town lookups for the migration map", () => {
       "birkenhead, england (wide)",
     ]);
     expect(geocodeQueries("Wem, Shropshire").map((item) => item.query)).toEqual(["wem, shropshire"]);
+  });
+
+  test("colonies are asked for as today's states (2026-11-04)", () => {
+    expect(modernLocation("York, Colony of Pennsylvania")).toBe("york, pennsylvania");
+    expect(modernLocation("Chelmsford, Middlesex, Province of Massachusetts Bay")).toBe("chelmsford, middlesex, massachusetts");
+    expect(modernLocation("Kent County, Delaware Colony")).toBe("kent county, delaware");
+    expect(modernLocation("Philadelphia, Philadelphia, Pennsylvania, British Colonial America")).toBe("philadelphia, philadelphia, pennsylvania");
+    expect(modernLocation("Boston, Suffolk, British Colonial America")).toBe("boston, suffolk, united states");
+    // (not every colony is one of the thirteen)
+    expect(modernLocation("Tulbagh, Cape Colony")).toBe("tulbagh, cape colony");
+    // (just a state: its region's dot, no lookup)
+    expect(isGeocodable("Virginia, British Colonial America")).toBe(false);
+    expect(geocodeQueries("York, Colony of Pennsylvania")[0].query).toBe("york, pennsylvania");
   });
 
   test("a namesake is taken near the county, or not at all", () => {
@@ -103,7 +116,11 @@ describe("a town that can't be found goes to its county", () => {
       { name: "York County", country: "Canada", point: [-66.9, 46.1] },
       { name: "Suffolk County", country: "United States", point: [-72.9, 40.9] },
     ];
-    expect(parentCountyName("Smithtown, New York, USA")).toBe("new york");
+    // (in the US the part before the country is the state: no county given)
+    expect(parentCountyName("Smithtown, New York, USA")).toBe("");
+    expect(parentCountyName("Brown, Indiana, United States")).toBe("");
+    expect(parentCountyName("Nashville, Brown, Indiana, United States")).toBe("brown");
+    expect(modernLocation("Randolph Co., Illinois, United States")).toBe("randolph county, illinois, united states");
     expect(pickParentCounty(hits, "Smithtown, New York, USA")).toBeNull();
     expect(pickParentCounty(hits, "Smithtown, Suffolk, New York, USA")).toEqual({ name: "Suffolk County", area: "county", country: "United States", point: [-72.9, 40.9] });
     expect(pickParentCounty([{ name: "County Durham", point: [-1.8, 54.7] }], "Esh, Durham, England")?.name).toBe("County Durham");
@@ -157,5 +174,95 @@ describe("Cumberland is Cumberland", () => {
       { name: "Dacre", settlement: true, point: [-2.8394, 54.6311] },
     ];
     expect(pickPhotonTown(hits, "Dacre, Cumberland, England", [-3.304, 54.6784]).point).toEqual([-2.8394, 54.6311]);
+  });
+
+  test("a Locations Helper place is placed at its x, y", () => {
+    const rows = [{ p: "Aan de Doorns, Western Cape, South Africa", x: 0, y: 0 }, { p: "Aan de Doorns, Western Cape, South Africa", x: 19.49047, y: -33.69832 }];
+    expect(localPlace(rows)).toEqual({ name: "Aan de Doorns", area: "Western Cape", country: "South Africa", point: [19.4905, -33.6983] });
+    expect(localPlace([{ p: "Nowhere, Kaapkolonie" }])).toBeNull();
+  });
+
+  test("a Locations Helper place matches give or take a county or country, and only where its rows agree", () => {
+    const row = (np, x, y, na = []) => ({ p: np, np, x, y, na });
+    const colony = row("aan de doorns, cape colony", 19.49047, -33.69832);
+    expect(localRowMatches(colony, "aan de doorns, cape colony, south africa")).toBe(true);
+    expect(localRowMatches(row("aan de doorns, western cape, south africa", 19.49, -33.69), "aan de doorns, south africa")).toBe(true);
+    expect(localRowMatches(colony, "aan de doorns, natal")).toBe(false);
+    expect(localRowMatches(colony, "doorns, cape colony")).toBe(false);
+    // (aliases are the place's other names: Kaapstad is Cape Town)
+    expect(localRowMatches(row("cape town, kaapkolonie", 18.42, -33.92, ["kaapstad"]), "kaapstad, kaapkolonie")).toBe(true);
+    expect(localPlace([colony, row("aan de doorns, kaapkolonie", 19.4905, -33.6983)], "aan de doorns, cape colony, south africa").point).toEqual([19.4905, -33.6983]);
+    // (two of that name, and the location doesn't say which)
+    expect(localPlace([row("aan de doorns, cape colony", 19.49, -33.69), row("aan de doorns, natal", 30.1, -29.5)], "aan de doorns")).toBeNull();
+    expect(localPlace([row("aan de doorns, cape colony", 19.49, -33.69), row("aan de doorns, natal", 30.1, -29.5)], "aan de doorns, natal").point).toEqual([30.1, -29.5]);
+    // (hyphen or space; a top-level place asked for with its country)
+    expect(localRowMatches(row("graaff-reinet, cape colony", 24.53, -32.25), "graaff reinet, cape colony")).toBe(true);
+    expect(localRowMatches(row("cape colony", 20, -33), "cape colony, south africa")).toBe(true);
+  });
+
+  test("a Locations Helper town on its own, when the colony is named some other way", () => {
+    const row = (np, x, y, c = "ZA", na = []) => ({ p: np, np, x, y, c, na });
+    const tulbagh = [row("tulbagh, cabo de goede hoop", 19.14, -33.29), row("tulbagh, cape colony", 19.1401, -33.2899), row("tulbagh, kaapkolonie", 19.14, -33.29)];
+    expect(localTownPlace(tulbagh, "tulbagh, de caep de goede hoop").place.point).toEqual([19.14, -33.29]);
+    expect(localTownPlace(tulbagh, "tulbagh, dutch cape colony").place).not.toBeNull();
+    // (nothing in common, or the database knows the last part is elsewhere)
+    expect(localTownPlace(tulbagh, "tulbagh, virginia").place).toBeNull();
+    expect(localTownPlace(tulbagh, "tulbagh, cape colony, nederland", [{ np: "nederland", c: "NL" }]).place).toBeNull();
+    expect(localTownPlace(tulbagh, "tulbagh, zuid-afrika", [{ np: "zuid-afrika", c: "ZA" }]).place).not.toBeNull();
+    // (two towns of that name)
+    expect(localTownPlace([...tulbagh, row("tulbagh, natal", 30.1, -29.5)], "tulbagh, de caep de goede hoop").place).toBeNull();
+  });
+
+  test("the town on its own isn't one in another country when the data knows the one asked for (2026-11-04)", () => {
+    const row = (np, x, y, c) => ({ p: np, np, x, y, c, na: [] });
+    // (the US Philadelphias have no x, y in the downloaded data: their words aren't the Cape's)
+    const philadelphia = [row("philadelphia, cape colony", 18.58, -33.67, "ZA"), row("philadelphia, philadelphia, pennsylvania", undefined, undefined, "US"), row("philadelphia, pennsylvania, united states", undefined, undefined, "US")];
+    expect(localTownPlace(philadelphia, "philadelphia, pennsylvania").place).toBeNull();
+    expect(localTownPlace(philadelphia, "philadelphia, philadelphia, pennsylvania, british colonial america").place).toBeNull();
+    expect(choosePlace(philadelphia, "philadelphia, philadelphia, pennsylvania").place).toBeNull();
+    // (the country alone isn't enough when the location also names the county)
+    const stMartin = [row("st martin, cornwall, england", -4.43, 50.37, "GB")];
+    expect(localTownPlace(stMartin, "st martin, birmingham, warwickshire, england", [{ r: "england", c: "GB" }]).place).toBeNull();
+    expect(localTownPlace(stMartin, "st martin, cornwall, england", [{ r: "england", c: "GB" }]).place).not.toBeNull();
+    expect(localTownPlace(stMartin, "st martin, england", [{ r: "england", c: "GB" }]).place).not.toBeNull();
+  });
+
+  test("our own location data: the downloaded rows and the server's answer chosen from alike", () => {
+    const row = (np, x, y, c = "ZA", na = []) => ({ p: np, np, x, y, c, na });
+    const rows = [row("tulbagh, cape colony", 19.14, -33.29), row("tulbagh, cabo de goede hoop", 19.14, -33.29)];
+    expect(choosePlace(rows, "tulbagh, cape colony")).toMatchObject({ how: "exact path" });
+    expect(choosePlace(rows, "tulbagh, cape colony, south africa")).toMatchObject({ how: "town match" });
+    expect(choosePlace(rows, "tulbagh, de caep de goede hoop").how).toMatch(/^town alone/);
+    expect(choosePlace(rows, "tulbagh, virginia").place).toBeNull();
+    // (a place by its alias: Kaapstad is Cape Town)
+    expect(choosePlace([row("cape town, cape colony", 18.42, -33.92, "ZA", ["kaapstad"])], "kaapstad, cape colony").how).toBe("town match");
+    // (the server: aliases as "|a|b", regions as {r, c}; accents kept for the server, and dropped)
+    const answer = {
+      places: [{ p: "Cape Town, Cape Colony", a: "|Kaapstad|Le Cap", c: "ZA", x: 18.42, y: -33.92 }, { p: "Mönchsroth, Bayern, Deutschland", a: null, c: "DE", x: 10.36, y: 49.02 }],
+      regions: [{ r: "Nederland", c: "NL" }],
+    };
+    expect(serverChoice(answer, "kaapstad, cape colony, south africa").place.point).toEqual([18.42, -33.92]);
+    expect(serverChoice(answer, "mönchsroth, oettingen-spielberg, heiliges römisches reich").place).toBeNull();
+    expect(serverChoice(answer, "mönchsroth, bayern").place.point).toEqual([10.36, 49.02]);
+    expect(serverChoice(answer, "cape town, cape colony, nederland").place).toBeNull();
+    // (a country the data doesn't have: France isn't Nouvelle-France; the user's map put La Motte and St-Onge in Canada)
+    // (a farm's nearest town: before 1910 the second-last part, since then the one after the farm)
+    expect(farmTown("seekoegat, prins albert, cape colony")).toBe("prins albert, cape colony");
+    expect(farmTown("hoekplaas, bossiesveld, worcester, cape of good hope colony")).toBe("worcester, cape of good hope colony");
+    expect(farmTown("schietvantijn, roggeveld, distr tulbagh, cape colony")).toBe("tulbagh, cape colony");
+    expect(farmTown("seekoegat, prins albert, cape province, south africa")).toBe("prins albert, cape province, south africa");
+    expect(farmTown("uitenhage, cape province, union of south africa")).toBe("");
+    expect(farmTown("tulbagh, cabo de goede hoop, south africa")).toBe("");
+    expect(farmTown("paarl, cape colony")).toBe("");
+    expect(serverChoice({ places: [{ p: "Paarl, Cape Colony", c: "ZA", x: 18.97, y: -33.73 }], regions: [] }, "paarl, cape colony").place.code).toBe("ZA");
+    const canada = { places: [{ p: "St-Onge, Canada, Nouvelle-France", a: null, c: "CA", x: -75.29, y: 45.27 }, { p: "La Motte, Bas-Canada", a: null, c: "CA", x: -78.11, y: 48.33 }], regions: [] };
+    expect(serverChoice(canada, "saint onge, saintonge, france").place).toBeNull();
+    expect(serverChoice(canada, "st-onge, saintonge, france").place).toBeNull();
+    expect(serverChoice(canada, "st-onge, nouvelle-france").place).not.toBeNull();
+    expect(serverChoice(canada, "la motte, quebec, canada").place).not.toBeNull();
+    expect(serverQuery(["graaff reinet, cape colony", "mönchsroth, bayern"])).toEqual({ towns: ["graaff reinet", "graaff-reinet", "mönchsroth", "monchsroth"], regions: ["cape colony", "bayern"], locations: ["graaff reinet, cape colony", "mönchsroth, bayern"] });
+    // (a place another browser found with Nominatim and reported, before the Locations Helper's rows)
+    const reported = { places: [{ p: "York, York County, Ontario", c: "CA", x: -79.4, y: 43.7 }], regions: [], found: [{ k: "york, colony of pennsylvania", n: "York", a: "York County", c: "United States", x: -76.7277, y: 39.9625, s: "nominatim" }] };
+    expect(serverChoice(reported, "york, colony of pennsylvania")).toEqual({ place: { name: "York", area: "York County", country: "United States", point: [-76.7277, 39.9625] }, how: "reported by a browser (nominatim)" });
   });
 });

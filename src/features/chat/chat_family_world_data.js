@@ -276,6 +276,35 @@ export function bioParentsToCheck(world) {
   return ids;
 }
 
+/**
+ * People a getPeople "nuclear" sent with Father or Mother null, to fetch with their ancestors, until they've been read
+ * (live 2026-11-07: Murray-17695 and his brother, in every nuclear result, which also leaves out their parents and
+ * can leave out those parents' parents; about 5% of people in a nuclear=3 fetch of Windsor-1. Keys alone and ancestors send them.)
+ */
+export function parentsToCheck(world) {
+  return [...world.people.values()].filter((person) => person.id > 0 && !person.hidden && person.parentsUnsent && !world.parentsChecked?.has(person.id)).map((person) => person.id);
+}
+
+/** Adds a getPeople ancestors fetch for parentsToCheck: `ids`, their parents and those parents' parents. */
+export function mergeCheckedParents(world, ids, people) {
+  // (private parents aren't drawn: they come as negative Ids, which are the note's to count, as at the start)
+  const shown = (value) => (Number(value) > 0 ? value : 0);
+  const visible = Object.values(people || {})
+    .filter((person) => Number(person?.Id) > 0)
+    .map((person) => ({ ...person, Father: shown(person.Father), Mother: shown(person.Mother) }));
+  mergeWorldPeople(world, visible, { root: world.focusKey });
+  if (!world.parentsChecked) world.parentsChecked = new Set();
+  const parentsOf = (person) => [person?.fatherId, person?.motherId].filter((id) => world.people.has(id));
+  // (only those it brought: a failed fetch is tried again with the next one)
+  ids
+    .filter((id) => visible.some((person) => Number(person.Id) === id))
+    .forEach((id) => {
+      world.parentsChecked.add(id);
+      [id, ...parentsOf(world.people.get(id))].forEach((known) => world.parentsKnown.add(known));
+    });
+  return world;
+}
+
 /** Shows someone's birth parents (on) or the parents who raised them, and starts the view again round them. */
 export function setBiologicalParents(world, id, on) {
   if (!world.bioShown) world.bioShown = new Set();
@@ -354,6 +383,13 @@ export function mergeWorldPeople(world, people, { root, nuclear = 0, ancestors =
     // (a getPeople "nuclear" can send BioFather as null when it isn't, so one known stays: see bioParentsToCheck)
     const before = world.people.get(id);
     if (before) ["bioFatherId", "bioMotherId"].forEach((field) => (summary[field] = summary[field] || before[field] || 0));
+    // (it can send Father and Mother as null too, where 0 means none recorded, so one known stays: see parentsToCheck)
+    const sentBefore = before?.raisedBy || before;
+    if (sentBefore) {
+      if (person.Father === null) summary.fatherId = sentBefore.fatherId;
+      if (person.Mother === null) summary.motherId = sentBefore.motherId;
+    }
+    if (before?.parentsUnsent || person.Father === null || person.Mother === null) summary.parentsUnsent = true;
     world.people.set(id, summary);
     const degrees = Number(person.Meta?.Degrees);
     // (nothing more can be fetched around a profile WikiTree won't show)

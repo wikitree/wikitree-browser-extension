@@ -227,12 +227,14 @@ export function buildMigration(slots, pointFor = cachedPoint) {
   const regionOf = [];
   const names = new Map();
   let unplaced = 0;
+  const unplacedPeople = [];
   (slots || []).forEach((person, slot) => {
     if (!person || slot < 1) return;
     const region = placeOf(person.birthLocation, pointFor, names);
     regionOf[slot] = region;
     if (!region) {
       unplaced += 1;
+      unplacedPeople.push(unplacedPerson(person));
       return;
     }
     if (!places.has(region.key)) places.set(region.key, { ...region, count: 0, names: [], people: [], firstYear: null, locations: [] });
@@ -271,17 +273,25 @@ export function buildMigration(slots, pointFor = cachedPoint) {
   return withRefine(
     { places: placeList, flows: sortedFlows, moves, placed: placeList.reduce((sum, place) => sum + place.count, 0), unplaced },
     (slots || []).filter((person, slot) => person && slot >= 1).map((person) => person.birthLocation),
-    (nextPointFor) => buildMigration(slots, nextPointFor)
+    (nextPointFor) => buildMigration(slots, nextPointFor),
+    unplacedPeople
   );
 }
 
 // The map refines itself to towns as they're looked up: it needs the
 // birthplaces (oldest last) and a way to rebuild. Not enumerable, so tests
 // comparing the shape don't see them.
-function withRefine(migration, locations, refine) {
+// (and the people with no birthplace we could place, for the footer's list)
+function withRefine(migration, locations, refine, unplacedPeople = []) {
   Object.defineProperty(migration, "locations", { value: locations.filter(Boolean) });
   Object.defineProperty(migration, "refine", { value: refine });
+  Object.defineProperty(migration, "unplacedPeople", { value: unplacedPeople });
   return migration;
+}
+
+// {label, wtid, location}: location is what they have, if it couldn't be placed at all ("Unknown").
+function unplacedPerson(person) {
+  return { label: migrationPersonLabel(person), wtid: person.wtid || "", location: String(person.birthLocation || "").trim() };
 }
 
 /**
@@ -295,13 +305,16 @@ export function buildDescendantMigration(tree, pointFor = cachedPoint) {
   const names = new Map();
   const locations = [];
   let unplaced = 0;
+  const unplacedPeople = [];
   let moves = 0;
   const visit = (node, parentNode, parentRegion) => {
     const person = node.person || {};
     const region = placeOf(person.birthLocation, pointFor, names);
     locations.push(person.birthLocation);
-    if (!region) unplaced += 1;
-    else {
+    if (!region) {
+      unplaced += 1;
+      unplacedPeople.push(unplacedPerson(person));
+    } else {
       if (!places.has(region.key)) places.set(region.key, { ...region, count: 0, names: [], people: [], firstYear: null, locations: [] });
       const place = places.get(region.key);
       place.count += 1;
@@ -331,7 +344,8 @@ export function buildDescendantMigration(tree, pointFor = cachedPoint) {
   return withRefine(
     { places: placeList, flows: sortedFlows, moves, placed: placeList.reduce((sum, place) => sum + place.count, 0), unplaced },
     locations,
-    (nextPointFor) => buildDescendantMigration(tree, nextPointFor)
+    (nextPointFor) => buildDescendantMigration(tree, nextPointFor),
+    unplacedPeople
   );
 }
 
