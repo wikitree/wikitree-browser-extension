@@ -6,9 +6,17 @@ Created By: Ian Beacall (Beacall-6)
 Works out what a logged-in member can see that the public can't, person by person.
 
 The input is the same getPeople answer fetched twice: once with the member's login (`authed`) and once without it
-(`anon`). Anything in the first that the second leaves out is private. WikiTree decides what's private, so these
-functions never have to know the privacy rules themselves.
+(`anon`). Anything in the first that the second leaves out is private.
+
+The privacy level comes first, though: Public (50) and Open (60) profiles hide nothing, Unlisted (10) hides
+everything, and for the Private levels (20-40) the comparison says which details the public can't see. If WikiTree
+doesn't send the public view, the public is taken to see the name without middle names or nicknames.
 */
+
+const UNLISTED = 10;
+const PUBLIC = 50;
+// Private levels whose biography anyone can read: "Private with Public Biography" (and Family Tree).
+const PUBLIC_BIO = new Set([30, 40]);
 
 const NAME_FIELDS = [
   "FirstName",
@@ -111,8 +119,15 @@ export function parseDate(value) {
  */
 export function privateFactsFor(authed, anon) {
   if (!authed?.Id) return null;
-  const hidden = !anon || !anon.Name || Number(anon.Id) < 0;
-  const seen = hidden ? new Set() : publicWords(anon);
+  const privacy = Number(authed.Privacy);
+  const known = Number.isFinite(privacy) && privacy > 0;
+  // Public and Open: anyone can see everything.
+  if (known && privacy >= PUBLIC) return null;
+  const anonUsable = Boolean(anon && anon.Name && Number(anon.Id) > 0);
+  const hidden = known ? privacy <= UNLISTED : !anonUsable;
+  // What the public sees of them.
+  const shown = hidden ? null : anonUsable ? anon : publicFallback(authed);
+  const seen = hidden ? new Set() : publicWords(shown);
 
   // Name words the public never sees: all of them for a hidden profile, otherwise e.g. a middle name.
   const words = new Set();
@@ -127,19 +142,19 @@ export function privateFactsFor(authed, anon) {
   const dates = [];
   for (const field of ["BirthDate", "DeathDate"]) {
     const date = parseDate(authed[field]);
-    if (date && (hidden || clean(anon[field]) !== clean(authed[field]))) dates.push(date);
+    if (date && (hidden || clean(shown[field]) !== clean(authed[field]))) dates.push(date);
   }
 
   const places = [];
   for (const field of ["BirthLocation", "DeathLocation"]) {
     const place = clean(authed[field]);
-    if (place && (hidden || clean(anon[field]) !== place)) places.push(place);
+    if (place && (hidden || clean(shown[field]) !== place)) places.push(place);
   }
 
   const photo = clean(authed.Photo);
-  const photoPrivate = Boolean(photo) && (hidden || clean(anon.Photo) !== photo);
+  const photoPrivate = Boolean(photo) && (hidden || clean(shown.Photo) !== photo);
   const bio = clean(authed.bio ?? authed.Bio);
-  const bioPrivate = Boolean(bio) && (hidden || !clean(anon.bio ?? anon.Bio));
+  const bioPrivate = Boolean(bio) && (known ? !PUBLIC_BIO.has(privacy) : hidden || !clean(shown.bio ?? shown.Bio));
 
   if (!hidden && !tokens.length && !phrases.length && !dates.length && !places.length && !photoPrivate && !bioPrivate) {
     return null;
@@ -151,12 +166,21 @@ export function privateFactsFor(authed, anon) {
     hidden,
     phrases,
     tokens,
+    // The name words the public never sees, lowercase: in a matched name, only these are hidden.
+    privateWords: [...words],
     dates,
     places,
     photo: photoPrivate ? photo : "",
     bioPrivate,
-    publicName: hidden ? "Private" : publicName(anon),
+    publicName: hidden ? "Private" : publicName(shown),
   };
+}
+
+/** When WikiTree doesn't send the public view of a Private profile: the name, without middle names or nicknames. */
+function publicFallback(authed) {
+  const shown = { Id: authed.Id, Name: authed.Name };
+  for (const field of ["FirstName", "RealName", "LastNameAtBirth", "LastNameCurrent"]) shown[field] = authed[field];
+  return shown;
 }
 
 /** How the public sees the name, for the tab title: "Ian C. Beacall". */

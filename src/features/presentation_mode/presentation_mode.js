@@ -53,20 +53,51 @@ const LOCK_ICON =
   'stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/>' +
   '<path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 
-// The marking rules from presentation_mode.css, for frames: the extension adds its stylesheet to the page only.
-const FRAME_CSS =
-  "::highlight(wbe-pm){color:transparent;background-color:rgba(170,215,170,.45);text-shadow:0 0 .55em " +
-  "rgba(80,150,80,.7),.4em 0 .55em rgba(80,150,80,.5),-.4em 0 .55em rgba(80,150,80,.5),0 .25em .5em " +
-  "rgba(80,150,80,.35),0 -.25em .5em rgba(80,150,80,.35)}" +
-  ".wbe-pm-hide{filter:blur(.6em)!important}img.wbe-pm-hide{filter:blur(16px)!important}" +
-  "html.wbe-pm-bars ::highlight(wbe-pm){color:transparent;background-color:#222;text-shadow:none}" +
-  "html.wbe-pm-bars .wbe-pm-hide{filter:brightness(0)!important}" +
-  ".wbe-pm-hide.wbe-pm-peek,html.wbe-pm-bars .wbe-pm-hide.wbe-pm-peek{filter:none!important}" +
+/*
+How private things look, in the page and in its frames (the extension adds its stylesheet to the page only).
+Text is marked with the CSS Custom Highlight API, which allows only colours and decorations: no borders, no filters.
+Whole elements (links to unlisted profiles, private photos, form fields with private values) have the wbe-pm-hide
+class. Three styles, set by a class on <html>: underline (the default), wbe-pm-blur and wbe-pm-bars. Photos and frames
+are blurred in every style but white bars. wbe-pm-peek shows one element; wbe-pm-check shows everything, marked.
+*/
+const LINES = "html:not(.wbe-pm-blur):not(.wbe-pm-bars):not(.wbe-pm-check)";
+// Mid grey, so the line shows on light and dark pages.
+const LINE = "underline 1.5px solid rgba(110,110,110,.85)";
+const HIDING = "html:not(.wbe-pm-check)";
+const SHUT = ".wbe-pm-hide:not(.wbe-pm-peek)";
+const CLOUD = "rgba(170,215,170,.45)";
+const SMEAR =
+  "0 0 .55em rgba(80,150,80,.7),.4em 0 .55em rgba(80,150,80,.5),-.4em 0 .55em rgba(80,150,80,.5)," +
+  "0 .25em .5em rgba(80,150,80,.35),0 -.25em .5em rgba(80,150,80,.35)";
+const MARKING_CSS = [
+  // Underline (the default): a blank line, as on a form.
+  `::highlight(wbe-pm){color:transparent;text-decoration:${LINE}}`,
+  `${LINES} ${SHUT} *{color:transparent!important;text-decoration-color:transparent!important;` +
+    "text-shadow:none!important}",
+  `${LINES} ${SHUT}:not(img):not(iframe){color:transparent!important;text-shadow:none!important;` +
+    `text-decoration:${LINE}!important}`,
+  // Blur: a plain blur leaves the shape of a word readable, so the shadows smear it sideways and up and down too,
+  // in green. Whole elements get the same green smudge (a blur filter on a link leaves its colour and shape).
+  `html.wbe-pm-blur ::highlight(wbe-pm){color:transparent;background-color:${CLOUD};text-shadow:${SMEAR}}`,
+  `${HIDING}.wbe-pm-blur ${SHUT}:not(img):not(iframe),${HIDING}.wbe-pm-blur ${SHUT} *{color:transparent!important;` +
+    `text-decoration-color:transparent!important;text-shadow:${SMEAR}!important}`,
+  `${HIDING}.wbe-pm-blur ${SHUT}:not(img):not(iframe){background-color:${CLOUD}!important}`,
+  // White bars. (brightness(0) invert(1) turns a photo white.)
+  "html.wbe-pm-bars ::highlight(wbe-pm){color:transparent;background-color:#fff;text-shadow:none}",
+  `${HIDING}.wbe-pm-bars ${SHUT}:not(img):not(iframe),${HIDING}.wbe-pm-bars ${SHUT} *{color:transparent!important;` +
+    "text-decoration-color:transparent!important;text-shadow:none!important;background-color:#fff!important}",
+  `${HIDING}.wbe-pm-bars img${SHUT},${HIDING}.wbe-pm-bars iframe${SHUT},${HIDING}.wbe-pm-bars ${SHUT} img{` +
+    "filter:brightness(0) invert(1)!important}",
+  // Photos and frames.
+  `${HIDING}:not(.wbe-pm-bars) img${SHUT},${HIDING}:not(.wbe-pm-bars) iframe${SHUT},` +
+    `${HIDING}:not(.wbe-pm-bars) ${SHUT} img{filter:blur(16px)!important}`,
+  // Check: show everything that would be hidden, marked.
   "html.wbe-pm-check ::highlight(wbe-pm){color:inherit;background-color:rgba(255,213,0,.6);text-shadow:none;" +
-  "text-decoration:underline wavy #c00}" +
-  "html.wbe-pm-check .wbe-pm-hide{filter:none!important;outline:2px dashed #c00!important;outline-offset:1px}";
+    "text-decoration:underline wavy #c00}",
+  "html.wbe-pm-check .wbe-pm-hide{outline:2px dashed #c00!important;outline-offset:1px}",
+].join("");
 // Classes on <html> that frames copy from the page.
-const ROOT_CLASSES = ["wbe-pm-bars", "wbe-pm-check"];
+const ROOT_CLASSES = ["wbe-pm-blur", "wbe-pm-bars", "wbe-pm-check"];
 
 const state = {
   options: {},
@@ -99,7 +130,9 @@ shouldInitializeFeature("presentationMode").then((result) => {
 
 async function init() {
   document.documentElement.setAttribute("data-wbe-pm-working", "1");
-  state.options = { hideStyle: "blur", showBadge: true, ...((await getFeatureOptions("presentationMode")) || {}) };
+  state.options = { hideStyle: "line", showBadge: true, ...((await getFeatureOptions("presentationMode")) || {}) };
+  addMarkingStyle(document);
+  document.documentElement.classList.toggle("wbe-pm-blur", state.options.hideStyle === "blur");
   document.documentElement.classList.toggle("wbe-pm-bars", state.options.hideStyle === "bars");
   document.documentElement.classList.toggle("wbe-pm-check", readCheckMode());
 
@@ -470,10 +503,7 @@ function addFrameDocument(doc) {
   } catch (error) {
     return null;
   }
-  const style = doc.createElement("style");
-  style.id = "wbe-pm-style";
-  style.textContent = FRAME_CSS;
-  (doc.head || doc.documentElement).appendChild(style);
+  addMarkingStyle(doc);
   ROOT_CLASSES.forEach((name) =>
     doc.documentElement.classList.toggle(name, document.documentElement.classList.contains(name))
   );
@@ -482,6 +512,14 @@ function addFrameDocument(doc) {
   observeDocument(doc);
   startPeeking(doc);
   return entry;
+}
+
+function addMarkingStyle(doc) {
+  if (doc.getElementById("wbe-pm-style")) return;
+  const style = doc.createElement("style");
+  style.id = "wbe-pm-style";
+  style.textContent = MARKING_CSS;
+  (doc.head || doc.documentElement).appendChild(style);
 }
 
 function isWikiTreeUrl(src, doc) {
@@ -827,7 +865,7 @@ function updateBadge(status) {
     ? record.loggedOut
       ? "You're not logged in, so only email addresses are hidden."
       : `Hiding private details of ${people} ${people === 1 ? "person" : "people"} ` +
-        `(checked ${record.checked} non-Open profiles of the ${Number(
+        `(checked ${record.checked} private profiles of the ${Number(
           record.watchlistCount
         ).toLocaleString()} on your watchlist, ` +
         `${new Date(record.builtAt).toLocaleString()}).`

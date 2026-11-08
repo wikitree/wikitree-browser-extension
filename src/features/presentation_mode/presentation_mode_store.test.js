@@ -15,12 +15,13 @@ describe("buildPrivateFacts", () => {
 });
 
 describe("storedFactsFit", () => {
-  const record = { userId: 101, watchlistCount: 250, facts: [] };
+  const record = { version: 3, userId: 101, watchlistCount: 250, facts: [] };
   test("the member's own list", () => {
     expect(storedFactsFit(record, 101)).toBe(true);
     expect(storedFactsFit(record, 202)).toBe(false);
   });
-  test("not a list built without the login", () => {
+  test("not a list built without the login, or the old way", () => {
     expect(storedFactsFit({ ...record, watchlistCount: 0 }, 101)).toBe(false);
+    expect(storedFactsFit({ ...record, version: undefined }, 101)).toBe(false);
   });
 });

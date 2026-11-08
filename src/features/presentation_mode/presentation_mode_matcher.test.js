@@ -66,6 +66,22 @@ describe("findPrivateRanges", () => {
     expect(hidden("Example, Ian Christopher (1969 - )")).toEqual(["Example, Ian Christopher"]);
   });
 
+  test("in a matched name, only the words the public can't see", () => {
+    const named = compileFacts([
+      {
+        ...facts[0],
+        phrases: ["Alan Christopher Example", "Example, Alan Christopher"],
+        privateWords: ["christopher", "buster"],
+      },
+      { ...facts[1], privateWords: ["frederick", "john", "fred", "byl"] },
+    ]);
+    const shown = (text) => findPrivateRanges(text, named).map(([s, e]) => text.slice(s, e));
+    expect(shown("Alan Christopher Example")).toEqual(["Christopher"]);
+    expect(shown("Example, Alan Christopher")).toEqual(["Christopher"]);
+    // An unlisted person's names are hidden whole.
+    expect(shown("Fred Byl")).toEqual(["Fred Byl"]);
+  });
+
   test("a single word only in that person's context", () => {
     const text = "Christopher Columbus sailed from Birkenhead in 1969";
     expect(hidden(text)).toEqual([]);

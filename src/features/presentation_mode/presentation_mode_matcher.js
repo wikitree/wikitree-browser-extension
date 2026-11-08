@@ -33,6 +33,7 @@ const MONTHS = [
   "December",
 ];
 const WORD = /[\p{L}\p{N}]+/gu;
+const WORDS_IN_MATCH = /[\p{L}\p{N}]+/gu;
 const END = "(?![\\p{L}\\p{N}])";
 const SEP = "(?:\\s*[-./,]\\s*|\\s+)";
 const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu;
@@ -55,7 +56,9 @@ function firstWord(text) {
 
 /**
  * Patterns filed under the word they start with. Each pattern remembers whose it is (owners: profile Ids) and
- * whether it is a name, so a name in a link to someone else can be left alone.
+ * whether it is a name, so a name in a link to someone else can be left alone. A name can also say which of its
+ * words are private (privateWords, lowercase): then only those are hidden, so "Alan Christopher Example" shows
+ * the "Alan" and "Example" the public can see anyway. Without privateWords, the whole match is hidden.
  */
 class AnchorIndex {
   constructor() {
@@ -63,10 +66,14 @@ class AnchorIndex {
     this.entries = new Map();
   }
 
-  add(source, anchors, { owner = null, isName = false } = {}) {
+  add(source, anchors, { owner = null, isName = false, privateWords = null } = {}) {
+    const words = privateWords ? new Set([...privateWords].map((word) => word.toLowerCase())) : null;
     let entry = this.entries.get(source);
-    if (!entry) {
-      entry = { regex: new RegExp(source + END, "iuy"), owners: new Set(), isName };
+    if (entry) {
+      // The same name for two people: hide the words private for either (all of it if either hides all).
+      entry.privateWords = entry.privateWords && words ? new Set([...entry.privateWords, ...words]) : null;
+    } else {
+      entry = { regex: new RegExp(source + END, "iuy"), owners: new Set(), isName, privateWords: words };
       this.entries.set(source, entry);
       for (const anchor of new Set(anchors.map((a) => a.toLowerCase()).filter(Boolean))) {
         if (!this.map.has(anchor)) this.map.set(anchor, []);
@@ -153,7 +160,9 @@ export function compileFacts(facts, { emails = true } = {}) {
     byId.set(fact.id, fact);
     if (fact.name) idByName.set(normaliseProfileId(fact.name), fact.id);
 
-    fact.phrases.forEach((phrase) => global.addPhrase(phrase, { owner: fact.id, isName: true }));
+    // privateWords is missing from lists built by older versions: then whole names are hidden.
+    const privateWords = fact.hidden ? null : fact.privateWords || null;
+    fact.phrases.forEach((phrase) => global.addPhrase(phrase, { owner: fact.id, isName: true, privateWords }));
     fact.dates.forEach((date) => addDatePatterns(global, date));
     if (fact.hidden && fact.name) global.add(profileIdSource(fact.name), [firstWord(fact.name)], { owner: fact.id });
 
@@ -197,11 +206,20 @@ export function findPrivateRanges(text, compiled, contextIds = [], linkedId = nu
     for (const index of indexes) {
       const patterns = index.map.get(key);
       if (!patterns) continue;
-      for (const { regex, owners, isName } of patterns) {
+      for (const { regex, owners, isName, privateWords } of patterns) {
         if (inLink && isName && index === compiled.global && !owners.has(linkedId)) continue;
         regex.lastIndex = word.index;
         const match = regex.exec(text);
-        if (match) ranges.push([word.index, word.index + match[0].length]);
+        if (!match) continue;
+        if (!privateWords) {
+          ranges.push([word.index, word.index + match[0].length]);
+          continue;
+        }
+        for (const part of match[0].matchAll(WORDS_IN_MATCH)) {
+          if (privateWords.has(part[0].toLowerCase())) {
+            ranges.push([word.index + part.index, word.index + part.index + part[0].length]);
+          }
+        }
       }
     }
   }

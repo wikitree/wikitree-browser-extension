@@ -81,6 +81,7 @@ describe("privateFactsFor", () => {
     const facts = privateFactsFor(semiPrivateAuthed, semiPrivateAnon);
     expect(facts.hidden).toBe(false);
     expect(facts.tokens).toEqual(["Christopher"]);
+    expect(facts.privateWords).toEqual(["christopher"]);
     expect(facts.phrases).toContain("Ian Christopher Example");
     expect(facts.phrases).not.toContain("Ian Example");
     expect(facts.phrases).not.toContain("Ian C. Example");
@@ -102,6 +103,29 @@ describe("privateFactsFor", () => {
     expect(facts.publicName).toBe("Private");
   });
 
+  test("Public and Open profiles hide nothing, whatever the public view says", () => {
+    expect(privateFactsFor({ ...unlistedAuthed, Privacy: 50 }, null)).toBeNull();
+    expect(privateFactsFor({ ...semiPrivateAuthed, Privacy: 60 }, { Id: -1 })).toBeNull();
+  });
+
+  test("Private, with no public view sent: hides middle name, full dates, places, photo and biography", () => {
+    const facts = privateFactsFor({ ...unlistedAuthed, Privacy: 20, bio: "Text" }, null);
+    expect(facts.hidden).toBe(false);
+    expect(facts.tokens).toEqual(["John"]);
+    expect(facts.phrases).toContain("Frederick John Example");
+    expect(facts.phrases).not.toContain("Fred Example");
+    expect(facts.dates).toEqual([{ y: 1947, m: 4, d: 27 }]);
+    expect(facts.places).toEqual(["Birkenhead"]);
+    expect(facts.photo).toBe("Example-7-1.jpg");
+    expect(facts.bioPrivate).toBe(true);
+    expect(facts.publicName).toBe("Fred Example");
+  });
+
+  test("Private with Public Biography: the biography isn't hidden", () => {
+    expect(privateFactsFor({ ...semiPrivateAuthed, Privacy: 30 }, semiPrivateAnon).bioPrivate).toBe(false);
+    expect(privateFactsFor({ ...semiPrivateAuthed, Privacy: 40 }, null).bioPrivate).toBe(false);
+  });
+
   test("nothing private gives null", () => {
     expect(privateFactsFor(openAuthed, { ...openAuthed })).toBeNull();
   });
@@ -110,7 +134,7 @@ describe("privateFactsFor", () => {
 describe("privateFactsFromPeople", () => {
   test("pairs people by Id and skips the public placeholders", () => {
     const facts = privateFactsFromPeople(
-      { 101: semiPrivateAuthed, 102: unlistedAuthed, 103: openAuthed },
+      { 101: semiPrivateAuthed, 102: unlistedAuthed, 103: openAuthed, 104: { ...openAuthed, Id: 104, Privacy: 50 } },
       { 101: semiPrivateAnon, "-1": { Id: -1 }, 103: { ...openAuthed } }
     );
     expect(facts.map((f) => [f.id, f.hidden])).toEqual([

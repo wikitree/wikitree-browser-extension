@@ -1,59 +1,9 @@
 /* Styles for presentationMode feature */
 
 /*
-Private text is marked with the CSS Custom Highlight API (no change to the page's HTML), and whole elements (links
-to unlisted profiles, private photos, form fields holding private details) with the wbe-pm-hide class.
+The marking rules themselves (underline, blur, white bars, check mode) are in MARKING_CSS in presentation_mode.js,
+because the same rules go into the page and into the frames in it.
 */
-
-/* A plain blur leaves the shape of the word (ascenders, tails) readable, so the shadows also smear sideways and up
-   and down, over a soft green band. In em, so big headings get as much blur as small text. */
-::highlight(wbe-pm) {
-  color: transparent;
-  background-color: rgba(170, 215, 170, 0.45);
-  text-shadow: 0 0 0.55em rgba(80, 150, 80, 0.7), 0.4em 0 0.55em rgba(80, 150, 80, 0.5),
-    -0.4em 0 0.55em rgba(80, 150, 80, 0.5), 0 0.25em 0.5em rgba(80, 150, 80, 0.35),
-    0 -0.25em 0.5em rgba(80, 150, 80, 0.35);
-}
-
-.wbe-pm-hide {
-  filter: blur(0.6em) !important;
-}
-
-img.wbe-pm-hide,
-iframe.wbe-pm-hide {
-  filter: blur(16px) !important;
-}
-
-/* "Black bars" style */
-html.wbe-pm-bars ::highlight(wbe-pm) {
-  color: transparent;
-  background-color: #222;
-  text-shadow: none;
-}
-
-html.wbe-pm-bars .wbe-pm-hide {
-  filter: brightness(0) !important;
-}
-
-/* Alt/Option + hover: show the hidden element under the pointer */
-.wbe-pm-hide.wbe-pm-peek,
-html.wbe-pm-bars .wbe-pm-hide.wbe-pm-peek {
-  filter: none !important;
-}
-
-/* Check mode: show what would be hidden instead of hiding it */
-html.wbe-pm-check ::highlight(wbe-pm) {
-  color: inherit;
-  background-color: rgba(255, 213, 0, 0.6);
-  text-shadow: none;
-  text-decoration: underline wavy #c00;
-}
-
-html.wbe-pm-check .wbe-pm-hide {
-  filter: none !important;
-  outline: 2px dashed #c00 !important;
-  outline-offset: 1px;
-}
 
 /* The label in the corner, and the notice shown while the page is held back. Both stay visible while the
    early script keeps the rest of the page hidden. */

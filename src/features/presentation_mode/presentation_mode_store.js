@@ -6,7 +6,7 @@ Created By: Ian Beacall (Beacall-6)
 Builds and keeps the list of private facts.
 
 The people who matter are on the member's watchlist: their own profile, the profiles they manage, and those whose
-Trusted List they are on. Open profiles have nothing private, so only the rest are fetched, twice: with the login
+Trusted List they are on. Public and Open profiles have nothing private, so only the rest are fetched, twice: with the login
 and without it (see presentation_mode_facts.js).
 
 These calls go straight to the API instead of through WikiTreeAPI.postToAPI, because Presentation Mode makes
@@ -25,7 +25,10 @@ export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 // all at once. If it sends fewer than asked, the loop carries on from where they stop.
 const WATCHLIST_PAGE = 25000;
 const PEOPLE_BATCH = 100;
-const OPEN_PRIVACY = 60;
+// Public (50) and Open (60) profiles have nothing private.
+const PUBLIC_PRIVACY = 50;
+// Bumped when the way facts are worked out changes, so lists built the old way are rebuilt.
+const FACTS_VERSION = 3;
 const FIELDS = [
   "Id",
   "Name",
@@ -88,7 +91,7 @@ async function privateWatchlistIds(onProgress) {
     if (!Array.isArray(answer?.watchlist)) break;
     total = Number(answer.watchlistCount) || 0;
     answer.watchlist.forEach((person) => {
-      if (Number(person.Privacy) < OPEN_PRIVACY && Number(person.Id) > 0) ids.add(Number(person.Id));
+      if (Number(person.Privacy) < PUBLIC_PRIVACY && Number(person.Id) > 0) ids.add(Number(person.Id));
     });
     if (!answer.watchlist.length) break;
     offset += answer.watchlist.length;
@@ -120,7 +123,14 @@ export async function buildPrivateFacts({ userId = null, onProgress } = {}) {
   const [authed, anon] = await Promise.all([getPeople(ids, true), getPeople(ids, false)]);
   const facts = privateFactsFromPeople(authed, anon);
   onProgress?.({ stage: "people", done: ids.length, total: ids.length });
-  return { builtAt: Date.now(), userId: userId ? Number(userId) : null, watchlistCount, checked: ids.length, facts };
+  return {
+    version: FACTS_VERSION,
+    builtAt: Date.now(),
+    userId: userId ? Number(userId) : null,
+    watchlistCount,
+    checked: ids.length,
+    facts,
+  };
 }
 
 export async function loadStoredFacts() {
@@ -153,7 +163,7 @@ export async function forgetFacts() {
  * empty watchlist was built without the login (an early version kept those), so it's no use.
  */
 export function storedFactsFit(record, userId) {
-  if (!record?.facts || !(Number(record.watchlistCount) > 0)) return false;
+  if (!record?.facts || record.version !== FACTS_VERSION || !(Number(record.watchlistCount) > 0)) return false;
   return !userId || !record.userId || Number(record.userId) === Number(userId);
 }
 

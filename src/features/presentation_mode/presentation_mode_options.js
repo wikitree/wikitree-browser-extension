@@ -25,10 +25,11 @@ registerFeature({
       type: OptionType.SELECT,
       label: "Hide private details with",
       values: [
+        { value: "line", text: "Underline (a blank line)" },
         { value: "blur", text: "Blur" },
-        { value: "bars", text: "Black bars" },
+        { value: "bars", text: "White bars" },
       ],
-      defaultValue: "blur",
+      defaultValue: "line",
     },
     {
       id: "showBadge",
