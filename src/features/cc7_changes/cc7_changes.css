@@ -26,10 +26,19 @@
   padding-left: 2.5em !important;
   list-style: decimal outside !important;
 }
+/* Sticky (not absolute) so the close button stays in the top right corner while the
+   list scrolls. Sticky offsets are measured inside the 20px padding, so top and the
+   negative margins put it back in the padding, where it used to sit. */
 #cc7DeltaContainer x {
-  position: absolute;
-  top: 0;
-  right: 0.5em;
+  position: sticky;
+  top: -20px;
+  float: right;
+  z-index: 2;
+  margin: -20px -12px 0 0;
+  padding: 0 0.25em;
+  line-height: 1.2;
+  background-color: #fff;
+  border-radius: 3px;
   font-size: 20px;
   cursor: pointer;
 }
@@ -45,11 +54,18 @@
 #cc7DeltaContainer h2 {
   cursor: move;
   touch-action: none;
-  margin-top: 0;
-  margin-bottom: 0;
   font-size: 1.7em;
   line-height: 1.9em;
-  margin: 0.1em 0.2em;
+  /* Pinned to the top while the list scrolls, so the box can be dragged from anywhere in
+     it. The negative margins stretch the white background over the container's 20px
+     padding (so no list text shows beside or above it); the padding puts the text back
+     where the old 0.1em 0.2em margins had it. */
+  position: sticky;
+  top: -20px;
+  z-index: 1;
+  background-color: #fff;
+  margin: -20px -20px 0.1em;
+  padding: calc(20px + 0.1em) 20px 0 calc(20px + 0.2em) !important;
 }
 #cc7DeltaContainer h3 {
   font-size: 1.3em;
