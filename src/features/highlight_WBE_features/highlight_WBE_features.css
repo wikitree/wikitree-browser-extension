@@ -399,6 +399,33 @@ excluded from the generic rule at the top of the file for that reason.
 .wbe-highlight a.wbe-button:not(.toggleTipsColumn, #toggleFamilyColumn, .toggleOverflowButton) {
   border-radius: 5px !important;
 }
+/*
+The link is inline and its icon is a 25px inline-block inside it, so the link's own
+box is only one text line tall and starts ~10px below the top of the icon. Chrome
+draws the outline round the icon anyway; Safari (iPad) outlines the link's box, so the
+icon pokes out of the top. An inline-block with no line height is exactly the icon's
+size and sits on the same baseline, so nothing moves.
+`:where()` keeps this at zero specificity so any rule that hides a button
+(display: none) or lays it out differently still wins.
+*/
+:where(.wbe-highlight a.wbe-button:not(.toggleTipsColumn, #toggleFamilyColumn, .toggleOverflowButton)) {
+  display: inline-block;
+  line-height: 0;
+}
+/* ...but the tooltip would inherit that zero line height and squash. */
+.wbe-highlight a.wbe-button:not(.toggleTipsColumn, #toggleFamilyColumn, .toggleOverflowButton)::after {
+  line-height: 1.5;
+}
+/* In a flex row the link is already a block that contains its icon, and losing the line
+   height would shrink the row (by 7px under the editor). Give those back what they inherit. */
+.wbe-highlight .wbe-button-container2 > a.wbe-button {
+  line-height: inherit;
+}
+@media (max-width: 600px) {
+  body.wte.wbe-highlight .clipboardContainer > a.wbe-button {
+    line-height: inherit;
+  }
+}
 .wbe-highlight #wbe-genie-button {
   border-radius: 50%;
 }

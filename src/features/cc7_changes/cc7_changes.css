@@ -11,8 +11,15 @@
   width: 700px;
   max-height: 600px;
   overflow: auto;
-  cursor: move;
   text-align: left;
+}
+/* At 20% from the left, the 742px-wide box runs off screens narrower than ~930px
+   (e.g. an iPad held upright), taking the close button with it. */
+@media (max-width: 940px) {
+  #cc7DeltaContainer {
+    left: 1em;
+    max-width: calc(100vw - 2em - 42px); /* 42px = padding + border */
+  }
 }
 #cc7DeltaContainer ol {
   margin-left: 3em !important;
@@ -36,6 +43,8 @@
   padding-left: 0 !important;
 }
 #cc7DeltaContainer h2 {
+  cursor: move;
+  touch-action: none;
   margin-top: 0;
   margin-bottom: 0;
   font-size: 1.7em;
