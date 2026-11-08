@@ -2488,7 +2488,18 @@ function raisePopupAtZIndexCeiling(el) {
   el.style.setProperty("z-index", String(Z_INDEX_CEILING), "important");
 }
 
-export function setHighestZIndex(el) {
+export function setHighestZIndex(target) {
+  // Callers pass a DOM element, a jQuery object or a selector string. Everything
+  // below needs the element itself: raisePopupAtZIndexCeiling sets el.style
+  // directly, and a jQuery object has no .style, so once anything on the page sat
+  // at the ceiling (e.g. TopCashback's always-present #tcb-extension-uk-wrapper)
+  // the call threw - leaving the clipboard half-built with no working close button
+  // and the Extra Watchlist window hidden.
+  const el = target?.jquery ? target[0] : typeof target === "string" ? document.querySelector(target) : target;
+  if (!el?.style) {
+    return;
+  }
+
   // Compute max z-index across visible elements and set target to one higher.
   const allElems = Array.from(document.querySelectorAll("*")).filter((e) => {
     try {
@@ -2561,16 +2572,7 @@ export function setHighestZIndex(el) {
     raisePopupAtZIndexCeiling(el);
     return;
   }
-  try {
-    if (el && el.style && el.style.setProperty) {
-      el.style.setProperty("z-index", String(targetZ), "important");
-    } else {
-      $(el).css("z-index", targetZ);
-    }
-  } catch (e) {
-    // Fallback to jQuery assignment if setProperty fails for any reason
-    $(el).css("z-index", targetZ);
-  }
+  el.style.setProperty("z-index", String(targetZ), "important");
 }
 
 //////////////////// For Notables Project
