@@ -5,13 +5,23 @@ Private text is marked with the CSS Custom Highlight API (no change to the page'
 to unlisted profiles, private photos, form fields holding private details) with the wbe-pm-hide class.
 */
 
+/* A plain blur leaves the shape of the word (ascenders, tails) readable, so the shadows also smear sideways and up
+   and down, over a soft green band. In em, so big headings get as much blur as small text. */
 ::highlight(wbe-pm) {
   color: transparent;
-  text-shadow: 0 0 7px rgba(60, 60, 60, 0.85);
+  background-color: rgba(170, 215, 170, 0.45);
+  text-shadow: 0 0 0.55em rgba(80, 150, 80, 0.7), 0.4em 0 0.55em rgba(80, 150, 80, 0.5),
+    -0.4em 0 0.55em rgba(80, 150, 80, 0.5), 0 0.25em 0.5em rgba(80, 150, 80, 0.35),
+    0 -0.25em 0.5em rgba(80, 150, 80, 0.35);
 }
 
 .wbe-pm-hide {
-  filter: blur(6px) !important;
+  filter: blur(0.6em) !important;
+}
+
+img.wbe-pm-hide,
+iframe.wbe-pm-hide {
+  filter: blur(16px) !important;
 }
 
 /* "Black bars" style */

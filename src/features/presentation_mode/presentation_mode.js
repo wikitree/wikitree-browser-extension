@@ -55,8 +55,10 @@ const LOCK_ICON =
 
 // The marking rules from presentation_mode.css, for frames: the extension adds its stylesheet to the page only.
 const FRAME_CSS =
-  "::highlight(wbe-pm){color:transparent;text-shadow:0 0 7px rgba(60,60,60,.85)}" +
-  ".wbe-pm-hide{filter:blur(6px)!important}" +
+  "::highlight(wbe-pm){color:transparent;background-color:rgba(170,215,170,.45);text-shadow:0 0 .55em " +
+  "rgba(80,150,80,.7),.4em 0 .55em rgba(80,150,80,.5),-.4em 0 .55em rgba(80,150,80,.5),0 .25em .5em " +
+  "rgba(80,150,80,.35),0 -.25em .5em rgba(80,150,80,.35)}" +
+  ".wbe-pm-hide{filter:blur(.6em)!important}img.wbe-pm-hide{filter:blur(16px)!important}" +
   "html.wbe-pm-bars ::highlight(wbe-pm){color:transparent;background-color:#222;text-shadow:none}" +
   "html.wbe-pm-bars .wbe-pm-hide{filter:brightness(0)!important}" +
   ".wbe-pm-hide.wbe-pm-peek,html.wbe-pm-bars .wbe-pm-hide.wbe-pm-peek{filter:none!important}" +
@@ -366,7 +368,11 @@ function fieldIsPrivate(field) {
   if (!value) return false;
   // The biography box of someone whose biography the public can't see.
   if (field.id === "wpTextbox1" && pageBioIsPrivate()) return true;
-  return findPrivateRanges(value, state.compiled, contextIds(field, new Map())).length > 0;
+  // A box can only be blurred whole. An email address in a big text box (a page's wiki text) is on a page anyone
+  // can read, and blurring the whole box for it hides far too much, so there only private people's details count.
+  // A one-line field holding an email address (an account setting) is still hidden.
+  const compiled = field.matches("textarea") ? { ...state.compiled, emails: false } : state.compiled;
+  return findPrivateRanges(value, compiled, contextIds(field, new Map())).length > 0;
 }
 
 function pageBioIsPrivate() {
