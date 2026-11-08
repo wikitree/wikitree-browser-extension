@@ -435,7 +435,7 @@ async function runCC7Changes(reportOnly, top) {
 function showFirstRunMessage(msg) {
   working.remove();
   $("#cc7DeltaContainer").append($(`<p>${msg}</p>`));
-  $(CC7_DELTA_CONTAINER_ID).draggable();
+  $(CC7_DELTA_CONTAINER_ID).draggable({ handle: "h2" });
   addCloseEventHandlers($("#cc7DeltaContainer"));
 }
 
@@ -816,7 +816,7 @@ async function showStoredDeltas(data, container) {
     appendDetailsToContainer(container, idsWithinLastMonthByDate, allDetailsWithinLastMonth, "within the last month: ");
   }
 
-  $(CC7_DELTA_CONTAINER_ID).draggable();
+  $(CC7_DELTA_CONTAINER_ID).draggable({ handle: "h2" });
   addCloseEventHandlers(container);
 }
 
