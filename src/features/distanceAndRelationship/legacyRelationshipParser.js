@@ -194,7 +194,15 @@ export function deriveRelationshipFromLegacyDoc(doc, context = {}) {
   } = context;
 
   const firstP = doc.querySelector("h3");
-  const firstPText = firstP ? firstP.textContent.replace(/[\t\n]/g, " ").trim() : "";
+  // WikiTree appends the path's certainty to the h3 ("Grandson (Confident)",
+  // "Winston and John are siblings (DNA Confirmed)"); drop it so the headline parses as before.
+  // Letters only, so a trailing date range like "(1900-1980)" is kept.
+  const firstPText = firstP
+    ? firstP.textContent
+        .replace(/[\t\n]/g, " ")
+        .replace(/\s*\([A-Za-z][A-Za-z ]*\)\s*$/, "")
+        .trim()
+    : "";
   console.log("[WBE dist-rel] legacy firstPText:", firstPText);
 
   let derivedRelationship = "";
@@ -261,6 +269,7 @@ export function deriveRelationshipFromLegacyDoc(doc, context = {}) {
 
   // Safety rule for generic heading-only h3 values like "Grandson":
   // when h3 has no names/grammar, prefer explicit "This makes ... the <rel> of ..." relation.
+  // The h3 is the descendant's label whichever way round the two people are, so it can't be used directly.
   if (!derivedRelationship && firstPText && /^[A-Za-z ]+$/.test(firstPText) && !/\b(is|are)\b/i.test(firstPText)) {
     const makesRel = allParaText.match(/This makes\s+(.+?)\s+the\s+([A-Za-z ]+?)\s+of\s+(.+?)\./i);
     if (makesRel && makesRel[2]) {
@@ -270,11 +279,24 @@ export function deriveRelationshipFromLegacyDoc(doc, context = {}) {
       const userColloq = normalizeForMatch(userColloquialNameRaw || "");
       const userWtId = normalizeForMatch(userWtIdRaw || "");
       const profileVariants = nameVariantsForProfile(profilePerson, profileID);
-      const subjectIsProfile = phraseMatchesAnyVariant(makesSubject, profileVariants);
-      const objectIsProfile = phraseMatchesAnyVariant(makesObject, profileVariants);
+      // The subject of "This makes X ..." is the top of the trail: the person linked in the last
+      // numbered line. Its WT ID is decisive when present, because names can be missing (private
+      // profiles) or shared (a father named after his son).
+      const trailSpans = doc.querySelectorAll("span[class^='ancestor_']");
+      const topLinks = trailSpans.length ? trailSpans[trailSpans.length - 1].querySelectorAll("a[href*='/wiki/']") : [];
+      const topHref = topLinks.length ? decodeURIComponent(topLinks[0].getAttribute("href") || "") : "";
+      const topWtId = normalizeForMatch((topHref.split("/wiki/")[1] || "").replace(/[?#].*$/, ""));
+      const profileWtId = normalizeForMatch(String(profileID || ""));
+      const topIsUser = Boolean(topWtId && userWtId && topWtId === userWtId);
+      const topIsProfile = Boolean(topWtId && profileWtId && topWtId === profileWtId);
+
+      const subjectIsProfile = topIsProfile || (!topIsUser && phraseMatchesAnyVariant(makesSubject, profileVariants));
+      const objectIsProfile = !topIsProfile && (topIsUser || phraseMatchesAnyVariant(makesObject, profileVariants));
       const subjectIsUser =
-        (userColloq && phraseMatchesAnyVariant(makesSubject, [userColloq])) ||
-        (userWtId && phraseMatchesAnyVariant(makesSubject, [userWtId]));
+        topIsUser ||
+        (!topIsProfile &&
+          ((userColloq && phraseMatchesAnyVariant(makesSubject, [userColloq])) ||
+            (userWtId && phraseMatchesAnyVariant(makesSubject, [userWtId]))));
 
       // If the logged-in user is the subject in "This makes ...",
       // invert to profile perspective.

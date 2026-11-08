@@ -129,4 +129,96 @@ describe("deriveRelationshipFromLegacyDoc", () => {
     });
     expect(result).toBe("grandmother");
   });
+
+  // Real Special:Relationship markup (2026): the h3 carries the path's certainty and is the
+  // descendant's label whichever way round the two people are; "This makes" names the ancestor.
+  const confidentGrandparentTrail = (topWtId, topName) => `
+    <h2>Direct Relationship Found</h2>
+    <div id="imageContainer">
+      <h3 class="mt-0"> Grandson (Confident) </h3>
+      <p>
+        <span class="ancestor_1">1. [Private] is the son of <a href="/wiki/Doe-20">Rosemary (Smith) Doe (1960-)</a> <a href="/wiki/Help:Confident"><span class="icon--confident"></span></a> </span><br>
+        <span class="ancestor_2">2. Rosemary is the daughter of <a href="/wiki/${topWtId}">${topName}</a> <a href="/wiki/Help:Confident"><span class="icon--confident"></span></a> </span><br>
+        This makes Shirley the <b>grandmother</b> of David.
+      </p>
+    </div>
+  `;
+
+  test("grandmother viewing her private grandson with a (Confident) h3 sees grandson", () => {
+    const result = deriveRelationshipFromLegacyDoc(parseDoc(confidentGrandparentTrail("Smith-10", "Shirley Smith (1940-)")), {
+      profilePerson: { FirstName: "David", LastNameCurrent: "Doe", Name: "Doe-21", Gender: "Male" },
+      profileID: "Doe-21",
+      userWtIdRaw: "Smith-10",
+      userColloquialNameRaw: "Shirley",
+      legacyCommonAncestors: [],
+    });
+    expect(result).toBe("grandson");
+  });
+
+  test("(Confident) h3: the user's WT ID decides even when names don't match", () => {
+    // Profile name hidden and the user's colloquial name differs from the trail's first name.
+    const result = deriveRelationshipFromLegacyDoc(parseDoc(confidentGrandparentTrail("Smith-10", "Shirley Smith (1940-)")), {
+      profilePerson: { FirstName: "", Name: "Doe-21", Gender: "Male" },
+      profileID: "Doe-21",
+      userWtIdRaw: "Smith-10",
+      userColloquialNameRaw: "Shirl",
+      legacyCommonAncestors: [],
+    });
+    expect(result).toBe("grandson");
+  });
+
+  test("grandson viewing his grandmother with a (Confident) h3 sees grandmother", () => {
+    const result = deriveRelationshipFromLegacyDoc(parseDoc(confidentGrandparentTrail("Smith-10", "Shirley Smith (1940-)")), {
+      profilePerson: { FirstName: "Shirley", LastNameCurrent: "Smith", Name: "Smith-10", Gender: "Female" },
+      profileID: "Smith-10",
+      userWtIdRaw: "Doe-21",
+      userColloquialNameRaw: "David",
+      legacyCommonAncestors: [],
+    });
+    expect(result).toBe("grandmother");
+  });
+
+  test("(Confident) h3 where the grandson shares the grandparent's first name", () => {
+    // "This makes John the grandfather of John": only the WT ID can say who is who.
+    const html = `
+      <h2>Direct Relationship Found</h2>
+      <h3> Grandson (DNA Confirmed) </h3>
+      <p>
+        <span class="ancestor_1">1. John is the son of <a href="/wiki/Roe-2">Peter Roe (1950-)</a></span><br>
+        <span class="ancestor_2">2. Peter is the son of <a href="/wiki/Roe-1">John Roe (1920-1990)</a></span><br>
+        This makes John the <b>grandfather</b> of John.
+      </p>
+    `;
+    const asGrandfather = deriveRelationshipFromLegacyDoc(parseDoc(html), {
+      profilePerson: { FirstName: "John", LastNameCurrent: "Roe", Name: "Roe-3", Gender: "Male" },
+      profileID: "Roe-3",
+      userWtIdRaw: "Roe-1",
+      userColloquialNameRaw: "John",
+      legacyCommonAncestors: [],
+    });
+    expect(asGrandfather).toBe("grandson");
+    const asGrandson = deriveRelationshipFromLegacyDoc(parseDoc(html), {
+      profilePerson: { FirstName: "John", LastNameCurrent: "Roe", Name: "Roe-1", Gender: "Male" },
+      profileID: "Roe-1",
+      userWtIdRaw: "Roe-3",
+      userColloquialNameRaw: "John",
+      legacyCommonAncestors: [],
+    });
+    expect(asGrandson).toBe("grandfather");
+  });
+
+  test("sibling headline with a certainty suffix gives plain sibling", () => {
+    const html = `
+      <h2>Relationship Found</h2>
+      <h3 class="mt-0"> Winston and John are siblings (Confident) </h3>
+    `;
+    const result = deriveRelationshipFromLegacyDoc(parseDoc(html), {
+      profilePerson: { FirstName: "John", LastNameCurrent: "Churchill", Name: "Churchill-5", Gender: "Male" },
+      profileID: "Churchill-5",
+      userWtIdRaw: "Churchill-4",
+      userColloquialNameRaw: "Winston",
+      legacyCommonAncestors: [{ ancestor_id: 1, path1Length: 2, path2Length: 2 }],
+    });
+    expect(result).toBe("sibling");
+  });
 });

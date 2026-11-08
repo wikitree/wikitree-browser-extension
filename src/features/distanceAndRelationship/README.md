@@ -22,7 +22,11 @@ This feature shows the distance (degrees) and relationship between the logged-in
   DOM/string logic covered by `legacyRelationshipParser.test.js`.
 - The fallback then uses the **stable parser behavior** with safety guards:
   - parses `h3` text first (preferred source of direct relationship),
-  - if `h3` is generic (e.g. `Grandson`), derives from explicit `This makes ... the <rel> of ...` text,
+  - strips WikiTree's trailing certainty from the `h3` first (`Grandson (Confident)`, `... are siblings (DNA Confirmed)`),
+  - if `h3` is generic (e.g. `Grandson`), derives from explicit `This makes ... the <rel> of ...` text. The generic
+    `h3` is the descendant's label whichever way round the two people are, so it is never used directly. The subject
+    of "This makes" is the person linked in the last numbered trail line; when that WT ID is the user's or the
+    profile's, it decides the orientation (names can be private or shared),
   - uses `bold` / `ancestor_1` legacy patterns when needed,
   - orients the parsed relationship to the **profile perspective** by checking whether the logged-in user name
     (from `#userData[data-mcolloquialname]`) is sentence subject or object,
