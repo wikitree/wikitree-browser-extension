@@ -82,10 +82,10 @@ async function privateWatchlistIds(onProgress) {
         true
       )
     )?.[0];
-    if (!Array.isArray(answer?.watchlist)) {
-      if (offset === 0) throw new NotLoggedInError();
-      break;
-    }
+    // Without the apps login the answer is an empty list with watchlistCount false. Every member watches at least
+    // their own profile, so an empty watchlist means the same.
+    if (offset === 0 && !(Number(answer?.watchlistCount) > 0)) throw new NotLoggedInError();
+    if (!Array.isArray(answer?.watchlist)) break;
     total = Number(answer.watchlistCount) || 0;
     answer.watchlist.forEach((person) => {
       if (Number(person.Privacy) < OPEN_PRIVACY && Number(person.Id) > 0) ids.add(Number(person.Id));
@@ -148,9 +148,12 @@ export async function forgetFacts() {
   }
 }
 
-/** A stored list can be used if it belongs to this member (or we can't tell who is logged in). */
+/**
+ * A stored list can be used if it belongs to this member (or we can't tell who is logged in). A list built from an
+ * empty watchlist was built without the login (an early version kept those), so it's no use.
+ */
 export function storedFactsFit(record, userId) {
-  if (!record?.facts) return false;
+  if (!record?.facts || !(Number(record.watchlistCount) > 0)) return false;
   return !userId || !record.userId || Number(record.userId) === Number(userId);
 }
 

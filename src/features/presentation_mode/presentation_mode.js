@@ -145,7 +145,7 @@ async function refreshFacts({ quiet }) {
   } catch (error) {
     console.warn("Presentation Mode:", error);
     if (quiet && state.compiled) {
-      updateBadge("Couldn't refresh");
+      updateBadge(error instanceof NotLoggedInError ? "Log in to the apps to refresh" : "Couldn't refresh");
     } else if (error instanceof NotLoggedInError && !userId) {
       // Not logged in to WikiTree at all: there is nothing private on the page. Hide email addresses anyway.
       useRecord({ facts: [], builtAt: Date.now(), checked: 0, watchlistCount: 0, loggedOut: true });
