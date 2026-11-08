@@ -1,0 +1,185 @@
+/* Styles for presentationMode feature */
+
+/*
+Private text is marked with the CSS Custom Highlight API (no change to the page's HTML), and whole elements (links
+to unlisted profiles, private photos, form fields holding private details) with the wbe-pm-hide class.
+*/
+
+::highlight(wbe-pm) {
+  color: transparent;
+  text-shadow: 0 0 7px rgba(60, 60, 60, 0.85);
+}
+
+.wbe-pm-hide {
+  filter: blur(6px) !important;
+}
+
+/* "Black bars" style */
+html.wbe-pm-bars ::highlight(wbe-pm) {
+  color: transparent;
+  background-color: #222;
+  text-shadow: none;
+}
+
+html.wbe-pm-bars .wbe-pm-hide {
+  filter: brightness(0) !important;
+}
+
+/* Alt/Option + hover: show the hidden element under the pointer */
+.wbe-pm-hide.wbe-pm-peek,
+html.wbe-pm-bars .wbe-pm-hide.wbe-pm-peek {
+  filter: none !important;
+}
+
+/* Check mode: show what would be hidden instead of hiding it */
+html.wbe-pm-check ::highlight(wbe-pm) {
+  color: inherit;
+  background-color: rgba(255, 213, 0, 0.6);
+  text-shadow: none;
+  text-decoration: underline wavy #c00;
+}
+
+html.wbe-pm-check .wbe-pm-hide {
+  filter: none !important;
+  outline: 2px dashed #c00 !important;
+  outline-offset: 1px;
+}
+
+/* The label in the corner, and the notice shown while the page is held back. Both stay visible while the
+   early script keeps the rest of the page hidden. */
+#wbe-pm-badge,
+#wbe-pm-overlay {
+  visibility: visible !important;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #222;
+}
+
+#wbe-pm-badge {
+  position: fixed;
+  left: 10px;
+  bottom: 10px;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #8fbc8f;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+  line-height: 1.2;
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+#wbe-pm-badge:hover,
+#wbe-pm-badge:focus-within,
+html.wbe-pm-check #wbe-pm-badge {
+  opacity: 1;
+}
+
+#wbe-pm-badge .wbe-pm-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: #2f6b2f;
+  white-space: nowrap;
+}
+
+#wbe-pm-badge svg {
+  width: 13px;
+  height: 13px;
+}
+
+#wbe-pm-badge button,
+#wbe-pm-overlay button {
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #aaa;
+  background: #fff;
+  color: #222;
+  cursor: pointer;
+}
+
+#wbe-pm-badge button:hover,
+#wbe-pm-overlay button:hover {
+  background: #eef6ee;
+}
+
+#wbe-pm-badge button[aria-pressed="true"] {
+  background: #ffe680;
+  border-color: #c9a400;
+}
+
+#wbe-pm-badge .wbe-pm-status {
+  color: #555;
+  white-space: nowrap;
+}
+
+#wbe-pm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f4f7f4;
+}
+
+#wbe-pm-overlay .wbe-pm-card {
+  max-width: 460px;
+  margin: 16px;
+  padding: 20px 22px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #cfe0cf;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+#wbe-pm-overlay h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  color: #2f6b2f;
+}
+
+#wbe-pm-overlay p {
+  margin: 0 0 12px;
+}
+
+#wbe-pm-overlay .wbe-pm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#wbe-pm-overlay .wbe-pm-actions button {
+  font-size: 14px;
+  padding: 5px 12px;
+}
+
+#wbe-pm-overlay .wbe-pm-actions button.wbe-pm-primary {
+  background: #2f6b2f;
+  border-color: #2f6b2f;
+  color: #fff;
+}
+
+body.darkMode #wbe-pm-badge,
+body.darkMode #wbe-pm-overlay .wbe-pm-card {
+  background: #222;
+  color: #eee;
+  border-color: #456845;
+}
+
+body.darkMode #wbe-pm-overlay {
+  background: #111;
+}
+
+body.darkMode #wbe-pm-badge .wbe-pm-status {
+  color: #bbb;
+}

@@ -188,6 +188,8 @@ import "./features/text_expander/text_expander";
 import "./features/what_links_here/what_links_here";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
+import "./features/presentation_mode/presentation_mode";
+
 import "./features/relationship_finder_options/relationship_finder_options";
 
 /*

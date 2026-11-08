@@ -109,6 +109,7 @@ import "./locationsHelper/locationsHelper_options";
 import "./menu_hover/menu_hover_options";
 import "./menu_style/menu_style_options";
 import "./pending_merges_filters/pending_merges_filters_options";
+import "./presentation_mode/presentation_mode_options";
 import "./printerfriendly/printerfriendly_options";
 import "./randomProfile/randomProfile_options";
 import "./readability/readability_options";

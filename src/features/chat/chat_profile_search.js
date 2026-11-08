@@ -28,7 +28,13 @@ import { addBirthDecadeSqlToDecadeTokens } from "./chat_century_decade";
 import { normalizeWtPlusDateSql } from "./chat_wtplus_date_sql";
 import { buildGroupedResult } from "./chat_group_rows";
 import { addRequestedColumns, requestedColumnFields } from "./chat_requested_columns";
-import { rankProfileRowsByName } from "./chat_profile_rank";
+import {
+  findFamousRowIndex,
+  profileNotability,
+  rankProfileRowsByName,
+  searchMatchDisplayName,
+} from "./chat_profile_rank";
+import { findTopWikiTreeIdOnWikidata, findWikiTreeIdOnWikidata } from "./chat_wikidata";
 import {
   applySameCemetery,
   buildSearchSpecInstructions,
@@ -9274,7 +9280,7 @@ ${note}` };
       if (!key) return null;
 
       const system =
-        "You are a parser that converts a user's short search query into a JSON object with the following optional keys: FirstName, LastName, RealName, BirthDateStart, BirthDateEnd, DeathDateStart, DeathDateEnd, BirthLocation, DeathLocation, fatherFirstName, fatherLastName, motherFirstName, motherLastName, spouseQuery, skipVariants (true/false), watchlist (true/false). A plural surname names the family: 'Beacalls' or 'the Beacalls' is LastName 'Beacall'. If the query also has a condition these keys cannot express (emigration, occupation, military service, cause of death, burial, a category, age at death), output {\"unsupported\":\"<that condition>\"} instead. If it asks for extra columns or details to show (gender, privacy level, managers…), output {\"unsupported\":\"extra columns\"}. Only output valid JSON and nothing else.";
+        "You are a parser that converts a user's short search query into a JSON object with the following optional keys: FirstName, LastName, RealName, BirthDateStart, BirthDateEnd, DeathDateStart, DeathDateEnd, BirthLocation, DeathLocation, fatherFirstName, fatherLastName, motherFirstName, motherLastName, spouseQuery, skipVariants (true/false), watchlist (true/false). A plural surname names the family: 'Beacalls' or 'the Beacalls' is LastName 'Beacall'. If the query also has a condition these keys cannot express (emigration, occupation, military service, cause of death, burial, a category, age at death), output {\"unsupported\":\"<that condition>\"} instead. If it asks for extra columns or details to show (gender, privacy level, managers…), output {\"unsupported\":\"extra columns\"}. If the name is that of a well-known public figure (someone with a Wikipedia article), keep FirstName and LastName as typed and also add Famous: {\"name\":\"<the name they are best known by>\",\"birthYear\":<year>,\"deathYear\":<year, or null if living>,\"knownFor\":\"<a few words, e.g. American baseball player>\"}; for 'Babe Ruth': {\"FirstName\":\"Babe\",\"LastName\":\"Ruth\",\"Famous\":{\"name\":\"Babe Ruth\",\"birthYear\":1895,\"deathYear\":1948,\"knownFor\":\"American baseball player\"}}. Leave Famous out for an ordinary name (Mary Smith, John Beacall) unless one famous person is the obvious meaning. Only output valid JSON and nothing else.";
       const user = `Parse this search query into JSON: "${String(rawQuery || "").trim()}"`;
 
       let aiResult = null;
@@ -9931,6 +9937,8 @@ ${note}` };
 
       let aiParseAppliedNameFields = false;
       let aiParseAppliedLocationFields = false;
+      // The famous person the AI says the name means (Babe Ruth → born 1895), if any.
+      let aiFamous = null;
       try {
         // (Genie's own key, as the AI call uses: a key kept only for Auto Bio doesn't count)
         const hasKey = Boolean((await getChatAiConfig())?.key);
@@ -9965,6 +9973,15 @@ ${note}` };
               }
             }
             return `I couldn't work out a concrete person search from "${query}" (it needs ${aiParseRaw.unsupported}).`;
+          }
+          const famousRaw = aiParseRaw?.Famous ?? aiParseRaw?.famous;
+          if (famousRaw && typeof famousRaw === "object" && Number(famousRaw.birthYear) > 0) {
+            aiFamous = {
+              name: String(famousRaw.name || "").trim(),
+              birthYear: Number(famousRaw.birthYear),
+              deathYear: Number(famousRaw.deathYear) > 0 ? Number(famousRaw.deathYear) : null,
+              knownFor: String(famousRaw.knownFor || "").trim(),
+            };
           }
           const aiParse = sanitizeAiParse(aiParseRaw);
           if (aiParse && typeof aiParse === "object" && Object.keys(aiParse).length) {
@@ -10295,7 +10312,8 @@ ${note}` };
       const [, , people] = await fetchPeoplePaged(
         WBE_CHAT_APP_ID,
         profileIds,
-        "Id,Name,FirstName,MiddleName,RealName,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,LastNameOther,Gender,DataStatus" +
+        // (Nicknames, Prefix and Suffix for the full name; Templates and Managers say who is notable)
+        "Id,Name,FirstName,MiddleName,RealName,Nicknames,Prefix,Suffix,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,LastNameOther,Gender,DataStatus,Templates,Managers" +
           (spouseQuery ? ",Spouses" : "") +
           (relativeFilters.length ? ",Father,Mother" : ""),
         spouseQuery ? { getSpouses: 1 } : {}
@@ -10370,11 +10388,23 @@ ${note}` };
       if (!matchedPeople.length && privateCount) {
         return `The only matches for "${query}" are private profiles.`;
       }
-      const mappedRows = matchedPeople.map((person) =>
-        mapApiPersonToStandardRow(person, {
-          surnamePreference: "birthFirst",
-        })
-      );
+      const searchedFirstName = searchParams?.FirstName || modifiers?.firstName || "";
+      const searchedLastName = searchParams?.LastName || modifiers?.lastName || "";
+      const toSearchRow = (person) => {
+        const fullName = searchMatchDisplayName(person, searchedFirstName);
+        const { notable, note } = profileNotability(person);
+        return {
+          ...mapApiPersonToStandardRow(person, {
+            surnamePreference: "birthFirst",
+            ...(fullName ? { displayName: fullName } : {}),
+          }),
+          preferredName: person?.RealName || "",
+          nicknames: person?.Nicknames || "",
+          notable,
+          note: note || (notable ? "Notable" : ""),
+        };
+      };
+      const mappedRows = matchedPeople.map(toSearchRow);
       console.debug("wbe: mappedRows sample", {
         mappedCount: mappedRows.length,
         sample: mappedRows
@@ -10508,16 +10538,87 @@ ${note}` };
         });
       }
 
+      // The famous person the name means (Babe Ruth → Ruth-1) goes first. With AI, the AI
+      // names them and Wikidata (which keeps WikiTree IDs) finds their profile; without,
+      // Wikidata's top hit for the name counts only if it is a notable profile among the
+      // matches ("Mary Smith"'s top hit is just some Mary Smith).
+      let famousLead = "";
+      const typedName = [searchedFirstName, searchedLastName].filter(Boolean).join(" ").trim();
+      let searchNarrowed = false;
+      try {
+        const filtered = Boolean(
+          spouseQuery ||
+            relativeFilters.length ||
+            ["bornBefore", "bornAfter", "diedBefore", "diedAfter", "bornRange", "diedRange", "birthLocation", "deathLocation"].some(
+              (key) => modifiers?.[key]
+            )
+        );
+        searchNarrowed = filtered;
+        let wikidataHit = null;
+        if (aiFamous) {
+          showChatShaky(`Looking up the famous ${aiFamous.name || typedName}...`);
+          wikidataHit = await findWikiTreeIdOnWikidata([aiFamous.name, typedName], aiFamous.birthYear);
+        } else if (typedName && finalRows.some((row) => row?.notable)) {
+          const top = await findTopWikiTreeIdOnWikidata(typedName);
+          const topRow = top && finalRows.find((row) => String(row?.wtid || "").toLowerCase() === top.wtId.toLowerCase());
+          if (topRow?.notable) wikidataHit = top;
+        }
+        let famousIndex = findFamousRowIndex(finalRows, {
+          wtId: wikidataHit?.wtId,
+          birthYear: aiFamous?.birthYear,
+          deathYear: aiFamous?.deathYear,
+        });
+        // Not among the name matches (the search didn't reach them): fetch them, unless the
+        // user narrowed the search by spouse or relatives, which haven't been checked for them.
+        if (famousIndex < 0 && wikidataHit?.wtId && aiFamous && !filtered) {
+          const [, , famousPeople] = await fetchPeoplePaged(
+            WBE_CHAT_APP_ID,
+            [wikidataHit.wtId],
+            "Id,Name,FirstName,MiddleName,RealName,Nicknames,Prefix,Suffix,Derived.ShortName,BirthDate,DeathDate,BirthLocation,DeathLocation,LastNameAtBirth,LastNameCurrent,LastNameOther,Gender,DataStatus,Templates,Managers",
+            { resolveRedirect: 1 }
+          );
+          const famousPerson = Object.values(famousPeople || {}).find((p) => p?.Name && Number(p?.Id) > 0);
+          if (famousPerson) {
+            const existing = finalRows.findIndex((row) => row?.wtid === famousPerson.Name);
+            if (existing >= 0) famousIndex = existing;
+            else {
+              finalRows = [toSearchRow(famousPerson), ...finalRows];
+              famousIndex = 0;
+            }
+          }
+        }
+        hideChatShaky();
+        if (famousIndex >= 0) {
+          const row = finalRows[famousIndex];
+          const knownFor = aiFamous?.knownFor || "";
+          const notabilityText = row.note && row.note !== "Notable" ? row.note : "";
+          finalRows[famousIndex] = {
+            ...row,
+            famous: true,
+            // (the chat line says what they're famous for; the table has the Notability text too)
+            famousFor: knownFor || notabilityText,
+            note: [knownFor ? `Famous: ${knownFor}` : "Famous", notabilityText].filter(Boolean).join(". "),
+          };
+          famousLead = aiFamous?.name || wikidataHit?.label || typedName;
+        }
+      } catch (error) {
+        hideChatShaky();
+        console.debug("wbe: famous-person lookup failed", { query, error: error?.message || error });
+      }
+
       // Rank by the names actually sent to searchPerson.
       finalRows = rankProfileRowsByName(finalRows, {
-        firstName: searchParams?.FirstName || modifiers?.firstName || "",
-        lastName: searchParams?.LastName || modifiers?.lastName || "",
+        firstName: searchedFirstName,
+        lastName: searchedLastName,
         spouseName: spouseQuery || "",
       });
       const previewLimit = 10;
       const previewRows = finalRows.slice(0, previewLimit);
       const remainingRows = finalRows.slice(previewLimit);
 
+      // ("Famous: American baseball player" on the famous one; "Notable" on the rest of the notables.)
+      const noteSuffix = (row) =>
+        row.famous ? ` — Famous${row.famousFor ? `: ${row.famousFor}` : ""}` : row.notable ? " — Notable" : "";
       const formatLocation = (row) => {
         const parts = [];
         if (row.birthLocation) parts.push(row.birthLocation);
@@ -10530,7 +10631,7 @@ ${note}` };
         const death = person.death || "?";
         const spouseSuffix = person.matchedSpouse ? ` — spouse: ${person.matchedSpouse}` : "";
         const parentSuffix = person.matchedRelatives ? ` — ${person.matchedRelatives}` : "";
-        return `- ${person.displayName} (${person.wtid}) [${birth} - ${death}]${formatLocation(person)}${spouseSuffix}${parentSuffix}`;
+        return `- ${person.displayName} (${person.wtid}) [${birth} - ${death}]${formatLocation(person)}${spouseSuffix}${parentSuffix}${noteSuffix(person)}`;
       });
 
       const inlineMore = remainingRows.length
@@ -10544,7 +10645,7 @@ ${note}` };
                 const parentSuffix = person.matchedRelatives ? ` — ${person.matchedRelatives}` : "";
                 return `- ${person.displayName} (${person.wtid}) [${birth} - ${death}]${formatLocation(
                   person
-                )}${spouseSuffix}${parentSuffix}`;
+                )}${spouseSuffix}${parentSuffix}${noteSuffix(person)}`;
               })
               .join("\n"),
           }
@@ -10561,12 +10662,22 @@ ${note}` };
       const removed = beforeCount - finalRows.length;
       if (removed) console.debug("wbe: removed empty rows before rendering table", { beforeCount, removed });
 
-      const table = makeStandardProfileTable(`Profile search: ${query}`, finalRows, [[0, "asc"]]);
+      // "I'm looking for Babe Ruth." → "Babe Ruth": the name searched for, when nothing else narrowed it.
+      const shownQuery =
+        typedName && !searchNarrowed && !relativeFilters.length && !spouseQuery
+          ? typedName
+          : String(query || "").replace(/[.!?]+$/, "").trim();
+      // (the ranked order: the famous one, then the best name matches; the headers still sort)
+      const table = makeStandardProfileTable(`Profile search: ${shownQuery}`, finalRows);
+      table.defaultOrder = [];
       const hiddenColumnKeys = spouseQuery ? ["degrees", "spouseList"] : ["degrees", "spouse", "spouseList"];
       table.columns = (table.columns || []).filter((c) => !hiddenColumnKeys.includes(c.key));
+      if (finalRows.some((row) => row?.note)) table.columns.push({ title: "Notable", key: "note" });
 
       return {
-        message: `Here are profile matches for "${query}":\n${previewLines.join("\n")}${privateNote}`,
+        message: `Here are profile matches for "${shownQuery}"${
+          famousLead ? `. The famous ${famousLead} is first:` : ":"
+        }\n${previewLines.join("\n")}${privateNote}`,
         inlineMore,
         table,
       };

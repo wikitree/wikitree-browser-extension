@@ -8,6 +8,48 @@ function normalizeText(value) {
     .toLowerCase();
 }
 
+// Genie keeps its history in sessionStorage as JSON, which drops the columns' render
+// functions: a table reopened after closing Genie showed its WT IDs as plain text
+// (the user, 2026-11-08). Columns whose render was lost get it back by key.
+const RESTORED_RENDERS = {
+  wtid: (row) => makeProfileLink(row?.wtid, row?.wtid),
+  displayName: (row) => makeProfileLink(row?.wtid, row?.displayName),
+  spouse: (row) => {
+    const list = Array.isArray(row?.spouseList) ? row.spouseList : [];
+    if (!list.length) return escapeHtml(row?.spouse || "");
+    return list
+      .map((s) => makeProfileLink(s?.wtid, [s?.firstName || s?.display || "", s?.lnab || ""].filter(Boolean).join(" ") || s?.wtid || ""))
+      .join(", ");
+  },
+  categoryDisplay: (row) => makeCategoryLink(row?.categoryPageName, row?.categoryDisplay),
+  father: (row) =>
+    row?.fatherWtid ? makeProfileLink(row.fatherWtid, row.father || row.fatherWtid) : escapeHtml(row?.father || ""),
+  mother: (row) =>
+    row?.motherWtid ? makeProfileLink(row.motherWtid, row.mother || row.motherWtid) : escapeHtml(row?.mother || ""),
+  managerList: (row) =>
+    (Array.isArray(row?.managerList) ? row.managerList : [])
+      .filter((manager) => manager?.wtid)
+      .map((manager) => `${makeProfileLink(manager.wtid, manager.wtid)} (${escapeHtml(manager.role || "M")})`)
+      .join(", "),
+  categoryList: (row) =>
+    (Array.isArray(row?.categoryList) ? row.categoryList : [])
+      .map((name) => makeCategoryLink(name, String(name).replace(/_+/g, " ")))
+      .join("<br>"),
+};
+
+/**
+ * The column's render, or the one it lost in storage. Only a value the default would
+ * show as text is linked: a restored "displayName" column of a table that never linked
+ * it (no wtid on the row) stays text.
+ */
+function columnRender(column) {
+  if (typeof column?.render === "function") return column.render;
+  const restored = RESTORED_RENDERS[column?.key];
+  if (!restored) return null;
+  if (column.key === "displayName") return (row) => (row?.wtid ? restored(row) : escapeHtml(row?.displayName || ""));
+  return restored;
+}
+
 export function buildResultsTableHtml(result, opts = {}) {
   const tableId = (opts && opts.tableId) || CHAT_RESULTS_TABLE_ID;
   const headers = result.columns
@@ -23,6 +65,7 @@ export function buildResultsTableHtml(result, opts = {}) {
       return `<th><input type="text" class="chat-col-filter-input" data-col-index="${index}" data-col-key="${columnKey}" placeholder="Filter" /></th>`;
     })
     .join("");
+  const renders = result.columns.map(columnRender);
   const rows = result.rows
     .map((row) => {
       const normalizedGender = normalizeText(row?.gender);
@@ -34,14 +77,10 @@ export function buildResultsTableHtml(result, opts = {}) {
       }
 
       const cells = result.columns
-        .map((column) => {
-          const rawValue = typeof column.render === "function" ? column.render(row) : row?.[column.key];
-          const cellValue =
-            rawValue == null || rawValue === ""
-              ? ""
-              : typeof column.render === "function"
-              ? rawValue
-              : escapeHtml(rawValue);
+        .map((column, index) => {
+          const render = renders[index];
+          const rawValue = render ? render(row) : row?.[column.key];
+          const cellValue = rawValue == null || rawValue === "" ? "" : render ? rawValue : escapeHtml(rawValue);
           const cellClass = column?.cellClass ? ` class="${escapeHtml(column.cellClass)}"` : "";
           return `<td${cellClass}>${cellValue}</td>`;
         })

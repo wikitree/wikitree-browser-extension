@@ -693,6 +693,34 @@ async function readErrorBody(response) {
   }
 }
 
+let presentationModeState = null;
+
+/**
+ * Whether Presentation Mode is on (its enabled flag in sync storage). Read once per page and kept up to date.
+ * False where there's no extension storage (tests).
+ */
+function isPresentationModeOn() {
+  if (!presentationModeState) {
+    presentationModeState = new Promise((resolve) => {
+      try {
+        if (typeof chrome === "undefined" || !chrome.storage?.sync) {
+          resolve(false);
+          return;
+        }
+        chrome.storage.sync.get("presentationMode", (items) => resolve(items?.presentationMode === true));
+        chrome.storage.onChanged?.addListener((changes, area) => {
+          if (area === "sync" && changes.presentationMode) {
+            presentationModeState = Promise.resolve(changes.presentationMode.newValue === true);
+          }
+        });
+      } catch (error) {
+        resolve(false);
+      }
+    });
+  }
+  return presentationModeState;
+}
+
 async function fetchFromAPI(options, postData) {
   const response = await fetch(API_URL, options);
   if (!response.ok) {
@@ -732,6 +760,9 @@ async function fetchFromAPI(options, postData) {
  */
 WikiTreeAPI.postToAPI = async function (postData, signal) {
   condLog(`>>>>> postToAPI ${postData.action} ${postData.key || postData.keys}`, postData);
+  // Presentation Mode: ask as the public would, so WBE's own features only ever get public data. The apps login
+  // itself still needs the login cookie, or signing in would quietly fail.
+  const publicOnly = postData.action !== "clientLogin" && (await isPresentationModeOn());
 
   const formData = new FormData();
   for (let key in postData) {
@@ -755,7 +786,7 @@ WikiTreeAPI.postToAPI = async function (postData, signal) {
   // We're POSTing the data, so we don't worry about URL size limits and want JSON back.
   const options = {
     method: "POST",
-    credentials: "include",
+    credentials: publicOnly ? "omit" : "include",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },

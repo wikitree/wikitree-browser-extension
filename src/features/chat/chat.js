@@ -58,6 +58,7 @@ import { createChatConnectionHandlers } from "./chat_connections";
 import { fullWikiTreeName } from "./chat_fan_chart_data";
 import { AI_CHAT_CLAIM_RULES, handleExplicitSearchMode, looksLikeQuestion } from "./chat_search_mode";
 import { tryInsteadPrompts } from "./chat_try_instead";
+import { stripSearchLeadIn } from "./chat_search_lead_in";
 import {
   AI_ANSWER_FORMAT_RULES,
   clearUnanswered,
@@ -3363,6 +3364,19 @@ const REWRITE_STEPS = [
       return false;
     },
   },
+  // Without AI: "I'm looking for Babe Ruth." → "Babe Ruth", the short search Genie reads
+  // (chat_search_lead_in.js). With AI, the AI reads the whole prompt.
+  {
+    name: "searchLeadIn",
+    run: async (rewrite) => {
+      if (rewrite.retryRequested) return false;
+      const search = stripSearchLeadIn(rewrite.prompt);
+      if (!search || !(isAiPaused() || !(await getChatAiConfig())?.key)) return false;
+      rewrite.prompt = search;
+      rewrite.searchText = search;
+      return false;
+    },
+  },
   {
     name: "retry",
     run: (rewrite) => {
@@ -4285,7 +4299,8 @@ async function sendChatPrompt() {
   if (!retryRequested) {
     // ("try again" after "Taking that as: …" or an accepted offer asks that question again, not the
     // typed "No, I meant her adoptive parents", 2026-10-31)
-    lastNonRetryUserPrompt = followupOfferNote ? lastRoutedPrompt : rawPrompt;
+    // (a search under a lead-in is what was asked: "Babe Ruth", not "I'm looking for Babe Ruth.")
+    lastNonRetryUserPrompt = followupOfferNote ? lastRoutedPrompt : rewrite.searchText || rawPrompt;
   }
   $input.val("");
   refreshWtPlusSuggestionPickerForCurrentPopup();
