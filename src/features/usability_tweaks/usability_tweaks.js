@@ -1348,6 +1348,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
         addBrowsePhotosButton();
       }
 
+      if (options.preservePrivateMessageDrafts) {
+        enablePrivateMessageDraftRestore();
+      }
+
       // Add save form button
       if (isSearchPage && options.saveSearchFormDataButton) {
         addSaveSearchFormDataButton();
@@ -1587,6 +1591,113 @@ function acceptPMs() {
       pmButton[0].click();
     }
   }
+}
+
+const PRIVATE_MESSAGE_DRAFT_KEY_PREFIX = "wbePrivateMessageDraft:v1";
+let pendingPrivateMessageContext = null;
+
+function privateMessageDraftKey(context) {
+  const who = context?.who ? String(context.who) : "unknown";
+  const ref = context?.ref ? String(context.ref) : "";
+  return `${PRIVATE_MESSAGE_DRAFT_KEY_PREFIX}:${who}:${ref}`;
+}
+
+function privateMessageContextFromForm(form) {
+  if (!form) return { who: "", ref: "" };
+  const whoInput = form.querySelector(
+    "input[name='who'], input[name='user_id'], input[name='recipient_id'], input[name='to'], input[id*='who']"
+  );
+  const refInput = form.querySelector("input[name='ref'], input[name='profile_id'], input[id*='ref']");
+  return {
+    who: whoInput?.value || "",
+    ref: refInput?.value || "",
+  };
+}
+
+function savePrivateMessageDraft(subjectInput, bodyInput, context) {
+  if (!bodyInput) return;
+  const key = privateMessageDraftKey(context);
+  const draft = {
+    subject: subjectInput?.value || "",
+    body: bodyInput.value || "",
+    updatedAt: Date.now(),
+  };
+  if (!draft.subject && !draft.body) {
+    sessionStorage.removeItem(key);
+    return;
+  }
+  sessionStorage.setItem(key, JSON.stringify(draft));
+}
+
+function restorePrivateMessageDraft(subjectInput, bodyInput, context) {
+  if (!bodyInput) return;
+  const raw = sessionStorage.getItem(privateMessageDraftKey(context));
+  if (!raw) return;
+  let draft;
+  try {
+    draft = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  if (!draft || typeof draft !== "object") return;
+  if (typeof draft.body === "string" && !bodyInput.value) {
+    bodyInput.value = draft.body;
+  }
+  if (subjectInput && typeof draft.subject === "string") {
+    const current = (subjectInput.value || "").trim();
+    // Let explicit PMsubject URL params win; otherwise restore when empty or default-ish.
+    const hasPresetPmParams =
+      new URLSearchParams(window.location.search).has("PMsubject") ||
+      new URLSearchParams(window.location.search).has("PMbody");
+    if (!hasPresetPmParams && (!current || current.toLowerCase() === "your page on wikitree")) {
+      subjectInput.value = draft.subject;
+    }
+  }
+}
+
+function bindPrivateMessageDraftHandlers() {
+  const bodyInput = document.getElementById("privateMessage-comments");
+  if (!bodyInput || bodyInput.dataset.wbeDraftBound === "1") return;
+
+  bodyInput.dataset.wbeDraftBound = "1";
+  const subjectInput = document.getElementById("privateMessage-subject");
+  const form = bodyInput.closest("form");
+  const context = {
+    ...(pendingPrivateMessageContext || {}),
+    ...privateMessageContextFromForm(form),
+  };
+
+  restorePrivateMessageDraft(subjectInput, bodyInput, context);
+
+  const save = () => savePrivateMessageDraft(subjectInput, bodyInput, context);
+  bodyInput.addEventListener("input", save);
+  subjectInput?.addEventListener("input", save);
+}
+
+function enablePrivateMessageDraftRestore() {
+  $(document)
+    .off("click.wbePmDraftRestore")
+    .on("click.wbePmDraftRestore", ".privateMessageLink", function () {
+      pendingPrivateMessageContext = {
+        who: this.getAttribute("data-who") || "",
+        ref: this.getAttribute("data-ref") || "",
+      };
+      setTimeout(bindPrivateMessageDraftHandlers, 0);
+    });
+
+  new MutationObserver((mutationsList) => {
+    for (const mutation of mutationsList) {
+      for (const node of mutation.addedNodes) {
+        if (!(node instanceof Element)) continue;
+        if (node.id === "privateMessage-comments" || node.querySelector("#privateMessage-comments")) {
+          bindPrivateMessageDraftHandlers();
+          return;
+        }
+      }
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+
+  bindPrivateMessageDraftHandlers();
 }
 
 setTimeout(acceptPMs, 1000);

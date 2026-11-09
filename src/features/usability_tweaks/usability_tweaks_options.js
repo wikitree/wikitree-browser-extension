@@ -118,6 +118,13 @@ const usabilityTweaks = {
           label: "Add a 'Browse Photos' button when there is more than one photo but no button is shown.",
           defaultValue: true,
         },
+        {
+          id: "preservePrivateMessageDrafts",
+          type: OptionType.CHECKBOX,
+          label:
+            "Preserve private message drafts so if the message popup closes (for example by clicking outside it), reopening Message restores your typed subject/body.",
+          defaultValue: true,
+        },
       ],
     },
     {
