@@ -5,8 +5,10 @@ import "./anniversaries_table.css";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { distRelDbKeyFor, getUserWtId } from "../../core/common";
+import { kinshipValue } from "../../core/lib/kinship";
 import * as distRel from "../distanceAndRelationship/distanceAndRelationship";
 const { CONNECTION_STORE_NAME, RELATIONSHIP_STORE_NAME, initDistanceAndRelationshipDBs } = distRel;
+export { kinshipValue };
 
 const WBE_ANNV_TBL_APP_ID = "WBE_anniversaries_table";
 
@@ -364,83 +366,6 @@ async function updateNames() {
       $("#anniversariesTable, #anniversariesTable_wrapper").show();
     }
   }
-}
-
-export function kinshipValue(kinship) {
-  let level = 0;
-
-  // Check if 'grand-' is present
-  if (kinship.includes("grand")) {
-    level += 1;
-  }
-
-  // Calculate number of 'great-' prefixes
-  const greatMatch = kinship.match(/(\d+)(?:st|nd|rd|th) great/);
-  if (greatMatch) {
-    level += parseInt(greatMatch[1], 10); // Add the number before 'great'
-  } else if (kinship.includes("great")) {
-    level += 1;
-  }
-
-  // Add level based on base relationship
-  if (kinship.includes("cousin")) {
-    // Extract cousin number
-    level += 1;
-    const cousinNumber = parseInt(kinship.match(/(\d+)(?:st|nd|rd|th) cousin/)?.[1]);
-    level += cousinNumber * 2;
-
-    // Extract 'removed' number
-    const removedMatch = kinship.match(/(\d+) times removed/);
-    if (removedMatch) {
-      const removedNumber = parseInt(removedMatch[1], 10);
-      level += removedNumber;
-    } else {
-      const words = [
-        "once",
-        "twice",
-        "three",
-        "four",
-        "five",
-        "six",
-        "seven",
-        "eight",
-        "nine",
-        "ten",
-        "eleven",
-        "twelve",
-        "thirteen",
-        "fourteen",
-        "fifteen",
-        "sixteen",
-        "seventeen",
-        "eighteen",
-        "nineteen",
-        "twenty",
-        "twenty-one",
-        "twenty-two",
-        "twenty-three",
-        "twenty-four",
-        "twenty-five",
-        "twenty-six",
-        "twenty-seven",
-        "twenty-eight",
-        "twenty-nine",
-        "thirty",
-      ];
-      for (let i = 0; i < words.length; i++) {
-        if (kinship.includes(words[i] + " removed") || kinship.includes(words[i] + " times removed")) {
-          level += i + 1;
-          break;
-        }
-      }
-    }
-  } else if (["brother", "sister", "father", "mother", "daughter", "son"].some((term) => kinship.includes(term))) {
-    level += 1;
-  } else if (["uncle", "aunt", "niece", "nephew"].some((term) => kinship.includes(term))) {
-    level += 2;
-  }
-
-  return level;
 }
 
 /*

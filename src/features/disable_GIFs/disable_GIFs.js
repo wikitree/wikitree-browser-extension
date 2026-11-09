@@ -11,27 +11,40 @@ shouldInitializeFeature("disableGIFs").then((result) => {
 });
 
 function stopAllGifs() {
-  // Freeze background GIFs
-  $("*").each(function () {
-    const $el = $(this);
-    const bg = $el.css("background-image");
-    const matches = bg && bg.match(/url\(["']?(.*\.gif)["']?\)/i);
-    if (matches && matches[1]) {
-      const gifUrl = matches[1];
-      const img = new window.Image();
-      img.crossOrigin = "anonymous";
-      img.onload = function () {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0);
-        const dataUrl = canvas.toDataURL("image/png");
-        $el.css("background-image", `url('${dataUrl}')`);
-      };
-      img.src = gifUrl;
+  // Freeze background GIFs. A native loop, not $("*"): jQuery copies every element into one array with a single
+  // push.apply, which throws "Maximum call stack size exceeded" on very large pages (e.g. a Bulk Trusted List
+  // Changes list of ~9,000 profiles, 2026-11-09).
+  const elements = document.getElementsByTagName("*");
+  const frozenByUrl = new Map(); // GIF URL → Promise of a PNG data URL, so each GIF is converted once
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i];
+    const bg = window.getComputedStyle(el).backgroundImage;
+    if (!bg || bg === "none" || !/\.gif/i.test(bg)) continue;
+    const matches = bg.match(/url\(["']?(.*\.gif)["']?\)/i);
+    if (!matches || !matches[1]) continue;
+    const gifUrl = matches[1];
+    if (!frozenByUrl.has(gifUrl)) {
+      frozenByUrl.set(
+        gifUrl,
+        new Promise((resolve) => {
+          const img = new window.Image();
+          img.crossOrigin = "anonymous";
+          img.onload = function () {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL("image/png"));
+          };
+          img.src = gifUrl;
+        })
+      );
     }
-  });
+    frozenByUrl.get(gifUrl).then((dataUrl) => {
+      el.style.backgroundImage = `url('${dataUrl}')`;
+    });
+  }
 
   // Freeze inline GIF <img> elements
   $("img").each(function () {

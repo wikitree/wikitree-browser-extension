@@ -17,6 +17,7 @@ const lazyFeatureChunks = new Set([
   "change-family-lists",
   "image-table",
   "space-watchlist-sorter",
+  "trusted-list-changes-table",
 ]);
 
 try {
@@ -127,6 +128,11 @@ module.exports = (env) => ({
         {
           from: "features/custom_change_summary_options/edit_draft_page.js",
           to: "../features/custom_change_summary_options/edit_draft_page.js",
+          context: "src",
+        },
+        {
+          from: "features/trusted_list_changes_table/trusted_list_changes_page.js",
+          to: "../features/trusted_list_changes_table/trusted_list_changes_page.js",
           context: "src",
         },
       ],

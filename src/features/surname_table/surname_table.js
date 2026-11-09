@@ -13,7 +13,7 @@ import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } fro
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { getUserNumId } from "../../core/common";
 import { addTableButtonsContainer } from "../remove_from_watchlist/remove_from_watchlist";
-import { kinshipValue } from "../anniversaries_table/anniversaries_table";
+import { kinshipValue } from "../../core/lib/kinship";
 import { ageAtDeath, distRelDbKeyFor, getUserWtId } from "../../core/common";
 import * as distRel from "../distanceAndRelationship/distanceAndRelationship";
 const { CONNECTION_STORE_NAME, RELATIONSHIP_STORE_NAME, initDistanceAndRelationshipDBs } = distRel;

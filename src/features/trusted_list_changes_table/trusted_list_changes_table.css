@@ -1,0 +1,165 @@
+.wbe-tlc {
+  margin: 1em 0;
+}
+
+.wbe-tlc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4em;
+  margin-bottom: 0.5em;
+}
+
+.wbe-tlc-root {
+  margin-left: 0.75em;
+}
+
+.wbe-tlc-toggle {
+  margin-left: auto;
+  font-size: 0.9em;
+}
+
+.wbe-tlc-count,
+.wbe-tlc-progress {
+  font-size: 0.9em;
+  margin: 0.25em 0;
+}
+
+.wbe-tlc-progress {
+  opacity: 0.75;
+}
+
+.wbe-tlc-status:not(:empty) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0.4em 0;
+  padding: 0.4em 0.6em;
+  border-radius: 4px;
+  background: rgba(46, 125, 50, 0.12);
+  border: 1px solid rgba(46, 125, 50, 0.35);
+}
+
+.wbe-tlc-status-close {
+  margin-left: auto;
+  border: none;
+  background: none;
+  font-size: 1.2em;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}
+
+.wbe-tlc-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5em;
+  margin: 0.3em 0;
+}
+
+.wbe-tlc-controls .dataTables_length,
+.wbe-tlc-controls .dataTables_filter,
+.wbe-tlc-controls .dataTables_info,
+.wbe-tlc-controls .dataTables_paginate {
+  float: none;
+  padding-top: 0;
+  text-align: left;
+}
+
+.wbe-tlc-scroll {
+  overflow-x: auto;
+}
+
+table.wbe-tlc-table {
+  width: 100% !important;
+  font-size: 0.9em;
+}
+
+table.wbe-tlc-table thead tr.wbe-tlc-filters th {
+  padding: 2px 4px;
+  font-weight: normal;
+  cursor: default;
+  background-image: none;
+}
+
+table.wbe-tlc-table .wbe-tlc-filter {
+  width: 100%;
+  min-width: 4em;
+  box-sizing: border-box;
+  font-size: 0.9em;
+  padding: 1px 3px;
+}
+
+table.wbe-tlc-table select.wbe-tlc-filter {
+  min-width: 6.5em;
+}
+
+table.wbe-tlc-table th.wbe-tlc-check-cell,
+table.wbe-tlc-table td.wbe-tlc-check-cell {
+  text-align: center;
+  width: 1.1em;
+  min-width: 1.1em;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+table.wbe-tlc-table input.wbe-tlc-check {
+  float: none;
+  margin: 0;
+  cursor: pointer;
+}
+
+table.wbe-tlc-table td.wbe-tlc-date {
+  white-space: nowrap;
+}
+
+table.wbe-tlc-table td.wbe-tlc-place {
+  min-width: 10em;
+}
+
+table.wbe-tlc-table th.wbe-tlc-relationship,
+table.wbe-tlc-table td.wbe-tlc-relationship {
+  max-width: 11em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+table.wbe-tlc-table th.wbe-tlc-distance,
+table.wbe-tlc-table td.wbe-tlc-distance,
+table.wbe-tlc-table th.wbe-tlc-relationship,
+table.wbe-tlc-table td.wbe-tlc-relationship {
+  text-align: center;
+}
+
+table.wbe-tlc-table td.wbe-tlc-group {
+  white-space: nowrap;
+}
+
+table.wbe-tlc-table td.wbe-tlc-branch-cell {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+table.wbe-tlc-table td.wbe-tlc-info {
+  text-align: center;
+}
+
+table.wbe-tlc-table tbody tr.wbe-tlc-selected > td {
+  background-color: rgba(46, 125, 50, 0.1);
+}
+
+table.wbe-tlc-table tbody tr.wbe-tlc-disabled > td {
+  opacity: 0.6;
+}
+
+table.wbe-tlc-table tbody tr.wbe-tlc-flash > td {
+  background-color: rgba(255, 193, 7, 0.35);
+  transition: background-color 0.6s;
+}
+
+.wbe-tlc-loading {
+  opacity: 0.5;
+}

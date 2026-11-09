@@ -134,6 +134,7 @@ import "./suggested_matches_filters/suggested_matches_filters_options";
 import "./surname_table/surname_table_options";
 import "./table_filters/table_filters_options";
 import "./text_expander/text_expander_options";
+import "./trusted_list_changes_table/trusted_list_changes_table_options";
 import "./unconnected_branch_table/unconnected_branch_table_options";
 import "./unnamed_infant/unnamed_infant_options";
 import "./usability_tweaks/usability_tweaks_options";

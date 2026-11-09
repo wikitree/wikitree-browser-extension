@@ -185,6 +185,7 @@ import "./features/image_table/image_table_bootstrap";
 import "./features/randomProfile/randomProfile";
 import "./features/space_watchlist_sorter/space_watchlist_sorter_bootstrap";
 import "./features/text_expander/text_expander";
+import "./features/trusted_list_changes_table/trusted_list_changes_table_bootstrap";
 import "./features/what_links_here/what_links_here";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/

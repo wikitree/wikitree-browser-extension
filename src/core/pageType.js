@@ -126,6 +126,8 @@ export let isDNADescendants = false;
 export let isSpecialWatchedList = false;
 // Special: TrustedList page
 export let isSpecialTrustedList = false;
+// Special: TrustedListChanges page (isSpecialTrustedList is also true there)
+export let isSpecialTrustedListChanges = false;
 // MergeEdit
 export let isMergeEdit = false;
 // Whatlinkshere
@@ -444,6 +446,9 @@ if (domain.match("apps.wikitree.com")) {
       isMergeEdit = true;
     } else if (uri.match(/Special(:|%3A|%3a)TrustedList/)) {
       isSpecialTrustedList = true;
+      if (uri.match(/Special(:|%3A|%3a)TrustedListChanges/)) {
+        isSpecialTrustedListChanges = true;
+      }
     } else if (uri.match(/Special(:|%3A|%3a)Whatlinkshere/)) {
       isWhatLinksHere = true;
     } else if (uri.match(/Special(:|%3A|%3a)BrowseMatches/)) {
