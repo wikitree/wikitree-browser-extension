@@ -2,15 +2,41 @@ import { isMainDomain } from "../../core/pageType";
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage.js";
 import "../../core/common.css";
-import PerfectScrollbar from "perfect-scrollbar";
-import "perfect-scrollbar/css/perfect-scrollbar.css";
+
+const EXPANSIONS_KEY = "wbe_text_expander_custom";
+// Placeholders live in their own key ({ abbr: char }) so that the format of the
+// expansions key stays unchanged and existing saved entries keep working.
+const PLACEHOLDERS_KEY = "wbe_text_expander_placeholders";
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
+ * Applies an optional placeholder to an expansion.
+ * If the placeholder character occurs in the expansion, its first occurrence is
+ * removed and its position is returned as the cursor offset. Otherwise the
+ * expansion is returned unchanged and the cursor offset is the end of it.
+ */
+export function applyPlaceholder(expansion, placeholder) {
+  const index = placeholder ? expansion.indexOf(placeholder) : -1;
+  if (index === -1) {
+    return { text: expansion, cursorOffset: expansion.length, hasPlaceholder: false };
+  }
+  return {
+    text: expansion.slice(0, index) + expansion.slice(index + placeholder.length),
+    cursorOffset: index,
+    hasPlaceholder: true,
+  };
+}
 
 class TextExpander {
   constructor() {
     this.expansions = new Map();
+    this.placeholders = new Map(); // abbr -> single placeholder character
     this.originalExpansions = new Map(); // Store original state for cancel
+    this.originalPlaceholders = new Map();
     this.hasChanges = false;
-    this.ps = null; // Store Perfect Scrollbar instance
     this.helperScriptId = "wbe-text-expander-helper";
     this.initializeExpansions().then(() => {
       this.setupEventListeners();
@@ -27,7 +53,7 @@ class TextExpander {
 
   async initializeExpansions() {
     // Load from localStorage
-    const stored = localStorage.getItem("wbe_text_expander_custom");
+    const stored = localStorage.getItem(EXPANSIONS_KEY);
     if (stored) {
       try {
         const existingExpansions = JSON.parse(stored);
@@ -38,6 +64,15 @@ class TextExpander {
     } else {
       // If no stored expansions, initialize with defaults
       this.initializeDefaultExpansions();
+    }
+
+    const storedPlaceholders = localStorage.getItem(PLACEHOLDERS_KEY);
+    if (storedPlaceholders) {
+      try {
+        this.placeholders = new Map(Object.entries(JSON.parse(storedPlaceholders)));
+      } catch (err) {
+        this.placeholders = new Map();
+      }
     }
   }
 
@@ -79,11 +114,12 @@ class TextExpander {
   /** Sends current expansions to helper */
   sendExpansionUpdate() {
     const expansions = Object.fromEntries(this.expansions);
+    const placeholders = Object.fromEntries(this.placeholders);
 
     // Load and execute the event dispatcher script with expansions data
     const dispatcher = document.createElement("script");
     dispatcher.src = chrome.runtime.getURL("features/text_expander/event_dispatcher.js");
-    dispatcher.setAttribute("data-expansions", JSON.stringify({ expansions }));
+    dispatcher.setAttribute("data-expansions", JSON.stringify({ expansions, placeholders }));
     dispatcher.onload = () => {
       dispatcher.remove();
     };
@@ -92,8 +128,14 @@ class TextExpander {
   }
 
   saveCustomExpansions() {
+    // Drop placeholders for abbreviations that no longer exist
+    for (const abbr of Array.from(this.placeholders.keys())) {
+      if (!this.expansions.has(abbr) || !this.placeholders.get(abbr)) this.placeholders.delete(abbr);
+    }
+
     const expansionsObj = Object.fromEntries(this.expansions);
-    localStorage.setItem("wbe_text_expander_custom", JSON.stringify(expansionsObj));
+    localStorage.setItem(EXPANSIONS_KEY, JSON.stringify(expansionsObj));
+    localStorage.setItem(PLACEHOLDERS_KEY, JSON.stringify(Object.fromEntries(this.placeholders)));
     this.sendExpansionUpdate(); // inform helper of changes
 
     // Trigger a refresh of any existing CodeMirror instances
@@ -108,9 +150,30 @@ class TextExpander {
     });
   }
 
+  rowHtml(abbr, expansion, placeholder = "") {
+    return `
+      <tr>
+        <td>
+          <input type="text" class="abbr-input" value="${escapeHtml(abbr)}" data-original="${escapeHtml(abbr)}">
+        </td>
+        <td class="placeholder-cell">
+          <input type="text" class="placeholder-input" maxlength="1" value="${escapeHtml(placeholder)}"
+            title="Cursor placeholder (optional): a character in the expansion where the cursor should go after expanding">
+        </td>
+        <td>
+          <textarea class="expansion-input">${escapeHtml(expansion)}</textarea>
+        </td>
+        <td>
+          <button class="delete-expansion" data-abbr="${escapeHtml(abbr)}" title="Delete">🗑️</button>
+        </td>
+      </tr>
+    `;
+  }
+
   showManageDialog() {
     // Store original state for cancel functionality
     this.originalExpansions = new Map(this.expansions);
+    this.originalPlaceholders = new Map(this.placeholders);
     this.hasChanges = false;
 
     const dialog = $(`
@@ -121,6 +184,7 @@ class TextExpander {
             <thead>
               <tr>
                 <th>Abbreviation</th>
+                <th class="placeholder-cell" title="Cursor placeholder (optional): a character in the expansion where the cursor should go after expanding">^</th>
                 <th>Expansion</th>
                 <th></th>
               </tr>
@@ -128,29 +192,16 @@ class TextExpander {
             <tbody>
               ${Array.from(this.expansions.entries())
                 .sort(([a], [b]) => a.localeCompare(b))
-                .map(
-                  ([abbr, expansion]) => `
-                  <tr>
-                    <td>
-                      <input type="text" class="abbr-input" value="${abbr}" data-original="${abbr}">
-                    </td>
-                    <td>
-                      <textarea class="expansion-input">${expansion
-                        .replace(/</g, "&lt;")
-                        .replace(/>/g, "&gt;")}</textarea>
-                    </td>
-                    <td>
-                      <button class="delete-expansion" data-abbr="${abbr}" title="Delete">🗑️</button>
-                    </td>
-                  </tr>
-                `
-                )
+                .map(([abbr, expansion]) => this.rowHtml(abbr, expansion, this.placeholders.get(abbr) || ""))
                 .join("")}
             </tbody>
           </table>
         </div>
         <div class="add-expansion">
           <input type="text" id="newAbbr" placeholder="Abbreviation">
+          <input type="text" id="newPlaceholder" maxlength="1"
+            placeholder="^"
+            title="Cursor placeholder (optional): a character in the expansion where the cursor should go after expanding">
           <textarea id="newExpansion" placeholder="Expansion"></textarea>
           <button id="addExpansion">Add</button>
         </div>
@@ -162,20 +213,6 @@ class TextExpander {
 
     $("body").append(dialog);
 
-    // Initialize Perfect Scrollbar
-    const container = dialog.find(".expansions-list")[0];
-    this.ps = new PerfectScrollbar(container, {
-      suppressScrollX: true,
-      wheelPropagation: false,
-    });
-
-    // Update scrollbar when content changes
-    const updateScrollbar = () => {
-      if (this.ps) {
-        this.ps.update();
-      }
-    };
-
     const updateCancelButton = () => {
       const $cancelButton = dialog.find("#cancelChanges");
       if (this.hasChanges) {
@@ -185,26 +222,33 @@ class TextExpander {
       }
     };
 
-    // Handle edits
-    dialog.find(".abbr-input, .expansion-input").on("change", (e) => {
+    // Handle edits (delegated so rows added later are covered too)
+    dialog.on("change", ".abbr-input, .placeholder-input, .expansion-input", (e) => {
       const $row = $(e.target).closest("tr");
-      const oldAbbr = $row.find(".abbr-input").data("original");
-      const newAbbr = $row.find(".abbr-input").val().trim();
+      const $abbrInput = $row.find(".abbr-input");
+      const oldAbbr = String($abbrInput.data("original"));
+      const newAbbr = $abbrInput.val().trim();
       const newExpansion = $row.find(".expansion-input").val().trim();
+      const newPlaceholder = $row.find(".placeholder-input").val().trim();
 
       if (newAbbr && newExpansion) {
         this.expansions.delete(oldAbbr);
+        this.placeholders.delete(oldAbbr);
         this.expansions.set(newAbbr, newExpansion);
+        if (newPlaceholder) this.placeholders.set(newAbbr, newPlaceholder);
+        $abbrInput.data("original", newAbbr);
+        $row.find(".delete-expansion").attr("data-abbr", newAbbr);
         this.hasChanges = true;
         updateCancelButton();
       }
     });
 
     // Handle deletes
-    dialog.find(".delete-expansion").on("click", (e) => {
+    dialog.on("click", ".delete-expansion", (e) => {
       const $row = $(e.target).closest("tr");
-      const abbr = $row.find(".abbr-input").val().trim();
+      const abbr = String($row.find(".abbr-input").data("original"));
       this.expansions.delete(abbr);
+      this.placeholders.delete(abbr);
       $row.remove();
       this.hasChanges = true;
       updateCancelButton();
@@ -214,24 +258,25 @@ class TextExpander {
     dialog.find("#addExpansion").on("click", () => {
       const abbr = dialog.find("#newAbbr").val().trim();
       const expansion = dialog.find("#newExpansion").val().trim();
+      const placeholder = dialog.find("#newPlaceholder").val().trim();
 
       if (abbr && expansion) {
-        this.expansions.set(abbr, expansion);
-        dialog.find("#newAbbr, #newExpansion").val("");
+        // Replacing an existing abbreviation: drop its old row
+        if (this.expansions.has(abbr)) {
+          dialog.find("tbody tr").each((_, row) => {
+            if (String($(row).find(".abbr-input").data("original")) === abbr) $(row).remove();
+          });
+        }
 
-        const newRow = $(`
-          <tr>
-            <td>
-              <input type="text" class="abbr-input" value="${abbr}" data-original="${abbr}">
-            </td>
-            <td>
-              <input type="text" class="expansion-input" value="${expansion}">
-            </td>
-            <td>
-              <button class="delete-expansion" data-abbr="${abbr}" title="Delete">🗑️</button>
-            </td>
-          </tr>
-        `);
+        this.expansions.set(abbr, expansion);
+        if (placeholder) {
+          this.placeholders.set(abbr, placeholder);
+        } else {
+          this.placeholders.delete(abbr);
+        }
+        dialog.find("#newAbbr, #newExpansion, #newPlaceholder").val("");
+
+        const newRow = $(this.rowHtml(abbr, expansion, placeholder));
 
         let inserted = false;
         dialog.find("tbody tr").each((_, row) => {
@@ -249,7 +294,6 @@ class TextExpander {
 
         this.hasChanges = true;
         updateCancelButton();
-        updateScrollbar();
       }
     });
 
@@ -257,6 +301,7 @@ class TextExpander {
     dialog.find("#cancelChanges").on("click", () => {
       if (this.hasChanges) {
         this.expansions = new Map(this.originalExpansions);
+        this.placeholders = new Map(this.originalPlaceholders);
         this.hasChanges = false;
         updateCancelButton();
         dialog.remove();
@@ -264,14 +309,10 @@ class TextExpander {
       }
     });
 
-    // Clean up Perfect Scrollbar when dialog is closed
+    // Save and close the dialog
     const closeDialog = () => {
       if (this.hasChanges) {
         this.saveCustomExpansions();
-      }
-      if (this.ps) {
-        this.ps.destroy();
-        this.ps = null;
       }
       dialog.remove();
     };
@@ -291,6 +332,9 @@ class TextExpander {
       if (e.key !== " ") return;
 
       const input = e.target;
+      // Don't expand inside the Text Expander's own dialog
+      if ($(input).closest("#textExpanderDialog").length) return;
+
       const value = input.value;
       const cursorPos = input.selectionStart;
 
@@ -303,14 +347,13 @@ class TextExpander {
 
       if (this.expansions.has(lastWord)) {
         e.preventDefault();
+        const { text, cursorOffset } = applyPlaceholder(this.expansions.get(lastWord), this.placeholders.get(lastWord));
         // Calculate the position where the expansion starts
         const expansionStartPos = textBeforeCursor.length - lastWord.length;
         // Replace the last word with its expansion
-        const newValue =
-          textBeforeCursor.substring(0, expansionStartPos) + this.expansions.get(lastWord) + value.substring(cursorPos);
-        input.value = newValue;
-        // Set cursor position right after the expansion
-        const newCursorPos = expansionStartPos + this.expansions.get(lastWord).length;
+        input.value = textBeforeCursor.substring(0, expansionStartPos) + text + value.substring(cursorPos);
+        // Put the cursor at the placeholder, or right after the expansion if there is none
+        const newCursorPos = expansionStartPos + cursorOffset;
         input.setSelectionRange(newCursorPos, newCursorPos);
       }
     });

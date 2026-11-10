@@ -4,39 +4,42 @@
  */
 
 (() => {
-  // Global variable to store expansions
-  let expansions = {};
+  const EXPANSIONS_KEY = "wbe_text_expander_custom";
+  const PLACEHOLDERS_KEY = "wbe_text_expander_placeholders";
 
-  // Load expansions from localStorage
-  const stored = localStorage.getItem("wbe_text_expander_custom");
-  if (stored) {
+  // Global variables to store expansions and their optional cursor placeholders
+  let expansions = {};
+  let placeholders = {};
+
+  function readJson(key) {
+    const stored = localStorage.getItem(key);
+    if (!stored) return {};
     try {
-      expansions = JSON.parse(stored);
+      return JSON.parse(stored) || {};
     } catch (err) {
       // If parsing fails, use empty object
-      expansions = {};
+      return {};
     }
   }
+
+  function loadFromStorage() {
+    expansions = readJson(EXPANSIONS_KEY);
+    placeholders = readJson(PLACEHOLDERS_KEY);
+  }
+
+  // Load expansions from localStorage
+  loadFromStorage();
 
   // Listen for expansion updates
   document.addEventListener("wbeTextExpanderSet", (event) => {
     if (event.detail && event.detail.expansions) {
       expansions = event.detail.expansions;
+      placeholders = event.detail.placeholders || {};
     }
   });
 
-  // Listen for refresh event
-  document.addEventListener("wbeTextExpanderRefresh", () => {
-    // Reload expansions from localStorage
-    const stored = localStorage.getItem("wbe_text_expander_custom");
-    if (stored) {
-      try {
-        expansions = JSON.parse(stored);
-      } catch (err) {
-        expansions = {};
-      }
-    }
-  });
+  // Listen for refresh event: reload expansions from localStorage
+  document.addEventListener("wbeTextExpanderRefresh", loadFromStorage);
 
   // Watch for CodeMirror instances
   const observer = new MutationObserver((mutations) => {
@@ -46,13 +49,8 @@
           setupCodeMirror(node.CodeMirror);
         }
       }
-      // Also check for CodeMirror being removed and re-added
-      for (const node of mutation.removedNodes) {
-        if (node.classList?.contains("CodeMirror")) {
-          // When CodeMirror is removed, we'll wait for it to be re-added
-          // The observer will catch the re-addition and set it up again
-        }
-      }
+      // When CodeMirror is removed and re-added, the observer catches the
+      // re-addition and sets it up again.
     }
   });
 
@@ -73,12 +71,26 @@
       const words = before.split(/\s+/);
       const lastWord = words[words.length - 1];
 
-      if (expansions[lastWord]) {
+      if (lastWord && Object.prototype.hasOwnProperty.call(expansions, lastWord) && expansions[lastWord]) {
         e.preventDefault();
         const expansion = expansions[lastWord];
-        const newLine = before.slice(0, -lastWord.length) + expansion + " " + line.slice(cursor.ch);
-        cm.replaceRange(newLine, { line: cursor.line, ch: 0 }, { line: cursor.line, ch: line.length });
-        cm.setCursor({ line: cursor.line, ch: before.length - lastWord.length + expansion.length + 1 });
+        const placeholder = placeholders[lastWord];
+        const placeholderIndex = placeholder ? expansion.indexOf(placeholder) : -1;
+
+        const from = { line: cursor.line, ch: cursor.ch - lastWord.length };
+        const startIndex = cm.indexFromPos(from);
+
+        if (placeholderIndex === -1) {
+          // No placeholder: insert the expansion plus the typed space, cursor at the end
+          const text = expansion + " ";
+          cm.replaceRange(text, from, cursor);
+          cm.setCursor(cm.posFromIndex(startIndex + text.length));
+        } else {
+          // Remove the placeholder and put the cursor where it was
+          const text = expansion.slice(0, placeholderIndex) + expansion.slice(placeholderIndex + placeholder.length);
+          cm.replaceRange(text, from, cursor);
+          cm.setCursor(cm.posFromIndex(startIndex + placeholderIndex));
+        }
       }
     });
   }

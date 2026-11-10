@@ -59,7 +59,12 @@
   margin-bottom: 20px;
   flex: 1;
   position: relative;
-  overflow: hidden;
+  /* Native scrolling. PerfectScrollbar 1.5 misjudges which way a multi-line
+     expansion textarea can scroll, so wheeling up over one stopped the list
+     and scrolled the page behind the dialog instead. */
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   background: white;
   border-radius: 4px;
   padding: 10px;
@@ -209,6 +214,69 @@
   background: #8fc641;
 }
 
+/* Optional one-character cursor placeholder */
+#textExpanderDialog .placeholder-cell {
+  width: 1%;
+  text-align: center;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+/* Abbreviations are short; give the room to the expansion. */
+#textExpanderDialog th:nth-child(1),
+#textExpanderDialog td:nth-child(1) {
+  width: 20%;
+}
+
+#textExpanderDialog th:nth-child(3),
+#textExpanderDialog td:nth-child(3) {
+  width: 75%;
+}
+
+/* Line up each row's fields along their top edge, with even spacing above
+   and below. The textarea is made block-level so the inline baseline gap
+   doesn't add extra space under it. */
+#textExpanderDialog tbody td {
+  vertical-align: top;
+}
+
+#textExpanderDialog tbody .expansion-input {
+  display: block;
+  box-sizing: border-box;
+  margin: 0;
+}
+
+#textExpanderDialog input.abbr-input,
+#textExpanderDialog input.placeholder-input {
+  box-sizing: border-box;
+  height: 2em;
+  margin: 0;
+  padding: 4px 8px;
+}
+
+#textExpanderDialog input.placeholder-input,
+#textExpanderDialog #newPlaceholder {
+  flex: 0 0 auto;
+  width: 2em;
+  box-sizing: border-box;
+  padding: 4px;
+  text-align: center;
+  font-family: monospace;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+}
+
+#textExpanderDialog .add-expansion #newAbbr {
+  flex: 0 0 20%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+#textExpanderDialog .add-expansion #newExpansion {
+  flex: 1 1 auto;
+}
+
 /* Ensure inputs are clickable when focused */
 #textExpanderDialog input[type="text"]:focus,
 .abbr-input:focus,
@@ -243,7 +311,7 @@
    be scrolled back into view.
 
    Pin it to the viewport instead. The height stays explicit rather than `auto`:
-   PerfectScrollbar drives the inner list and needs a definite height from this
+   the inner scrolling list and needs a definite height from this
    flex column to size its scroll area. */
 @media (max-width: 600px) {
   #textExpanderDialog {
@@ -277,17 +345,22 @@
 
   #textExpanderDialog th:nth-child(1),
   #textExpanderDialog td:nth-child(1) {
-    width: 33%;
+    width: 27%;
   }
 
   #textExpanderDialog th:nth-child(2),
   #textExpanderDialog td:nth-child(2) {
-    width: 52%;
+    width: 9%;
   }
 
   #textExpanderDialog th:nth-child(3),
   #textExpanderDialog td:nth-child(3) {
-    width: 15%;
+    width: 52%;
+  }
+
+  #textExpanderDialog th:nth-child(4),
+  #textExpanderDialog td:nth-child(4) {
+    width: 12%;
   }
 
   /* The full header words don't fit these columns at body size. */
@@ -295,6 +368,12 @@
     font-size: 0.8em;
     white-space: normal;
     overflow-wrap: anywhere;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  #textExpanderDialog th:nth-child(1) {
+    overflow-wrap: normal;
   }
 
   #textExpanderDialog .abbr-input,
@@ -331,7 +410,20 @@
     padding-top: 6px;
   }
 
-  #textExpanderDialog .add-expansion #newAbbr,
+  /* Abbreviation and placeholder share the first line. */
+  #textExpanderDialog .add-expansion #newAbbr {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  #textExpanderDialog .add-expansion #newPlaceholder {
+    width: 2.5em;
+  }
+
+  #textExpanderDialog input.placeholder-input {
+    width: 100%;
+  }
+
   #textExpanderDialog .add-expansion #newExpansion {
     flex: 1 1 100%;
     width: 100%;

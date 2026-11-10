@@ -4,7 +4,7 @@ const expansionsData = script.getAttribute("data-expansions");
 if (expansionsData) {
   const data = JSON.parse(expansionsData);
   const event = new CustomEvent("wbeTextExpanderSet", {
-    detail: { expansions: data.expansions },
+    detail: { expansions: data.expansions, placeholders: data.placeholders || {} },
   });
   document.dispatchEvent(event);
 }
