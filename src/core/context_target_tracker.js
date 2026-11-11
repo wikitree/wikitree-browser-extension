@@ -10,6 +10,20 @@ function normalizedHeadingText(text) {
   return String(text || "").replace(/\s+/g, " ").trim();
 }
 
+// Older MediaWiki anchors (still on Help pages) write every character other than a letter, digit,
+// "-", "_" or ":" as "." plus its UTF-8 bytes in hex: "How_do_I_report_a_bug.3F" for "...bug?",
+// ".C3.A9" for "é". A literal "." is itself written ".2E", so in such an id every ".XX" is an
+// escape. Decoded so the link reads, and targets, the heading as written - as WikiTree's own Link
+// button does. Anything that does not decode cleanly is left alone.
+function decodeLegacyAnchor(text) {
+  if (!/\.[0-9A-F]{2}/.test(text)) return text;
+  try {
+    return decodeURIComponent(text.replace(/\.([0-9A-F]{2})/g, "%$1"));
+  } catch {
+    return text;
+  }
+}
+
 // A heading that can be linked to: one with an anchor id, which MediaWiki puts on the inner
 // .mw-headline and WikiTree's profile pages put on the heading itself:
 //   <h2 id="Biography" class="... section-biography"><span class="mw-headline">Biography</span>
@@ -33,7 +47,7 @@ function headingFromEventTarget(target) {
     copy.querySelectorAll(".editsection, .mw-editsection").forEach((node) => node.remove());
     label = normalizedHeadingText(copy.textContent);
   }
-  const fragment = normalizedHeadingText(id.replace(/_/g, " "));
+  const fragment = normalizedHeadingText(decodeLegacyAnchor(id).replace(/_/g, " "));
   return { label: label || fragment, fragment };
 }
 

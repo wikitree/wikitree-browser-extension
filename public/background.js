@@ -244,6 +244,20 @@ if (chrome.contextMenus) {
     });
   }
 
+  // Older MediaWiki anchors (still on Help pages) write every character other than a letter, digit,
+  // "-", "_" or ":" as "." plus its UTF-8 bytes in hex: "How_do_I_report_a_bug.3F" for "...bug?",
+  // ".C3.A9" for "é". A literal "." is itself written ".2E", so in such an id every ".XX" is an
+  // escape. Decoded so the link reads, and targets, the heading as written - as WikiTree's own Link
+  // button does. Anything that does not decode cleanly is left alone.
+  function decodeLegacyAnchor(text) {
+    if (!/\.[0-9A-F]{2}/.test(text)) return text;
+    try {
+      return decodeURIComponent(text.replace(/\.([0-9A-F]{2})/g, "%$1"));
+    } catch {
+      return text;
+    }
+  }
+
   // A WikiTree URL turned into the wiki-link target text (without [[...]]):
   // Space:Page Title#Section Heading
   function wikiLinkTargetFromUrl(url) {
@@ -263,11 +277,19 @@ if (chrome.contextMenus) {
     }
     if (!title) return null;
 
-    const clean = (text) => decodeURIComponent(text).replace(/_/g, " ").trim();
-    const base = clean(title);
+    const uriDecode = (text) => {
+      try {
+        return decodeURIComponent(text);
+      } catch {
+        return text;
+      }
+    };
+    const clean = (text) => text.replace(/_/g, " ").trim();
+    const base = clean(uriDecode(title));
     if (!base) return null;
 
-    const hash = parsed.hash ? clean(parsed.hash.slice(1)) : "";
+    // Percent-decoding first: a legacy ".25" decodes to a literal "%", which must not be decoded again.
+    const hash = parsed.hash ? clean(decodeLegacyAnchor(uriDecode(parsed.hash.slice(1)))) : "";
     return hash ? `${base}#${hash}` : base;
   }
 
