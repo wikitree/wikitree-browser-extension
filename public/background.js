@@ -39,6 +39,14 @@ if (chrome.runtime) {
 // Only creating the items the active tab can use means the same thing in every browser, and covers
 // the toolbar menu as well as the page menu.
 if (chrome.contextMenus) {
+  const WIKI_LINK_MENU_IDS = new Set([
+    "copyWikiLinkContextMenu",
+    "copyWikiLinkWithDatesContextMenu",
+    "copyWikiSectionLinkContextMenu",
+    "copyWikiLinkFromHeadingContextMenu",
+    "copyWikiLinkFromHeadingSectionOnlyContextMenu",
+  ]);
+
   // Safari matches documentUrlPatterns against the path alone (see the note above), so any pattern
   // of the usual scheme://host/path form never matches and the item disappears from every menu.
   // documentUrlPatterns is therefore only usable on Chromium/Firefox; on Safari we leave it off and
@@ -70,6 +78,66 @@ if (chrome.contextMenus) {
       title: "Notes",
       featureId: "clipboardAndNotes",
       featureDefault: false,
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
+      id: "copyWikiLinkContextMenu",
+      title: "Copy Wiki Link",
+      contexts: ["link"],
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
+      id: "copyWikiLinkWithDatesContextMenu",
+      title: "Copy Wiki Link with dates",
+      contexts: ["link"],
+      // Person profile links end in -<digits> (e.g. /wiki/Name-123). Match patterns are globs with
+      // "*" as their only wildcard - "[0-9]" is matched literally, so a single digit-class pattern
+      // matches nothing - hence one pattern per leading digit. A non-person link that happens to
+      // contain "-<digit>" can still show the item; the click then copies it without dates.
+      targetUrlPatterns: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"].flatMap((digit) => [
+        `*://*.wikitree.com/wiki/*-${digit}*`,
+        `*://*.wikitree.com/index.php?title=*-${digit}*`,
+      ]),
+      // Safari's stand-in for targetUrlPatterns: see hoveredLink below.
+      fitsLink: (url) => isLikelyPersonTargetBase(wikiLinkTargetBaseFromUrl(url)),
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
+      id: "copyWikiSectionLinkContextMenu",
+      title: "Copy Wiki Link (section only)",
+      contexts: ["link"],
+      // Section-only link targets are mainly for documentation-like pages with anchors.
+      // Keep this off plain profile links so profile menus stay concise.
+      targetUrlPatterns: [
+        "*://*.wikitree.com/wiki/Space:*",
+        "*://*.wikitree.com/wiki/Help:*",
+        "*://*.wikitree.com/wiki/Category:*",
+        "*://*.wikitree.com/wiki/Template:*",
+        "*://*.wikitree.com/wiki/Project:*",
+        "*://*.wikitree.com/index.php?title=Space:*",
+        "*://*.wikitree.com/index.php?title=Help:*",
+        "*://*.wikitree.com/index.php?title=Category:*",
+        "*://*.wikitree.com/index.php?title=Template:*",
+        "*://*.wikitree.com/index.php?title=Project:*"
+      ],
+      fitsLink: (url) => /^(Space|Help|Category|Template|Project):/i.test(wikiLinkTargetBaseFromUrl(url) || ""),
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
+      id: "copyWikiLinkFromHeadingContextMenu",
+      title: "Copy Wiki Link from heading",
+      // "selection" too: on a Mac, right-clicking a word selects it, so a right-click on heading
+      // text opens the selection menu rather than the page one. Offered only while the pointer is
+      // on a heading (see hoveredHeading).
+      contexts: ["page", "selection"],
+      needsHeading: true,
+      isUsefulOn: (url) => isMainDomainUrl(url),
+    },
+    {
+      id: "copyWikiLinkFromHeadingSectionOnlyContextMenu",
+      title: "Copy Wiki Link from heading (section only)",
+      contexts: ["page", "selection"],
+      needsHeading: true,
       isUsefulOn: (url) => isMainDomainUrl(url),
     },
     {
@@ -165,12 +233,212 @@ if (chrome.contextMenus) {
     );
   }
 
-  function activeTabUrl() {
+  function activeTab() {
     return new Promise((resolve) => {
       chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
         // Without host permission for the tab's site, url is empty, which is the same answer as
         // "nothing here for us": without that permission the content script isn't running either.
-        resolve((!chrome.runtime.lastError && tabs?.[0]?.url) || "");
+        const tab = !chrome.runtime.lastError && tabs?.[0];
+        resolve({ id: tab?.id, url: tab?.url || "" });
+      });
+    });
+  }
+
+  // A WikiTree URL turned into the wiki-link target text (without [[...]]):
+  // Space:Page Title#Section Heading
+  function wikiLinkTargetFromUrl(url) {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return null;
+    }
+    if (!isMainDomainUrl(parsed.href)) return null;
+
+    let title = "";
+    if (parsed.pathname.startsWith("/wiki/")) {
+      title = parsed.pathname.replace(/^\/wiki\//, "");
+    } else if (parsed.pathname === "/index.php") {
+      title = parsed.searchParams.get("title") || "";
+    }
+    if (!title) return null;
+
+    const clean = (text) => decodeURIComponent(text).replace(/_/g, " ").trim();
+    const base = clean(title);
+    if (!base) return null;
+
+    const hash = parsed.hash ? clean(parsed.hash.slice(1)) : "";
+    return hash ? `${base}#${hash}` : base;
+  }
+
+  function wikiLinkTargetBaseFromUrl(url) {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return null;
+    }
+    parsed.hash = "";
+    const full = wikiLinkTargetFromUrl(parsed.href);
+    if (!full) return null;
+    return splitWikiLinkTarget(full).base;
+  }
+
+  function splitWikiLinkTarget(target) {
+    const hashAt = target.indexOf("#");
+    if (hashAt === -1) return { base: target, section: "" };
+    return { base: target.slice(0, hashAt), section: target.slice(hashAt + 1) };
+  }
+
+  function wikiApiKeyFromTargetBase(base) {
+    return base.replace(/ /g, "_");
+  }
+
+  function isLikelyPersonTargetBase(base) {
+    return /-\d+$/.test(String(base || "").trim());
+  }
+
+  function escapeWikiLinkText(text) {
+    return String(text || "")
+      .replace(/\|/g, "&#124;")
+      .replace(/\]/g, "&#93;")
+      .trim();
+  }
+
+  function firstWord(text) {
+    return String(text || "").trim().split(/\s+/)[0] || "";
+  }
+
+  // Person-style label: "Jane (Smith) Jones" when surname changed, else "John Davis".
+  function formatPersonLabel(profile) {
+    const preferred = firstWord(profile?.RealName) || firstWord(profile?.FirstName);
+    const lnab = String(profile?.LastNameAtBirth || "").trim();
+    const lnc = String(profile?.LastNameCurrent || "").trim();
+    const currentOrBirth = lnc || lnab;
+
+    if (!preferred) return "";
+    if (lnab && lnc && lnab !== lnc) return escapeWikiLinkText(`${preferred} (${lnab}) ${lnc}`);
+    if (currentOrBirth) return escapeWikiLinkText(`${preferred} ${currentOrBirth}`);
+    return escapeWikiLinkText(preferred);
+  }
+
+  function yearFromDate(dateText) {
+    const match = String(dateText || "").match(/^(\d{4})/);
+    return match ? match[1] : "";
+  }
+
+  async function fetchWikiLinkInfo(targetBase) {
+    const key = wikiApiKeyFromTargetBase(targetBase);
+    if (!key) return { label: "", isPerson: false, birthYear: "", deathYear: "" };
+
+    const payload = new URLSearchParams({
+      action: "getProfile",
+      appId: "WBE-Context-Menu",
+      key,
+      fields: "Name,Derived.ShortName,RealName,FirstName,BirthName,LastNameAtBirth,LastNameCurrent,Title,IsSpace,BirthDate,DeathDate",
+    });
+
+    const response = await fetch("https://api.wikitree.com/api.php", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      },
+      body: payload.toString(),
+    });
+
+    if (!response.ok) return { label: "", isPerson: false, birthYear: "", deathYear: "" };
+
+    const body = await response.json();
+    const first = Array.isArray(body) ? body[0] : null;
+    const profile = first?.profile;
+    if (!profile) return { label: "", isPerson: false, birthYear: "", deathYear: "" };
+
+    const isPerson = !profile?.IsSpace && Boolean(profile?.Name);
+    const birthYear = yearFromDate(profile?.BirthDate);
+    const deathYear = yearFromDate(profile?.DeathDate);
+
+    if (isPerson) {
+      const personLabel = formatPersonLabel(profile);
+      if (personLabel) return { label: personLabel, isPerson, birthYear, deathYear };
+    }
+
+    // Space/Category/etc. titles come here (e.g. "WikiTree Browser Extension").
+    const titleText = profile?.Title?.Text;
+    if (titleText) {
+      return { label: escapeWikiLinkText(titleText), isPerson, birthYear, deathYear };
+    }
+
+    // People: prefer a display-ready short name where available.
+    const shortName = profile?.Derived?.ShortName;
+    if (shortName) {
+      return { label: escapeWikiLinkText(shortName), isPerson, birthYear, deathYear };
+    }
+
+    const birthName = profile?.BirthName;
+    if (birthName) {
+      return { label: escapeWikiLinkText(birthName), isPerson, birthYear, deathYear };
+    }
+
+    const realName = profile?.RealName;
+    if (realName) {
+      return { label: escapeWikiLinkText(realName), isPerson, birthYear, deathYear };
+    }
+
+    return { label: "", isPerson, birthYear, deathYear };
+  }
+
+  async function buildWikiLinkWithLabel(target, { withDates = false, sectionOnly = false } = {}) {
+    const { base, section } = splitWikiLinkTarget(target);
+
+    if (sectionOnly && section) {
+      const sectionLabel = escapeWikiLinkText(section);
+      return `[[${base}#${section}|${sectionLabel}]]`;
+    }
+
+    const info = await fetchWikiLinkInfo(base);
+    let label = info.label;
+    if (withDates && isLikelyPersonTargetBase(base) && info.isPerson && label) {
+      const years = info.birthYear || info.deathYear ? ` (${info.birthYear || "?"}-${info.deathYear || "?"})` : "";
+      label = `${label}${years}`;
+    }
+    if (section && label) {
+      label = `${label}: ${escapeWikiLinkText(section)}`;
+    }
+    const targetText = section ? `${base}#${section}` : base;
+    if (!label) return `[[${targetText}]]`;
+    return `[[${targetText}|${label}]]`;
+  }
+
+  // The page does the copying (src/core/context_target_tracker.js): Chrome's and Safari's
+  // background service workers have no clipboard, and in Safari only the page can finish the
+  // clipboard write it started on the right-click. If it cannot copy, it offers the text with a
+  // Copy button. The background's own clipboard is the fallback for a tab the page script is not
+  // running in.
+  async function copyTextForTab(tab, text) {
+    if (tab?.id) {
+      const resp = await new Promise((resolve) => {
+        chrome.tabs.sendMessage(tab.id, { action: "copyFromContextMenu_inPage", text }, (reply) => {
+          resolve(chrome.runtime.lastError ? null : reply);
+        });
+      });
+      if (resp?.success) return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    throw new Error("No clipboard API available");
+  }
+
+  function getLastContextHeadingForTab(tabId) {
+    return new Promise((resolve, reject) => {
+      chrome.tabs.sendMessage(tabId, { action: "getLastContextHeading" }, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve(response?.heading || null);
       });
     });
   }
@@ -226,6 +494,8 @@ if (chrome.contextMenus) {
       id: item.id,
       title: item.title,
       contexts,
+      // Safari's pattern matching is quirky; avoid dropping items there.
+      ...(item.targetUrlPatterns && !isSafari ? { targetUrlPatterns: item.targetUrlPatterns } : {}),
       // Only some items restrict which documents they attach to; the rest attach to all of them.
       // Skipped on Safari, which matches these patterns against the path alone and so would drop the
       // item from every menu rather than just the ones we mean to exclude.
@@ -247,20 +517,47 @@ if (chrome.contextMenus) {
   let shownIds = null; // what the menu holds; null until this copy of the script has built it
   let pending = Promise.resolve(); // rebuilds are queued, so two of them cannot interleave
 
+  // Safari only: the link the pointer last moved onto, reported by src/core/context_target_tracker.js.
+  // Safari's targetUrlPatterns cannot be used (see isSafari), so the link items that have a
+  // fitsLink test are offered only when it passes for this link. Until a link has been reported on
+  // the active tab - or after the background has restarted - they are all offered, as before.
+  let hoveredLink = null; // { tabId, url }
+
+  function hoveredLinkUrlFor(tabId) {
+    return isSafari && hoveredLink && hoveredLink.tabId === tabId ? hoveredLink.url : null;
+  }
+
+  function fitsHoveredLink(item, linkUrl) {
+    return !linkUrl || !item.fitsLink || item.fitsLink(linkUrl);
+  }
+
+  // Every browser: whether the pointer is on a linkable heading, reported by the same page script.
+  // The heading items are offered only then; until the page has said so, they are left out.
+  let hoveredHeading = null; // { tabId, onHeading }
+
+  function isOnHeading(tabId) {
+    return Boolean(hoveredHeading && hoveredHeading.tabId === tabId && hoveredHeading.onHeading);
+  }
+
   function refreshContextMenus() {
     pending = pending.then(rebuildContextMenus).catch(() => {});
     return pending;
   }
 
   async function rebuildContextMenus() {
-    const [url, settings, launchMode] = await Promise.all([
-      activeTabUrl(),
-      featureSettings(),
-      simulatorLaunchMode(),
-    ]);
-    const wanted = contextMenuItems.filter((item) => isFeatureEnabled(item, settings) && item.isUsefulOn(url));
+    const [tab, settings, launchMode] = await Promise.all([activeTab(), featureSettings(), simulatorLaunchMode()]);
+    const url = tab.url;
+    const linkUrl = hoveredLinkUrlFor(tab.id);
+    const wanted = contextMenuItems.filter(
+      (item) =>
+        isFeatureEnabled(item, settings) &&
+        item.isUsefulOn(url) &&
+        fitsHoveredLink(item, linkUrl) &&
+        (!item.needsHeading || isOnHeading(tab.id))
+    );
     // The launch mode is part of the signature: it changes the "Open" entry's label without
-    // changing any id, so a rebuild has to be allowed when only it has moved.
+    // changing any id, so a rebuild has to be allowed when only it has moved. The ids already
+    // reflect the hovered link, so hovering from one person link to another rebuilds nothing.
     const wantedIds = wanted.map((item) => item.id).join() + "|" + launchMode;
     if (shownIds === wantedIds) return;
     await new Promise((resolve) => chrome.contextMenus.removeAll(resolve));
@@ -274,6 +571,16 @@ if (chrome.contextMenus) {
   refreshContextMenus();
 
   chrome.runtime.onStartup?.addListener(() => refreshContextMenus());
+  chrome.runtime.onMessage.addListener((message, sender) => {
+    if (!sender.tab?.id) return;
+    if (message?.action === "contextHeadingHovered") {
+      hoveredHeading = { tabId: sender.tab.id, onHeading: Boolean(message.onHeading) };
+      refreshContextMenus();
+    } else if (message?.action === "contextLinkHovered" && isSafari) {
+      hoveredLink = { tabId: sender.tab.id, url: String(message.url || "") };
+      refreshContextMenus();
+    }
+  });
   chrome.tabs.onActivated.addListener(() => refreshContextMenus());
   chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     if (changeInfo.url || changeInfo.status === "complete") refreshContextMenus();
@@ -318,6 +625,61 @@ if (chrome.contextMenus) {
     if (info.menuItemId === "notesContextMenu") {
       // Execute script in the content script
       chrome.tabs.sendMessage(tab.id, { action: "showNotes" });
+    }
+    if (
+      info.menuItemId === "copyWikiLinkContextMenu" ||
+      info.menuItemId === "copyWikiLinkWithDatesContextMenu" ||
+      info.menuItemId === "copyWikiSectionLinkContextMenu"
+    ) {
+      const resolved = info.linkUrl ? new URL(info.linkUrl, info.pageUrl || tab?.url || undefined).href : "";
+      const target = wikiLinkTargetFromUrl(resolved);
+      if (!target) {
+        console.warn("[WBE] Could not build a wiki link target from:", resolved);
+        return;
+      }
+      const withDates = info.menuItemId === "copyWikiLinkWithDatesContextMenu";
+      const sectionOnly = info.menuItemId === "copyWikiSectionLinkContextMenu";
+      buildWikiLinkWithLabel(target, { withDates, sectionOnly })
+        .then((wikilink) => copyTextForTab(tab, wikilink))
+        .catch((error) => {
+          console.warn("[WBE] Copy Wiki Link failed:", error?.message || error);
+        });
+    }
+    if (
+      info.menuItemId === "copyWikiLinkFromHeadingContextMenu" ||
+      info.menuItemId === "copyWikiLinkFromHeadingSectionOnlyContextMenu"
+    ) {
+      if (!tab?.id) return;
+      const sectionOnly = info.menuItemId === "copyWikiLinkFromHeadingSectionOnlyContextMenu";
+      const base = wikiLinkTargetBaseFromUrl(tab.url || info.pageUrl || "");
+      if (!base && !sectionOnly) {
+        console.warn("[WBE] Could not build page title from URL:", tab?.url || info.pageUrl);
+        return;
+      }
+
+      getLastContextHeadingForTab(tab.id)
+        .then(async (heading) => {
+          if (!heading?.fragment) {
+            console.warn("[WBE] No heading was right-clicked on this tab");
+            return;
+          }
+          const fragment = escapeWikiLinkText(heading.fragment);
+          const sectionLabel = escapeWikiLinkText(heading.label || heading.fragment);
+
+          let wikilink;
+          if (sectionOnly) {
+            wikilink = `[[${base}#${fragment}|${sectionLabel}]]`;
+          } else {
+            const info = await fetchWikiLinkInfo(base);
+            const pageLabel = info?.label || escapeWikiLinkText(base);
+            wikilink = `[[${base}#${fragment}|${pageLabel}: ${sectionLabel}]]`;
+          }
+
+          return copyTextForTab(tab, wikilink);
+        })
+        .catch((error) => {
+          console.warn("[WBE] Copy heading link failed:", error?.message || error);
+        });
     }
     if (info.menuItemId === "optionsContextMenu") {
       // openOptionsPage is the one that reuses an already open settings tab, so it is worth

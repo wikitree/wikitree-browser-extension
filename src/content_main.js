@@ -61,6 +61,7 @@ chrome.storage.sync.get(["customStyle_options"], (result) => {
 });
 
 import "./features/register_feature_options";
+import "./core/context_target_tracker";
 
 // First are loaded modules that change the wikitree appearence by altering css style
 import "./features/collapsible_profiles/collapsible_profiles";
