@@ -222,6 +222,48 @@
   outline-offset: -1px;
 }
 
+/* A box with its own × to empty it */
+#wbeFindReplace .wbe-fr-field {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+#wbeFindReplace .wbe-fr-field input[type="text"] {
+  padding-right: 1.7em;
+}
+
+#wbeFindReplace .wbe-fr-row .wbe-fr-clear {
+  position: absolute;
+  top: 50%;
+  right: 0.25em;
+  width: 1.4em;
+  height: 1.4em;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fr-muted);
+  font-size: 1em;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+#wbeFindReplace .wbe-fr-row .wbe-fr-clear:hover {
+  background: var(--fr-code);
+  color: inherit;
+}
+
+#wbeFindReplace .wbe-fr-title .wbe-fr-clear-both:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+#wbeFindReplace .wbe-fr-title .wbe-fr-clear-both:disabled:hover {
+  background: transparent;
+}
+
 #wbeFindReplace .wbe-fr-count {
   min-width: 5.5em;
   color: var(--fr-muted);

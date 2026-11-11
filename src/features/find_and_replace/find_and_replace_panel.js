@@ -105,6 +105,7 @@ function buildPanel() {
         <span>Find and Replace</span>
         <button type="button" class="wbe-fr-title-text wbe-fr-ask-button" title="Say what you want changed, and Genie writes the search" aria-expanded="false" hidden>Ask Genie</button>
         <button type="button" class="wbe-fr-title-text wbe-fr-saved-button" title="Saved and ready-made searches" aria-expanded="false">Saved ▾</button>
+        <button type="button" class="wbe-fr-title-text wbe-fr-clear-both" title="Empty Find and Replace with">Clear</button>
         <button type="button" class="wbe-fr-help-button" title="How to search" aria-expanded="false">?</button>
         <button type="button" class="wbe-fr-close close-popup" title="Close (Esc)" aria-label="Close">×</button>
       </div>
@@ -115,13 +116,19 @@ function buildPanel() {
         <img class="wbe-fr-ask-tree" src="${chrome.runtime.getURL("images/tree.gif")}" alt="" hidden>
       </div>
       <div class="wbe-fr-row">
-        <input type="text" class="wbe-fr-find" placeholder="Find" aria-label="Find" spellcheck="false" autocomplete="off">
+        <span class="wbe-fr-field">
+          <input type="text" class="wbe-fr-find" placeholder="Find" aria-label="Find" spellcheck="false" autocomplete="off">
+          <button type="button" class="wbe-fr-clear" data-clear="find" title="Clear Find" aria-label="Clear Find" hidden>×</button>
+        </span>
         <span class="wbe-fr-count" aria-live="polite"></span>
         <button type="button" class="wbe-fr-prev" title="Previous match (Shift+Enter)" aria-label="Previous match">▲</button>
         <button type="button" class="wbe-fr-next" title="Next match (Enter)" aria-label="Next match">▼</button>
       </div>
       <div class="wbe-fr-row">
-        <input type="text" class="wbe-fr-replace" placeholder="Replace with" aria-label="Replace with" spellcheck="false" autocomplete="off">
+        <span class="wbe-fr-field">
+          <input type="text" class="wbe-fr-replace" placeholder="Replace with" aria-label="Replace with" spellcheck="false" autocomplete="off">
+          <button type="button" class="wbe-fr-clear" data-clear="replace" title="Clear Replace with" aria-label="Clear Replace with" hidden>×</button>
+        </span>
         <button type="button" class="wbe-fr-replace-one" title="Replace this match and go to the next (Enter in this box)">Replace</button>
         <button type="button" class="wbe-fr-replace-all" title="Replace every match (${MOD_KEY}+Enter)">Replace all</button>
       </div>
@@ -193,6 +200,11 @@ function buildPanel() {
     findTimer = setTimeout(refresh, 120);
   });
   panel.find(".wbe-fr-replace").on("input", updateStatus);
+  panel.find(".wbe-fr-find, .wbe-fr-replace").on("input", updateClearButtons);
+  panel.find(".wbe-fr-clear").on("click", function () {
+    clearFields({ find: this.dataset.clear === "find", replace: this.dataset.clear === "replace" });
+  });
+  panel.find(".wbe-fr-clear-both").on("click", () => clearFields({ find: true, replace: true }));
 
   panel.on("keydown", (event) => {
     const target = $(event.target);
@@ -415,8 +427,34 @@ function visible(text, max = 40) {
   return shown.length > max ? shown.slice(0, max - 1) + "…" : shown;
 }
 
+// Each box's × shows only while it has something in it, and Clear while either has
+function updateClearButtons() {
+  let any = false;
+  panel.find(".wbe-fr-clear").each(function () {
+    const filled = Boolean(panel.find(`.wbe-fr-${this.dataset.clear}`).val());
+    this.hidden = !filled;
+    if (filled) any = true;
+  });
+  panel.find(".wbe-fr-clear-both").prop("disabled", !any);
+}
+
+// Empties Find, Replace with, or both, and puts the cursor in the first one emptied
+function clearFields({ find, replace }) {
+  if (replace) panel.find(".wbe-fr-replace").val("");
+  if (find) {
+    clearTimeout(findTimer);
+    panel.find(".wbe-fr-find").val("");
+    showMessage("");
+    refresh();
+  } else {
+    updateStatus();
+  }
+  panel.find(find ? ".wbe-fr-find" : ".wbe-fr-replace").trigger("focus");
+}
+
 function updateStatus() {
   if (!panel) return;
+  updateClearButtons();
   const count = state.matches.length;
   const find = panel.find(".wbe-fr-find").val();
   let countText = "";
