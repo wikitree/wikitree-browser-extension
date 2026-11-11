@@ -465,6 +465,10 @@ function buildActions(options, DEBUG = false) {
   // Notes: n
   if (options.Notes) reg("n", "Notes", () => $(".aNotesButton").first().trigger("click"));
 
+  // Presentation Mode on/off: o. The setting is the feature's own on/off switch, and the page reloads so
+  // Presentation Mode can hide the page before it is drawn.
+  if (options.PresentationMode) reg("o", "Presentation Mode on/off", togglePresentationMode);
+
   // Category-page Edit Text (also 'e') for parity with original
   if (options.Edit && isCategoryPage)
     reg(
@@ -513,6 +517,12 @@ function pickActionForKey(actions, key) {
 
   // Otherwise, first eligible
   return eligible[0];
+}
+
+function togglePresentationMode() {
+  chrome.storage.sync.get("presentationMode", (items) => {
+    chrome.storage.sync.set({ presentationMode: items?.presentationMode !== true }, () => window.location.reload());
+  });
 }
 
 function runAction(act, options, DEBUG = false) {

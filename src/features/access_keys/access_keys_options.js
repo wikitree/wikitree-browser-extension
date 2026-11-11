@@ -237,6 +237,12 @@ registerFeature({
           defaultValue: true,
         },
         {
+          id: "PresentationMode",
+          type: OptionType.CHECKBOX,
+          label: "Presentation Mode: Switch on or off (Access key: o)",
+          defaultValue: true,
+        },
+        {
           id: "ZoomInPlace",
           type: OptionType.CHECKBOX,
           label: "Image Zoom and Magnifier: Toggle 'Zoom in Place' (Access key: z)",
