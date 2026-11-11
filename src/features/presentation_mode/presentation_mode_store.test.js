@@ -15,7 +15,7 @@ describe("buildPrivateFacts", () => {
 });
 
 describe("storedFactsFit", () => {
-  const record = { version: 3, userId: 101, watchlistCount: 250, facts: [] };
+  const record = { version: 4, userId: 101, watchlistCount: 250, facts: [] };
   test("the member's own list", () => {
     expect(storedFactsFit(record, 101)).toBe(true);
     expect(storedFactsFit(record, 202)).toBe(false);

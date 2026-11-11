@@ -11,6 +11,10 @@ The input is the same getPeople answer fetched twice: once with the member's log
 The privacy level comes first, though: Public (50) and Open (60) profiles hide nothing, Unlisted (10) hides
 everything, and for the Private levels (20-40) the comparison says which details the public can't see. If WikiTree
 doesn't send the public view, the public is taken to see the name without middle names or nicknames.
+
+The member's own living close family are hidden whole, whatever their privacy level, as if Unlisted: a spouse
+always, and parents, siblings and children unless they are members themselves. The public can see a Private
+child's name, but nobody presenting their tree wants it on the screen.
 */
 
 const UNLISTED = 10;
@@ -117,14 +121,14 @@ export function parseDate(value) {
  * @param {Object|null} anon The same person as the public sees them; null when the public can't see them at all.
  * @returns {Object|null} null when nothing about them is private.
  */
-export function privateFactsFor(authed, anon) {
+export function privateFactsFor(authed, anon, { hideWhole = false } = {}) {
   if (!authed?.Id) return null;
   const privacy = Number(authed.Privacy);
   const known = Number.isFinite(privacy) && privacy > 0;
   // Public and Open: anyone can see everything.
-  if (known && privacy >= PUBLIC) return null;
+  if (known && privacy >= PUBLIC && !hideWhole) return null;
   const anonUsable = Boolean(anon && anon.Name && Number(anon.Id) > 0);
-  const hidden = known ? privacy <= UNLISTED : !anonUsable;
+  const hidden = hideWhole || (known ? privacy <= UNLISTED : !anonUsable);
   // What the public sees of them.
   const shown = hidden ? null : anonUsable ? anon : publicFallback(authed);
   const seen = hidden ? new Set() : publicWords(shown);
@@ -154,7 +158,7 @@ export function privateFactsFor(authed, anon) {
   const photo = clean(authed.Photo);
   const photoPrivate = Boolean(photo) && (hidden || clean(shown.Photo) !== photo);
   const bio = clean(authed.bio ?? authed.Bio);
-  const bioPrivate = Boolean(bio) && (known ? !PUBLIC_BIO.has(privacy) : hidden || !clean(shown.bio ?? shown.Bio));
+  const bioPrivate = Boolean(bio) && (hidden || (known ? !PUBLIC_BIO.has(privacy) : !clean(shown.bio ?? shown.Bio)));
 
   if (!hidden && !tokens.length && !phrases.length && !dates.length && !places.length && !photoPrivate && !bioPrivate) {
     return null;
@@ -195,13 +199,48 @@ function publicName(anon) {
  * Pairs up the two getPeople answers and returns the private facts for everyone who has some.
  * @param {Object} authedPeople getPeople's `people` from the logged-in call
  * @param {Object} anonPeople getPeople's `people` from the call without the login
+ * @param {Iterable<number>} [hideWholeIds] Ids to hide whole, whatever their privacy (see closeFamilyToHide)
  */
-export function privateFactsFromPeople(authedPeople, anonPeople) {
+export function privateFactsFromPeople(authedPeople, anonPeople, hideWholeIds = []) {
+  const hideWhole = new Set([...hideWholeIds].map(Number));
   const anonById = new Map();
   Object.values(anonPeople || {}).forEach((person) => {
     if (Number(person?.Id) > 0) anonById.set(Number(person.Id), person);
   });
   return Object.values(authedPeople || {})
-    .map((person) => privateFactsFor(person, anonById.get(Number(person?.Id)) || null))
+    .map((person) =>
+      privateFactsFor(person, anonById.get(Number(person?.Id)) || null, {
+        hideWhole: hideWhole.has(Number(person?.Id)),
+      })
+    )
     .filter(Boolean);
+}
+
+/**
+ * The member's living close family to hide whole: spouses, and parents, siblings and children who aren't members.
+ * @param {Object} people getPeople's `people` for the member with nuclear=1 (Id, Father, Mother, IsLiving,
+ *   IsMember), with the member themself merged in (nuclear sometimes leaves them out)
+ * @param {number} userId The member's own Id
+ * @returns {number[]}
+ */
+export function closeFamilyToHide(people, userId) {
+  const me = Number(userId);
+  const all = Object.values(people || {}).filter((person) => Number(person?.Id) > 0);
+  const self = all.find((person) => Number(person.Id) === me);
+  if (!self) return [];
+  const parents = new Set([Number(self.Father), Number(self.Mother)].filter((id) => id > 0));
+  const ids = [];
+  for (const person of all) {
+    const id = Number(person.Id);
+    if (id === me || Number(person.IsLiving) !== 1) continue;
+    const father = Number(person.Father);
+    const mother = Number(person.Mother);
+    const isParent = parents.has(id);
+    const isChild = father === me || mother === me;
+    const isSibling = !isParent && !isChild && (parents.has(father) || parents.has(mother));
+    // In a nuclear=1 answer everyone else is a spouse.
+    const isSpouse = !isParent && !isChild && !isSibling;
+    if (isSpouse || Number(person.IsMember) !== 1) ids.push(id);
+  }
+  return ids;
 }

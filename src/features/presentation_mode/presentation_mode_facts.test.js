@@ -1,4 +1,10 @@
-import { nameVariants, parseDate, privateFactsFor, privateFactsFromPeople } from "./presentation_mode_facts";
+import {
+  closeFamilyToHide,
+  nameVariants,
+  parseDate,
+  privateFactsFor,
+  privateFactsFromPeople,
+} from "./presentation_mode_facts";
 
 // Shapes copied from real getPeople answers (logged in, and without the login), with made-up people.
 const semiPrivateAuthed = {
@@ -141,5 +147,31 @@ describe("privateFactsFromPeople", () => {
       [101, false],
       [102, true],
     ]);
+  });
+});
+
+describe("close family", () => {
+  test("a Private relative marked to hide whole is hidden like Unlisted", () => {
+    const facts = privateFactsFromPeople({ 101: semiPrivateAuthed }, { 101: semiPrivateAnon }, [101]);
+    expect(facts[0].hidden).toBe(true);
+    expect(facts[0].publicName).toBe("Private");
+    expect(facts[0].privateWords).toEqual(expect.arrayContaining(["ian", "example"]));
+  });
+
+  test("hides living spouses, and living parents, siblings and children who aren't members", () => {
+    const me = { Id: 1, Father: 2, Mother: 3, IsLiving: 1, IsMember: 1 };
+    const people = {
+      1: me,
+      2: { Id: 2, Father: 0, Mother: 0, IsLiving: 0, IsMember: 0 }, // dead father
+      3: { Id: 3, Father: 0, Mother: 0, IsLiving: 1, IsMember: 1 }, // living member mother
+      4: { Id: 4, Father: 2, Mother: 3, IsLiving: 1, IsMember: 0 }, // living sibling
+      5: { Id: 5, Father: 0, Mother: 0, IsLiving: 1, IsMember: 1 }, // spouse, a member
+      6: { Id: 6, Father: 1, Mother: 5, IsLiving: 1, IsMember: 0 }, // child (red)
+      7: { Id: 7, Father: 1, Mother: 5, IsLiving: 1, IsMember: 0 }, // child (orange)
+      8: { Id: 8, Father: 1, Mother: 5, IsLiving: 1, IsMember: 1 }, // child who is a member
+      9: { Id: 9, Father: 0, Mother: 0, IsLiving: 0, IsMember: 0 }, // late spouse
+    };
+    expect(closeFamilyToHide(people, 1).sort((a, b) => a - b)).toEqual([4, 5, 6, 7]);
+    expect(closeFamilyToHide({ 4: people[4] }, 1)).toEqual([]);
   });
 });

@@ -15,7 +15,7 @@ postToAPI leave the login out, and the logged-in half of the comparison needs it
 The list is kept in chrome.storage.local, for this browser only, and rebuilt once a day or when asked.
 */
 
-import { privateFactsFromPeople } from "./presentation_mode_facts";
+import { closeFamilyToHide, privateFactsFromPeople } from "./presentation_mode_facts";
 
 const API_URL = "https://api.wikitree.com/api.php";
 const APP_ID = "WBE_presentation_mode";
@@ -28,7 +28,7 @@ const PEOPLE_BATCH = 100;
 // Public (50) and Open (60) profiles have nothing private.
 const PUBLIC_PRIVACY = 50;
 // Bumped when the way facts are worked out changes, so lists built the old way are rebuilt.
-const FACTS_VERSION = 3;
+const FACTS_VERSION = 4;
 const FIELDS = [
   "Id",
   "Name",
@@ -100,6 +100,23 @@ async function privateWatchlistIds(onProgress) {
   return { ids: [...ids], watchlistCount: total || 0 };
 }
 
+/** The member's living close family to hide whole (see closeFamilyToHide). Nothing if WikiTree won't say. */
+async function closeFamilyIds(userId) {
+  if (!userId) return [];
+  const fields = "Id,Father,Mother,IsLiving,IsMember";
+  try {
+    // nuclear=1 sometimes leaves the member out, so they are fetched on their own as well.
+    const [family, self] = await Promise.all([
+      callApi({ action: "getPeople", keys: String(userId), nuclear: 1, fields }, true),
+      callApi({ action: "getPeople", keys: String(userId), fields }, true),
+    ]);
+    return closeFamilyToHide({ ...(family?.[0]?.people || {}), ...(self?.[0]?.people || {}) }, userId);
+  } catch (error) {
+    console.warn("Presentation Mode: could not look up close family", error);
+    return [];
+  }
+}
+
 async function getPeople(ids, withLogin) {
   const people = {};
   for (let i = 0; i < ids.length; i += PEOPLE_BATCH) {
@@ -118,10 +135,12 @@ async function getPeople(ids, withLogin) {
  */
 export async function buildPrivateFacts({ userId = null, onProgress } = {}) {
   const { ids, watchlistCount } = await privateWatchlistIds(onProgress);
+  const family = await closeFamilyIds(userId);
   if (userId && !ids.includes(Number(userId))) ids.push(Number(userId));
+  family.forEach((id) => !ids.includes(id) && ids.push(id));
   onProgress?.({ stage: "people", done: 0, total: ids.length });
   const [authed, anon] = await Promise.all([getPeople(ids, true), getPeople(ids, false)]);
-  const facts = privateFactsFromPeople(authed, anon);
+  const facts = privateFactsFromPeople(authed, anon, family);
   onProgress?.({ stage: "people", done: ids.length, total: ids.length });
   return {
     version: FACTS_VERSION,
