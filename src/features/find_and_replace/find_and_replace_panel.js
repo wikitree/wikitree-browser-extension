@@ -105,13 +105,16 @@ function buildPanel() {
         <span>Find and Replace</span>
         <button type="button" class="wbe-fr-title-text wbe-fr-ask-button" title="Say what you want changed, and Genie writes the search" aria-expanded="false" hidden>Ask Genie</button>
         <button type="button" class="wbe-fr-title-text wbe-fr-saved-button" title="Saved and ready-made searches" aria-expanded="false">Saved ▾</button>
-        <button type="button" class="wbe-fr-title-text wbe-fr-clear-both" title="Empty Find and Replace with">Clear</button>
+        <button type="button" class="wbe-fr-title-text wbe-fr-clear-both" title="Empty Ask, Find and Replace with">Clear</button>
         <button type="button" class="wbe-fr-help-button" title="How to search" aria-expanded="false">?</button>
         <button type="button" class="wbe-fr-close close-popup" title="Close (Esc)" aria-label="Close">×</button>
       </div>
       <div class="wbe-fr-menu" role="group" aria-label="Saved searches" hidden></div>
       <div class="wbe-fr-row wbe-fr-ask-row" hidden>
-        <input type="text" class="wbe-fr-ask" placeholder="Say what to change, e.g. *text* to ''text''" aria-label="What should Genie's search change?" autocomplete="off">
+        <span class="wbe-fr-field">
+          <input type="text" class="wbe-fr-ask" placeholder="Say what to change, e.g. *text* to ''text''" aria-label="What should Genie's search change?" autocomplete="off">
+          <button type="button" class="wbe-fr-clear" data-clear="ask" title="Clear Ask" aria-label="Clear Ask" hidden>×</button>
+        </span>
         <button type="button" class="wbe-fr-ask-go">Ask</button>
         <img class="wbe-fr-ask-tree" src="${chrome.runtime.getURL("images/tree.gif")}" alt="" hidden>
       </div>
@@ -200,11 +203,15 @@ function buildPanel() {
     findTimer = setTimeout(refresh, 120);
   });
   panel.find(".wbe-fr-replace").on("input", updateStatus);
-  panel.find(".wbe-fr-find, .wbe-fr-replace").on("input", updateClearButtons);
+  panel.find(".wbe-fr-ask, .wbe-fr-find, .wbe-fr-replace").on("input", updateClearButtons);
   panel.find(".wbe-fr-clear").on("click", function () {
-    clearFields({ find: this.dataset.clear === "find", replace: this.dataset.clear === "replace" });
+    clearFields({
+      ask: this.dataset.clear === "ask",
+      find: this.dataset.clear === "find",
+      replace: this.dataset.clear === "replace",
+    });
   });
-  panel.find(".wbe-fr-clear-both").on("click", () => clearFields({ find: true, replace: true }));
+  panel.find(".wbe-fr-clear-both").on("click", () => clearFields({ ask: true, find: true, replace: true }));
 
   panel.on("keydown", (event) => {
     const target = $(event.target);
@@ -438,8 +445,9 @@ function updateClearButtons() {
   panel.find(".wbe-fr-clear-both").prop("disabled", !any);
 }
 
-// Empties Find, Replace with, or both, and puts the cursor in the first one emptied
-function clearFields({ find, replace }) {
+// Empties Ask, Find, Replace with, or any combination, and puts the cursor in the first one emptied
+function clearFields({ ask, find, replace }) {
+  if (ask) panel.find(".wbe-fr-ask").val("");
   if (replace) panel.find(".wbe-fr-replace").val("");
   if (find) {
     clearTimeout(findTimer);
@@ -449,7 +457,8 @@ function clearFields({ find, replace }) {
   } else {
     updateStatus();
   }
-  panel.find(find ? ".wbe-fr-find" : ".wbe-fr-replace").trigger("focus");
+  const focusTarget = ask ? ".wbe-fr-ask" : find ? ".wbe-fr-find" : ".wbe-fr-replace";
+  panel.find(focusTarget).trigger("focus");
 }
 
 function updateStatus() {
