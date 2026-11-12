@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { deriveRelationshipFromLegacyDoc } from "./legacyRelationshipParser";
+import { deriveRelationshipFromLegacyDoc, orientAvuncularByPathLengths } from "./legacyRelationshipParser";
 
 function parseDoc(html) {
   return new DOMParser().parseFromString(html, "text/html");
@@ -220,5 +220,93 @@ describe("deriveRelationshipFromLegacyDoc", () => {
       legacyCommonAncestors: [{ ancestor_id: 1, path1Length: 2, path2Length: 2 }],
     });
     expect(result).toBe("sibling");
+  });
+  // The headline names the younger person first whoever is viewing, and uses preferred names:
+  // the profile's first-name field is "David Mathæus" but the headline says "David".
+  const uncleProfile = {
+    FirstName: "David Mathæus",
+    LastNameAtBirth: "Kristoffersen",
+    LastNameCurrent: "Croff",
+    Name: "Kristoffersen-633",
+    Gender: "Male",
+  };
+
+  test("niece viewing her great granduncle when neither name matches the headline", () => {
+    const html = `
+      <h2>Relationship Found</h2>
+      <h3 class="mt-0">Kimberley is the great grand niece of David (Confident)</h3>
+      <p><span class="ancestor_1">1. Kimberley is the daughter of <a href="/wiki/Doe-1">Jane Doe</a></span></p>
+      <p><span class="ancestor_1">1. David Mathæus is the son of <a href="/wiki/Doe-5">Petra Doe</a></span></p>
+    `;
+    const result = deriveRelationshipFromLegacyDoc(parseDoc(html), {
+      profilePerson: uncleProfile,
+      profileID: "Kristoffersen-633",
+      userWtIdRaw: "Doe-959",
+      userColloquialNameRaw: "Kim",
+      legacyCommonAncestors: [
+        { ancestor_id: 1, path1Length: 6, path2Length: 2 },
+        { ancestor_id: 2, path1Length: 6, path2Length: 2 },
+      ],
+    });
+    expect(result).toBe("great grand uncle");
+  });
+
+  test("grandnephew viewing his granduncle still inverts when the names do match", () => {
+    const html = `<h3 class="mt-0">James is the grandnephew of David (Confident)</h3>`;
+    const result = deriveRelationshipFromLegacyDoc(parseDoc(html), {
+      profilePerson: uncleProfile,
+      profileID: "Kristoffersen-633",
+      userWtIdRaw: "Hanson-10543",
+      userColloquialNameRaw: "James",
+      legacyCommonAncestors: [{ ancestor_id: 1, path1Length: 4, path2Length: 2 }],
+    });
+    expect(result).toBe("granduncle");
+  });
+
+  test("uncle viewing his niece sees niece, even when the names would wrongly invert it", () => {
+    // Viewer and profile share a first name, so the name check takes the viewer for the subject.
+    const html = `<h3 class="mt-0">Kim is the niece of Kim (Confident)</h3>`;
+    const result = deriveRelationshipFromLegacyDoc(parseDoc(html), {
+      profilePerson: { FirstName: "Kim", LastNameCurrent: "Doe", Name: "Doe-2", Gender: "Female" },
+      profileID: "Doe-2",
+      userWtIdRaw: "Doe-1",
+      userColloquialNameRaw: "Kim",
+      legacyCommonAncestors: [{ ancestor_id: 1, path1Length: 2, path2Length: 3 }],
+    });
+    expect(result).toBe("niece");
+  });
+});
+
+describe("orientAvuncularByPathLengths", () => {
+  const elder = [{ path1Length: 5, path2Length: 2 }];
+  const younger = [{ path1Length: 2, path2Length: 5 }];
+
+  test("flips to the profile's side and gender, keeping the prefix and spacing", () => {
+    expect(orientAvuncularByPathLengths("great grand niece", elder, "Male")).toBe("great grand uncle");
+    expect(orientAvuncularByPathLengths("second great grandnephew", elder, "Female")).toBe("second great grandaunt");
+    expect(orientAvuncularByPathLengths("nephew", elder, "")).toBe("aunt or uncle");
+    expect(orientAvuncularByPathLengths("great grand uncle", younger, "Female")).toBe("great grand niece");
+    expect(orientAvuncularByPathLengths("aunt", younger, "Male")).toBe("nephew");
+  });
+
+  test("leaves an already correct label alone", () => {
+    expect(orientAvuncularByPathLengths("granduncle", elder, "Male")).toBe("granduncle");
+    expect(orientAvuncularByPathLengths("niece", younger, "Female")).toBe("niece");
+  });
+
+  test("leaves everything else alone", () => {
+    expect(orientAvuncularByPathLengths("second cousin once removed", elder, "Male")).toBe(
+      "second cousin once removed"
+    );
+    expect(orientAvuncularByPathLengths("grandfather", elder, "Male")).toBe("grandfather");
+    expect(orientAvuncularByPathLengths("sibling", elder, "Male")).toBe("sibling");
+    expect(orientAvuncularByPathLengths("", elder, "Male")).toBe("");
+  });
+
+  test("does nothing without decisive path lengths", () => {
+    expect(orientAvuncularByPathLengths("niece", [], "Male")).toBe("niece");
+    expect(orientAvuncularByPathLengths("niece", undefined, "Male")).toBe("niece");
+    expect(orientAvuncularByPathLengths("niece", [{ path1Length: 2, path2Length: 2 }], "Male")).toBe("niece");
+    expect(orientAvuncularByPathLengths("niece", [...elder, ...younger], "Male")).toBe("niece");
   });
 });
