@@ -18,15 +18,9 @@
     "https://api.perplexity.ai/*",
     "https://api.x.ai/*",
     "https://raw.githubusercontent.com/*",
-    "https://query.wikidata.org/*",
-    "storage",
-    "clipboardRead",
-    "clipboardWrite",
-    "contextMenus",
-    "activeTab"
+    "https://query.wikidata.org/*"
   ],
   "optional_host_permissions": ["https://ollama.com/*", "http://localhost/*", "http://127.0.0.1/*"],
-  "optional_permissions": ["declarativeNetRequestWithHostAccess"],
   "content_scripts": [
     {
       "matches": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*", "*://*.findagrave.com/*"],
