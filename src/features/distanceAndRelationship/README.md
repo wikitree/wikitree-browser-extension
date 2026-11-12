@@ -41,6 +41,11 @@ This feature shows the distance (degrees) and relationship between the logged-in
     not enough, because relatives often share the user's first name (e.g. a father named after the son),
   - the `ancestor_1` override applies only to single-step paths; in longer paths `ancestor_1` relates the user to
     their parent, not the profile to the user.
+- Aunt/uncle and niece/nephew labels get a final, name-independent check (`orientAvuncularByPathLengths`): the
+  headline always names the younger person first and uses preferred names, which need not match the profile's
+  first-name field or the viewer's stored name. Whoever is further from the common ancestor in legacy
+  `commonAncestors` (`path1Length` = viewer, `path2Length` = profile) is the niece/nephew. Other labels, and
+  results without decisive path lengths, are left as derived.
 - Legacy `commonAncestors` path lengths are normalized via `reducePathLength` for compatibility with extension-side relationship rendering.
 - If modern distance is unavailable in fallback cases, distance is estimated from the resolved relationship text
   (and then cached/rendered), so privacy-only fallback pages can still show a degree badge.

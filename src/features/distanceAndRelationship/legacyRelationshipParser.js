@@ -493,5 +493,47 @@ export function deriveRelationshipFromLegacyDoc(doc, context = {}) {
     console.log("[WBE dist-rel] legacy user-subject override parse error", e);
   }
 
-  return derivedRelationship;
+  return orientAvuncularByPathLengths(derivedRelationship, legacyCommonAncestors, profilePerson?.Gender);
+}
+
+/**
+ * Aunt/uncle and niece/nephew labels are the one family where getting the direction wrong swaps
+ * the label, and the legacy headline always names the younger person first ("Kim is the great
+ * grand niece of David"), whoever is viewing. Name matching can't be trusted to flip it: the
+ * headline uses preferred names, which need not match the profile's first-name field
+ * ("David" vs "David Mathæus") or the viewer's stored name.
+ * The common ancestor path lengths are decisive instead: person 1 is the viewer, so whoever is
+ * further from the common ancestor is the niece/nephew.
+ *
+ * @param {string} relationship derived label, either way round
+ * @param {Array} commonAncestors legacy.commonAncestors (path1Length = viewer, path2Length = profile)
+ * @param {string} profileGender "Male" | "Female" | other
+ * @returns {string} label from the profile's perspective; unchanged when the data doesn't decide it
+ */
+export function orientAvuncularByPathLengths(relationship, commonAncestors, profileGender) {
+  const rel = String(relationship || "");
+  const match = rel.trim().match(/^((?:[a-z0-9]+ )*?)(grand ?)?(nephew|niece|uncle|aunt)$/i);
+  if (!match || !Array.isArray(commonAncestors)) return relationship;
+
+  const directions = new Set();
+  commonAncestors.forEach((ca) => {
+    const userSteps = Number(ca?.path1Length);
+    const profileSteps = Number(ca?.path2Length);
+    if (userSteps > 0 && profileSteps > 0 && userSteps !== profileSteps) {
+      directions.add(userSteps > profileSteps ? "elder" : "younger");
+    }
+  });
+  if (directions.size !== 1) return relationship;
+
+  const profileIsElder = directions.has("elder");
+  const [, prefix, grand = ""] = match;
+  const stem = `${prefix}${grand}`.toLowerCase();
+  if (profileIsElder) {
+    if (profileGender === "Male") return `${stem}uncle`;
+    if (profileGender === "Female") return `${stem}aunt`;
+    return `${stem}aunt or uncle`;
+  }
+  if (profileGender === "Male") return `${stem}nephew`;
+  if (profileGender === "Female") return `${stem}niece`;
+  return `${stem}niece or nephew`;
 }
