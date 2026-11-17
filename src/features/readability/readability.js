@@ -608,11 +608,51 @@ async function initReadability(options) {
           options.readingMode_toggle ? " toggled-on" : ""
         }" data-tooltip="Reading Mode" title="Reading Mode"><span class="wbe-icon-glasses"></span></a>
     `);
+    // setHiddenElements flips the reading mode classes each time it's called, so only call it on a real change
+    const setReadingMode = function (isOn) {
+      if (toggleElement.is(".toggled-on") === isOn) return;
+      toggleElement.toggleClass("toggled-on", isOn);
+      setHiddenElements(isOn);
+      setToggleValue(isOn);
+    };
+
+    // One click on the glasses changes the page a lot and is saved, so say what happened and offer a way back:
+    // people who click it by accident otherwise think an update switched things off.
+    let noticeTimer;
+    const hideNotice = function () {
+      clearTimeout(noticeTimer);
+      $(".wbe-reading-mode-notice").remove();
+    };
+    const showNotice = function (isOn) {
+      hideNotice();
+      const notice = $('<div class="wbe-reading-mode-notice" role="status" aria-live="polite"></div>');
+      $("<span></span>")
+        .text(
+          isOn
+            ? "Reading mode is on, so parts of this page are hidden. Click the glasses to switch it off."
+            : "Reading mode is off."
+        )
+        .appendTo(notice);
+      $('<button type="button" class="wbe-reading-mode-undo">Undo</button>')
+        .on("click", function () {
+          hideNotice();
+          setReadingMode(!isOn);
+        })
+        .appendTo(notice);
+      $('<button type="button" class="wbe-reading-mode-close" aria-label="Close" title="Close">×</button>')
+        .on("click", hideNotice)
+        .appendTo(notice);
+      const startTimer = () => (noticeTimer = setTimeout(hideNotice, isOn ? 10000 : 5000));
+      notice.on("mouseenter focusin", () => clearTimeout(noticeTimer)).on("mouseleave focusout", startTimer);
+      notice.appendTo("body");
+      startTimer();
+    };
+
     toggleElement.on("click", function (e) {
       e.preventDefault();
-      const isToggledOn = $(this).toggleClass("toggled-on").is(".toggled-on");
-      setHiddenElements(isToggledOn);
-      setToggleValue(isToggledOn);
+      const isToggledOn = !$(this).is(".toggled-on");
+      setReadingMode(isToggledOn);
+      showNotice(isToggledOn);
     });
     // add the toggle button at the top of the page content
     const container = $("#heading .text-end, .profile--actions.float-end").last();

@@ -181,7 +181,72 @@ body.darkMode .action--reading-mode.toggled-on > .wbe-icon-glasses {
   visibility: hidden;
 }
 
+/* Shown for a few seconds after the glasses are clicked, with a way back. */
+.wbe-reading-mode-notice {
+  position: fixed;
+  bottom: 24px;
+  left: 16px;
+  right: 16px;
+  width: fit-content;
+  margin: 0 auto;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  padding: 10px 12px 10px 16px;
+  border-radius: 6px;
+  background: #25422d;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.4;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.wbe-reading-mode-notice button {
+  flex: none;
+  margin: 0;
+  border: 1px solid #fff;
+  border-radius: 4px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.wbe-reading-mode-notice .wbe-reading-mode-undo {
+  padding: 3px 12px;
+  background: #fff;
+  color: #25422d;
+  font-weight: bold;
+}
+
+.wbe-reading-mode-notice .wbe-reading-mode-close {
+  padding: 1px 8px;
+  border-color: transparent;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.wbe-reading-mode-notice button:hover,
+.wbe-reading-mode-notice button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+
+body.darkMode .wbe-reading-mode-notice {
+  background: #1f2126;
+  border: 1px solid #a5d167;
+}
+
+body.darkMode .wbe-reading-mode-notice .wbe-reading-mode-undo {
+  background: #a5d167;
+  border-color: #a5d167;
+  color: #1f2126;
+}
+
 @media only print {
+  .wbe-reading-mode-notice,
   .action--reading-mode,
   .toggle.toggle-section {
     display: none;

@@ -193,6 +193,7 @@ body.modal-open {
   cursor: move;
 }
 
+#clipboard td.copyClipping,
 #clipboard td.editClipping,
 #clipboard td.deleteClipping {
   width: 2.25em;
@@ -263,6 +264,7 @@ body.modal-open {
 }
 
 /* The edit and delete buttons: the same size, centred in their columns, and big enough to hit */
+#clipboard .copyClippingButton,
 #clipboard .editClippingButton,
 #clipboard .deleteClippingButton {
   display: block;
@@ -279,10 +281,20 @@ body.modal-open {
   opacity: 0.65;
 }
 
+#clipboard .copyClippingButton:hover,
 #clipboard .editClippingButton:hover,
 #clipboard .deleteClippingButton:hover {
   opacity: 1;
   background-color: var(--cb-tab);
+}
+
+/* The copy button: two overlapping sheets, and a tick for a moment after copying */
+#clipboard .copyClippingButton {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='12' height='12' rx='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E");
+}
+#clipboard .copyClippingButton.copied {
+  opacity: 1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12l5 5L20 6'/%3E%3C/svg%3E");
 }
 
 /* The form for adding and editing */
@@ -392,6 +404,7 @@ body.darkMode #clipboard .tab-content tr td.clippingCell.clip-unselected {
 body.darkMode #clipboard td.index {
   color: #a9aea6 !important;
 }
+body.darkMode #clipboard .copyClippingButton,
 body.darkMode #clipboard .editClippingButton,
 body.darkMode #clipboard .deleteClippingButton {
   filter: brightness(0) invert(0.85);

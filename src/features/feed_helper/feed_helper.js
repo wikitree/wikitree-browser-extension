@@ -20,6 +20,8 @@ const MANAGED_PROFILES_CACHE_VERSION = 2;
 
 // States for the "Only Activity by New Members" / "Only Activity by Newly-Badged People" button.
 // The third state is only reachable when the newMemberThreeWayFilter option is on.
+const FEED_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 const NEW_MEMBER_FILTER_STATES = {
   inactive: "inactive",
   only: "only",
@@ -2007,20 +2009,43 @@ class FeedHelper {
   /**
    * Extracts activity data and user timestamps from the history items.
    */
+  /**
+   * Maps each feed item to the day it belongs to. Feeds group items under
+   * <span class="feed-date">16 Nov 2026</span> headers, newest first; an item's
+   * own text only carries HH:MM. Items with no header (or an unparseable one)
+   * are left out of the map.
+   */
+  getFeedItemDates() {
+    const itemDates = new Map();
+    let currentDate = null;
+    document.querySelectorAll(".feed-date, span.feed-item").forEach((el) => {
+      if (el.classList.contains("feed-date")) {
+        const match = el.textContent.trim().match(/^(\d{1,2}) (\w{3}) (\d{4})$/);
+        const month = match ? FEED_MONTHS.indexOf(match[2]) : -1;
+        currentDate = month >= 0 ? new Date(Number(match[3]), month, Number(match[1])) : null;
+      } else if (currentDate) {
+        itemDates.set(el, currentDate);
+      }
+    });
+    return itemDates;
+  }
+
   extractActivityData(historyItems, userMergeTimes) {
     const activityData = [];
+    const itemDates = this.getFeedItemDates();
 
     historyItems.each(function () {
       const WTIDs = [];
       let userID = null;
       let timestamp = null;
 
-      // Parse timestamp from history item text
+      // Parse timestamp from history item text, on the day of its feed-date header
       const text = $(this).text();
       const timeMatch = text.match(/(\d{2}:\d{2})/);
       if (timeMatch) {
         const [hour, minute] = timeMatch[0].split(":").map(Number);
-        timestamp = new Date();
+        const day = itemDates.get(this);
+        timestamp = day ? new Date(day.getTime()) : new Date();
         timestamp.setHours(hour, minute, 0, 0);
       }
 
@@ -2511,25 +2536,27 @@ class FeedHelper {
 
       const times = userMergeTimes[userID].sort((a, b) => a.timestamp - b.timestamp);
 
-      let currentSequence = []; // Track current sequence of activities
-      for (let i = 0; i < times.length; i++) {
-        const currentActivity = times[i];
-
-        // Start a new sequence if currentSequence is empty or the time gap exceeds 5 minutes
-        if (currentSequence.length === 0 || currentActivity.timestamp - currentSequence[0].timestamp > fiveMinutes) {
-          // Highlight the previous sequence if it's valid
-          if (currentSequence.length >= 3) {
-            this.flagRapidActivities(userID, currentSequence, warningsShown);
-            rapidActivityCount++;
+      // Sliding window: every run of 3+ activities within 5 minutes qualifies,
+      // wherever it starts. Overlapping runs are merged into one sequence.
+      const runs = [];
+      let end = 0;
+      for (let start = 0; start < times.length; start++) {
+        if (end < start) end = start;
+        while (end + 1 < times.length && times[end + 1].timestamp - times[start].timestamp <= fiveMinutes) {
+          end++;
+        }
+        if (end - start + 1 >= 3) {
+          const lastRun = runs[runs.length - 1];
+          if (lastRun && start <= lastRun.end) {
+            lastRun.end = Math.max(lastRun.end, end);
+          } else {
+            runs.push({ start, end });
           }
-          currentSequence = [currentActivity]; // Start a new sequence
-        } else {
-          currentSequence.push(currentActivity);
         }
       }
-      // Highlight the last sequence for the user
-      if (currentSequence.length >= 3) {
-        this.flagRapidActivities(userID, currentSequence, warningsShown);
+
+      for (const run of runs) {
+        this.flagRapidActivities(userID, times.slice(run.start, run.end + 1), warningsShown);
         rapidActivityCount++;
       }
     }

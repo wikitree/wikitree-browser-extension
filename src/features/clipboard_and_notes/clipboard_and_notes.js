@@ -38,6 +38,81 @@ const TRACKED_FIELD_SELECTOR = TRACKED_FIELD_IDS.map((id) => `#${id}`).join(", "
 // looks like #wpSummary and never fires our field-focus handlers.
 let summaryWasActiveOnClipboardOpen = false;
 
+// The text field the user was last typing in, anywhere on the page (a location box, a
+// date box, a search box...), so clicking a clipping puts it there rather than in the
+// biography. { el, start, end } for an <input>/<textarea>, { cm: true } for the enhanced
+// editor, or null when nothing has been focused yet or focus went into an iframe editor.
+let lastFocusedField = null;
+
+// Input types a clipping can sensibly go into: ones with a text caret.
+const TEXT_INPUT_TYPES = ["", "text", "search", "url", "email", "tel"];
+
+function isTextField(el) {
+  if (!el || el.disabled || el.readOnly) return false;
+  if (el.tagName === "TEXTAREA") return true;
+  if (el.tagName !== "INPUT") return false;
+  return TEXT_INPUT_TYPES.includes((el.getAttribute("type") || "").toLowerCase());
+}
+
+// The clipboard popup's own fields, and the copy fallback's temporary textarea, aren't targets.
+function isOurOwnField(el) {
+  return !!el.closest("#clipboard, [data-wbe-ignore-focus]");
+}
+
+function trackFocusedField(el) {
+  if (!el || !el.closest) return;
+  if (el.closest(".CodeMirror")) {
+    lastFocusedField = { cm: true };
+    return;
+  }
+  if (!isTextField(el) || isOurOwnField(el)) return;
+  lastFocusedField = { el, start: el.selectionStart ?? null, end: el.selectionEnd ?? null };
+}
+
+// The remembered field, if it is still on the page and showing.
+function rememberedTarget() {
+  if (!lastFocusedField) return null;
+  if (lastFocusedField.cm) {
+    return $("#wpTextbox1 + .CodeMirror:visible").length ? lastFocusedField : null;
+  }
+  const el = lastFocusedField.el;
+  if (!el.isConnected || !isTextField(el) || !$(el).is(":visible")) return null;
+  return lastFocusedField;
+}
+
+// Insert text at a field's saved caret, as a typed edit: it fires the field's input
+// events (so autocompletes and change tracking notice) and can be undone with Ctrl+Z.
+function insertIntoField(target, text) {
+  const el = target.el;
+  const length = el.value.length;
+  const start = typeof target.start === "number" ? Math.min(target.start, length) : length;
+  el.focus();
+  try {
+    // Insert at the caret, not over any selected text, as the bio box always has
+    el.setSelectionRange(start, start);
+  } catch (e) {
+    // Some input types can't report or set a caret; insertText then goes where focus left it
+  }
+  let inserted = false;
+  try {
+    inserted = document.execCommand("insertText", false, text);
+  } catch (e) {
+    inserted = false;
+  }
+  if (!inserted) {
+    el.value = el.value.slice(0, start) + text + el.value.slice(start);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  const caret = start + text.length;
+  try {
+    el.setSelectionRange(caret, caret);
+  } catch (e) {
+    // see above
+  }
+  lastFocusedField = { el, start: caret, end: caret };
+}
+
 const CB_DB_NAME = "Clipboard";
 const CB_DB_VERSION = 1;
 const CB_DB_STORE = "Clipboard";
@@ -137,8 +212,32 @@ function updateLastTextboxSelection() {
   // The instant a clipboard button is pressed (before the popup steals focus), record
   // which field was focused: whether it was the Change Explanation field, and — for a
   // tracked field — its caret position.
+  // Remember the last text field the user worked in, wherever it is on the page.
+  document.addEventListener(
+    "focusin",
+    (e) => {
+      trackFocusedField(e.target);
+    },
+    true
+  );
+  ["click", "keyup", "select"].forEach((type) =>
+    document.addEventListener(
+      type,
+      (e) => {
+        if (e.target === document.activeElement) trackFocusedField(e.target);
+      },
+      true
+    )
+  );
+  // Focus going into an iframe editor (G2G's answer box) means the user has moved on from
+  // whatever field they had before, so let that page's own default take over again.
+  window.addEventListener("blur", () => {
+    if (document.activeElement && document.activeElement.tagName === "IFRAME") lastFocusedField = null;
+  });
+
   $(document).on("mousedown", ".aClipboardButton", function () {
     const active = document.activeElement;
+    trackFocusedField(active);
     summaryWasActiveOnClipboardOpen = !!(active && active.id === "wpSummary");
     if (active && TRACKED_FIELD_IDS.includes(active.id)) {
       rememberSelection(active);
@@ -368,6 +467,24 @@ async function editClipping(key, type, e) {
 // theText is the clipping exactly as saved. It is not decoded again here, or a clipping that
 // contains markup such as &nbsp; or &lt;ref&gt; would go in as the characters those stand for.
 async function copyClippingToClipboard(theText) {
+  await copyTextOnly(theText);
+
+  // The user clicked into a text field before choosing the clipping: put it there,
+  // whichever field it is (a location, a date, the biography...).
+  const target = rememberedTarget();
+  if (target) {
+    if (target.cm) {
+      if (await insertIntoEnhancedEditor(theText)) return;
+    } else {
+      insertIntoField(target, theText);
+      return;
+    }
+  }
+  await insertIntoPageDefault(theText);
+}
+
+// Put the clipping on the system clipboard, and nowhere else (the Copy button).
+async function copyTextOnly(theText) {
   // Modern clipboard API with fallback
   try {
     await copyToClipboard(theText); // uses background script
@@ -375,8 +492,8 @@ async function copyClippingToClipboard(theText) {
   } catch (err) {
     console.warn("Background clipboard copy failed, using fallback:", err);
 
-    // Legacy fallback using hidden textarea
-    const $temp = $("<textarea>");
+    // Legacy fallback using hidden textarea (marked so it isn't taken for the user's field)
+    const $temp = $("<textarea data-wbe-ignore-focus>");
     $("body").append($temp);
     $temp.val(theText).trigger("focus").trigger("select");
     try {
@@ -388,7 +505,10 @@ async function copyClippingToClipboard(theText) {
       $temp.remove();
     }
   }
+}
 
+// No field was clicked into first: each kind of page has its own usual place for a clipping.
+async function insertIntoPageDefault(theText) {
   const enhancedEditorButton = $("#toggleMarkupColor");
   // The Change Explanation field (#wpSummary) is a plain <input>, independent of the
   // biography editor. When the enhanced editor (CodeMirror) is on, none of the bio-based
@@ -715,6 +835,9 @@ async function clipboard(type, e, action = false) {
                   <td class="clippingCell">${titleSpan}
                     <pre class="clipping">${htmlText}</pre>
                   </td>
+                  <td class="copyClipping" title="Copy this ${thisWord}, to paste it yourself">
+                    <span class="copyClippingButton" role="button" aria-label="Copy this ${thisWord}"></span>
+                  </td>
                   <td class="editClipping" title="Edit this ${thisWord}">
                     <span class="icon--edit-alt editClippingButton"></span>
                   </td>
@@ -759,6 +882,20 @@ async function clipboard(type, e, action = false) {
       });
   }
 
+  $(".copyClippingButton")
+    .off("click")
+    .on("click", async function (ev) {
+      ev.stopPropagation();
+      const $button = $(this);
+      await copyTextOnly($button.closest("tr").attr("data-original"));
+      // A tick for a moment, so it's clear something happened
+      $button.addClass("copied");
+      $button.closest("td").attr("title", "Copied");
+      setTimeout(() => {
+        $button.removeClass("copied");
+        $button.closest("td").attr("title", `Copy this ${thisWord}, to paste it yourself`);
+      }, 1200);
+    });
   $(".deleteClippingButton")
     .off("click")
     .on("click", function () {
