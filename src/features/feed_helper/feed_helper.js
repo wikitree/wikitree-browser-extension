@@ -510,7 +510,7 @@ class FeedHelper {
       const matchingLinks = $(targetClasses);
       this.debug(`Found ${matchingLinks.length} links with class ${targetClasses}`);
 
-      const allItems = $("span.feed-item:not(.HISTORY-HIDDEN)");
+      const allItems = $(".feed-item:not(.HISTORY-HIDDEN)");
       this.debug(`Found ${allItems.length} feed items`);
 
       let highlightedCount = 0;
@@ -789,7 +789,7 @@ class FeedHelper {
     });
 
     // Remove highlight classes from elements related to this user
-    $("span.feed-item").each(function () {
+    $(".feed-item").each(function () {
       const text = $(this).text();
       if (text.includes(userID)) {
         $(this).removeClass("highlight");
@@ -1091,7 +1091,7 @@ class FeedHelper {
     this.prepareFeedItemsForFiltering();
     const ids = new Set();
 
-    $("span.feed-item").each((_, element) => {
+    $(".feed-item").each((_, element) => {
       const $item = $(element);
       const profileIds = $item.data("feedHelperProfileIds") || [];
       profileIds.forEach((profileId) => {
@@ -1108,7 +1108,7 @@ class FeedHelper {
     this.prepareFeedItemsForFiltering();
     const ids = new Set();
 
-    $("span.feed-item").each((_, element) => {
+    $(".feed-item").each((_, element) => {
       const $item = $(element);
       const spaceIds = $item.data("feedHelperSpaceIds") || [];
       spaceIds.forEach((spaceId) => {
@@ -1222,7 +1222,7 @@ class FeedHelper {
       return;
     }
 
-    $("span.feed-item").each((_, element) => {
+    $(".feed-item").each((_, element) => {
       const $item = $(element);
       const itemText = ($item.text() || "").toLowerCase();
       const hasSpaceLink =
@@ -1391,7 +1391,7 @@ class FeedHelper {
       this.newMemberFilterState === NEW_MEMBER_FILTER_STATES.inactive ? "" : this.getNewMemberFilterSelector();
 
     let hiddenCount = 0;
-    $("span.feed-item").each((_, element) => {
+    $(".feed-item").each((_, element) => {
       const $item = $(element);
       let shouldHide = false;
 
@@ -1676,7 +1676,7 @@ class FeedHelper {
 
   async getMemberCreatedDates(showLoader = false) {
     const memberCreatedDates = {};
-    const historyItems = $("span.feed-item");
+    const historyItems = $(".feed-item");
     const memberProfileIDs = [];
     const self = this;
     // Ensure memberData is an object to avoid TypeErrors when using Object.keys/Object.values
@@ -1767,7 +1767,7 @@ class FeedHelper {
           // Add the "newt" class to the HISTORY-ITEM span
           //.closest("span.HISTORY-ITEM")
           $("a[href*='/wiki/" + profileID + "']")
-            .closest("span.feed-item")
+            .closest(".feed-item")
             .addClass("newt");
           // Add the "newt" class to the first /wiki/ link in the HISTORY-ITEM span
           $("a[href*='/wiki/" + profileID + "']").addClass("newt");
@@ -1872,7 +1872,7 @@ class FeedHelper {
     await this.loadExcludedNames();
 
     const WTIDs = [];
-    const historyItems = $("span.feed-item").not(".HISTORY-HIDDEN"); // Exclude HISTORY-HIDDEN
+    const historyItems = $(".feed-item").not(".HISTORY-HIDDEN"); // Exclude HISTORY-HIDDEN
     const userMergeTimes = {}; // Track timestamps of merges by each user
     const processedPairs = new Set(); // Track processed ID pairs
     let anomalyCount = 0;
@@ -1914,7 +1914,7 @@ class FeedHelper {
     //console.log("checkActivity called"); // Debugging log
     await this.loadExcludedNames();
 
-    const historyItems = $("span.feed-item").not(".HISTORY-HIDDEN"); // Exclude HISTORY-HIDDEN
+    const historyItems = $(".feed-item").not(".HISTORY-HIDDEN"); // Exclude HISTORY-HIDDEN
     const userMergeTimes = {}; // Track timestamps of merges by each user
 
     // Always start fresh - only check current page activity (don't load old stored warnings)
@@ -1954,7 +1954,6 @@ class FeedHelper {
     // Look for all possible highlighted elements
     const allHighlightSelectors = [
       ".highlight",
-      "span.feed-item.highlight",
       ".feed-item.highlight",
       "*[class*='highlight']",
     ];
@@ -2007,18 +2006,15 @@ class FeedHelper {
    * Checks if the current page is not the first page of the merge feed.
    */
   /**
-   * Extracts activity data and user timestamps from the history items.
-   */
-  /**
    * Maps each feed item to the day it belongs to. Feeds group items under
-   * <span class="feed-date">16 Nov 2026</span> headers, newest first; an item's
+   * <div class="feed-date">16 Nov 2026</div> headers, newest first; an item's
    * own text only carries HH:MM. Items with no header (or an unparseable one)
    * are left out of the map.
    */
   getFeedItemDates() {
     const itemDates = new Map();
     let currentDate = null;
-    document.querySelectorAll(".feed-date, span.feed-item").forEach((el) => {
+    document.querySelectorAll(".feed-date, .feed-item").forEach((el) => {
       if (el.classList.contains("feed-date")) {
         const match = el.textContent.trim().match(/^(\d{1,2}) (\w{3}) (\d{4})$/);
         const month = match ? FEED_MONTHS.indexOf(match[2]) : -1;
@@ -2030,6 +2026,9 @@ class FeedHelper {
     return itemDates;
   }
 
+  /**
+   * Extracts activity data and user timestamps from the history items.
+   */
   extractActivityData(historyItems, userMergeTimes) {
     const activityData = [];
     const itemDates = this.getFeedItemDates();
@@ -4001,8 +4000,8 @@ class FeedHelper {
       }
     }
 
-    // Find all links in span.feed-item that look like profile links
-    const theLinks = $("span.feed-item a");
+    // Find all links in .feed-item that look like profile links
+    const theLinks = $(".feed-item a");
     const bioLinks = [];
 
     // Collect profile IDs to fetch
@@ -4109,8 +4108,8 @@ class FeedHelper {
       this.people[2] = this.fetchedProfiles || {};
     }
 
-    // Find all links in span.feed-item that include a year in the text content
-    const theLinks = $("span.feed-item a");
+    // Find all links in .feed-item that include a year in the text content
+    const theLinks = $(".feed-item a");
 
     // For each bio Name, find it in a link and add a button
     theLinks.each((index, element) => {
@@ -4131,7 +4130,7 @@ class FeedHelper {
           profileID = decodeURIComponent(href.split("/").pop());
         }
 
-        const feedItem = $(element).closest("span.feed-item");
+        const feedItem = $(element).closest(".feed-item");
         const feedText = feedItem.text();
 
         this.debug("Processing profile link:", profileID, "from href:", href);
@@ -5916,7 +5915,7 @@ class FeedHelper {
   restoreStoredAnomaliesOnPageLoad() {
     try {
       const attemptRestore = (attempt = 0) => {
-        const $historyItems = $("span.feed-item").not(".HISTORY-HIDDEN");
+        const $historyItems = $(".feed-item").not(".HISTORY-HIDDEN");
 
         if ($historyItems.length > 0) {
           console.log(
@@ -5996,7 +5995,7 @@ class FeedHelper {
       // Wait for DOM to be ready and actions to complete, then display buttons
       const attemptDisplayButtons = () => {
         // Check if feed items are present on the page
-        const feedItems = $("span.feed-item");
+        const feedItems = $(".feed-item");
         if (feedItems.length > 0) {
           this.debug(
             "FeedHelper: Displaying bio buttons after data restoration, found",

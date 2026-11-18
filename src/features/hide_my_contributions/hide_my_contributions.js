@@ -53,7 +53,7 @@ checkIfFeatureEnabled("hideMyContributions").then((isEnabled) => {
 
       if (hideMyContributionsValue) {
         // If the option is true, hide user's contributions
-        $("span.feed-item a:first-child").each(function () {
+        $(".feed-item a:first-child").each(function () {
           const isUserContrib = $(this).text() === "You";
           // Guard the href: it is read eagerly rather than short-circuited by isUserContrib, so a
           // single link without one would otherwise throw and abandon the rest of the loop.
