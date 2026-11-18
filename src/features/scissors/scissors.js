@@ -115,7 +115,7 @@ async function helpScissors() {
     }
     const feedURL = window.location.href;
     let feedTitle = $("h1").first().text();
-    const feedName = $('span.feed-item a[href*="wiki/' + feedID + '"')
+    const feedName = $('.feed-item a[href*="wiki/' + feedID + '"')
       .eq(0)
       .text();
     if (isProfileHistoryDetail) {
@@ -129,7 +129,7 @@ async function helpScissors() {
 
     // Profiles change details page
     if (isProfileHistoryDetail) {
-      const historyItem = $("span.feed-item");
+      const historyItem = $(".feed-item");
       const theAct = historyItem.find("a:contains(created),a:contains(imported the data)");
       const createDetail = theAct.length ? ` at creation of WikiTree profile ${theAct[0].title}` : "";
       const fromGedcom = theAct.length ? historyItem.find('a[title*="UploadGedcom"]') : undefined;

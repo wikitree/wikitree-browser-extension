@@ -420,7 +420,7 @@ x.closeBioPopup {
   font-size: 1em;
 }
 
-span.feed-item.highlight {
+.feed-item.highlight {
   border: 2px solid #8fc641;
   background-color: #eeffee;
   padding: 0.2em 0.5em;
@@ -428,7 +428,7 @@ span.feed-item.highlight {
   box-shadow: 0 2px 4px rgba(143, 198, 65, 0.2);
 }
 
-span.feed-item.newestProjectBadged {
+.feed-item.newestProjectBadged {
   border: 2px solid #ff6b35;
   background-color: #fff3e0;
   padding: 0.2em 0.5em;
