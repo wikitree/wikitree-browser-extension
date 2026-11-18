@@ -2,6 +2,7 @@ import {
   compileFacts,
   findPrivateRanges,
   mergeRanges,
+  pageProfileKey,
   personIdFromHref,
   personInLink,
 } from "./presentation_mode_matcher";
@@ -158,5 +159,22 @@ describe("mergeRanges", () => {
       [0, 4],
       [5, 9],
     ]);
+  });
+});
+
+describe("pageProfileKey", () => {
+  test("profile pages, tree widgets and edit pages", () => {
+    expect(pageProfileKey("https://www.wikitree.com/wiki/Example-7")).toBe("Example-7");
+    expect(pageProfileKey("https://www.wikitree.com/wiki/Van_der_Byl-59#Biography")).toBe("Van_der_Byl-59");
+    expect(pageProfileKey("https://www.wikitree.com/wiki/O%27Brien-12")).toBe("O'Brien-12");
+    expect(pageProfileKey("https://www.wikitree.com/treewidget/Example-7/5")).toBe("Example-7");
+    expect(pageProfileKey("https://www.wikitree.com/index.php?title=Special:EditPerson&u=12345")).toBe("12345");
+  });
+  test("not other pages, or the apps", () => {
+    expect(pageProfileKey("https://www.wikitree.com/wiki/Category:Example_Name")).toBeNull();
+    expect(pageProfileKey("https://www.wikitree.com/wiki/Space:Example-7")).toBeNull();
+    expect(pageProfileKey("https://www.wikitree.com/genealogy/Example-7")).toBeNull();
+    expect(pageProfileKey("https://apps.wikitree.com/apps/example/?id=Example-7")).toBeNull();
+    expect(pageProfileKey("not a url")).toBeNull();
   });
 });

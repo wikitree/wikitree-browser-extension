@@ -264,6 +264,27 @@ export function personIdFromHref(href, compiled) {
 }
 
 /**
+ * The profile a page is about, for asking the API: "Example-7" from /wiki/Example-7 (or the tree widget), or the
+ * numeric Id from an edit page. Null for any other page, and in the apps.
+ */
+export function pageProfileKey(href) {
+  let url;
+  try {
+    url = new URL(href);
+  } catch (error) {
+    return null;
+  }
+  if (/^apps\./i.test(url.hostname)) return null;
+  const path = decodeSafely(url.pathname).match(/^\/(?:wiki|treewidget)\/(\p{L}[^/?#:]*?-\d+)(?:\/|$)/u);
+  if (path) return path[1].replace(/ /g, "_");
+  if (/^Special:EditPerson$/i.test(url.searchParams.get("title") || "")) {
+    const id = url.searchParams.get("u") || "";
+    if (/^\d+$/.test(id)) return id;
+  }
+  return null;
+}
+
+/**
  * Who a link points to, from its href or (in the Tree Apps) its data-id.
  * @returns {number|null} The Id of a person with private facts; 0 for a link to anyone else's profile; null when it
  *   isn't a link to a profile.

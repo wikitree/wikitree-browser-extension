@@ -6,7 +6,9 @@ Created By: Ian Beacall (Beacall-6)
 Presentation Mode: hides what only the logged-in member can see, so they can share their screen or record a video.
 
 - presentation_mode_store.js asks WikiTree for the public view of the private profiles on the watchlist, and
-  presentation_mode_facts.js keeps whatever the public view leaves out.
+  presentation_mode_facts.js keeps whatever the public view leaves out. For the WikiTree Team, who can see private
+  profiles that aren't on their watchlist, the person a page is about and their close family are checked the same
+  way before the page is shown.
 - presentation_mode_matcher.js finds those facts in text.
 - This file marks them on the page. Text is marked with the CSS Custom Highlight API, which changes nothing in the
   page's HTML, so it is safe in CodeMirror and in the apps. Links to unlisted profiles, private photos and form
@@ -21,13 +23,24 @@ import "./presentation_mode.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getUserNumId } from "../../core/common";
 import { clientLoginUrl, currentHrefWithoutAuthcode, redeemAuthcode } from "../../core/loginButton";
-import { compileFacts, findPrivateRanges, personIdFromHref, personInLink } from "./presentation_mode_matcher";
+import {
+  compileFacts,
+  findPrivateRanges,
+  pageProfileKey,
+  personIdFromHref,
+  personInLink,
+} from "./presentation_mode_matcher";
 import {
   NotLoggedInError,
+  buildPageFacts,
   buildPrivateFacts,
+  forgetPageFacts,
   isStale,
+  isTeamMember,
+  loadPageFacts,
   loadStoredFacts,
   storeFacts,
+  storePageFacts,
   storedFactsFit,
 } from "./presentation_mode_store";
 
@@ -102,6 +115,8 @@ const ROOT_CLASSES = ["wbe-pm-blur", "wbe-pm-bars", "wbe-pm-check"];
 const state = {
   options: {},
   record: null,
+  // The private facts of the page's own person and their close family (see checkPagePerson).
+  pageFacts: [],
   compiled: null,
   pageIds: new Set(),
   // The page's highlight. Each frame has its own, in `docs`.
@@ -152,17 +167,61 @@ async function init() {
   await redeemAuthcode(APP_ID);
 
   const userId = getUserNumId();
+  // Alongside the main list, which may take a while to build.
+  const pageCheck = checkPagePerson(userId);
   const stored = await loadStoredFacts();
   if (storedFactsFit(stored, userId)) {
+    const pageChecked = await pageCheck;
     useRecord(stored);
+    if (!pageChecked) showPageCheckFailed();
     if (isStale(stored)) refreshFacts({ quiet: true });
   } else {
-    await refreshFacts({ quiet: false });
+    await refreshFacts({ quiet: false, pageCheck });
   }
 }
 
-/** Fetches the private facts again. With quiet, the page stays usable (an older list is already in use). */
-async function refreshFacts({ quiet }) {
+/**
+ * For the WikiTree Team, who can see private profiles without being on their Trusted Lists (so they aren't on the
+ * watchlist): checks the person the page is about and their close family. Resolves to false if WikiTree didn't
+ * answer.
+ */
+async function checkPagePerson(userId) {
+  const key = pageProfileKey(window.location.href);
+  if (!key || !isTeamMember(userId)) return true;
+  try {
+    let facts = await loadPageFacts(userId, key);
+    if (!facts) {
+      facts = await buildPageFacts(key);
+      await storePageFacts(userId, key, facts);
+    }
+    state.pageFacts = facts;
+    return true;
+  } catch (error) {
+    console.warn("Presentation Mode: could not check this profile", error);
+    return false;
+  }
+}
+
+function showPageCheckFailed() {
+  showOverlay({
+    title: "Presentation Mode couldn't check this profile",
+    text:
+      "WikiTree didn't say what the public can see of this profile, so some private details on it might not be " +
+      "hidden. Your watchlist's private profiles are hidden as usual.",
+    actions: [
+      { label: "Try again", primary: true, run: () => window.location.reload() },
+      showAnywayAction(),
+      turnOffAction(),
+    ],
+  });
+}
+
+/**
+ * Fetches the private facts again. With quiet, the page stays usable (an older list is already in use).
+ * @param {Promise<boolean>} [pageCheck] A check of the page's person already under way (see checkPagePerson);
+ *   without one, the page's person is checked again.
+ */
+async function refreshFacts({ quiet, pageCheck = null }) {
   if (state.refreshing) return;
   state.refreshing = true;
   updateBadge("Checking…");
@@ -175,8 +234,12 @@ async function refreshFacts({ quiet }) {
       onProgress: quiet ? null : ({ stage, done, total }) => showProgress(stage, done, total),
     });
     await storeFacts(record);
+    // Profiles checked on their own pages are checked again with the new list.
+    await forgetPageFacts();
+    const pageChecked = await (pageCheck || checkPagePerson(userId));
     hideOverlay();
     useRecord(record);
+    if (!pageChecked) showPageCheckFailed();
   } catch (error) {
     console.warn("Presentation Mode:", error);
     if (quiet && state.compiled) {
@@ -218,7 +281,10 @@ async function refreshFacts({ quiet }) {
 
 function useRecord(record) {
   state.record = record;
-  state.compiled = compileFacts(record.facts, { emails: true });
+  // The page's own check is the newer, so it wins for anyone in both.
+  const facts = new Map();
+  [...(record.facts || []), ...state.pageFacts].forEach((fact) => facts.set(fact.id, fact));
+  state.compiled = compileFacts([...facts.values()], { emails: true });
   state.pageIds = pagePersonIds();
   rescanAll();
   startObserving();

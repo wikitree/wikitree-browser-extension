@@ -13,13 +13,37 @@ These calls go straight to the API instead of through WikiTreeAPI.postToAPI, bec
 postToAPI leave the login out, and the logged-in half of the comparison needs it.
 
 The list is kept in chrome.storage.local, for this browser only, and rebuilt once a day or when asked.
+
+The WikiTree Team can see private profiles without being on their Trusted Lists, so for them the watchlist isn't
+enough. When a Team member opens a profile, the person it is about and their close family are checked too
+(buildPageFacts). Those answers are kept for a day, per profile, and forgotten whenever the main list is rebuilt.
 */
+
+/** The WikiTree Team's user Ids, from the profiles linked on Help:WikiTree_Team (2026-11). */
+const TEAM_IDS = new Set([
+  32, // Chris Whitten, Whitten-1
+  641784, // Paul Bech, Bech-2
+  2382917, // Abby Glann, Brown-8212
+  2893176, // Julie Ricketts, Fiscus-32
+  3835380, // Eowyn Langholf, Langholf-2
+  3901580, // Steve Harris, Harris-5439
+  4617026, // Jamie Nelson, Nelson-3486
+  10816946, // Aleš Trtnik, Trtnik-2
+  12958354, // Elaine Martzen, Weatherall-96
+  19606899, // Azure Robinson, Robinson-27225
+  23433028, // Betsy Ko, Ko-31
+]);
+
+export const isTeamMember = (userId) => TEAM_IDS.has(Number(userId));
 
 import { closeFamilyToHide, privateFactsFromPeople } from "./presentation_mode_facts";
 
 const API_URL = "https://api.wikitree.com/api.php";
 const APP_ID = "WBE_presentation_mode";
 const STORE_KEY = "presentationMode_facts";
+const PAGE_STORE_KEY = "presentationMode_pageFacts";
+// Profiles whose page checks are kept; the oldest go first.
+const MAX_PAGE_ENTRIES = 300;
 export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 // The API takes about as long for 500 watchlist entries as for 5,000 (7 s and 11 s, measured), so ask for them
 // all at once. If it sends fewer than asked, the loop carries on from where they stop.
@@ -150,6 +174,60 @@ export async function buildPrivateFacts({ userId = null, onProgress } = {}) {
     checked: ids.length,
     facts,
   };
+}
+
+/**
+ * The private facts of one profile and its close family, whether or not they are on the watchlist.
+ * @param {string} key The profile's WikiTree ID or numeric Id
+ */
+export async function buildPageFacts(key) {
+  const fetchSide = async (withLogin) => {
+    const params = { action: "getPeople", keys: key, fields: FIELDS, bioFormat: "text" };
+    // nuclear=1 sometimes leaves the person themself out, so they are fetched on their own as well.
+    const [self, family] = await Promise.all([
+      callApi(params, withLogin),
+      callApi({ ...params, nuclear: 1 }, withLogin),
+    ]);
+    return { ...(family?.[0]?.people || {}), ...(self?.[0]?.people || {}) };
+  };
+  const [authed, anon] = await Promise.all([fetchSide(true), fetchSide(false)]);
+  return privateFactsFromPeople(authed, anon);
+}
+
+const pageKey = (key) => String(key).replace(/ /g, "_").toLowerCase();
+
+/** The facts kept from checking this profile's page today, or null if it hasn't been checked. */
+export async function loadPageFacts(userId, key, now = Date.now()) {
+  try {
+    const store = (await chrome.storage.local.get(PAGE_STORE_KEY))?.[PAGE_STORE_KEY];
+    if (!store || Number(store.userId) !== Number(userId)) return null;
+    const entry = store.entries?.[pageKey(key)];
+    return entry && !isStale({ builtAt: entry.at }, now) ? entry.facts : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+export async function storePageFacts(userId, key, facts, now = Date.now()) {
+  try {
+    const old = (await chrome.storage.local.get(PAGE_STORE_KEY))?.[PAGE_STORE_KEY];
+    const kept = (old && Number(old.userId) === Number(userId) ? Object.entries(old.entries || {}) : []).filter(
+      ([k, entry]) => k !== pageKey(key) && !isStale({ builtAt: entry.at }, now)
+    );
+    kept.push([pageKey(key), { at: now, facts }]);
+    const entries = Object.fromEntries(kept.sort((a, b) => a[1].at - b[1].at).slice(-MAX_PAGE_ENTRIES));
+    await chrome.storage.local.set({ [PAGE_STORE_KEY]: { userId: Number(userId), entries } });
+  } catch (error) {
+    console.warn("Presentation Mode: could not save this profile's check", error);
+  }
+}
+
+export async function forgetPageFacts() {
+  try {
+    await chrome.storage.local.remove(PAGE_STORE_KEY);
+  } catch (error) {
+    // nothing to forget
+  }
 }
 
 export async function loadStoredFacts() {
