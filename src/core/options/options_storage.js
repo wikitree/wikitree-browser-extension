@@ -5,6 +5,19 @@ Created By: Rob Pavey (Pavey-429)
 import { getDefaultOptionValuesForFeature, getFeatureData, features } from "./options_registry";
 import { SHARED_AI_DEFAULTS, SHARED_AI_FEATURES, SHARED_AI_OPTIONS_KEY, SHARED_AI_OPTION_IDS } from "./shared_ai_options";
 
+// The WikiTree Tree Apps mobile app build (WBE_WEBVIEW) leaves out what needs background.js. require() inside the
+// constant check, not import, so the extension builds drop the module along with the dead branch.
+const isWebview = () => typeof WBE_WEBVIEW !== "undefined" && WBE_WEBVIEW;
+// The app build has no background.js to reach an AI with, so no feature may find a key.
+const withoutAiInWebview = (options) =>
+  typeof WBE_WEBVIEW !== "undefined" && WBE_WEBVIEW
+    ? require("../../platform/webview/disabled_features").withoutAiAccess(options)
+    : options;
+const webviewDisables = (featureId) =>
+  typeof WBE_WEBVIEW !== "undefined" &&
+  WBE_WEBVIEW &&
+  require("../../platform/webview/disabled_features").isDisabledInWebview(featureId);
+
 function isSharedAiFeature(featureId) {
   return SHARED_AI_FEATURES.includes(featureId);
 }
@@ -77,6 +90,12 @@ async function checkIfFeatureEnabled(featureId) {
         reject(new Error(`Invalid featureId: ${featureId}`));
       }
 
+      // The WikiTree Tree Apps mobile app build leaves out features that need background.js.
+      if (webviewDisables(featureId)) {
+        resolve(false);
+        return;
+      }
+
       const itemKey = featureId;
       chrome.storage.sync.get(itemKey, function (items) {
         let result = items[itemKey];
@@ -129,6 +148,9 @@ async function getEnabledStateForAllFeatures() {
       }
 
       chrome.storage.sync.get(keysWithDefaults, function (items) {
+        if (isWebview()) {
+          for (const featureId of Object.keys(items)) if (webviewDisables(featureId)) items[featureId] = false;
+        }
         resolve(items);
       });
     } catch (ex) {
@@ -212,7 +234,7 @@ async function getFeatureOptions(featureId) {
           }
 
           // (the AI settings aren't among the feature's own options, so their defaults come from here)
-          const mergedOptions = { ...SHARED_AI_DEFAULTS, ...optionsToReturn, ...migratedSharedOptions };
+          const mergedOptions = withoutAiInWebview({ ...SHARED_AI_DEFAULTS, ...optionsToReturn, ...migratedSharedOptions });
 
           if (didMigrate) {
             chrome.storage.sync.set({ [SHARED_AI_OPTIONS_KEY]: migratedSharedOptions }, () => {

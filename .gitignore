@@ -33,3 +33,6 @@ xcode/WikiTree Browser Extension Preview/WikiTree Browser Extension Preview.xcod
 # Local npm cache override
 .npm-cache/
 /.claude
+
+# WikiTree Tree Apps mobile app build folder (npm run build-webview)
+dist-webview

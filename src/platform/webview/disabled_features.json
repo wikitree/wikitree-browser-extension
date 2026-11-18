@@ -1,0 +1,12 @@
+{
+  "comment": "Features left out of the WikiTree Tree Apps mobile app build, because they need background.js. Read by src/platform/webview/disabled_features.js and written into dist-webview/webview.json.",
+  "features": [
+    { "id": "chat", "why": "Genie: AI calls (chatWithAI), duplicates (duplicatesRead) and Wikidata (fetchWikidataSparql) go through background.js" },
+    { "id": "duplicates", "why": "reads and sets duplicate status through background.js (duplicatesRead, duplicatesSetStatus, duplicatesCompareProfiles)" },
+    { "id": "goldStandard", "why": "the Gold Standard Inspector is fetched by background.js (goldStandardInspector)" }
+  ],
+  "aiAccess": {
+    "why": "AI requests go through background.js (chatWithAI, improveBioWithAI). The app build hides the AI Settings and reads no AI keys, so Auto Bio's Improve with AI, the AI Change Explanation and Find and Replace's Ask Genie don't appear; the rest of those features works.",
+    "messages": ["chatWithAI", "improveBioWithAI"]
+  }
+}

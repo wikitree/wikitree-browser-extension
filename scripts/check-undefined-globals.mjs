@@ -178,6 +178,7 @@ const KNOWN_GLOBALS = new Map([
   ["chrome", "extension API, present in Chrome and shimmed for Firefox"],
   ["browser", "extension API under Firefox"],
   ["BUILD_INFO", "injected at build time by webpack's DefinePlugin"],
+  ["WBE_WEBVIEW", "injected at build time by webpack's DefinePlugin; true only in the mobile app build"],
   ["process", "replaced by webpack; only ever read as process.env"],
   ["$", "injected into every module by webpack's ProvidePlugin — see webpack/webpack.common.js"],
   ["jQuery", "injected into every module by webpack's ProvidePlugin — see webpack/webpack.common.js"],
@@ -197,6 +198,10 @@ const ALLOWED = {
   "src/features/color_blind_support/color_blind_support.test.js": {
     __dirname:
       "reads the feature's own stylesheet from disk; Jest maps .css to a stub, so require.resolve cannot give the real path",
+  },
+  "src/platform/webview/shim.js": {
+    WBE_WEBVIEW_MANIFEST: "injected by webpack's DefinePlugin in webpack/webpack.webview.js only",
+    __webpack_public_path__: "webpack's run-time public path, set from the mobile app's base URL",
   },
   "src/features/find_matches_scores/find_matches_page.test.js": {
     __dirname: "reads a saved copy of the Find Matches page from __fixtures__, which is HTML rather than a module",

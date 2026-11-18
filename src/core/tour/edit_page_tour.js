@@ -773,7 +773,10 @@ function pageDemo(restorePage) {
       return true;
     }),
     genie: track(async () => {
-      const module = await import(/* webpackChunkName: "muse" */ "../../features/chat/chat");
+      // Genie isn't in the WikiTree Tree Apps mobile app build (a constant condition, so it isn't bundled there).
+      const module = await (typeof WBE_WEBVIEW !== "undefined" && WBE_WEBVIEW
+        ? Promise.reject(new Error("Genie is not available in the WikiTree app"))
+        : import(/* webpackChunkName: "muse" */ "../../features/chat/chat"));
       module.openChatPopup();
       await until(() => document.querySelector(GENIE_CHIP), 15000);
       return Boolean(document.querySelector(GENIE_CHIP));

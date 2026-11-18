@@ -2,6 +2,7 @@ const webpack = require("webpack");
 const path = require("path");
 const CopyPlugin = require("copy-webpack-plugin");
 const WebExtension = require("webpack-target-webextension");
+const pageWorldScripts = require("./page_world_scripts.js");
 const srcDir = path.join(__dirname, "..", "src");
 const buildInfo = { buildDate: new Date(Date.now()).toISOString() };
 // Chunks kept out of the vendor split so they stay self-contained: the npm packages only they use go in the chunk,
@@ -100,45 +101,13 @@ module.exports = (env) => ({
           to: "../manifest.json",
           context: "src",
         },
-        {
-          from: "features/text_expander/cm_helper.js",
-          to: "../features/text_expander/cm_helper.js",
-          context: "src",
-        },
-        {
-          from: "features/text_expander/event_dispatcher.js",
-          to: "../features/text_expander/event_dispatcher.js",
-          context: "src",
-        },
-        {
-          from: "features/clipboard_and_notes/cm_insert.js",
-          to: "../features/clipboard_and_notes/cm_insert.js",
-          context: "src",
-        },
-        {
-          from: "core/cm_text.js",
-          to: "../core/cm_text.js",
-          context: "src",
-        },
-        {
-          from: "features/find_and_replace/find_and_replace_page.js",
-          to: "../features/find_and_replace/find_and_replace_page.js",
-          context: "src",
-        },
-        {
-          from: "features/custom_change_summary_options/edit_draft_page.js",
-          to: "../features/custom_change_summary_options/edit_draft_page.js",
-          context: "src",
-        },
-        {
-          from: "features/trusted_list_changes_table/trusted_list_changes_page.js",
-          to: "../features/trusted_list_changes_table/trusted_list_changes_page.js",
-          context: "src",
-        },
+        ...pageWorldScripts.map((file) => ({ from: file, to: `../${file}`, context: "src" })),
       ],
     }),
     new webpack.DefinePlugin({
       BUILD_INFO: JSON.stringify(buildInfo),
+      // true only in the WikiTree Tree Apps mobile app build (webpack.webview.js)
+      WBE_WEBVIEW: JSON.stringify(env.browser === "webview"),
     }),
     new WebExtension(),
     new webpack.ProvidePlugin({
@@ -170,3 +139,6 @@ module.exports = (env) => ({
     ],
   },
 });
+
+// The build date and commit, for webpack.webview.js to write into webview.json.
+module.exports.buildInfo = buildInfo;

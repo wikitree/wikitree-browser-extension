@@ -92,6 +92,19 @@ const isSafari = !navigatorDetect.browser.Blink && !navigatorDetect.browser.Geck
 import("./core/toggleCheckbox.css");
 
 // Build the tree of categories with features under them
+// The WikiTree Tree Apps mobile app build leaves out features that need background.js, so they aren't listed.
+// (require() inside the constant check, so the extension builds don't include the module)
+if (typeof WBE_WEBVIEW !== "undefined" && WBE_WEBVIEW) {
+  const { isDisabledInWebview } = require("./platform/webview/disabled_features");
+  for (let i = features.length - 1; i >= 0; i--) if (isDisabledInWebview(features[i].id)) features.splice(i, 1);
+  // No AI either, so no AI Settings button in the features that use it.
+  const withoutAiSettings = (options) =>
+    options
+      ?.filter((option) => option.type != OptionType.AI_SETTINGS)
+      .map((option) => (option.options ? { ...option, options: withoutAiSettings(option.options) } : option));
+  for (const feature of features) if (feature.options) feature.options = withoutAiSettings(feature.options);
+}
+
 const rootCategory = categorize(features);
 
 $("h1")
@@ -817,7 +830,7 @@ $(() => {
 // adds HTML elements for each category and its features to the options page
 let toggleCount = 0;
 renderCategory(rootCategory, $("#features"));
-addAiSettingsDialog();
+if (!(typeof WBE_WEBVIEW !== "undefined" && WBE_WEBVIEW)) addAiSettingsDialog();
 
 // The AI Settings (2026-10-21): the provider, keys and models every feature that uses AI shares, in a
 // dialog of their own that the button in each of those features' options opens (OptionType.AI_SETTINGS).

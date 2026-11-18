@@ -12,6 +12,8 @@ const CHAT_OPTIONS_KEY = "chat_options";
 let museModulePromise = null;
 
 function isChatFeatureEnabled() {
+  // Genie needs background.js, which the WikiTree Tree Apps mobile app build doesn't have.
+  if (typeof WBE_WEBVIEW !== "undefined" && WBE_WEBVIEW) return Promise.resolve(false);
   const featureData = getFeatureData(CHAT_FEATURE_ID);
   const defaultEnabled = featureData?.defaultValue !== undefined ? Boolean(featureData.defaultValue) : true;
 
@@ -63,9 +65,14 @@ function ensureButtonContainer() {
 
 async function loadMuseModule() {
   if (!museModulePromise) {
-    museModulePromise = import(
-      /* webpackChunkName: "muse" */
-      "./chat"
+    // (a constant condition, so the app build doesn't bundle Genie at all)
+    museModulePromise = (
+      typeof WBE_WEBVIEW !== "undefined" && WBE_WEBVIEW
+        ? Promise.reject(new Error("Genie is not available in the WikiTree app"))
+        : import(
+            /* webpackChunkName: "muse" */
+            "./chat"
+          )
     ).catch((error) => {
       museModulePromise = null;
       throw error;

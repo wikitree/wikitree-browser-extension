@@ -161,6 +161,13 @@ jobs:
           cd dist
           zip -r ../dist-firefox.zip *
           cd ..
+      - name: Build for the WikiTree Tree Apps mobile app (webview)
+        run: |
+          npm run clean
+          npm run build-webview
+          cd dist-webview
+          zip -r ../dist-webview.zip *
+          cd ..
       # altool's --upload-app resolves the app's numeric Apple ID from the bundle ID by calling
       # App Store Connect's list-apps endpoint. That endpoint is a single point of failure: when it
       # returns 500s the upload dies with the misleading "Cannot determine the Apple ID from Bundle
@@ -243,6 +250,7 @@ jobs:
         run: |
           mv dist-chrome.zip "${{ env.X_DIST_PREFIX }}-chrome.zip"
           mv dist-firefox.zip "${{ env.X_DIST_PREFIX }}-firefox.zip"
+          mv dist-webview.zip "${{ env.X_DIST_PREFIX }}-webview.zip"
           [ ! -f dist-safari-ios.ipa ] || mv dist-safari-ios.ipa "${{ env.X_DIST_PREFIX }}-safari-ios.ipa"
           [ ! -f dist-safari-macos.pkg ] || mv dist-safari-macos.pkg "${{ env.X_DIST_PREFIX }}-safari-macos.pkg"
           [ ! -f dist-safari-macos.zip ] || mv dist-safari-macos.zip "${{ env.X_DIST_PREFIX }}-safari-macos.zip"
