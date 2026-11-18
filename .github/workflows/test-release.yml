@@ -1,0 +1,79 @@
+name: "Build and release (test, no Safari)"
+
+# A copy of "Build and release" without the Safari/Xcode builds and without any upload to Apple.
+# It builds Chrome, Firefox and the WikiTree Tree Apps webview, and puts the zips on a GitHub
+# pre-release tagged test/<branch>, so it never replaces the stable or preview releases.
+
+on:
+  workflow_dispatch: # run manually only
+
+permissions:
+  contents: write # to create the GitHub release
+
+jobs:
+  test-release:
+    name: "Test Release"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          cache: "npm"
+      - name: Set release names
+        run: |
+          echo "X_SHORT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "X_VERSION=$(node -p "require('./src/manifest/manifest-chrome.json').version")" >> $GITHUB_ENV
+          # branch names can contain "/", which can't go in a file name
+          echo "X_BRANCH_SLUG=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_ENV
+      - name: Install dependencies
+        run: npm ci
+      - name: Download WikiTree+ templates
+        run: npm run download-templates
+      - name: Download surname variants (One Name Studies sheet)
+        run: npm run download-surname-variants
+      - name: Build for Chrome
+        run: |
+          npm run clean
+          npm run build
+          cd dist
+          zip -r ../dist-chrome.zip *
+          cd ..
+      - name: Build for Firefox
+        run: |
+          npm run clean
+          npm run build-firefox
+          cd dist
+          zip -r ../dist-firefox.zip *
+          cd ..
+      - name: Build for the WikiTree Tree Apps mobile app (webview)
+        run: |
+          npm run clean
+          npm run build-webview
+          cd dist-webview
+          zip -r ../dist-webview.zip *
+          cd ..
+      - name: Rename release assets
+        env:
+          X_DIST_PREFIX: wbe-test-${{ env.X_BRANCH_SLUG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}
+        run: |
+          mv dist-chrome.zip "${{ env.X_DIST_PREFIX }}-chrome.zip"
+          mv dist-firefox.zip "${{ env.X_DIST_PREFIX }}-firefox.zip"
+          mv dist-webview.zip "${{ env.X_DIST_PREFIX }}-webview.zip"
+      - name: Update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          X_GH_RELEASE_TAG: test/${{ github.ref_name }}
+        run: |
+          if gh release delete "$X_GH_RELEASE_TAG" --cleanup-tag --yes; then
+            echo previous release "$X_GH_RELEASE_TAG" deleted
+          fi
+          gh release create "$X_GH_RELEASE_TAG" --target ${{ github.sha }} \
+            --title "(test) ${{ github.ref_name }}-v${{ env.X_VERSION }}" \
+            --prerelease \
+            --notes "This test build is from the ${{ github.ref_name }} branch. It has no Safari builds and nothing was sent to Apple. **It is not an official release for public distribution.**" \
+            wbe-*.zip
+          echo release "$X_GH_RELEASE_TAG" created
