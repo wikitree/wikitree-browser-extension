@@ -2305,8 +2305,8 @@ body.darkMode .chat-results-filter-row th:not(#none) {
     position: sticky;
     top: 0;
     z-index: 2;
-    flex-wrap: nowrap;
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 4px 8px;
     padding: 8px 8px 8px 14px;
     cursor: default;
     background: #fff;
@@ -2326,11 +2326,27 @@ body.darkMode .chat-results-filter-row th:not(#none) {
     font-size: 17px;
   }
 
+  /* The buttons don't fit beside the title on a phone. Kept on one row they
+     spilled leftwards over "Genie" and its help button, so let them wrap onto a
+     row of their own, right-aligned. */
   .chat-popup-header > .chat-popup-controls {
     flex: 1 1 auto;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 4px;
     min-width: 0;
+  }
+
+  /* The Apps button already says what to do; the red "Logged out" beside it only
+     crowds the row (its title still explains, for anyone who long-presses). */
+  .chat-apps-status-out .chat-apps-status-text {
+    display: none;
+  }
+
+  /* Logged in, "Apps ✓ Sign out" is only a note, and with AI, Clear and × there's no room for it beside "Genie":
+     it slid under the title (Ian, 2026-11-19). Typing "sign out of apps" still signs out. */
+  .chat-apps-status:not(.chat-apps-status-out) {
+    display: none !important;
   }
 
   .chat-popup-controls button.small,
@@ -2421,5 +2437,129 @@ body.darkMode .chat-results-filter-row th:not(#none) {
 
   .chat-send-column {
     gap: 8px;
+  }
+
+  /* Chart windows and the Connections Path on a phone (Ian, 2026-11-19): they fill the screen over Genie, so the ×
+     is the way back to Genie, but it was lost among the buttons and the title ran under the icons. Here the window
+     says so: "‹ Genie" at the top left, the title beside it (cut short if need be), and the chart's own buttons on
+     one row underneath that scrolls sideways. The size button goes (the window is already as big as the screen);
+     full screen stays (as an icon at the right on the charts). :not(#none) and !important are against the chart styles that
+     injectChartStyles adds later. */
+  .wbe-chart-popup > .chat-popup-header:not(#none),
+  .chat-connections-popup > .chat-popup-header:not(#none) {
+    position: sticky;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px 8px !important;
+    min-height: 0;
+  }
+
+  .wbe-chart-popup > .chat-popup-header > strong:not(#none),
+  .chat-connections-popup > .chat-popup-header > strong:not(#none) {
+    order: 1;
+    flex: 1 1 100%;
+    min-width: 0;
+    display: block;
+    box-sizing: border-box;
+    min-height: 40px;
+    line-height: 40px;
+    padding: 0 44px 0 92px;
+    font-size: 17px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .wbe-chart-popup > .chat-popup-header > .wbe-chart-nav:not(#none) {
+    order: 2;
+    margin: 0;
+  }
+
+  .wbe-chart-popup > .chat-popup-header > .chat-popup-controls:not(#none),
+  .chat-connections-popup > .chat-popup-header > .chat-popup-controls:not(#none) {
+    order: 3;
+    flex: 1 1 0;
+    min-width: 0;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .wbe-chart-popup > .chat-popup-header > .chat-popup-controls::-webkit-scrollbar,
+  .chat-connections-popup > .chat-popup-header > .chat-popup-controls::-webkit-scrollbar {
+    display: none;
+  }
+
+  .wbe-chart-popup > .chat-popup-header button:not(#none),
+  .chat-connections-popup > .chat-popup-header button:not(#none) {
+    flex: 0 0 auto;
+    min-height: 40px;
+    font-size: 15px;
+    padding: 0 10px;
+    white-space: nowrap;
+  }
+
+  .wbe-chart-popup > .chat-popup-header .wbe-chart-size:not(#none) {
+    display: none;
+  }
+
+  .wbe-chart-popup > .chat-popup-header [data-act="full"]:not(#none) {
+    top: 11px;
+    right: 8px;
+    width: 32px;
+    min-height: 32px;
+    height: 32px;
+    padding: 0;
+  }
+
+
+  .wbe-chart-popup > .chat-popup-header .close-popup:not(#none),
+  .chat-connections-popup > .chat-popup-header .close-popup:not(#none) {
+    position: absolute;
+    top: 6px;
+    left: 4px;
+    right: auto;
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 40px !important;
+    height: 40px;
+    padding: 0 8px !important;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #25422d;
+    font-size: 0 !important;
+    line-height: 40px;
+  }
+
+  /* (the × is drawn with ::before and ::after; here ::before is the words) */
+  .wbe-chart-popup > .chat-popup-header .close-popup:not(#none)::before,
+  .chat-connections-popup > .chat-popup-header .close-popup:not(#none)::before {
+    content: "‹ Genie";
+    position: static;
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    background: none;
+    transform: none;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 40px;
+  }
+
+  .wbe-chart-popup > .chat-popup-header .close-popup:not(#none)::after,
+  .chat-connections-popup > .chat-popup-header .close-popup:not(#none)::after {
+    display: none;
+  }
+
+  body.darkMode .wbe-chart-popup > .chat-popup-header .close-popup:not(#none),
+  body.darkMode .chat-connections-popup > .chat-popup-header .close-popup:not(#none) {
+    color: #dedecb !important;
+    background: transparent !important;
   }
 }
