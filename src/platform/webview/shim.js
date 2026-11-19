@@ -19,6 +19,10 @@ Host methods called here (the app side matches this list):
   storage.clear  { area }                                                   -> null
   openOptions    {}                                                         -> null
   openUrl        { url }                                                    -> null
+  net.fetch      { url, method, headers, body }   -> { status, statusText, body }
+                 Only for the AI providers' API hosts (ai_requests.js). The app makes the request itself, so there
+                 are no CORS limits, and asks the member before anything first goes to a provider. A network
+                 failure, a host that isn't allowed or a refusal comes back as an error.
 
 storage.get never receives the default-values form ({ key: default }): that is handled here. The app sends
 storageChanged only to the *other* web views; a page's own writes fire chrome.storage.onChanged here.
@@ -39,6 +43,8 @@ that src/ uses.
   const DEFAULT_BASE = "https://www.wikitree.com/__wbe/";
   const NOT_AVAILABLE = "Not available in the WikiTree app";
   const HOST_TIMEOUT_MS = 30000;
+  // (ai_requests.js gives up on an AI after 4½ minutes; this is a little longer, so its message is the one shown)
+  const AI_FETCH_TIMEOUT_MS = 285000;
 
   if (!g.__wbeHost) g.__wbeHost = createTestHost();
   const host = g.__wbeHost;
@@ -59,13 +65,13 @@ that src/ uses.
   let nextId = 1;
   const pending = new Map();
 
-  function callHost(method, args) {
+  function callHost(method, args, timeoutMs = HOST_TIMEOUT_MS) {
     return new Promise((resolve, reject) => {
       const id = nextId++;
       const timer = setTimeout(() => {
         pending.delete(id);
         reject(new Error(`The WikiTree app didn't answer ${method}`));
-      }, HOST_TIMEOUT_MS);
+      }, timeoutMs);
       pending.set(id, { resolve, reject, timer });
       try {
         host.send(JSON.stringify({ id, method, args: args || {} }));
@@ -333,10 +339,31 @@ that src/ uses.
       case "openWbeOptions":
         await callHost("openOptions", {});
         return undefined;
+      // The AI requests, which the extensions' background.js answers: here ai_requests.js runs in the page
+      // (content_entry.js sets g.__wbeAi) and sends its requests through the app (hostFetch).
+      case "improveBioWithAI":
+      case "chatWithAI": {
+        const ai = g.__wbeAi;
+        if (!ai) throw new Error(NOT_AVAILABLE);
+        const handle = message.action === "chatWithAI" ? ai.handleChatWithAIRequest : ai.handleAIRequest;
+        return new Promise((resolve) => handle(message, resolve, { tab: thisTab() }));
+      }
       default:
         throw new Error(NOT_AVAILABLE);
     }
   }
+
+  // fetch() for ai_requests.js, through the app (net.fetch above). Answers a Response, as fetch does.
+  g.__wbeHostFetch = async function hostFetch(url, init = {}) {
+    const headers = {};
+    new Headers(init.headers || {}).forEach((value, name) => (headers[name] = value));
+    const result = await callHost(
+      "net.fetch",
+      { url: new URL(String(url), location.href).href, method: init.method || "GET", headers, body: init.body ?? null },
+      AI_FETCH_TIMEOUT_MS
+    );
+    return new Response(result?.body ?? "", { status: result?.status || 500, statusText: result?.statusText || "" });
+  };
 
   const manifest = typeof WBE_WEBVIEW_MANIFEST !== "undefined" ? WBE_WEBVIEW_MANIFEST : {};
 

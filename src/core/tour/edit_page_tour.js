@@ -11,6 +11,7 @@ import { bioText, keepEditPage, pageChanged, selectInBio, showInBio } from "./ed
 import { switchBack, switchOnAndReload, switchedOnForTour } from "./tour_features";
 import { IndexedDBHelper } from "../lib/indexedDBHelper";
 import { getEnabledStateForAllFeatures, getFeatureOptions } from "../options/options_storage";
+import { loadGenie } from "../../features/chat/load_genie";
 
 const EDITOR = "#wpTextbox1 + .CodeMirror, #wpTextbox1";
 const PLACE = "#mBirthLocation";
@@ -773,10 +774,7 @@ function pageDemo(restorePage) {
       return true;
     }),
     genie: track(async () => {
-      // Genie isn't in the WikiTree Tree Apps mobile app build (a constant condition, so it isn't bundled there).
-      const module = await (typeof WBE_WEBVIEW !== "undefined" && WBE_WEBVIEW
-        ? Promise.reject(new Error("Genie is not available in the WikiTree app"))
-        : import(/* webpackChunkName: "muse" */ "../../features/chat/chat"));
+      const module = await loadGenie();
       module.openChatPopup();
       await until(() => document.querySelector(GENIE_CHIP), 15000);
       return Boolean(document.querySelector(GENIE_CHIP));

@@ -8,10 +8,10 @@ import { SHARED_AI_DEFAULTS, SHARED_AI_FEATURES, SHARED_AI_OPTIONS_KEY, SHARED_A
 // The WikiTree Tree Apps mobile app build (WBE_WEBVIEW) leaves out what needs background.js. require() inside the
 // constant check, not import, so the extension builds drop the module along with the dead branch.
 const isWebview = () => typeof WBE_WEBVIEW !== "undefined" && WBE_WEBVIEW;
-// The app build has no background.js to reach an AI with, so no feature may find a key.
+// The app build has no Ollama on this computer: it's always Ollama Cloud there.
 const withoutAiInWebview = (options) =>
   typeof WBE_WEBVIEW !== "undefined" && WBE_WEBVIEW
-    ? require("../../platform/webview/disabled_features").withoutAiAccess(options)
+    ? require("../../platform/webview/disabled_features").withAppAi(options)
     : options;
 const webviewDisables = (featureId) =>
   typeof WBE_WEBVIEW !== "undefined" &&

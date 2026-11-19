@@ -7,7 +7,6 @@ extension builds webpack drops the call and this module with it, and in Jest (wh
 check is simply false.
 */
 import disabled from "./disabled_features.json";
-import { SHARED_AI_KEY_IDS } from "../../core/options/shared_ai_options";
 
 const DISABLED_IDS = new Set(disabled.features.map((feature) => feature.id));
 
@@ -17,12 +16,10 @@ export function isDisabledInWebview(featureId) {
 }
 
 /**
- * A shared-AI feature's options with no way to reach an AI: every key blank, and Ollama set to the cloud (Ollama on
- * this computer needs no key, so aiConfigFor would otherwise still offer it). Auto Bio's Improve with AI, the AI
- * Change Explanation and Find and Replace's Ask Genie all check for a key, so they don't appear.
+ * A shared-AI feature's options as the app uses them. The AI requests go through the app (ai_requests.js, shim.js),
+ * but a phone has no Ollama of its own, so Ollama is always Ollama Cloud (with a blank key aiConfigFor would
+ * otherwise offer "Ollama on this computer").
  */
-export function withoutAiAccess(options) {
-  const result = { ...options, ollamaWhere: "cloud" };
-  for (const keyId of SHARED_AI_KEY_IDS) result[keyId] = "";
-  return result;
+export function withAppAi(options) {
+  return { ...options, ollamaWhere: "cloud" };
 }

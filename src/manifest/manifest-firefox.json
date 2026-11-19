@@ -34,7 +34,7 @@
     }
   ],
   "background": {
-    "scripts": ["background.js"]
+    "scripts": ["ai_requests.js", "background.js"]
   },
   "web_accessible_resources": [
     {

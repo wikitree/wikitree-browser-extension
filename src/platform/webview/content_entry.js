@@ -8,6 +8,12 @@ early), so this waits for the page before starting WBE, and stays out of frames.
 require() rather than import, so content.js runs when called, not when this module loads; webpack still bundles it
 into this same file.
 */
+// The AI requests (Auto Bio's Improve with AI, Genie, ...) run here rather than in a background, and go through the
+// app (shim.js: __wbeHostFetch, and the improveBioWithAI and chatWithAI messages).
+const { handleAIRequest, handleChatWithAIRequest, setAiFetch } = require("../../../public/ai_requests.js");
+if (globalThis.__wbeHostFetch) setAiFetch(globalThis.__wbeHostFetch);
+globalThis.__wbeAi = { handleAIRequest, handleChatWithAIRequest };
+
 function startWbe() {
   require("../../content.js");
 }

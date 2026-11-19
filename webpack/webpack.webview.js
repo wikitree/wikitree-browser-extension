@@ -46,6 +46,8 @@ const ENTRIES = {
   // Presentation Mode's early part is a plain script the extensions copy as it is and run at document_start.
   // Here it's bundled behind the stand-in, which it needs for chrome.storage; early_entry.js waits for <html>.
   "wbe-early": [shim, path.join(srcDir, "platform", "webview", "early_entry.js")],
+  // Genie, loaded only when it's opened (src/features/chat/load_genie.js): too big to put in every page
+  "wbe-genie": [shim, path.join(srcDir, "platform", "webview", "genie_entry.js")],
 };
 
 function entryConfig(env, name, withFiles) {
@@ -97,7 +99,8 @@ function filePlugins() {
           from: ".",
           to: ".",
           context: "public",
-          globOptions: { ignore: ["**/background.js", "**/options.html", "**/.DS_Store"] },
+          // (ai_requests.js is bundled into wbe-webview.js: content_entry.js)
+          globOptions: { ignore: ["**/background.js", "**/ai_requests.js", "**/options.html", "**/.DS_Store"] },
         },
         { from: "public/options.html", to: "options.html", transform: webviewOptionsHtml },
         ...pageWorldScripts.map((file) => ({ from: file, to: file, context: "src" })),

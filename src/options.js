@@ -103,12 +103,6 @@ import("./core/toggleCheckbox.css");
 if (typeof WBE_WEBVIEW !== "undefined" && WBE_WEBVIEW) {
   const { isDisabledInWebview } = require("./platform/webview/disabled_features");
   for (let i = features.length - 1; i >= 0; i--) if (isDisabledInWebview(features[i].id)) features.splice(i, 1);
-  // No AI either, so no AI Settings button in the features that use it.
-  const withoutAiSettings = (options) =>
-    options
-      ?.filter((option) => option.type != OptionType.AI_SETTINGS)
-      .map((option) => (option.options ? { ...option, options: withoutAiSettings(option.options) } : option));
-  for (const feature of features) if (feature.options) feature.options = withoutAiSettings(feature.options);
 }
 
 const rootCategory = categorize(features);
@@ -836,7 +830,7 @@ $(() => {
 // adds HTML elements for each category and its features to the options page
 let toggleCount = 0;
 renderCategory(rootCategory, $("#features"));
-if (!(typeof WBE_WEBVIEW !== "undefined" && WBE_WEBVIEW)) addAiSettingsDialog();
+addAiSettingsDialog();
 
 // The AI Settings (2026-10-21): the provider, keys and models every feature that uses AI shares, in a
 // dialog of their own that the button in each of those features' options opens (OptionType.AI_SETTINGS).
@@ -849,7 +843,16 @@ function addAiSettingsDialog() {
   const usedBy = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
   const $content = $('<div class="dialog-content"></div>');
   const intro = { type: OptionType.TEXT_LINE, comment: `These settings are shared by ${usedBy}.` };
-  addOptionsForFeature(SHARED_AI_SETTINGS, $content.get(0), [intro, ...SHARED_AI_SETTINGS.options]);
+  let aiOptions = SHARED_AI_SETTINGS.options;
+  // The WikiTree Tree Apps mobile app: a phone has no Ollama of its own, so Ollama Cloud is the only choice there.
+  if (typeof WBE_WEBVIEW !== "undefined" && WBE_WEBVIEW) {
+    aiOptions = aiOptions.map((option) =>
+      option.id === "ollamaWhere"
+        ? { ...option, values: option.values.filter((value) => value.value === "cloud"), defaultValue: "cloud" }
+        : option
+    );
+  }
+  addOptionsForFeature(SHARED_AI_SETTINGS, $content.get(0), [intro, ...aiOptions]);
   $('<dialog id="aiSettingsDialog"></dialog>')
     .append(
       $('<div class="dialog-header"></div>')

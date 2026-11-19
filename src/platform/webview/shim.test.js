@@ -54,7 +54,24 @@ function loadShim(host) {
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
+// (jsdom has no Response; the web views do)
+class TestResponse {
+  constructor(body, { status, statusText }) {
+    this.body = body;
+    this.status = status;
+    this.statusText = statusText;
+    this.ok = status >= 200 && status < 300;
+  }
+  text() {
+    return Promise.resolve(this.body);
+  }
+  json() {
+    return this.text().then(JSON.parse);
+  }
+}
+
 beforeAll(() => {
+  if (typeof globalThis.Response === "undefined") globalThis.Response = TestResponse;
   globalThis.WBE_WEBVIEW = true;
   globalThis.WBE_WEBVIEW_MANIFEST = { name: "WikiTree Browser Extension", version: "2.20.2.6", manifest_version: 3 };
   globalThis.__webpack_public_path__ = "";
@@ -176,6 +193,70 @@ describe("webview stand-in", () => {
     expect(error).toBe("Not available in the WikiTree app");
     await expect(chrome.runtime.sendMessage({ action: "duplicatesRead" })).rejects.toThrow(
       "Not available in the WikiTree app"
+    );
+  });
+
+  test("runtime.sendMessage: the AI requests go to ai_requests.js once content_entry.js has set it up", async () => {
+    const chrome = loadShim(fakeHost());
+    const seen = [];
+    globalThis.__wbeAi = {
+      handleChatWithAIRequest: (message, sendResponse, sender) => {
+        seen.push(["chat", message.prompt, sender.tab.id]);
+        setTimeout(() => sendResponse({ success: true, response: "hello" }), 0);
+      },
+      handleAIRequest: (message, sendResponse) => {
+        seen.push(["bio", message.oldBio]);
+        sendResponse({ success: true, bio: "new" });
+      },
+    };
+    try {
+      await expect(chrome.runtime.sendMessage({ action: "chatWithAI", prompt: "hi" })).resolves.toEqual({
+        success: true,
+        response: "hello",
+      });
+      await expect(chrome.runtime.sendMessage({ action: "improveBioWithAI", oldBio: "old" })).resolves.toEqual({
+        success: true,
+        bio: "new",
+      });
+      expect(seen).toEqual([
+        ["chat", "hi", 0],
+        ["bio", "old"],
+      ]);
+    } finally {
+      delete globalThis.__wbeAi;
+    }
+  });
+
+  test("__wbeHostFetch sends the request through the host (net.fetch) and answers a Response", async () => {
+    const host = fakeHost();
+    const send = host.send;
+    host.send = (json) => {
+      const { id, method } = JSON.parse(json);
+      if (method !== "net.fetch") return send(json);
+      host.calls.push(JSON.parse(json));
+      setTimeout(() => host.reply(id, null, JSON.stringify({ status: 401, statusText: "Unauthorized", body: '{"error":"bad key"}' })), 0);
+    };
+    loadShim(host);
+    const response = await globalThis.__wbeHostFetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer k" },
+      body: '{"model":"m"}',
+    });
+    expect(host.calls.at(-1).args).toEqual({
+      url: "https://api.openai.com/v1/chat/completions",
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer k" },
+      body: '{"model":"m"}',
+    });
+    expect(response.ok).toBe(false);
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: "bad key" });
+  });
+
+  test("__wbeHostFetch fails like fetch when the host refuses", async () => {
+    loadShim(fakeHost({ fail: { "net.fetch": "The member didn't allow sending this to OpenAI" } }));
+    await expect(globalThis.__wbeHostFetch("https://api.openai.com/v1/x", { method: "POST", body: "{}" })).rejects.toThrow(
+      "The member didn't allow sending this to OpenAI"
     );
   });
 
