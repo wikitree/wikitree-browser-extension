@@ -2267,3 +2267,159 @@ body.darkMode .chat-results-filter-row th:not(#none) {
     animation: none;
   }
 }
+
+/* Phones (2026-11-19): Genie and its windows fill the screen as a sheet, with text and buttons sized for a
+   finger. As a small floating window over the page (the desktop layout) it was cramped and fiddly to tap, and the
+   page behind it was no use at that size anyway. !important because positionPopupForOpen and dragging set the
+   window's place and size inline. */
+@media (max-width: 640px) {
+  .chat-popup,
+  .chat-results-popup {
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    transform: none !important;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    font-size: 16px;
+    /* (the iPhone's notch and home bar) */
+    padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+    box-sizing: border-box;
+    overscroll-behavior: contain;
+  }
+
+  .chat-popup .ui-resizable-handle,
+  .chat-results-popup .ui-resizable-handle {
+    display: none !important;
+  }
+
+  .chat-popup-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 8px 8px 8px 14px;
+    cursor: default;
+    background: #fff;
+  }
+
+  .chat-popup-header > strong {
+    flex: 0 0 auto;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .chat-popup-header .chat-help-button {
+    width: 32px;
+    height: 32px;
+    font-size: 17px;
+  }
+
+  .chat-popup-header > .chat-popup-controls {
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .chat-popup-controls button.small,
+  .chat-popup-controls button {
+    min-height: 44px;
+    font-size: 16px;
+    padding: 0 12px;
+  }
+
+  #wbe-genie-ai-toggle {
+    font-size: 15px;
+    padding: 0 6px;
+  }
+
+  #wbe-genie-ai-toggle .chat-ai-switch {
+    transform: scale(1.3);
+    margin: 0 8px;
+  }
+
+  .chat-input-row .chat-recent-button {
+    min-width: 52px;
+    font-size: 20px;
+  }
+
+  .chat-popup-controls .close-popup,
+  .chat-results-popup .close-popup {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 28px;
+    line-height: 1;
+    padding: 0;
+  }
+
+  .chat-popup-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-messages {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    font-size: 17px;
+    line-height: 1.45;
+  }
+
+  .chat-message-body {
+    font-size: 17px;
+  }
+
+  .chat-message-label {
+    font-size: 13px;
+  }
+
+  .chat-message-action,
+  .chat-message-body .wbe-chat-choose {
+    min-height: 40px;
+    padding: 8px 14px;
+    font-size: 16px;
+    border-radius: 20px;
+  }
+
+  .chat-message-actions {
+    gap: 8px;
+  }
+
+  /* 16px or more, or the iPhone zooms the page in when the box is tapped */
+  .chat-input-row textarea,
+  .chat-popup select,
+  .chat-popup input[type="text"],
+  .chat-popup input[type="search"] {
+    font-size: 16px !important;
+  }
+
+  .chat-input-row textarea {
+    min-height: 52px !important;
+    padding: 10px;
+  }
+
+  .chat-input-row button,
+  .chat-send-column button {
+    min-height: 48px;
+    font-size: 17px;
+  }
+
+  .chat-send-column {
+    gap: 8px;
+  }
+}

@@ -5797,7 +5797,8 @@ function openPopup() {
   restoreChatMode($popup);
   positionPopupForOpen($popup.get(0));
   setHighestZIndex($popup.get(0));
-  $popup.find(`#${CHAT_INPUT_ID}`).focus();
+  // (not on a phone: the keyboard would come up at once and cover half of Genie before anything is tapped)
+  if (!window.matchMedia?.("(max-width: 640px) and (pointer: coarse)").matches) $popup.find(`#${CHAT_INPUT_ID}`).focus();
 }
 
 export function openChatPopup() {
