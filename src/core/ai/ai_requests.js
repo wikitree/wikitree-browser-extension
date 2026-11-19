@@ -2,12 +2,12 @@
 The AI requests (Auto Bio's Improve with AI, Genie, the AI Change Explanation, Find and Replace's Ask Genie), moved out
 of background.js so the WikiTree Tree Apps mobile app build can run the same code (2026-11-19).
 
-- Chrome and Safari: background.js loads this with importScripts().
-- Firefox: the manifest lists it before background.js.
+- The extensions: webpack.common.js puts this file at the top of dist/background.js when it copies public/, so the
+  background is still one file (the Safari Xcode projects and the manifests name only background.js).
 - The app build (WBE_WEBVIEW): src/platform/webview/content_entry.js bundles it and sends the requests through the
   app (setAiFetch), which has no CORS limits; the stand-in (shim.js) answers improveBioWithAI and chatWithAI with it.
 
-Plain script: in the extensions everything here is a global of the background, as it was in background.js.
+Plain script, no imports: in the extensions everything here is a global of the background, as it was in background.js.
 */
 
 // Every request to an AI provider goes through this, so the app can send them itself.

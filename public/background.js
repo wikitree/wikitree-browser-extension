@@ -1,6 +1,5 @@
-// The AI requests (handleAIRequest, handleChatWithAIRequest) are in ai_requests.js, which the app build shares.
-// Chrome and Safari load it here; Firefox's manifest lists it before this file.
-if (typeof importScripts === "function") importScripts("ai_requests.js");
+// The AI requests (handleAIRequest, handleChatWithAIRequest) are in src/core/ai/ai_requests.js, which the app build
+// shares. The build puts that file at the top of this one (webpack.common.js), so dist/background.js is still one file.
 
 if (chrome.runtime) {
   chrome.runtime.onInstalled.addListener(function (details) {

@@ -99,8 +99,7 @@ function filePlugins() {
           from: ".",
           to: ".",
           context: "public",
-          // (ai_requests.js is bundled into wbe-webview.js: content_entry.js)
-          globOptions: { ignore: ["**/background.js", "**/ai_requests.js", "**/options.html", "**/.DS_Store"] },
+          globOptions: { ignore: ["**/background.js", "**/options.html", "**/.DS_Store"] },
         },
         { from: "public/options.html", to: "options.html", transform: webviewOptionsHtml },
         ...pageWorldScripts.map((file) => ({ from: file, to: file, context: "src" })),

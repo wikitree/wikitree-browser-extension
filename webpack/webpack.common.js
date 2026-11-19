@@ -91,7 +91,20 @@ module.exports = (env) => ({
   },
   plugins: [
     new CopyPlugin({
-      patterns: [{ from: ".", to: "../", context: "public" }],
+      patterns: [
+        {
+          from: ".",
+          to: "../",
+          context: "public",
+          // The AI requests live in src/core/ai/ai_requests.js, which the app build shares; the background gets them
+          // at its top, so dist/background.js stays one file (the Safari Xcode projects name only that file).
+          transform(content, absoluteFrom) {
+            if (path.basename(absoluteFrom) !== "background.js") return content;
+            const ai = require("fs").readFileSync(path.join(srcDir, "core", "ai", "ai_requests.js"), "utf8");
+            return ai + "\n" + content.toString();
+          },
+        },
+      ],
       options: {},
     }),
     new CopyPlugin({

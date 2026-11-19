@@ -447,7 +447,16 @@ that src/ uses.
     onClicked: noOpEvent(),
   };
 
-  const chrome = { storage, runtime, tabs, permissions, contextMenus };
+  // ---- chrome.declarativeNetRequest: ai_requests.js uses it only for Ollama on this computer, which the app never
+  // offers (a phone has no Ollama of its own), so there's nothing to change ----
+
+  const declarativeNetRequest = {
+    updateSessionRules(options, callback) {
+      return promiseOrCallback(Promise.resolve(), callback);
+    },
+  };
+
+  const chrome = { storage, runtime, tabs, permissions, contextMenus, declarativeNetRequest };
   Object.defineProperty(g, "__wbeShim", { value: chrome, configurable: true, writable: false });
   g.chrome = g.browser = chrome;
 
