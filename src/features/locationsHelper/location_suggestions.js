@@ -9,6 +9,7 @@ import {
   clearAllPlaces,
   clearCountry,
   countryCodeMap,
+  deleteDatasetMetadata,
   getAvailableCountries,
   insertChunk,
   readLocalDatasets,
@@ -1093,34 +1094,95 @@ function limitTableHeight(tbody) {
 const CHUNK_SIZE = 4000;
 
 /**
- * Download a dataset described by a manifest entry and return the parsed array.
+ * Download a dataset described by a manifest entry and return an async iterator over its records.
  * Datasets are published as gzipped JSON (meta.gzFile) and, if small enough for GitHub, also as
  * plain JSON (meta.file). Large datasets (e.g. US) only exist as .gz.
+ *
+ * The file is unzipped and parsed as it streams in, one record at a time, so it never has to be held in
+ * memory as a whole. Some datasets (e.g. Poland) are longer than the longest string a browser can hold,
+ * so reading them with res.text()/res.json() and JSON.parse() is not possible.
  */
-async function fetchDataset(meta) {
+async function fetchDatasetRecords(meta) {
   const canGunzip = typeof DecompressionStream === "function"; // Safari < 16.4 does not have it
-  if (meta.gzFile && (canGunzip || !meta.file)) {
-    if (!canGunzip) {
-      throw new Error("this browser cannot unzip the dataset (Safari 16.4 or later is needed)");
-    }
-    const res = await fetch(`${DATASET_BASE_URL}/${meta.gzFile}`, { cache: "no-store" });
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    // If a server ever sends the file with Content-Encoding: gzip, the browser has already unzipped it
-    const isGzip = bytes[0] === 0x1f && bytes[1] === 0x8b;
-    const text = isGzip
-      ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).text()
-      : new TextDecoder().decode(bytes);
-    return JSON.parse(text);
+  const useGz = meta.gzFile && (canGunzip || !meta.file);
+  if (useGz && !canGunzip) {
+    throw new Error("this browser cannot unzip the dataset (Safari 16.4 or later is needed)");
   }
-
-  const res = await fetch(`${DATASET_BASE_URL}/${meta.file}`, { cache: "no-store" });
+  const res = await fetch(`${DATASET_BASE_URL}/${useGz ? meta.gzFile : meta.file}`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}`);
   }
-  return res.json();
+
+  let bytes = res.body;
+  if (useGz) {
+    // If a server ever sends the file with Content-Encoding: gzip, the browser has already unzipped it,
+    // so only unzip if the data really starts with the gzip magic bytes.
+    const [peek, rest] = bytes.tee();
+    const reader = peek.getReader();
+    const { value: first } = await reader.read();
+    reader.cancel();
+    const isGzip = first && first[0] === 0x1f && first[1] === 0x8b;
+    bytes = isGzip ? rest.pipeThrough(new DecompressionStream("gzip")) : rest;
+  }
+  return parseJsonArrayStream(bytes);
+}
+
+/**
+ * Yield the objects of a top-level JSON array of objects, one at a time, from a stream of UTF-8 bytes.
+ */
+async function* parseJsonArrayStream(byteStream) {
+  const reader = byteStream.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let pos = 0; // next character to scan in buf
+  let start = -1; // start of the object being read, or -1
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let sawArray = false;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      for (; pos < buf.length; pos++) {
+        const c = buf[pos];
+        if (inString) {
+          if (escaped) escaped = false;
+          else if (c === "\\") escaped = true;
+          else if (c === '"') inString = false;
+          continue;
+        }
+        if (!sawArray) {
+          if (c === "[") sawArray = true;
+          else if (!/\s/.test(c)) throw new Error("dataset is not a JSON array");
+          continue;
+        }
+        if (c === '"') {
+          inString = true;
+        } else if (c === "{" || c === "[") {
+          if (depth++ === 0) start = pos;
+        } else if (c === "}" || c === "]") {
+          if (depth === 0) continue; // the closing ] of the top-level array
+          if (--depth === 0) {
+            yield JSON.parse(buf.slice(start, pos + 1));
+            start = -1;
+          }
+        }
+      }
+      // Drop the text we no longer need
+      const keep = start >= 0 ? start : pos;
+      buf = buf.slice(keep);
+      pos -= keep;
+      if (start >= 0) start = 0;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  if (!sawArray || depth !== 0 || inString) {
+    throw new Error("dataset is incomplete (download interrupted?)");
+  }
 }
 
 /**
@@ -1167,44 +1229,60 @@ async function fetchAndLoadCountry(country, statusEl) {
     throw new Error(`Country ${country} not found in manifest`);
   }
 
-  let data;
+  let records;
   try {
     statusEl.textContent = `${country}: Downloading file from GitHub…`;
-    data = await fetchDataset(meta);
+    records = await fetchDatasetRecords(meta);
   } catch (err) {
     throw new Error(`Failed to fetch ${country}: ${err.message}`);
   }
 
-  if (!Array.isArray(data) || data.length === 0) {
+  // The records are inserted in chunks while the file is still downloading, so the existing data for the
+  // country is only cleared once the first record has arrived and been checked. Its metadata is removed at
+  // the same time and only written again once the whole dataset has been loaded, so that a failed load
+  // shows the country as not loaded (instead of an old version with partial data).
+  const total = meta.recordCount;
+  const progress = (n) =>
+    `${country}: Loading into the local store… ${n.toLocaleString()}` +
+    (total ? ` of ${total.toLocaleString()} records (${Math.floor((100 * n) / total)}%)` : " records");
+
+  let count = 0;
+  let chunk = [];
+  try {
+    for await (const record of records) {
+      if (count === 0) {
+        // No country check on the record: because of jurisdiction changes a dataset can contain records of
+        // other countries. Each record is stored with the dataset it came from (ds), so they are removed
+        // with this dataset when it is reloaded or cleared.
+        await deleteDatasetMetadata(country);
+        await clearCountry(country);
+      }
+      chunk.push(record);
+      count++;
+      if (chunk.length === CHUNK_SIZE) {
+        await insertChunk(chunk, country);
+        chunk = [];
+        statusEl.textContent = progress(count);
+      }
+    }
+    if (chunk.length) {
+      await insertChunk(chunk, country);
+    }
+  } catch (err) {
+    throw new Error(
+      count ? `Failed to load ${country} after ${count.toLocaleString()} records: ${err.message}` : err.message
+    );
+  }
+
+  if (count === 0) {
     throw new Error(`Dataset ${country} is empty or invalid`);
-  }
-
-  // Defensive check: ensure country consistency
-  const datasetCountry = data[0].c;
-  if (datasetCountry !== country) {
-    throw new Error(`Country mismatch: expected ${country}, got ${datasetCountry}`);
-  }
-
-  // Replace country safely
-  await clearCountry(country);
-
-  // Insert in chunks
-  const totalChunks = Math.ceil(data.length / CHUNK_SIZE);
-
-  for (let i = 0; i < totalChunks; i++) {
-    const start = i * CHUNK_SIZE;
-    const end = start + CHUNK_SIZE;
-    const chunk = data.slice(start, end);
-    statusEl.textContent = `${country}: Inserting chunk ${i + 1} of ${totalChunks} into the local store…`;
-
-    await insertChunk(chunk);
   }
 
   // Record dataset metadata AFTER successful load
   await upsertDatasetMetadata({
     country: country,
     version: meta.version,
-    recordCount: data.length,
+    recordCount: count,
     loadedAt: new Date().toISOString(),
   });
 }

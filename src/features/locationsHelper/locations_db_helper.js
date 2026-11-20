@@ -10,7 +10,7 @@ export const CLEAR = {
 };
 
 const DB_NAME = "WTLocationSuggestionsDB";
-const DB_VERSION = 3; // Increment version for schema change
+const DB_VERSION = 4; // Increment version for schema change
 const DATASETS_STORE = "datasets";
 const LOCATIONS_STORE = "locations";
 
@@ -60,6 +60,12 @@ export function openDB() {
       }
       if (!locations.indexNames.contains("byAlias")) {
         locations.createIndex("byAlias", "na", { multiEntry: true });
+      }
+      // The dataset (manifest key, e.g. "PL") a record was loaded from. Because of jurisdiction changes a
+      // dataset can contain records of other countries (e.g. German names for places now in Poland), so
+      // a record's own country (c) does not tell us which dataset to remove it with.
+      if (!locations.indexNames.contains("byDataset")) {
+        locations.createIndex("byDataset", "ds");
       }
     };
 
@@ -130,6 +136,17 @@ export async function upsertDatasetMetadata(record) {
   });
 }
 
+export async function deleteDatasetMetadata(country) {
+  const db = await openDB();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([DATASETS_STORE], "readwrite");
+    tx.objectStore(DATASETS_STORE).delete(country);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(`Failed removing metadata for ${country}`);
+  });
+}
+
 export async function clearAllPlaces() {
   const db = await openDB();
 
@@ -147,29 +164,37 @@ export async function clearAllPlaces() {
   });
 }
 
-export async function clearCountry(country) {
+/**
+ * Remove all records that were loaded from the given dataset. Records loaded before datasets were recorded
+ * (DB_VERSION < 4) have no ds; they came from single-country datasets, so for those we go by their country.
+ */
+export async function clearCountry(dataset) {
+  await deleteFromIndex("byDataset", dataset);
+  await deleteFromIndex("byCountry", dataset, (value) => value.ds === undefined);
+}
+
+// Delete the records with the given key in the given index (and, if a filter is given, for which filter(value) is true).
+// Each index gets its own transaction, as Safari has trouble with several cursors in one transaction.
+async function deleteFromIndex(indexName, key, filter = null) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction([LOCATIONS_STORE], "readwrite");
-    const store = tx.objectStore(LOCATIONS_STORE);
-    const idx = store.index("byCountry");
+    const index = tx.objectStore(LOCATIONS_STORE).index(indexName);
 
-    const range = IDBKeyRange.only(country);
-
-    idx.openCursor(range).onsuccess = (e) => {
+    index.openCursor(IDBKeyRange.only(key)).onsuccess = (e) => {
       const cursor = e.target.result;
       if (cursor) {
-        cursor.delete();
+        if (!filter || filter(cursor.value)) cursor.delete();
         cursor.continue();
       }
     };
 
     tx.oncomplete = resolve;
-    tx.onerror = () => reject(`Failed clearing ${country}`);
+    tx.onerror = () => reject(`Failed clearing ${key}`);
   });
 }
 
-export async function insertChunk(data) {
+export async function insertChunk(data, dataset) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([LOCATIONS_STORE], "readwrite");
@@ -182,6 +207,7 @@ export async function insertChunk(data) {
       const { a = [], ...withoutA } = item;
       locations.add({
         ...withoutA,
+        ds: dataset,
         np,
         no,
         na,
@@ -319,13 +345,17 @@ export async function searchLocations({ startsWith, date, countries, allDates })
       runIndex("byAlias"),
     ]);
 
-    // Merge results
+    // Merge results. The same place can be in more than one loaded dataset (overlapping datasets because of
+    // jurisdiction changes), so we also drop records that are identical apart from their id and dataset.
+    const seenRecords = new Set();
     for (const source of [pathResults, originResults, aliasResults]) {
       for (const { item, key } of source) {
-        if (!seenIds.has(key)) {
-          seenIds.add(key);
-          allResults.push(item);
-        }
+        if (seenIds.has(key)) continue;
+        seenIds.add(key);
+        const recordKey = [item.p, item.o, item.s, item.e, item.l, item.c].join("\u0000");
+        if (seenRecords.has(recordKey)) continue;
+        seenRecords.add(recordKey);
+        allResults.push(item);
       }
     }
 
