@@ -206,3 +206,18 @@ describe("WikiTreeAPI.isLoggedIntoAPI", () => {
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("isLikelyAppsServerAccessError", () => {
+  it("does not blame the server for an ordinary code bug", () => {
+    const bug = new TypeError("Cannot read properties of undefined (reading 'slice')");
+    expect(WikiTreeAPI.isLikelyAppsServerAccessError(bug)).toBe(false);
+  });
+
+  it("still recognises fetch's own network TypeErrors", () => {
+    expect(WikiTreeAPI.isLikelyAppsServerAccessError(new TypeError("Failed to fetch"))).toBe(true);
+    expect(WikiTreeAPI.isLikelyAppsServerAccessError(new TypeError("Load failed"))).toBe(true);
+    expect(
+      WikiTreeAPI.isLikelyAppsServerAccessError(new TypeError("NetworkError when attempting to fetch resource."))
+    ).toBe(true);
+  });
+});

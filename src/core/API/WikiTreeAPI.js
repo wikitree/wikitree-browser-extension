@@ -565,8 +565,10 @@ function condLog(message, ...optionalParams) {
 
 WikiTreeAPI.isLikelyAppsServerAccessError = function (error) {
   const message = String(error?.message || error || "").toLowerCase();
+  // Only network-shaped failures count. A bare TypeError used to count too (fetch throws one),
+  // but so does every ordinary code bug ("Cannot read properties of undefined"), which then
+  // told users their IP might be blocked. Fetch's TypeErrors carry the messages below.
   return (
-    error?.name === "TypeError" ||
     message.includes("failed to fetch") ||
     message.includes("load failed") ||
     message.includes("networkerror") ||

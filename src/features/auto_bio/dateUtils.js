@@ -488,6 +488,14 @@ export function formatDate(date, status, options = { format: "", needOn: false }
     }
   }
 
+  // Text that isn't a date (e.g. "Colesberg, Cape Colony. Added by [[Smit-641|...]]" split on "-")
+  // gives a NaN year or a month outside 1-12; months[month - 1] would then be undefined.
+  if (!(month >= 1 && month <= 12)) {
+    month = undefined;
+    day = undefined;
+  }
+  if (!/\d{3,4}/.test(String(year ?? ""))) return "";
+
   const statusOut = getStatusOut(status, day);
 
   if (format === 8) {

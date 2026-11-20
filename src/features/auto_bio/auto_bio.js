@@ -3167,7 +3167,11 @@ export function sourcesArray(bio) {
       const nameMatch2 = aRef.Text.match(
         /familysearch.*\),\s(.*?),\s\b\d{1,2}\s\w{3}\s\d{4}\b;.*Baptism,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
       );
-      const baptismDateMatch = aRef.Text.match(/familysearch.*,.*?baptis.*?\b(?:on|in)\b (.*?\d{4}\b)/i);
+      // The capture must look like a date ("22 May 1843", "May 1843", "1843"). A looser (.*?\d{4})
+      // ran on from "in Colesberg, ..." to "Added by [[Smit-641|...]] on 2026" (Coetsee-1144).
+      const baptismDateMatch = aRef.Text.match(
+        /familysearch.*,.*?baptis.*?\b(?:on|in)\s+((?:\d{1,2}\s+)?(?:[A-Z][a-z]{2,8}\.?\s+(?:\d{1,2},?\s+)?)?1[5-9]\d{2})\b(?![-\/])/i
+      );
       const baptismDateMatch2 = aRef.Text.match(/familysearch.*\),.*(\b(\d{1,2}\s)(\w{3}\s)\d{4}\b);/i);
       const birthDateMatch = aRef.Text.match(/familysearch.*,.*?\bborn\b (.*?\d{4}\b)/i);
       const baptismLocationMatch = aRef.Text.match(/familysearch.*,.*?\b(?:in|at)\b ([^\d]*?)\./i);
@@ -3188,9 +3192,11 @@ export function sourcesArray(bio) {
         aRef["Baptism Date"] = baptismDateMatch2[1];
         aRef["Year"] = baptismDateMatch2[1].match(/\d{4}/)[0];
       } else if (aRef["Record Type"].includes("Baptism")) {
-        const dateMatch1 = aRef.Text.match(/\b\d{1,2}\s\w{3}\s1[6789]\d{2}\b/);
-        const dateMatch2 = aRef.Text.match(/\s(1[6789]\d{2})\b(?!-)/);
-        const dateMatch3 = aRef.Text.match(/\b\w{3}\s\d{1,2}\s1[6789]\d{2}\b/);
+        // Leave out a "(born 22 May 1843)" clause so the birth date isn't taken as the baptism date.
+        const textWithoutBorn = aRef.Text.replace(/\(?\bborn\b[^),;]*\d{4}\)?/gi, "");
+        const dateMatch1 = textWithoutBorn.match(/\b\d{1,2}\s\w{3}\s1[6789]\d{2}\b/);
+        const dateMatch2 = textWithoutBorn.match(/\s(1[6789]\d{2})\b(?!-)/);
+        const dateMatch3 = textWithoutBorn.match(/\b\w{3}\s\d{1,2}\s1[6789]\d{2}\b/);
         if (dateMatch1) {
           aRef["Baptism Date"] = dateMatch1[0];
 
