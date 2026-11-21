@@ -173,6 +173,15 @@ export async function clearCountry(dataset) {
   await deleteFromIndex("byCountry", dataset, (value) => value.ds === undefined);
 }
 
+/**
+ * Remove a single dataset from the local store: its records and its metadata, leaving all other datasets in place.
+ * The metadata goes first, so that if removing the records fails the dataset shows as not loaded (as a failed load does).
+ */
+export async function removeDataset(dataset) {
+  await deleteDatasetMetadata(dataset);
+  await clearCountry(dataset);
+}
+
 // Delete the records with the given key in the given index (and, if a filter is given, for which filter(value) is true).
 // Each index gets its own transaction, as Safari has trouble with several cursors in one transaction.
 async function deleteFromIndex(indexName, key, filter = null) {

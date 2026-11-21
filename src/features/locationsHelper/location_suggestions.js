@@ -13,6 +13,7 @@ import {
   getAvailableCountries,
   insertChunk,
   readLocalDatasets,
+  removeDataset,
   searchLocations,
   upsertDatasetMetadata,
 } from "./locations_db_helper.js";
@@ -579,15 +580,20 @@ function insertCountrySelectAbove(inputfield, sid) {
         <div class="wbe-loc-scroll-hint" aria-hidden="true"></div>
 
         <div style="margin-top:8px;">
+          <button class="wbe-loc-load small button"
+                  style="width:100%; margin-bottom:5px;"
+                  title="Add new place data to the existing local place data. If the dataset already exists, it will be replaced.">
+            Update and/or load selected datasets
+          </button>
+          <button class="wbe-loc-remove small button"
+                  style="width:100%;"
+                  title="Remove the selected datasets from the local place data. All other loaded datasets are kept.">
+            Remove selected datasets
+          </button>
           <button class="wbe-loc-clear-load small button"
                   style="width:100%; margin-bottom:5px;"
                   title="Clear all locally stored place data and load the selected new datasets.">
             Clear ALL loaded datasets & replace with selected
-          </button>
-          <button class="wbe-loc-load small button"
-                  style="width:100%;"
-                  title="Add new place data to the existing local place data. If the dataset already exists, it will be replaced.">
-            Update and/or load selected datasets
           </button>
         </div>`;
       target.appendChild(popupEl);
@@ -661,6 +667,38 @@ function insertCountrySelectAbove(inputfield, sid) {
           await fetchAndLoadCountry(c, statusEl);
         }
       });
+    });
+
+    popupEl.querySelector(".wbe-loc-remove").addEventListener("click", async (e) => {
+      const statusEl = popupEl.querySelector(".wbe-loc-status");
+      // Only datasets that are actually loaded can be removed.
+      const countries = getSelectedDatasetCountries(popupEl).filter((c) => {
+        const tr = popupEl.querySelector(`.wbe-loc-table tbody tr[data-country="${c}"]`);
+        return tr && tr.dataset.state !== "none";
+      });
+      if (countries.length) {
+        statusEl.classList.remove("is-red");
+      } else {
+        statusEl.textContent = "Select one or more loaded datasets to remove.";
+        statusEl.classList.add("is-red");
+        return;
+      }
+
+      if (!confirm(`This will remove the place data for ${countries.join(", ")}. Continue?`)) {
+        return;
+      }
+      await runDatasetLoad(
+        popupEl,
+        statusEl,
+        countries,
+        async () => {
+          for (const c of countries) {
+            statusEl.textContent = `${c}: Removing local place data…`;
+            await removeDataset(c);
+          }
+        },
+        `Removed ${countries.join(", ")}.`
+      );
     });
   }
 
@@ -885,7 +923,7 @@ async function openLocationDialog(popupEl, event) {
   }
 
   renderTable(manifest, localDatasets, tbody);
-  statusEl.textContent = "Select countries to load or update.";
+  statusEl.textContent = "Select countries to load, update or remove.";
 }
 
 function openCountryFilterDialog(popupEl, event) {
@@ -1189,8 +1227,8 @@ async function* parseJsonArrayStream(byteStream) {
  * Run a dataset download/load action with the status line highlighted and the buttons disabled,
  * then refresh the dialog and report the outcome in the status line.
  */
-async function runDatasetLoad(popupEl, statusEl, countries, action) {
-  const buttons = popupEl.querySelectorAll(".wbe-loc-clear-load, .wbe-loc-load");
+async function runDatasetLoad(popupEl, statusEl, countries, action, doneMessage = null) {
+  const buttons = popupEl.querySelectorAll(".wbe-loc-clear-load, .wbe-loc-load, .wbe-loc-remove");
   buttons.forEach((b) => (b.disabled = true));
   statusEl.classList.remove("is-red", "is-error", "is-done");
   statusEl.classList.add("is-busy");
@@ -1214,7 +1252,7 @@ async function runDatasetLoad(popupEl, statusEl, countries, action) {
     statusEl.textContent = error.message;
   } else {
     statusEl.classList.add("is-done");
-    statusEl.textContent = `Loaded ${countries.join(", ")}.`;
+    statusEl.textContent = doneMessage || `Loaded ${countries.join(", ")}.`;
   }
 }
 
