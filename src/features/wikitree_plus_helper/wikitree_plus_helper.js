@@ -431,6 +431,11 @@ function fieldToTerm(fieldId, value) {
     finalVal = rawVal.replace(/[, ]/g, "_");
   }
 
+  // Template names use underscores for spaces, like page titles: "Easily Confused" -> "Easily_Confused"
+  if (idx === "TemplateFull" || idx === "TemplateText") {
+    finalVal = rawVal.replace(/ /g, "_");
+  }
+
   return `${idx}=${maybeQuote(finalVal)}`;
 }
 
