@@ -51,6 +51,7 @@ let cachedResults = [];
 let lastEntry = ""; // the previous normalized place name entry the user typed
 let lastDate = ""; // the pervious date value the user used
 let lastCountries = []; // the previous country value the user used
+let lastLanguage = ""; // the previous person language (from the page) used
 
 // for possible future use; not being set to true anywhere yet
 // If true will force fetching new data instead of filtering cached data
@@ -1487,7 +1488,9 @@ async function fetchOrFilterSuggestions(entry, date, countries) {
   }
   // Check if the current entry starts with the last cached entry to decide on filtering or fetching
   const entryLow = normalise(entry);
-  const dateAndCountrySame = lastDate == date && arraysEqual(lastCountries, countries);
+  const language = getPersonLanguage();
+  const dateAndCountrySame =
+    lastDate == date && arraysEqual(lastCountries, countries) && lastLanguage == language;
   if (!forceUpdate && dateAndCountrySame && lastEntry && entryLow.startsWith(lastEntry) && entry.length > 3) {
     // The new text typed by the user starts with the same characters they typed before, and the date and country
     // did not change, so we do not have to fetch new paths from the DB, just filter the ones we fetched previously.
@@ -1511,6 +1514,7 @@ async function fetchOrFilterSuggestions(entry, date, countries) {
       startsWith: entry,
       countries: countries,
       allDates: window.locationsHelperOptions?.allDates || false,
+      language: language,
     };
     dbg1(`calling fetchLocationData (from DB):`, options);
 
@@ -1575,14 +1579,24 @@ async function fetchOrFilterSuggestions(entry, date, countries) {
     lastEntry = entryLow;
     lastDate = date || "";
     lastCountries = [...countries];
+    lastLanguage = language;
     forceUpdate = false; // Reset the force update flag
   }
   return cachedResults;
 }
 
+/**
+ * The language chosen for the person in the page's language select (#mOptions_person_language), e.g. "fr",
+ * or "" if none is chosen (or "Other" is), in which case place suggestions are not limited by language.
+ */
+function getPersonLanguage() {
+  const language = (document.getElementById("mOptions_person_language")?.value || "").trim().toLowerCase();
+  return language === "other" ? "" : language;
+}
+
 async function fetchLocationData(options = {}) {
   try {
-    // searchLocations expects options { startsWith, date, countries } (all optional)
+    // searchLocations expects options { startsWith, date, countries, allDates, language } (all optional)
     return await searchLocations(options);
   } catch (e) {
     console.error("IndexedDB search failed", e);

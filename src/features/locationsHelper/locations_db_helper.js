@@ -274,6 +274,16 @@ export async function getAvailableCountries(force = false) {
   return await getAvailableCountriesFromDb();
 }
 
+// The language code of a record that gives a place's own (untranslated) name.
+const NEUTRAL_LANGUAGE = "00";
+
+// Drop the language-neutral records of places (and periods) for which there is also a record in the given language.
+function preferLanguage(items, language) {
+  const placeKey = (item) => [item.o, item.c, item.s, item.e].join("\u0000");
+  const translated = new Set(items.filter((item) => item.l === language).map(placeKey));
+  return items.filter((item) => item.l !== NEUTRAL_LANGUAGE || !translated.has(placeKey(item)));
+}
+
 function prefixRange(prefix) {
   return IDBKeyRange.bound(prefix, prefix + "\uffff");
 }
@@ -291,7 +301,10 @@ function prefixRange(prefix) {
 //    na: aliases (normalised array),
 //    dt: 1/0 (is/is not valid for requested date)
 //  }
-export async function searchLocations({ startsWith, date, countries, allDates }) {
+//
+// If language (an ISO 639-1 code, e.g. "fr") is given, only records in that language are returned, plus the
+// language-neutral records (l: "00", the place's own name) of places/periods that have no record in that language.
+export async function searchLocations({ startsWith, date, countries, allDates, language }) {
   const db = await openDB();
   try {
     const lower = normalise(startsWith);
@@ -335,6 +348,10 @@ export async function searchLocations({ startsWith, date, countries, allDates })
             match = false;
           }
 
+          if (match && language && item.l && item.l !== language && item.l !== NEUTRAL_LANGUAGE) {
+            match = false;
+          }
+
           if (match) {
             item.dt = date ? (date >= item.s && date <= item.e ? 1 : 0) : 1;
             results.push({ item, key });
@@ -368,7 +385,7 @@ export async function searchLocations({ startsWith, date, countries, allDates })
       }
     }
 
-    return allResults;
+    return language ? preferLanguage(allResults, language) : allResults;
   } catch (error) {
     // If we hit an error (e.g. transaction closed), allow the next call to try reopening
     // Check if the error is related to a closed database or transaction
