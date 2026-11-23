@@ -277,6 +277,25 @@ async function fetchAndModifySVG(url, newFillColor) {
 }
 
 /**
+ * Recolour one element's SVG background image. The original URL is kept in data-wbe-svg-bg, so an element whose class
+ * changes (a G2G vote arrow going from icon--up to icon--upped) can be done again from its new stylesheet image.
+ */
+async function recolourSVGBackground(el, newFillColor) {
+  if (el.dataset.wbeSvgBg) el.style.backgroundImage = "";
+  const bgImage = window.getComputedStyle(el).getPropertyValue("background-image");
+  if (!bgImage || bgImage === "none" || !bgImage.includes("url(")) return;
+  const match = /url\(["']?(.*?)["']?\)/.exec(bgImage);
+  if (!match || !match[1] || !match[1].endsWith(".svg")) return;
+  try {
+    const blobUrl = await fetchAndModifySVG(match[1], newFillColor);
+    el.style.backgroundImage = `url(${blobUrl})`;
+    el.dataset.wbeSvgBg = match[1];
+  } catch (error) {
+    console.error("Error processing SVG background:", match[1], error);
+  }
+}
+
+/**
  * Replace fill color in all SVG background images on the page.
  * This function scans every element, and if its computed background-image contains an SVG URL,
  * it updates that background image with the modified SVG.
@@ -284,21 +303,33 @@ async function fetchAndModifySVG(url, newFillColor) {
  * @param {string} newFillColor - The desired fill color.
  */
 async function replaceAllSVGBackgrounds(newFillColor = "#FFFFFF") {
-  const elements = document.querySelectorAll("*");
-  for (const el of elements) {
-    const bgImage = window.getComputedStyle(el).getPropertyValue("background-image");
-    if (bgImage && bgImage !== "none" && bgImage.includes("url(")) {
-      const match = /url\(["']?(.*?)["']?\)/.exec(bgImage);
-      if (match && match[1] && match[1].endsWith(".svg")) {
-        try {
-          const blobUrl = await fetchAndModifySVG(match[1], newFillColor);
-          el.style.backgroundImage = `url(${blobUrl})`;
-        } catch (error) {
-          console.error("Error processing SVG background:", match[1], error);
-        }
+  for (const el of document.querySelectorAll("*")) await recolourSVGBackground(el, newFillColor);
+}
+
+/**
+ * Keep recolouring SVG backgrounds that arrive or change after the first pass: G2G swaps in new vote arrows
+ * (icon--upped, icon--downed) when you vote, and they'd otherwise be WikiTree's dark green on the dark page.
+ */
+function watchSVGBackgrounds(newFillColor) {
+  const ICONS = '[class*="icon"]';
+  const observer = new MutationObserver((mutations) => {
+    const todo = new Set();
+    for (const mutation of mutations) {
+      if (mutation.type === "attributes") {
+        const el = mutation.target;
+        if (el.dataset?.wbeSvgBg || el.matches?.(ICONS)) todo.add(el);
+        continue;
+      }
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+        // Only icons: checking every added element's style would slow down pages that add a lot
+        if (node.matches(ICONS)) todo.add(node);
+        node.querySelectorAll(ICONS).forEach((el) => todo.add(el));
       }
     }
-  }
+    todo.forEach((el) => recolourSVGBackground(el, newFillColor));
+  });
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
 }
 
 /**
@@ -335,6 +366,7 @@ shouldInitializeFeature("darkMode").then((result) => {
     initDarkMode();
     setTimeout(() => {
       replaceAllSVGBackgrounds("#a5d167");
+      watchSVGBackgrounds("#a5d167");
       // Modify <img> tag SVGs.
       replaceAllSVGImages("#a5d167");
     }, 2500);

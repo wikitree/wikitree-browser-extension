@@ -19,12 +19,17 @@ import {
   hauntedOnlyBy,
   isProjectAccount,
   mergeLaidToRest,
-  readAllPages,
   recheckHaunted,
   rescanHaunted,
   sortPeople,
   summarize,
 } from "./haunted_tree_data";
+import {
+  fetchByIds as fetchByIdsFor,
+  fetchCC7 as fetchCC7For,
+  fetchWatchlist as fetchWatchlistFor,
+  PAGE_SIZE,
+} from "../seasonal_tree/seasonal_fetch";
 import { exportFileName, toCsv, toJson, toWikitable, toWorkbook } from "./haunted_tree_export";
 import { lastSource, loadHauntedTree, rememberSource, saveHauntedTree } from "./haunted_tree_store";
 import { markPeopleWhenShown } from "./haunted_tree_marks";
@@ -32,7 +37,6 @@ import "./haunted_tree.css";
 
 const APP_ID = "haunted_tree";
 const POPUP_ID = "hauntedTree";
-const PAGE_SIZE = 1000;
 // Set (per tab) when the member goes off to log in to the apps server, so we can carry on when they come back
 const RUN_AFTER_LOGIN_KEY = "hauntedTreeRunAfterLogin";
 
@@ -92,44 +96,10 @@ async function isLoggedIntoAPI(userNumId) {
   return WikiTreeAPI.isLoggedIntoAPI(userNumId, APP_ID);
 }
 
-/** The whole CC7 (degrees 1 to 7), a page of 1,000 at a time. */
-async function fetchCC7(userNumId, onProgress) {
-  const people = [];
-  for (let start = 0; ; start += PAGE_SIZE) {
-    const options = { nuclear: 7, start, limit: PAGE_SIZE };
-    const [status, , page] = await WikiTreeAPI.getPeople(APP_ID, userNumId, HAUNTED_FIELDS, options);
-    if (status == null) throw new Error("No answer from the WikiTree API.");
-    const more = status.startsWith("Maximum number of profiles");
-    if (!more && status !== "") throw new Error(`The WikiTree API said: ${status}`);
-    const batch = Object.values(page || {});
-    people.push(...batch);
-    onProgress(people.length);
-    // The member comes back too, at degree 0 (live, 2026-10-19), but isn't one of their relatives
-    if (!more || !batch.length) return people.filter((person) => person.Meta?.Degrees !== 0);
-  }
-}
-
-/** The member's whole watchlist (person profiles only), a page of 1,000 at a time. */
-function fetchWatchlist(onProgress) {
-  const getPage = async (offset) => {
-    const options = { limit: PAGE_SIZE, offset, getPerson: 1, getSpace: 0 };
-    const [people, total, status] = await WikiTreeAPI.getWatchlist(APP_ID, HAUNTED_FIELDS, options);
-    if (status) throw new Error(`The WikiTree API said: ${status}`);
-    return { people: Array.isArray(people) ? people : [], total: Number(total) || 0 };
-  };
-  return readAllPages(getPage, PAGE_SIZE, onProgress);
-}
-
-/** Just these profiles, by Id or WikiTree ID. */
-async function fetchByIds(ids) {
-  const people = [];
-  for (let i = 0; i < ids.length; i += PAGE_SIZE) {
-    const [status, , page] = await WikiTreeAPI.getPeople(APP_ID, ids.slice(i, i + PAGE_SIZE).join(","), HAUNTED_FIELDS);
-    if (status == null) throw new Error("No answer from the WikiTree API.");
-    people.push(...Object.values(page || {}));
-  }
-  return people;
-}
+// The shared readers (seasonal_fetch.js), with Haunted Tree's app ID and fields
+const fetchCC7 = (userNumId, onProgress) => fetchCC7For(APP_ID, userNumId, HAUNTED_FIELDS, onProgress);
+const fetchWatchlist = (onProgress) => fetchWatchlistFor(APP_ID, HAUNTED_FIELDS, onProgress);
+const fetchByIds = (ids) => fetchByIdsFor(APP_ID, ids, HAUNTED_FIELDS);
 
 function timeAgo(timestamp) {
   const minutes = Math.round((Date.now() - timestamp) / 60000);

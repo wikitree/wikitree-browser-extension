@@ -67,6 +67,7 @@ import "./categoryDisplay/categoryDisplay_options";
 import "./cc7_changes/cc7_changes_options";
 import "./change_family_lists/change_family_lists_options";
 import "./chat/chat_options";
+import "./christmas_tree/christmas_tree_options";
 import "./collapsible_descendants/collapsible_descendants_options";
 import "./collapsible_profiles/collapsible_profiles_options";
 import "./color_blind_support/color_blind_support_options";

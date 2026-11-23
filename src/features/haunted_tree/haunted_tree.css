@@ -27,7 +27,7 @@
 #hauntedTree .ht-header h2 {
   margin: 0;
   padding: 0;
-  color: #ff9a3c;
+  color: #ff9a3c !important;
   font-size: 1.4em;
   line-height: 1.4;
   border: none;
@@ -89,7 +89,7 @@
   font-size: 1.2em;
 }
 #hauntedTree .ht-score strong {
-  color: #c45500;
+  color: #c45500 !important;
 }
 #hauntedTree .ht-new {
   padding: 6px 10px;

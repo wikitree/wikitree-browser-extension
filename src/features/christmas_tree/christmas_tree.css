@@ -1,0 +1,482 @@
+#christmasTree {
+  position: fixed;
+  top: 90px;
+  left: 16px;
+  width: min(780px, calc(100vw - 32px));
+  max-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  color: #222;
+  border: 3px solid #b3202f;
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(10, 30, 20, 0.35);
+  z-index: 10000;
+  text-align: left;
+  font-size: 14px;
+}
+#christmasTree .ct-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='36' viewBox='-30 -18 60 36'%3E%3Cg transform='translate(0,4) scale(1)' opacity='1'%3E%3Cpolygon points='0,0 6,-5 10,-2 15,-7 20,-3 26,-6 31,0 26,6 20,3 15,7 10,2 6,5' transform='rotate(-150)' fill='%231f6b3a'/%3E%3Cpolygon points='0,0 6,-5 10,-2 15,-7 20,-3 26,-6 31,0 26,6 20,3 15,7 10,2 6,5' transform='rotate(-30)' fill='%2322783f'/%3E%3Ccircle cx='-3' cy='2' r='3.6' fill='%23ffffff'/%3E%3Ccircle cx='3.5' cy='1.5' r='3.6' fill='%23ffffff'/%3E%3Ccircle cx='0' cy='-3.5' r='3.6' fill='%23ffffff'/%3E%3C/g%3E%3C/svg%3E")
+      no-repeat right 40px center,
+    linear-gradient(180deg, #c8283a 0%, #a51c2c 100%);
+  border-bottom: 7px solid #fff;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.15);
+  border-radius: 4px 4px 0 0;
+  cursor: move;
+}
+#christmasTree .ct-header h2 {
+  margin: 0;
+  padding: 0;
+  color: #fff !important;
+  font-size: 1.4em;
+  text-shadow: 0 1px 2px rgba(80, 0, 10, 0.5);
+  line-height: 1.4;
+  border: none;
+}
+#christmasTree .close-popup {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+#christmasTree .close-popup:hover {
+  color: #ffd166;
+}
+#christmasTree .ct-sources {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px;
+  background: #1f6b3a;
+}
+#christmasTree .ct-source {
+  margin: 0;
+  padding: 4px 10px 6px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: #e3f2e7;
+  font-size: 0.95em;
+  text-transform: none;
+  cursor: pointer;
+}
+#christmasTree .ct-source:hover {
+  color: #fff;
+}
+#christmasTree .ct-source[aria-pressed="true"] {
+  color: #fff;
+  border-bottom-color: #fff;
+  font-weight: bold;
+}
+#christmasTree .ct-source:disabled {
+  cursor: default;
+}
+/* A faint scatter of holly and snowflakes */
+#christmasTree .ct-body {
+  background: #fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cg transform='translate(40,48) scale(0.9)' opacity='0.13'%3E%3Cpolygon points='0,0 6,-5 10,-2 15,-7 20,-3 26,-6 31,0 26,6 20,3 15,7 10,2 6,5' transform='rotate(-150)' fill='%231f6b3a'/%3E%3Cpolygon points='0,0 6,-5 10,-2 15,-7 20,-3 26,-6 31,0 26,6 20,3 15,7 10,2 6,5' transform='rotate(-30)' fill='%2322783f'/%3E%3Ccircle cx='-3' cy='2' r='3.6' fill='%23c8283a'/%3E%3Ccircle cx='3.5' cy='1.5' r='3.6' fill='%23c8283a'/%3E%3Ccircle cx='0' cy='-3.5' r='3.6' fill='%23c8283a'/%3E%3C/g%3E%3Cg transform='translate(160,150) scale(0.75)' opacity='0.11'%3E%3Cpolygon points='0,0 6,-5 10,-2 15,-7 20,-3 26,-6 31,0 26,6 20,3 15,7 10,2 6,5' transform='rotate(-150)' fill='%231f6b3a'/%3E%3Cpolygon points='0,0 6,-5 10,-2 15,-7 20,-3 26,-6 31,0 26,6 20,3 15,7 10,2 6,5' transform='rotate(-30)' fill='%2322783f'/%3E%3Ccircle cx='-3' cy='2' r='3.6' fill='%23c8283a'/%3E%3Ccircle cx='3.5' cy='1.5' r='3.6' fill='%23c8283a'/%3E%3Ccircle cx='0' cy='-3.5' r='3.6' fill='%23c8283a'/%3E%3C/g%3E%3Cg transform='translate(150,40)' stroke='%237fa7c9' stroke-width='1.4' stroke-linecap='round' opacity='0.25'%3E%3Cpath d='M0 -8V8M-7.0 -4.0L7.0 4.0M-7.0 4.0L7.0 -4.0'/%3E%3C/g%3E%3Cg transform='translate(60,160)' stroke='%237fa7c9' stroke-width='1.4' stroke-linecap='round' opacity='0.22'%3E%3Cpath d='M0 -6V6M-5.2 -3.0L5.2 3.0M-5.2 3.0L5.2 -3.0'/%3E%3C/g%3E%3Cg transform='translate(110,100)' stroke='%237fa7c9' stroke-width='1.4' stroke-linecap='round' opacity='0.2'%3E%3Cpath d='M0 -4V4M-3.5 -2.0L3.5 2.0M-3.5 2.0L3.5 -2.0'/%3E%3C/g%3E%3Cg transform='translate(200,200)' stroke='%237fa7c9' stroke-width='1.4' stroke-linecap='round' opacity='0.2'%3E%3Cpath d='M0 -5V5M-4.3 -2.5L4.3 2.5M-4.3 2.5L4.3 -2.5'/%3E%3C/g%3E%3C/svg%3E");
+  padding: 10px 16px 14px;
+  overflow: auto;
+}
+#christmasTree p {
+  margin: 0 0 0.7em;
+}
+#christmasTree h3 {
+  margin: 0 0 0.4em;
+  padding: 0;
+  border: none;
+  font-size: 1.1em;
+  color: #1f6b3a !important;
+}
+#christmasTree .ct-status,
+#christmasTree .ct-meaning,
+#christmasTree .ct-about,
+#christmasTree .ct-row-count {
+  color: #5a5a5a;
+  font-size: 0.9em;
+}
+#christmasTree .ct-score {
+  font-size: 1.2em;
+}
+#christmasTree .ct-score strong {
+  color: #b3202f !important;
+}
+#christmasTree .ct-error {
+  color: #a00;
+}
+#christmasTree .ct-working::before {
+  content: "✨ ";
+}
+#christmasTree .ct-button {
+  margin: 0 0 4px;
+}
+#christmasTree .ct-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* The tree beside the doors; stacked on narrow screens */
+#christmasTree .ct-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+#christmasTree .ct-tree {
+  flex: 0 1 360px;
+  min-width: 0;
+}
+#christmasTree .ct-picture svg {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+}
+#christmasTree .ct-tier {
+  cursor: pointer;
+  outline: none;
+}
+#christmasTree .ct-tier:hover polygon,
+#christmasTree .ct-tier:focus-visible polygon {
+  stroke: #ffd166;
+  stroke-width: 2.5;
+}
+#christmasTree .ct-rows {
+  list-style: none !important;
+  margin: 6px 0 0 !important;
+  padding: 0 !important;
+  columns: 2;
+  column-gap: 12px;
+}
+#christmasTree .ct-rows li {
+  margin: 1px 0;
+  break-inside: avoid;
+}
+#christmasTree .ct-row-link {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: #1a5c8a;
+  text-decoration: underline;
+  text-transform: none;
+  font-size: 0.95em;
+  cursor: pointer;
+}
+#christmasTree .ct-doors {
+  flex: 1 1 300px;
+  min-width: 0;
+}
+#christmasTree .ct-door-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+  margin-bottom: 10px;
+}
+#christmasTree .ct-door {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  aspect-ratio: 1;
+  min-height: 36px;
+  border: 1px solid #8a1622;
+  border-radius: 5px;
+  background: #b3202f;
+  box-shadow: inset 0 0 0 2px rgba(255, 209, 102, 0.35);
+  color: #fff;
+  font-weight: bold;
+  font-size: 1em;
+  text-transform: none;
+  cursor: pointer;
+}
+#christmasTree .ct-door:hover {
+  background: #c9303f;
+}
+#christmasTree .ct-door:focus-visible {
+  outline: 3px solid #ffd166;
+  outline-offset: 1px;
+}
+#christmasTree .ct-door-number {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 0.85em;
+}
+#christmasTree .ct-door-mark {
+  font-size: 1.1em;
+}
+#christmasTree .ct-door-ready .ct-door-number {
+  position: static;
+  font-size: 1.1em;
+}
+#christmasTree .ct-door-locked {
+  background: repeating-linear-gradient(135deg, #8f3a42 0 8px, #86333b 8px 16px);
+  border-color: #6e2a31;
+  box-shadow: none;
+  color: rgba(255, 228, 170, 0.7);
+  opacity: 1; /* WikiTree fades disabled buttons */
+  cursor: default;
+}
+#christmasTree .ct-door-locked:hover {
+  background: repeating-linear-gradient(135deg, #8f3a42 0 8px, #86333b 8px 16px);
+}
+/* Ready to open: bright red with a gold edge */
+#christmasTree .ct-door-ready {
+  background: #d3263a;
+  border: 2px solid #ffd166;
+  color: #fff;
+}
+#christmasTree .ct-door-ready:hover {
+  background: #e0334a;
+}
+#christmasTree .ct-door-locked .ct-door-number {
+  position: static;
+}
+#christmasTree .ct-door-open {
+  background: #fff8e6;
+  border-color: #d9a520;
+  color: #7a5200;
+}
+#christmasTree .ct-door-open:hover {
+  background: #fff0c7;
+}
+#christmasTree .ct-door-done {
+  background: #1f6b3a;
+  border-color: #134d2a;
+}
+#christmasTree .ct-door-done:hover {
+  background: #26803f;
+}
+/* Door 25, Christmas Day: a tall double door in the middle (6 columns x 5 rows = 24 small doors + this one's 6 cells) */
+#christmasTree .ct-door-christmas {
+  grid-column: 3 / 5;
+  grid-row: 2 / 5;
+  aspect-ratio: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 1.4em;
+  border: 2px solid #e0b040;
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.5);
+}
+#christmasTree .ct-door-christmas .ct-door-number {
+  position: static;
+  font-size: 1.2em;
+}
+#christmasTree .ct-door-christmas .ct-door-mark {
+  font-size: 1.6em;
+}
+#christmasTree .ct-door-today {
+  box-shadow: 0 0 0 3px #ffd166, 0 0 12px 2px rgba(255, 209, 102, 0.8);
+}
+#christmasTree .ct-door-panel {
+  padding: 8px 10px;
+  border: 1px solid #e2d6b8;
+  border-left: 4px solid #b3202f;
+  border-radius: 4px;
+  background: #fdf3f3;
+}
+#christmasTree .ct-door-job strong {
+  color: #b3202f !important;
+}
+#christmasTree .ct-door-thanks {
+  color: #1f6b3a;
+  font-weight: bold;
+}
+#christmasTree .ct-door-note {
+  color: #7a5200;
+}
+#christmasTree .ct-row-people:not(:empty) {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid #d6e4da;
+  border-radius: 4px;
+  background: #f4faf6;
+}
+#christmasTree .ct-row-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+#christmasTree .ct-group {
+  border-top: 1px solid #e3ece6;
+  padding: 4px 0;
+}
+#christmasTree .ct-group summary {
+  cursor: pointer;
+  font-weight: bold;
+  padding: 4px 0;
+}
+#christmasTree .ct-group.ct-empty summary {
+  color: #888;
+  font-weight: normal;
+}
+#christmasTree .ct-meaning {
+  margin: 0 0 0.4em 1.4em;
+}
+#christmasTree ol {
+  margin: 0 0 0.5em 1.4em !important;
+  padding-left: 1.6em !important;
+  list-style: decimal outside !important;
+}
+#christmasTree li {
+  margin: 2px 0;
+}
+#christmasTree .ct-years {
+  color: #666;
+}
+#christmasTree .ct-icons {
+  cursor: help;
+}
+#christmasTree .ct-edit {
+  font-size: 0.85em;
+  color: #b3202f;
+}
+/* Test mode (see testBar in christmas_tree.js) */
+#christmasTree .ct-test-bar {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border: 1px dashed #7a5200;
+  border-radius: 4px;
+  background: #fff6d8;
+  line-height: 2;
+}
+#christmasTree .ct-test-bar label {
+  margin: 0 4px 0 0;
+  font-weight: normal;
+}
+#christmasTree .ct-test-bar input[type="date"] {
+  padding: 1px 4px;
+  font-size: 0.95em;
+}
+#christmasTree .ct-test-bar .ct-meaning {
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* WBE's Dark Mode gives every div, p, span, heading and strong a grey background and pale text, and every button a
+   white border, all !important. Keep the Christmas colours, on a deep pine green; "html body" outranks its rules. */
+html body.darkMode #christmasTree {
+  background: #18261f !important;
+  color: #e8e6da !important;
+}
+html body.darkMode #christmasTree div,
+html body.darkMode #christmasTree p,
+html body.darkMode #christmasTree span,
+html body.darkMode #christmasTree strong,
+html body.darkMode #christmasTree h2,
+html body.darkMode #christmasTree h3,
+html body.darkMode #christmasTree label,
+html body.darkMode #christmasTree li,
+html body.darkMode #christmasTree summary {
+  background-color: transparent !important;
+  color: inherit !important;
+}
+html body.darkMode #christmasTree .ct-header {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='36' viewBox='-30 -18 60 36'%3E%3Cg transform='translate(0,4) scale(1)' opacity='1'%3E%3Cpolygon points='0,0 6,-5 10,-2 15,-7 20,-3 26,-6 31,0 26,6 20,3 15,7 10,2 6,5' transform='rotate(-150)' fill='%231f6b3a'/%3E%3Cpolygon points='0,0 6,-5 10,-2 15,-7 20,-3 26,-6 31,0 26,6 20,3 15,7 10,2 6,5' transform='rotate(-30)' fill='%2322783f'/%3E%3Ccircle cx='-3' cy='2' r='3.6' fill='%23ffffff'/%3E%3Ccircle cx='3.5' cy='1.5' r='3.6' fill='%23ffffff'/%3E%3Ccircle cx='0' cy='-3.5' r='3.6' fill='%23ffffff'/%3E%3C/g%3E%3C/svg%3E")
+      no-repeat right 40px center,
+    linear-gradient(180deg, #c8283a 0%, #a51c2c 100%) !important;
+}
+html body.darkMode #christmasTree .ct-header h2 {
+  color: #fff !important;
+}
+html body.darkMode #christmasTree .close-popup {
+  border: none !important;
+  color: #fff !important;
+}
+html body.darkMode #christmasTree .ct-sources {
+  background: #1f6b3a !important;
+}
+html body.darkMode #christmasTree .ct-source {
+  border: none !important;
+  border-bottom: 3px solid transparent !important;
+}
+html body.darkMode #christmasTree .ct-source[aria-pressed="true"] {
+  border-bottom-color: #fff !important;
+  color: #fff !important;
+}
+html body.darkMode #christmasTree .ct-body {
+  background: #18261f
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cg transform='translate(40,48) scale(0.9)' opacity='0.13'%3E%3Cpolygon points='0,0 6,-5 10,-2 15,-7 20,-3 26,-6 31,0 26,6 20,3 15,7 10,2 6,5' transform='rotate(-150)' fill='%231f6b3a'/%3E%3Cpolygon points='0,0 6,-5 10,-2 15,-7 20,-3 26,-6 31,0 26,6 20,3 15,7 10,2 6,5' transform='rotate(-30)' fill='%2322783f'/%3E%3Ccircle cx='-3' cy='2' r='3.6' fill='%23c8283a'/%3E%3Ccircle cx='3.5' cy='1.5' r='3.6' fill='%23c8283a'/%3E%3Ccircle cx='0' cy='-3.5' r='3.6' fill='%23c8283a'/%3E%3C/g%3E%3Cg transform='translate(160,150) scale(0.75)' opacity='0.11'%3E%3Cpolygon points='0,0 6,-5 10,-2 15,-7 20,-3 26,-6 31,0 26,6 20,3 15,7 10,2 6,5' transform='rotate(-150)' fill='%231f6b3a'/%3E%3Cpolygon points='0,0 6,-5 10,-2 15,-7 20,-3 26,-6 31,0 26,6 20,3 15,7 10,2 6,5' transform='rotate(-30)' fill='%2322783f'/%3E%3Ccircle cx='-3' cy='2' r='3.6' fill='%23c8283a'/%3E%3Ccircle cx='3.5' cy='1.5' r='3.6' fill='%23c8283a'/%3E%3Ccircle cx='0' cy='-3.5' r='3.6' fill='%23c8283a'/%3E%3C/g%3E%3Cg transform='translate(150,40)' stroke='%237fa7c9' stroke-width='1.4' stroke-linecap='round' opacity='0.25'%3E%3Cpath d='M0 -8V8M-7.0 -4.0L7.0 4.0M-7.0 4.0L7.0 -4.0'/%3E%3C/g%3E%3Cg transform='translate(60,160)' stroke='%237fa7c9' stroke-width='1.4' stroke-linecap='round' opacity='0.22'%3E%3Cpath d='M0 -6V6M-5.2 -3.0L5.2 3.0M-5.2 3.0L5.2 -3.0'/%3E%3C/g%3E%3Cg transform='translate(110,100)' stroke='%237fa7c9' stroke-width='1.4' stroke-linecap='round' opacity='0.2'%3E%3Cpath d='M0 -4V4M-3.5 -2.0L3.5 2.0M-3.5 2.0L3.5 -2.0'/%3E%3C/g%3E%3Cg transform='translate(200,200)' stroke='%237fa7c9' stroke-width='1.4' stroke-linecap='round' opacity='0.2'%3E%3Cpath d='M0 -5V5M-4.3 -2.5L4.3 2.5M-4.3 2.5L4.3 -2.5'/%3E%3C/g%3E%3C/svg%3E") !important;
+}
+html body.darkMode #christmasTree h3 {
+  color: #9ad7a8 !important;
+}
+html body.darkMode #christmasTree .ct-status,
+html body.darkMode #christmasTree .ct-meaning,
+html body.darkMode #christmasTree .ct-about,
+html body.darkMode #christmasTree .ct-row-count,
+html body.darkMode #christmasTree .ct-years {
+  color: #b5b8a8 !important;
+}
+html body.darkMode #christmasTree .ct-score strong,
+html body.darkMode #christmasTree .ct-door-job strong,
+html body.darkMode #christmasTree .ct-edit {
+  color: #ff8a94 !important;
+}
+html body.darkMode #christmasTree .ct-row-link {
+  border: none !important;
+  color: #9fd0ff !important;
+}
+html body.darkMode #christmasTree .ct-door-panel {
+  background: #2c1d20 !important;
+  border-color: #5a3a3e !important;
+  border-left-color: #d3263a !important;
+}
+html body.darkMode #christmasTree .ct-door-thanks {
+  color: #9ad7a8 !important;
+}
+html body.darkMode #christmasTree .ct-door-note {
+  color: #ffd98a !important;
+}
+html body.darkMode #christmasTree .ct-row-people:not(:empty) {
+  background: #20332a !important;
+  border-color: #33503f !important;
+}
+html body.darkMode #christmasTree .ct-test-bar {
+  background: #3a3320 !important;
+  border-color: #b08a3a !important;
+}
+html body.darkMode #christmasTree .ct-group {
+  border-top-color: #33443a;
+}
+html body.darkMode #christmasTree .ct-door {
+  border: 1px solid #8a1622 !important;
+}
+html body.darkMode #christmasTree .ct-door .ct-door-number,
+html body.darkMode #christmasTree .ct-door .ct-door-mark {
+  color: inherit !important;
+}
+html body.darkMode #christmasTree .ct-door-locked {
+  border-color: #6e2a31 !important;
+  color: rgba(255, 228, 170, 0.7) !important;
+}
+html body.darkMode #christmasTree .ct-door-ready {
+  border: 2px solid #ffd166 !important;
+  color: #fff !important;
+}
+html body.darkMode #christmasTree .ct-door-open {
+  border-color: #d9a520 !important;
+  color: #7a5200 !important;
+}
+html body.darkMode #christmasTree .ct-door-done {
+  border-color: #134d2a !important;
+  color: #fff !important;
+}
+html body.darkMode #christmasTree .ct-door-christmas {
+  border: 2px solid #e0b040 !important;
+}

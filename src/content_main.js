@@ -181,6 +181,7 @@ import "./features/draftList/draftList";
 import "./features/edit_family_data/edit_family_data";
 import "./features/edit_profile_redesign/edit_profile_redesign";
 import "./features/editor_expander/editor_expander";
+import "./features/christmas_tree/christmas_tree_bootstrap";
 import "./features/haunted_tree/haunted_tree_bootstrap";
 import "./features/image_table/image_table_bootstrap";
 import "./features/randomProfile/randomProfile";

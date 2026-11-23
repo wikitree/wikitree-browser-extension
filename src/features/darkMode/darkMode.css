@@ -491,9 +491,18 @@
   body.darkMode .familyCount15,
   body.darkMode span.HISTORY-DATE,
   body.darkMode span.THANKYOU-DATE,
+  body.darkMode .qa-part-q-view .qa-netvote-count-data,
+  body.darkMode .qa-part-q-view .qa-netvote-count-pad,
+  body.darkMode .qa-q-item-stats .qa-netvote-count-data,
+  body.darkMode .qa-q-item-stats .qa-netvote-count-pad,
+  body.darkMode .qa-q-view-stats .qa-netvote-count-data,
+  body.darkMode .qa-q-view-stats .qa-netvote-count-pad {
+    color: #36393f !important;
+  }
+  /* Answers' and comments' vote counts sit on the dark page, not in a light green box */
   body.darkMode .qa-netvote-count-data,
   body.darkMode .qa-netvote-count-pad {
-    color: #36393f !important;
+    color: #dedecb !important;
   }
   body.profile.darkMode div.small_0 {
     background-color: #ffe183 !important;
@@ -760,5 +769,23 @@
      match the page. Give it the same light green as the recoloured SVG icons (e.g. the connection icon). */
   body.darkMode .icon--email:not(#dummyID) {
     background-color: #a5d167 !important;
+  }
+
+  /* G2G posts often hold text pasted from other pages, with its colours inline (#wbeNone outranks the rules above).
+     Dark text with no background of its own would vanish on the dark page: give it the Dark Mode text colour. */
+  body.darkMode .qa-post-content [style*="color"]:not([style*="background"], [style*="background"] *, a, #wbeNone) {
+    color: #dedecb !important;
+  }
+  /* A pasted block with its own light background keeps it, so leave its text as the author coloured it: no dark
+     patches behind its spans and links, and no light text on the light box. */
+  body.darkMode
+    .qa-post-content
+    [style*="background"]
+    :is(span, p, div, li, strong, b, em, i, u, small, a):not(#wbeNone) {
+    background-color: transparent !important;
+    color: inherit !important;
+  }
+  body.darkMode .qa-post-content [style*="background"] a:not(#wbeNone) {
+    color: #0645ad !important;
   }
 }
