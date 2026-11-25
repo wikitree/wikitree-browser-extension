@@ -157,7 +157,7 @@ function getAppsMenuItems() {
   const profileID = profilePerson?.Name;
   return [
     { title: "Tree Apps", url: "https://www.wikitree.com/wiki/Help:Tree_Apps" },
-    { title: "Ancestor Explorer", url: "https://apps.wikitree.com/apps/ashley1950/ancestorexplorer" },
+    { title: "Ancestor Explorer", url: "https://apps.wikitree.com/apps/ashley1950/ancestorexplorer/" },
     { title: "Ancestry Citation Builder", url: "https://apps.wikitree.com/apps/clarke11007/ancite.php" },
     { title: "Antenati Citation Builder", url: "https://apps.wikitree.com/apps/clarke11007/antenati.php" },
     {
@@ -178,7 +178,7 @@ function getAppsMenuItems() {
     { title: "RSS Feed Maker", url: "https://apps.wikitree.com/apps/beacall6/rss_feed_maker.html" },
     { title: "SixDegrees", url: `https://apps.wikitree.com/apps/clarke11007/SixDegrees.php?id=${userName}` },
     { title: "Surnames Generator", url: "https://apps.wikitree.com/apps/clarke11007/surnames.php" },
-    { title: "Swedish Reference Creation Tools", url: "https://apps.wikitree.com/apps/lundholm24/ref-making" },
+    { title: "Swedish Reference Creation Tools", url: "https://apps.wikitree.com/apps/lundholm24/ref-making/" },
     { title: "Topola Genealogy Viewer", url: "https://apps.wikitree.com/apps/wiech13/topola-viewer/" },
     { title: "Watchlist", url: `https://apps.wikitree.com/apps/beacall6/watchlist/` },
     { title: "WikiTree+", url: "https://plus.wikitree.com/default.htm" },
