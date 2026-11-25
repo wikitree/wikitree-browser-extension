@@ -13,6 +13,8 @@ Plain JavaScript, copied as it is (not bundled), so it loads straight away.
   const host = window.location.hostname;
   // Presentation Mode doesn't run on WikiTree+ or on the API server, so it mustn't hide them.
   if (/^(plus|api)\./.test(host) || document.documentElement.hasAttribute("data-wbe-pm-early")) return;
+  // content.js leaves XML pages (RSS feeds) alone too, so nothing would show the page again.
+  if (/[/+]xml$/i.test(document.contentType || "")) return;
   // In a frame (the profile's tree widget, for example), the page around it does the checking and shows the frame
   // again. That works only when the page around it is on the same site; otherwise leave the frame alone (the
   // page around it blurs the whole frame if it is a WikiTree page).

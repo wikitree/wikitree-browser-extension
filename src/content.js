@@ -19,9 +19,16 @@
 // fetch is introduced. A dynamic import() would make the whole extension depend on
 // runtime chunk loading, which has no working fallback here (public/background.js
 // handles no WTW_INJECT message).
+
+// XML pages (an RSS feed on apps.wikitree.com, say) have no HTML for the features to work on, and jQuery can't build
+// HTML in an XML document: the modules that do so as they load would throw and stop everything after them.
+const isXmlPage = /[/+]xml$/i.test(document?.contentType || "");
+
 const alreadyLoaded = window.__wbeContentLoaded || document?.documentElement?.hasAttribute("data-wbe-content-loaded");
 
-if (alreadyLoaded) {
+if (isXmlPage) {
+  // Nothing to do here.
+} else if (alreadyLoaded) {
   // Name the copy that stood down: with two versions installed the loser is
   // completely inert, and "why is Preview doing nothing?" is otherwise a mystery.
   const me = chrome?.runtime?.getManifest?.();
