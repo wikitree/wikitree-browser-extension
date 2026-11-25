@@ -203,13 +203,23 @@ describe("checkDoors and the star", () => {
 });
 
 describe("checkDoors keeps names and years up to date", () => {
-  const door = { door: 10, Id: 5, Name: "Smith-1", LongName: "William Smith", years: "1807–?", job: "skeleton", done: false };
+  const door = {
+    door: 10,
+    Id: 5,
+    Name: "Smith-1",
+    LongName: "William Smith",
+    years: "1807–?",
+    job: "skeleton",
+    done: false,
+  };
   it("takes them from the kept people", () => {
     const people = [{ Id: 5, Name: "Smith-1", LongName: "William Smith", years: "1811–?", groups: ["skeleton"] }];
     expect(checkDoors([door], people)[0]).toMatchObject({ years: "1811–?", done: false });
   });
   it("takes them from the fresh profile when the person is no longer kept", () => {
-    const fresh = [{ Id: 5, Name: "Smith-1", LongName: "William Smith", BirthDate: "1811-00-00", DeathDate: "1880-05-01" }];
+    const fresh = [
+      { Id: 5, Name: "Smith-1", LongName: "William Smith", BirthDate: "1811-00-00", DeathDate: "1880-05-01" },
+    ];
     expect(checkDoors([door], [], fresh)[0]).toMatchObject({ years: "1811–1880", done: true });
   });
 });

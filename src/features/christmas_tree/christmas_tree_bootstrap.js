@@ -1,4 +1,4 @@
-// Loads Christmas Tree (chunk "christmas-tree") where it's enabled. Once Twelfth Night is over it switches itself off,
+// Loads Christmas Tree (chunk "christmas-tree") where it's enabled. Once 7 January is over it switches itself off,
 // once (see christmas_tree_season.js), and while it's off out of season the first page load clears away what it saved.
 import { loadFeatureWhereEnabled } from "../../core/options/lazy_feature";
 import { CHRISTMAS_MARK, christmasSwitch, isChristmasSeason } from "./christmas_tree_season";

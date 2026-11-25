@@ -44,8 +44,16 @@ test("on, Twelfth Night: still loads", () => {
   });
 });
 
-test("7 January: switched off, unmarked, and its scans cleared", () => {
-  expect(bootOn(new Date(2027, 0, 7, 0, 1), { christmasTree: true, christmasTree_onAtChristmas: true })).toEqual({
+test("on, Orthodox Christmas (7 January): still loads", () => {
+  expect(bootOn(new Date(2027, 0, 7, 20), { christmasTree: true, christmasTree_onAtChristmas: true })).toEqual({
+    sync: { christmasTree: true, christmasTree_onAtChristmas: true },
+    loaded: true,
+    cleared: false,
+  });
+});
+
+test("8 January: switched off, unmarked, and its scans cleared", () => {
+  expect(bootOn(new Date(2027, 0, 8, 0, 1), { christmasTree: true, christmasTree_onAtChristmas: true })).toEqual({
     sync: { christmasTree: false },
     loaded: false,
     cleared: true,
