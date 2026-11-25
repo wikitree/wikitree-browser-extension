@@ -115,23 +115,68 @@ shouldInitializeFeature("appsMenu").then((result) => {
   }
 });
 
+// WikiTree renders the top menu twice: once in the desktop header and again in #offcanvasNavbar,
+// the panel the hamburger button opens on narrow screens. The desktop copy comes first.
 function getLink(href) {
-  return $(`nav a[href$='/wiki/${href}']`).eq(0);
+  return $(`nav a[href$='/wiki/${href}']`).not("#offcanvasNavbar a").eq(0);
 }
 
-function attachMenu(anchorHref, submenuId, menuItems) {
-  const menuList = $("<menu>", {
-    class: "subMenu",
-    id: submenuId,
-  });
+function getOffcanvasLink(href) {
+  return $(`#offcanvasNavbar nav a[href$='/wiki/${href}']`).eq(0);
+}
 
+function buildMenuList(menuItems, attrs) {
+  const menuList = $("<menu>", attrs);
   menuItems.forEach((item) => {
-    const menuItemLink = $("<a>", {
+    $("<a>", {
       class: "dropdown-item",
       href: item.url,
       text: item.title,
-    });
-    menuItemLink.appendTo(menuList);
+    }).appendTo(menuList);
+  });
+  return menuList;
+}
+
+// The hamburger menu is used by touch, where the desktop's hover fly-out can't work and would open
+// off the left edge of the panel anyway. So there the submenu opens inline, below its link, from
+// a chevron button; tapping the link itself still goes to its page as before.
+function attachOffcanvasMenu(anchorHref, submenuId, menuItems) {
+  const theLink = getOffcanvasLink(anchorHref);
+  if (!theLink.length || theLink.siblings(".wbeMobileSubMenuToggle").length) return;
+  const menuLink = theLink.parent().addClass("wbeMobileSubMenuParent");
+  theLink.addClass("wbe");
+
+  const menuList = buildMenuList(menuItems, {
+    class: "wbeMobileSubMenu",
+    id: `${submenuId}Mobile`,
+    hidden: true,
+  });
+  const toggle = $("<button>", {
+    type: "button",
+    class: "wbeMobileSubMenuToggle",
+    "aria-expanded": "false",
+    "aria-controls": menuList.attr("id"),
+    "aria-label": `Show ${theLink.text().trim()} links`,
+  });
+
+  toggle.on("click", (event) => {
+    // Bootstrap closes the dropdown on any click that reaches the document.
+    event.preventDefault();
+    event.stopPropagation();
+    const open = menuList.prop("hidden");
+    menuList.prop("hidden", !open);
+    toggle.attr("aria-expanded", String(open));
+  });
+
+  menuLink.append(toggle, menuList);
+}
+
+function attachMenu(anchorHref, submenuId, menuItems) {
+  attachOffcanvasMenu(anchorHref, submenuId, menuItems);
+
+  const menuList = buildMenuList(menuItems, {
+    class: "subMenu",
+    id: submenuId,
   });
 
   const theLink = getLink(anchorHref);
