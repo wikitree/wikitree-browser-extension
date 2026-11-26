@@ -52,7 +52,7 @@ const PEOPLE_BATCH = 100;
 // Public (50) and Open (60) profiles have nothing private.
 const PUBLIC_PRIVACY = 50;
 // Bumped when the way facts are worked out changes, so lists built the old way are rebuilt.
-const FACTS_VERSION = 4;
+const FACTS_VERSION = 5;
 const FIELDS = [
   "Id",
   "Name",

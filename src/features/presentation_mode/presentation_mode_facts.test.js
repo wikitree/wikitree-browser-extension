@@ -158,7 +158,7 @@ describe("close family", () => {
     expect(facts[0].privateWords).toEqual(expect.arrayContaining(["ian", "example"]));
   });
 
-  test("hides living spouses, and living parents, siblings and children who aren't members", () => {
+  test("hides living spouses, siblings and children, and living parents who aren't members", () => {
     const me = { Id: 1, Father: 2, Mother: 3, IsLiving: 1, IsMember: 1 };
     const people = {
       1: me,
@@ -170,8 +170,9 @@ describe("close family", () => {
       7: { Id: 7, Father: 1, Mother: 5, IsLiving: 1, IsMember: 0 }, // child (orange)
       8: { Id: 8, Father: 1, Mother: 5, IsLiving: 1, IsMember: 1 }, // child who is a member
       9: { Id: 9, Father: 0, Mother: 0, IsLiving: 0, IsMember: 0 }, // late spouse
+      10: { Id: 10, Father: 2, Mother: 3, IsLiving: 1, IsMember: 1 }, // sibling who is a member
     };
-    expect(closeFamilyToHide(people, 1).sort((a, b) => a - b)).toEqual([4, 5, 6, 7]);
+    expect(closeFamilyToHide(people, 1).sort((a, b) => a - b)).toEqual([4, 5, 6, 7, 8, 10]);
     expect(closeFamilyToHide({ 4: people[4] }, 1)).toEqual([]);
   });
 });

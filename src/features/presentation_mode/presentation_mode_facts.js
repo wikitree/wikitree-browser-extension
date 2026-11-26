@@ -12,9 +12,9 @@ The privacy level comes first, though: Public (50) and Open (60) profiles hide n
 everything, and for the Private levels (20-40) the comparison says which details the public can't see. If WikiTree
 doesn't send the public view, the public is taken to see the name without middle names or nicknames.
 
-The member's own living close family are hidden whole, whatever their privacy level, as if Unlisted: a spouse
-always, and parents, siblings and children unless they are members themselves. The public can see a Private
-child's name, but nobody presenting their tree wants it on the screen.
+The member's own living close family are hidden whole, whatever their privacy level, as if Unlisted: spouses,
+siblings and children always, and parents unless they are members themselves. The public can see a Private
+child's name, but nobody presenting their tree wants it on the screen, even when that child is a member.
 */
 
 const UNLISTED = 10;
@@ -217,7 +217,7 @@ export function privateFactsFromPeople(authedPeople, anonPeople, hideWholeIds = 
 }
 
 /**
- * The member's living close family to hide whole: spouses, and parents, siblings and children who aren't members.
+ * The member's living close family to hide whole: spouses, siblings and children, and parents who aren't members.
  * @param {Object} people getPeople's `people` for the member with nuclear=1 (Id, Father, Mother, IsLiving,
  *   IsMember), with the member themself merged in (nuclear sometimes leaves them out)
  * @param {number} userId The member's own Id
@@ -233,14 +233,8 @@ export function closeFamilyToHide(people, userId) {
   for (const person of all) {
     const id = Number(person.Id);
     if (id === me || Number(person.IsLiving) !== 1) continue;
-    const father = Number(person.Father);
-    const mother = Number(person.Mother);
-    const isParent = parents.has(id);
-    const isChild = father === me || mother === me;
-    const isSibling = !isParent && !isChild && (parents.has(father) || parents.has(mother));
-    // In a nuclear=1 answer everyone else is a spouse.
-    const isSpouse = !isParent && !isChild && !isSibling;
-    if (isSpouse || Number(person.IsMember) !== 1) ids.push(id);
+    // In a nuclear=1 answer everyone else is a spouse, sibling or child, all hidden.
+    if (!parents.has(id) || Number(person.IsMember) !== 1) ids.push(id);
   }
   return ids;
 }
